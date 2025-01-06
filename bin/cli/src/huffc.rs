@@ -6,6 +6,7 @@
 #![forbid(unsafe_code)]
 #![allow(deprecated)]
 
+use atty::Stream;
 use clap::{App, CommandFactory, Parser as ClapParser, Subcommand};
 use comfy_table::{modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL, Cell, Color, Row, Table};
 use ethers_core::utils::hex;
@@ -22,7 +23,6 @@ use huff_neo_utils::{
         CompilerError, EVMVersion, FileSource, Literal, OutputLocation, Span,
     },
 };
-use isatty::stdout_isatty;
 use spinners::{Spinner, Spinners};
 use std::{collections::BTreeMap, io::Write, path::Path, rc::Rc, sync::Arc, time::Instant};
 use yansi::Paint;
@@ -125,7 +125,7 @@ enum TestCommands {
 pub(crate) fn get_input(prompt: &str) -> String {
     // let mut sp = Spinner::new(Spinners::Line, format!("{}{}",
     // Paint::blue("[INTERACTIVE]".to_string()), prompt));
-    print!("{} {prompt} ", Paint::blue("[INTERACTIVE]".to_string()));
+    print!("{} {prompt} ", Paint::blue(&"[INTERACTIVE]".to_string()));
     let mut input = String::new();
     let _ = std::io::stdout().flush();
     let _ = std::io::stdin().read_line(&mut input);
@@ -156,7 +156,7 @@ fn main() {
     let sources: Arc<Vec<String>> = match cli.get_inputs() {
         Ok(s) => Arc::new(s),
         Err(e) => {
-            eprintln!("{}", Paint::red(format!("{e}")));
+            eprintln!("{}", Paint::red(&format!("{e}")));
             std::process::exit(1);
         }
     };
@@ -176,7 +176,7 @@ fn main() {
                     || !parts[1].starts_with("0x")
                     || parts[1][2..].chars().any(|c| !(c.is_numeric() || matches!(c, '\u{0041}'..='\u{0046}' | '\u{0061}'..='\u{0066}')))
                 {
-                    eprintln!("Invalid constant override argument: {}", Paint::red(c.to_string()));
+                    eprintln!("Invalid constant override argument: {}", Paint::red(&c.to_string()));
                     std::process::exit(1);
                 }
 
@@ -280,7 +280,7 @@ fn main() {
             }
             Err(e) => {
                 tracing::error!(target: "cli", "PARSER ERRORED!");
-                eprintln!("{}", Paint::red(e));
+                eprintln!("{}", Paint::red(&e));
                 std::process::exit(1);
             }
         }
@@ -301,7 +301,7 @@ fn main() {
                             print_test_report(res, ReportKind::from(&format), start);
                         }
                         Err(e) => {
-                            eprintln!("{}", Paint::red(e));
+                            eprintln!("{}", Paint::red(&e));
                             std::process::exit(1);
                         }
                     };
@@ -309,7 +309,7 @@ fn main() {
             }
             Err(e) => {
                 tracing::error!(target: "cli", "PARSER ERRORED!");
-                eprintln!("{}", Paint::red(e));
+                eprintln!("{}", Paint::red(&e));
                 std::process::exit(1);
             }
         }
@@ -320,7 +320,7 @@ fn main() {
     tracing::debug!(target: "cli", "[⠔] COMPILING");
     let mut sp: Option<Spinner> = None;
     // If stdout is a TTY, create a spinner
-    if stdout_isatty() {
+    if atty::is(Stream::Stdout) {
         sp = Some(Spinner::new(Spinners::Dots, "Compiling...".into()));
     }
 
@@ -355,7 +355,7 @@ fn main() {
                     token: None,
                 });
                 tracing::error!(target: "cli", "COMPILER ERRORED: {}", e);
-                eprintln!("{}", Paint::red(format!("{e}")));
+                eprintln!("{}", Paint::red(&format!("{e}")));
                 std::process::exit(1);
             }
 
@@ -385,7 +385,7 @@ fn main() {
                     tracing::info!(target: "cli", "GENERATED SOLIDITY INTERFACES FROM ARTIFACTS SUCCESSFULLY");
                     println!(
                         "Exported Solidity Interfaces: {}",
-                        Paint::blue(interfaces.into_iter().map(|(_, i, _)| format!("{i}.sol")).collect::<Vec<_>>().join(", "))
+                        Paint::blue(&interfaces.into_iter().map(|(_, i, _)| format!("{i}.sol")).collect::<Vec<_>>().join(", "))
                     );
                 } else {
                     tracing::error!(target: "cli", "FAILED TO GENERATE SOLIDITY INTERFACES FROM ARTIFACTS");
@@ -404,7 +404,7 @@ fn main() {
                                 Some(ref args) => {
                                     println!(
                                         "{} Constructor Arguments for Contract: \"{}\"",
-                                        Paint::blue("[INTERACTIVE]".to_string()),
+                                        Paint::blue(&"[INTERACTIVE]".to_string()),
                                         artifact.file.path
                                     );
                                     for input in &args.inputs {
@@ -470,7 +470,7 @@ fn main() {
         }
         Err(e) => {
             tracing::error!(target: "cli", "COMPILER ERRORED: {}", e);
-            eprintln!("{}", Paint::red(format!("{e}")));
+            eprintln!("{}", Paint::red(&format!("{e}")));
             std::process::exit(1);
         }
     }
