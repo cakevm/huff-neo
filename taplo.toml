@@ -1,0 +1,22 @@
+include = ["crates/**/Cargo.toml", "bin/**/Cargo.toml", "deny.toml", "rust-toolchain.toml", "rustfmt.toml"]
+
+
+[formatting]
+align_comments = false
+allowed_blank_lines = 2
+array_trailing_comma = true
+column_width = 140
+compact_arrays = true
+reorder_arrays = true
+reorder_keys =   true
+
+[[rule]]
+# Do not reorder to keep name and version on top
+keys = ["package"]
+formatting = { reorder_keys = false }
+
+[[rule]]
+keys = ["package", "build-dependencies", "dependencies", "dev-dependencies", "features"]
+
+[[rule]]
+keys = ["workspace.package", "workspace.dependencies", "profile.test", "profile.release", "profile.maxperf"]

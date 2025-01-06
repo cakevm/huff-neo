@@ -1,0 +1,19 @@
+[package]
+name = "huff-neo-parser"
+version.workspace = true
+edition.workspace = true
+readme.workspace = true
+repository.workspace = true
+license.workspace = true
+description = """
+Parser Crate for the Huff-Language
+"""
+keywords = ["bytecode", "compiler", "evm", "huff", "rust"]
+
+[dependencies]
+huff-neo-lexer.workspace = true
+huff-neo-utils.workspace = true
+
+hex.workspace = true
+regex.workspace = true
+tracing.workspace = true

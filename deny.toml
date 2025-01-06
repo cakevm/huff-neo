@@ -1,0 +1,33 @@
+[licenses]
+allow = [
+  # permissive licenses
+  "Apache-2.0",
+  "BSD-3-Clause",
+  "BSL-1.0",
+  "MIT",
+  "Unicode-DFS-2016",
+  "Unlicense",
+  # permissive license with unclear patent grant
+  "CC0-1.0",
+]
+
+# Clearify licence: https://github.com/briansmith/ring/issues/902
+# Plan to remove OpenSSL: https://github.com/briansmith/ring/issues/1827
+[[licenses.clarify]]
+expression = "ISC AND MIT AND OpenSSL"
+license-files = [{ path = "LICENSE", hash = 0xbd0eed23 }]
+name = "ring"
+
+[advisories]
+ignore = [
+  # Ignore until all dependencies are updated
+  "RUSTSEC-2021-0127",
+  "RUSTSEC-2021-0145",
+  "RUSTSEC-2024-0019",
+  "RUSTSEC-2024-0370",
+  "RUSTSEC-2024-0375",
+]
+yanked = "allow"
+
+[bans]
+multiple-versions = "allow"

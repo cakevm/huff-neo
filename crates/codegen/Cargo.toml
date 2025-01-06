@@ -1,0 +1,21 @@
+[package]
+name = "huff-neo-codegen"
+version.workspace = true
+edition.workspace = true
+readme.workspace = true
+repository.workspace = true
+license.workspace = true
+description = """
+Bytecode Generation Crate for the Huff-Language
+"""
+keywords = ["bytecode", "compiler", "ethereum", "huff", "rust"]
+
+[dependencies]
+huff-neo-utils.workspace = true
+
+ethers-core.workspace = true
+hex.workspace = true
+regex.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+uuid.workspace = true
