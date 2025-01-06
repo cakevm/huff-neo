@@ -1,9 +1,8 @@
-use ethers_core::{
-    abi::{Token, Tokenizable},
-    types::*,
-};
+use alloy_dyn_abi::{DynSolValue, Word};
+use alloy_primitives::{Address, I256, U256};
 use huff_neo_codegen::Codegen;
 use huff_neo_utils::bytes_util::*;
+use std::str::FromStr;
 
 #[test]
 fn encode_simple_constructor_args() {
@@ -24,13 +23,13 @@ fn encode_simple_constructor_args() {
     .collect();
 
     let results = Codegen::encode_constructor_args(args);
-    assert_eq!(results[0], Token::String("Hello".to_string()));
-    assert_eq!(results[1], Token::Uint(U256::from_dec_str("10000").unwrap()));
-    assert_eq!(results[2], Token::Bool(false));
-    assert_eq!(results[3], Token::Address(H160::from(expected_address)));
-    assert_eq!(results[4], Token::FixedBytes(expected_bytes32));
-    assert_eq!(results[5], "-10".parse::<i128>().unwrap().into_token());
-    assert_eq!(results[6], "+55".parse::<i128>().unwrap().into_token());
+    assert_eq!(results[0], DynSolValue::String("Hello".to_string()));
+    assert_eq!(results[1], DynSolValue::Uint(U256::from_str("10000").unwrap(), 256));
+    assert_eq!(results[2], DynSolValue::Bool(false));
+    assert_eq!(results[3], DynSolValue::Address(Address::from(expected_address)));
+    assert_eq!(results[4], DynSolValue::FixedBytes(Word::from_slice(&expected_bytes32), 32));
+    assert_eq!(results[5], DynSolValue::Int(I256::from_str("-10").unwrap(), 256));
+    assert_eq!(results[6], DynSolValue::Int(I256::from_str("+55").unwrap(), 256));
 }
 
 #[test]
@@ -54,16 +53,25 @@ fn encode_array_constructor_args() {
 
     assert_eq!(
         results[0],
-        Token::Array(vec![
-            Token::Uint(U256::from_dec_str("100").unwrap()),
-            Token::Uint(U256::from_dec_str("200").unwrap()),
-            Token::Uint(U256::from_dec_str("300").unwrap()),
+        DynSolValue::Array(vec![
+            DynSolValue::Uint(U256::from_str("100").unwrap(), 256),
+            DynSolValue::Uint(U256::from_str("200").unwrap(), 256),
+            DynSolValue::Uint(U256::from_str("300").unwrap(), 256),
         ])
     );
-    assert_eq!(results[1], Token::Array(vec![Token::Address(H160::from(expected_address)), Token::Address(H160::from(expected_address)),]));
-    assert_eq!(results[2], Token::Array(vec![Token::Bool(true), Token::Bool(false), Token::Bool(false),]));
-    let expected_array =
-        Token::Array(vec![Token::String("Hello".to_string()), Token::String("World".to_string()), Token::String("Yes".to_string())]);
+    assert_eq!(
+        results[1],
+        DynSolValue::Array(vec![
+            DynSolValue::Address(Address::from(expected_address)),
+            DynSolValue::Address(Address::from(expected_address)),
+        ])
+    );
+    assert_eq!(results[2], DynSolValue::Array(vec![DynSolValue::Bool(true), DynSolValue::Bool(false), DynSolValue::Bool(false),]));
+    let expected_array = DynSolValue::Array(vec![
+        DynSolValue::String("Hello".to_string()),
+        DynSolValue::String("World".to_string()),
+        DynSolValue::String("Yes".to_string()),
+    ]);
     assert_eq!(results[3], expected_array);
     assert_eq!(results[4], expected_array);
     assert_eq!(results[5], expected_array);
@@ -90,16 +98,25 @@ fn encode_missing_brackets_array_constructor_args() {
 
     assert_eq!(
         results[0],
-        Token::Array(vec![
-            Token::Uint(U256::from_dec_str("100").unwrap()),
-            Token::Uint(U256::from_dec_str("200").unwrap()),
-            Token::Uint(U256::from_dec_str("300").unwrap()),
+        DynSolValue::Array(vec![
+            DynSolValue::Uint(U256::from_str("100").unwrap(), 256),
+            DynSolValue::Uint(U256::from_str("200").unwrap(), 256),
+            DynSolValue::Uint(U256::from_str("300").unwrap(), 256),
         ])
     );
-    assert_eq!(results[1], Token::Array(vec![Token::Address(H160::from(expected_address)), Token::Address(H160::from(expected_address)),]));
-    assert_eq!(results[2], Token::Array(vec![Token::Bool(true), Token::Bool(false), Token::Bool(false),]));
-    let expected_array =
-        Token::Array(vec![Token::String("Hello".to_string()), Token::String("World".to_string()), Token::String("Yes".to_string())]);
+    assert_eq!(
+        results[1],
+        DynSolValue::Array(vec![
+            DynSolValue::Address(Address::from(expected_address)),
+            DynSolValue::Address(Address::from(expected_address)),
+        ])
+    );
+    assert_eq!(results[2], DynSolValue::Array(vec![DynSolValue::Bool(true), DynSolValue::Bool(false), DynSolValue::Bool(false),]));
+    let expected_array = DynSolValue::Array(vec![
+        DynSolValue::String("Hello".to_string()),
+        DynSolValue::String("World".to_string()),
+        DynSolValue::String("Yes".to_string()),
+    ]);
     assert_eq!(results[3], expected_array);
     assert_eq!(results[4], expected_array);
     assert_eq!(results[5], expected_array);

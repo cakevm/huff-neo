@@ -11,12 +11,11 @@ Lexical Analysis Crate for the Huff-Language
 keywords = ["bytecode", "compiler", "evm", "huff", "rust"]
 
 [dependencies]
+alloy-dyn-abi.workspace = true
+alloy-primitives.workspace = true
 cfg-if.workspace = true
-codemap-diagnostic.workspace = true
-ethers-core.workspace = true
 itertools.workspace = true
 lazy_static.workspace = true
-pathdiff.workspace = true
 phf.workspace = true
 regex.workspace = true
 serde.workspace = true
