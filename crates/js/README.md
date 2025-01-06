@@ -8,13 +8,13 @@ A wasm compatible interface to the [Huff](https://huff.sh) Core Compiler.
 
 ```bash
 # Targeting a bundler (e.g. webpack)
-wasm-pack build --out-name huffc --target bundler
+wasm-pack build --out-name huff-neo --target bundler
 
 # Targeting a browser
-wasm-pack build --out-name huffc --target browser
+wasm-pack build --out-name huff-neo --target browser
 
 # Targeting nodejs
-wasm-pack build --out-name huffc --target nodejs
+wasm-pack build --out-name huff-neo --target nodejs
 ```
 
 The generated module will be output to a `pkg` directory.

@@ -4,13 +4,13 @@ members = [
   "crates/codegen",
   "crates/lexer",
   "crates/utils",
-  "bin/cli",
+  "bin/huff-neo",
   "crates/parser",
   "crates/js",
   "crates/tests"
 ]
 exclude = [ "assets", "huff-neo-up", "huff-examples" ]
-default-members = ["bin/cli"]
+default-members = ["bin/huff-neo"]
 resolver = "2"
 
 [workspace.package]

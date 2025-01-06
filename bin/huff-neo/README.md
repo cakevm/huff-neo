@@ -1,15 +1,15 @@
 # Huff CLI
 
-The `huffc` CLI is written using [clap's](https://docs.rs/clap) [derive feature](https://docs.rs/clap/latest/clap/_derive/index.html).
+The `huff-neo` CLI is written using [clap's](https://docs.rs/clap) [derive feature](https://docs.rs/clap/latest/clap/_derive/index.html).
 
-## huffc
+## huff-neo
 
 ```
-huffc 0.3.2
+huff-neo 0.0.1
 Huff Language Compiler built in Pure Rust.
 
 USAGE:
-    huffc [OPTIONS] [PATH] [SUBCOMMAND]
+    huff-nei [OPTIONS] [PATH] [SUBCOMMAND]
 
 ARGS:
     <PATH>    The contract(s) to compile
@@ -74,20 +74,20 @@ OPTIONS:
 
 ```
 
-_NOTE: To generate the above output, run: `huffc --help`_
+_NOTE: To generate the above output, run: `huff-neo --help`_
 
 ## Usage
 
-To run `huffc` from the command line, you can simply run:
+To run `huff-neo` from the command line, you can simply run:
 
 ```bash
-huffc --help
+huff-neo --help
 ```
 
-By default, huffc will attempt to compile all contracts in the `contracts` directory. If there is no `contracts` directory present, the following will spit out an error like so:
+By default, huff-neo will attempt to compile all contracts in the `contracts` directory. If there is no `contracts` directory present, the following will spit out an error like so:
 
 ```bash,color=red
-~ huffc
+~ huff-neo
 
 Error: Invalid File Directory ./contracts
 
@@ -97,51 +97,51 @@ Error: Invalid File Directory ./contracts
 
 The [huff-examples](https://github.com/huff-language/huff-examples) github repository is added as a submodule to this repo for testing.
 
-To run `huffc` against one of the examples, the path may simply be passed to `huffc`.
+To run `huff-neo` against one of the examples, the path may simply be passed to `huff-neo`.
 
 For example, to compile huff-example's [ERC20.huff](../../huff-examples/erc20/contracts/ERC20.huff) contract, run:
 
 ```bash
-huffc --bytecode ./huff-examples/erc20/contracts/ERC20.huff
+huff-neo --bytecode ./huff-examples/erc20/contracts/ERC20.huff
 ```
 
 _NOTE: The `--bytecode` flag will output the full deploy bytecode._
 
-`huffc` also supports tracing using the [`tracing`](https://docs.rs/tracing/0.1.29/tracing/) crate. To produce a verbose output using tracing, append the `--verbose` or `-v` flag like so:
+`huff-neo` also supports tracing using the [`tracing`](https://docs.rs/tracing/0.1.29/tracing/) crate. To produce a verbose output using tracing, append the `--verbose` or `-v` flag like so:
 
 ```bash
-huffc --verbose --bytecode ./huff-examples/erc20/contracts/ERC20.huff
+huff-neo --verbose --bytecode ./huff-examples/erc20/contracts/ERC20.huff
 ```
 
 #### Specifying Artifact Outputs
 
-**By default**, `huffc` will export json build artifacts to a `./artifacts` directory. This can be overidden using the `--output-directory` flag or shorthand `-d` flag and specifying a string following. For example:
+**By default**, `huff-neo` will export json build artifacts to a `./artifacts` directory. This can be overidden using the `--output-directory` flag or shorthand `-d` flag and specifying a string following. For example:
 
 ```bash
-huffc -d ./output ./huff-examples/erc20/contracts/ERC20.huff
+huff-neo -d ./output ./huff-examples/erc20/contracts/ERC20.huff
 ```
 
 _NOTE: The huff cli will gracefully remove double and single quotes, so the following will also compile:_
 
 ```bash
-huffc -d "./output" './huff-examples/erc20/contracts/ERC20.huff'
+huff-neo -d "./output" './huff-examples/erc20/contracts/ERC20.huff'
 ```
 
 If a specific contract is specified for compiling (ie not a directory), a single `json` file may be specified as an output location for the contract artifact like so:
 
 ```bash
-huffc -o ./artifact.json ./huff-examples/erc20/contracts/ERC20.huff
+huff-neo -o ./artifact.json ./huff-examples/erc20/contracts/ERC20.huff
 ```
 
 **NOTE**: The following will _not_ compile since multiple artifacts cannot be output to the same artifact json file.
 
 ```bash
-huffc -o ./artifact.json ./contracts/
+huff-neo -o ./artifact.json ./contracts/
 ```
 
 #### Entering Constructor Arguments
 
-`huffc` supports passing in constructor arguments to the contract. This is done by passing in the `--interactive` (shorthand: `-n`) flag or passing the `--inputs` (shorthand: `-i`) flag.
+`huff-neo` supports passing in constructor arguments to the contract. This is done by passing in the `--interactive` (shorthand: `-n`) flag or passing the `--inputs` (shorthand: `-i`) flag.
 
 and passing in the arguments as a comma separated list.
 
@@ -159,7 +159,7 @@ For example, to compile a contract (let's call it `example.huff`) with the follo
 You can enter the arguments `(100, 0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef)` interactively by passing in the `-n` or `--interactive` flag like so:
 
 ```bash
-$ huffc -b -n ./contracts/example.huff
+$ huff-neo -b -n ./contracts/example.huff
 [INTERACTIVE] Constructor Arguments for Contract: "./contracts/example.huff"
 [INTERACTIVE] Enter a uint256 for constructor param: 100
 [INTERACTIVE] Enter a address for constructor param: 0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef
@@ -170,29 +170,29 @@ $ huffc -b -n ./contracts/example.huff
 Alternatively, you can enter the arguments as a comma separated list by using the `-i` or `--inputs` flag like so:
 
 ```bash
-$ huffc -b -i 100, 0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef ./contracts/example.huff
+$ huff-neo -b -i 100, 0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef ./contracts/example.huff
 335f0.....f30000000000000000000000000000000000000000000000000000000000000064000000000000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeef
 ```
 
 #### Other Options
 
 - `-v` or `--verbose`: Outputs detailed logs to the terminal using the [tracing](https://crates.io/crates/tracing) crate.
-- `-V` or `--version`: Prints the version of `huffc`.
+- `-V` or `--version`: Prints the version of `huff-neo`.
 - `-z` or `--optimize`: Optimizes the contract compilation - a work in progress.
 - `-g` or `--interface`: Generates a solidity interface for the contract.
 
-## Building huffc from source
+## Building huff-neo from source
 
-To run `huffc` from the command line, you can use the following command:
+To run `huff-neo` from the command line, you can use the following command:
 
 ```bash
-cargo run --bin huffc
+cargo run --bin huff-neo
 ```
 
-To pass arguments into the `huffc` binary, simply pass them in after a `--` flag. For example, to get the `huffc` version (a `-V` flag), you can run:
+To pass arguments into the `huff-neo` binary, simply pass them in after a `--` flag. For example, to get the `huff-neo` version (a `-V` flag), you can run:
 
 ```bash
-cargo run --bin huffc -- -V
+cargo run --bin huff-neo -- -V
 ```
 
 All commands specified in [Usage](#usage) are also available from source by passing them in after the `--` flag.

@@ -30,7 +30,7 @@ fn test_opcode_macro_args() {
     // Create main and constructor bytecode
     let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
 
-    // Full expected bytecode output (generated from huffc) (placed here as a reference)
+    // Full expected bytecode output (generated from huff-neo) (placed here as a reference)
     let expected_bytecode = "60088060093d393df360ff3d5260203df3";
 
     // Create bytecode
@@ -68,7 +68,7 @@ fn test_all_opcodes_in_macro_args() {
         // Create main and constructor bytecode
         let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
 
-        // Full expected bytecode output (generated from huffc) (placed here as a reference)
+        // Full expected bytecode output (generated from huff-neo) (placed here as a reference)
         let expected_bytecode = format!("60088060093d393df360ff{}", Opcode::from_str(o).unwrap());
 
         // Create bytecode
@@ -106,7 +106,7 @@ fn test_constant_macro_arg() {
     // Create main and constructor bytecode
     let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
 
-    // Full expected bytecode output (generated from huffc) (placed here as a reference)
+    // Full expected bytecode output (generated from huff-neo) (placed here as a reference)
     let expected_bytecode = "60088060093d393df360ff6002";
 
     // Create bytecode
@@ -146,7 +146,7 @@ fn test_bubbled_label_call_macro_arg() {
     // Create main and constructor bytecode
     let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
 
-    // Full expected bytecode output (generated from huffc) (placed here as a reference)
+    // Full expected bytecode output (generated from huff-neo) (placed here as a reference)
     let expected_bytecode = "60088060093d393df360ff5b610000";
 
     // Create bytecode
@@ -185,7 +185,7 @@ fn test_bubbled_literal_macro_arg() {
     // Create main and constructor bytecode
     let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
 
-    // Full expected bytecode output (generated from huffc) (placed here as a reference)
+    // Full expected bytecode output (generated from huff-neo) (placed here as a reference)
     let expected_bytecode = "60088060093d393df360ff610420";
 
     // Create bytecode
@@ -224,7 +224,7 @@ fn test_bubbled_opcode_macro_arg() {
     // Create main and constructor bytecode
     let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
 
-    // Full expected bytecode output (generated from huffc) (placed here as a reference)
+    // Full expected bytecode output (generated from huff-neo) (placed here as a reference)
     let expected_bytecode = "60088060093d393df360ff3d";
 
     // Create bytecode
@@ -265,7 +265,7 @@ fn test_bubbled_constant_macro_arg() {
     // Create main and constructor bytecode
     let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
 
-    // Full expected bytecode output (generated from huffc) (placed here as a reference)
+    // Full expected bytecode output (generated from huff-neo) (placed here as a reference)
     let expected_bytecode = "60088060093d393df360ff6002";
 
     // Create bytecode
@@ -302,7 +302,7 @@ fn test_bubbled_arg_with_different_name() {
     // Create main and constructor bytecode
     let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
 
-    // Full expected bytecode output (generated from huffc) (placed here as a reference)
+    // Full expected bytecode output (generated from huff-neo) (placed here as a reference)
     let expected_bytecode = "6001";
 
     // Check the bytecode

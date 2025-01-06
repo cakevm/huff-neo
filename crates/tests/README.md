@@ -7,19 +7,19 @@ A simple, stripped-down testing library for Huff contracts that utilizes [revm](
 > Huff tests alongside the Foundry and `foundry-huff` to test their contracts.
 
 ## Usage
-To run tests within a contract from the `huffc` cli, use the `test` subcommand:
+To run tests within a contract from the `huff-neo` cli, use the `test` subcommand:
 ```
-huffc ./path/to/my/contract/Contract.huff test
+huff-neo ./path/to/my/contract/Contract.huff test
 ```
 
 Format the test report using the `-f` flag:
 ```
-huffc ./path/to/my/contract/Contract.huff test -f <list|table|json>
+huff-neo ./path/to/my/contract/Contract.huff test -f <list|table|json>
 ```
 
 Match specific tests using the `-m` flag:
 ```
-huffc ./path/to/my/contract/Contract.huff test -m MY_TEST
+huff-neo ./path/to/my/contract/Contract.huff test -m MY_TEST
 ```
 
 Set environment variables with decorator flags above test macros:

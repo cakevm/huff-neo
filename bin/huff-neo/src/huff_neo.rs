@@ -29,7 +29,7 @@ use yansi::Paint;
 
 /// The Huff CLI Args
 #[derive(ClapParser, Debug, Clone)]
-#[clap(name = "huffc", version, about, long_about = None)]
+#[clap(name = "huff-neo", version, about, long_about = None)]
 struct Huff {
     /// The contract(s) to compile.
     pub path: Option<String>,

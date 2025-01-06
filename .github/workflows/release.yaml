@@ -61,9 +61,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  release-docker:
-    name: Release Docker
-    uses: ./.github/workflows/docker-publish.yaml
+  #release-docker:
+  #  name: Release Docker
+  #  uses: ./.github/workflows/docker-publish.yaml
 
   release:
     name: ${{ matrix.job.target }} (${{ matrix.job.os }})
@@ -149,18 +149,18 @@ jobs:
           VERSION_NAME: ${{ (env.IS_NIGHTLY && 'nightly') || needs.prepare.outputs.tag_name }}
         run: |
           if [ "$PLATFORM_NAME" == "linux" ]; then
-            tar -czvf "huff_${VERSION_NAME}_${PLATFORM_NAME}_${ARCH}.tar.gz" -C ./target/${TARGET}/release huffc
-            echo "::set-output name=file_name::huff_${VERSION_NAME}_${PLATFORM_NAME}_${ARCH}.tar.gz"
+            tar -czvf "huff_neo_${VERSION_NAME}_${PLATFORM_NAME}_${ARCH}.tar.gz" -C ./target/${TARGET}/release huff-neo
+            echo "::set-output name=file_name::huff_neo_${VERSION_NAME}_${PLATFORM_NAME}_${ARCH}.tar.gz"
           elif [ "$PLATFORM_NAME" == "darwin" ]; then
             # We need to use gtar here otherwise the archive is corrupt.
             # See: https://github.com/actions/virtual-environments/issues/2619
-            gtar -czvf "huff_${VERSION_NAME}_${PLATFORM_NAME}_${ARCH}.tar.gz" -C ./target/${TARGET}/release huffc
-            echo "::set-output name=file_name::huff_${VERSION_NAME}_${PLATFORM_NAME}_${ARCH}.tar.gz"
+            gtar -czvf "huff_neo_${VERSION_NAME}_${PLATFORM_NAME}_${ARCH}.tar.gz" -C ./target/${TARGET}/release huff-neo
+            echo "::set-output name=file_name::huff_neo_${VERSION_NAME}_${PLATFORM_NAME}_${ARCH}.tar.gz"
           else
             cd ./target/${TARGET}/release
-            7z a -tzip "huff_${VERSION_NAME}_${PLATFORM_NAME}_${ARCH}.zip" huff.exe
-            mv "huff_${VERSION_NAME}_${PLATFORM_NAME}_${ARCH}.zip" ../../../
-            echo "::set-output name=file_name::huff_${VERSION_NAME}_${PLATFORM_NAME}_${ARCH}.zip"
+            7z a -tzip "huff_neo_${VERSION_NAME}_${PLATFORM_NAME}_${ARCH}.zip" huff.exe
+            mv "huff_neo_${VERSION_NAME}_${PLATFORM_NAME}_${ARCH}.zip" ../../../
+            echo "::set-output name=file_name::huff_neo_${VERSION_NAME}_${PLATFORM_NAME}_${ARCH}.zip"
           fi
         shell: bash
 
@@ -173,10 +173,10 @@ jobs:
           VERSION_NAME: ${{ (env.IS_NIGHTLY && 'nightly') || needs.prepare.outputs.tag_name }}
         run: |
           sudo apt-get -y install help2man
-          help2man -N ./target/${TARGET}/release/huffc > huff.1
-          gzip huff.1
-          tar -czvf "huff_man_${VERSION_NAME}.tar.gz" huff.1.gz
-          echo "::set-output name=huff_man::huff_man_${VERSION_NAME}.tar.gz"
+          help2man -N ./target/${TARGET}/release/huff-neo > huff-neo.1
+          gzip huff-neo.1
+          tar -czvf "huff_neo_man_${VERSION_NAME}.tar.gz" huff-neo.1.gz
+          echo "::set-output name=huff_neo_man::huff_neo_man_${VERSION_NAME}.tar.gz"
         shell: bash
 
       # Creates the release for this specific version
@@ -189,10 +189,10 @@ jobs:
           body: ${{ needs.prepare.outputs.changelog }}
           files: |
             ${{ steps.artifacts.outputs.file_name }}
-            ${{ steps.man.outputs.huff_man }}
+            ${{ steps.man.outputs.huff_neo_man }}
 
       # If this is a nightly release, it also updates the release
-      # tagged `nightly` for compatability with `huffup`
+      # tagged `nightly` for compatability with `huff-neo-up`
       - name: Update nightly release
         if: ${{ env.IS_NIGHTLY }}
         uses: softprops/action-gh-release@v1
@@ -203,7 +203,7 @@ jobs:
           body: ${{ needs.prepare.outputs.changelog }}
           files: |
             ${{ steps.artifacts.outputs.file_name }}
-            ${{ steps.man.outputs.huff_man }}
+            ${{ steps.man.outputs.huff_neo_man }}
 
   cleanup:
     name: Release cleanup
