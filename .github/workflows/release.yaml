@@ -25,7 +25,7 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v2
         with:
-          ref: ${{ env.IS_NIGHTLY && 'stage' || 'main' }}
+          ref: 'main'
           fetch-depth: 0
 
       - name: Compute release name and tag
@@ -107,7 +107,7 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v2
         with:
-          ref: ${{ env.IS_NIGHTLY && 'stage' || 'main' }}
+          ref: 'main'
 
       - name: Install toolchain
         uses: actions-rs/toolchain@v1
@@ -214,7 +214,7 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v2
         with:
-          ref: ${{ env.IS_NIGHTLY && 'stage' || 'main' }}
+          ref: 'main'
 
       # Moves the `nightly` tag to `HEAD`
       - name: Move nightly tag

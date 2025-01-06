@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main, stage]
+    branches: [main]
   pull_request_target:
-    branches: [main, stage]
+    branches: [main]
 
 jobs:
   fmt:

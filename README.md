@@ -51,10 +51,7 @@ Feel free to create any issue or PR. We are always looking for contributors to h
 
 Before submitting a PR, please make sure to run the following commands:
 ```bash
-cargo check --all
-cargo test --all --all-features
-cargo fmt -- --check
-cargo clippy --all --all-features -- -D warnings
+make pre-release
 ```
 
 ## Safety

@@ -14,7 +14,7 @@ default-members = ["bin/huff-neo"]
 resolver = "2"
 
 [workspace.package]
-version = "0.0.1"
+version = "0.0.2"
 edition = "2021"
 readme = "README.md"
 repository = "https://github.com/cakevm/huff-neo"
@@ -61,8 +61,7 @@ rand = "0.8.5"
 
 #dev
 rayon = "1.5.3"
-criterion = "0.3.5"
-tracing-test = "0.2.2"
+criterion = "0.5.1"
 
 [profile.test]
 debug = 1

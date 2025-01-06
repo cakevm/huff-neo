@@ -49,3 +49,11 @@ deny-check:
 .PHONY: doc
 doc:
 	cargo doc --workspace --all-features --no-deps
+
+.PHONY: pre-release
+pre-release:
+	make fmt
+	make clippy
+	make test
+	make taplo-check
+	make deny-check

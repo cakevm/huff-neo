@@ -22,9 +22,7 @@ name = "ring"
 [advisories]
 ignore = [
   # Ignore until all dependencies are updated
-  "RUSTSEC-2021-0127",
   "RUSTSEC-2021-0145",
-  "RUSTSEC-2024-0370",
   "RUSTSEC-2024-0375",
 ]
 yanked = "allow"
