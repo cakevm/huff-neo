@@ -533,7 +533,7 @@ impl Codegen {
     pub fn churn(
         &mut self,
         file: Arc<FileSource>,
-        mut args: Vec<ethers_core::abi::token::Token>,
+        mut args: Vec<alloy_dyn_abi::DynSolValue>,
         main_bytecode: &str,
         constructor_bytecode: &str,
         has_custom_bootstrap: bool,
@@ -568,7 +568,7 @@ impl Codegen {
             .enumerate()
             .map(|(i, tok)| {
                 if tok.is_dynamic() {
-                    let encoded = ethers_core::abi::encode(&[tok]);
+                    let encoded = tok.abi_encode();
 
                     // Check for "__CODECOPY_DYN_ARG" calls for this specific argument. If any
                     // exist, fill the placeholders.
@@ -608,7 +608,7 @@ impl Codegen {
                     // elements in the code.
                     encoded[64..].into()
                 } else {
-                    ethers_core::abi::encode(&[tok])
+                    tok.abi_encode()
                 }
             })
             .collect();
@@ -653,9 +653,9 @@ impl Codegen {
         Ok(artifact.clone())
     }
 
-    /// Encode constructor arguments as ethers_core::abi::token::Token
-    pub fn encode_constructor_args(args: Vec<String>) -> Vec<ethers_core::abi::token::Token> {
-        let tokens: Vec<ethers_core::abi::token::Token> = args.iter().map(|tok| EToken::try_from(tok.clone()).unwrap().0).collect();
+    /// Encode constructor arguments as alloy_dyn_abi::DynSolValue
+    pub fn encode_constructor_args(args: Vec<String>) -> Vec<alloy_dyn_abi::DynSolValue> {
+        let tokens: Vec<alloy_dyn_abi::DynSolValue> = args.iter().map(|tok| EToken::try_from(tok.clone()).unwrap().0).collect();
         tokens
     }
 

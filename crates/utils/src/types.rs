@@ -1,5 +1,6 @@
 use crate::bytes_util::*;
-use ethers_core::abi::{ethereum_types::*, token::*, Tokenizable};
+use alloy_dyn_abi::{DynSolValue, Word};
+use alloy_primitives::{Address, I256, U256};
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::{fmt, str::FromStr};
@@ -106,7 +107,7 @@ lazy_static! {
 
 /// Wrap ether-rs Token to allow to derive the TryFrom trait
 #[derive(Clone)]
-pub struct EToken(pub Token);
+pub struct EToken(pub DynSolValue);
 
 impl TryFrom<String> for EToken {
     type Error = String;
@@ -120,12 +121,12 @@ impl TryFrom<String> for EToken {
                 // could be either address or fixed bytes
                 // if length is 42, assume it's an address
                 match input.len() {
-                    42 => return Ok(EToken(Token::Address(H160::from_str(cleaned_input).map_err(|e| e.to_string())?))),
-                    _ => return Ok(EToken(Token::FixedBytes(str_to_bytes32(cleaned_input).to_vec()))),
+                    42 => return Ok(EToken(DynSolValue::Address(Address::from_str(cleaned_input).map_err(|e| e.to_string())?))),
+                    _ => return Ok(EToken(DynSolValue::FixedBytes(Word::from(&str_to_bytes32(cleaned_input)), 32))),
                 }
             } else {
                 // dyn bytes array
-                return Ok(EToken(Token::Bytes(str_to_vec(cleaned_input).map_err(|e| e.to_string())?)));
+                return Ok(EToken(DynSolValue::Bytes(str_to_vec(cleaned_input).map_err(|e| e.to_string())?)));
             }
         }
         // array
@@ -133,26 +134,26 @@ impl TryFrom<String> for EToken {
             let trimmed_input = input.trim_start_matches('[').trim_end_matches(']');
             let v: Vec<String> = trimmed_input.split(',').map(|x| x.replace([' ', '"', '\''], "")).collect();
             let etokens: Result<Vec<EToken>, _> = v.iter().map(|x| EToken::try_from(x.to_owned())).collect();
-            let tokens: Vec<Token> = etokens?.iter().map(move |x| x.clone().0).collect();
-            return Ok(EToken(Token::Array(tokens)));
+            let tokens: Vec<DynSolValue> = etokens?.iter().map(move |x| x.clone().0).collect();
+            return Ok(EToken(DynSolValue::Array(tokens)));
         }
         if input.starts_with('-') || input.starts_with('+') {
-            return Ok(EToken(input.parse::<i128>().map_err(|e| e.to_string())?.into_token()));
+            return Ok(EToken(DynSolValue::Int(I256::from_str(&input).map_err(|e| e.to_string())?, 256)));
         }
         if input == "true" || input == "false" {
-            return Ok(EToken(Token::Bool(input == "true")));
+            return Ok(EToken(DynSolValue::Bool(input == "true")));
         }
         if input.chars().all(|x| x.is_ascii_digit()) {
-            return Ok(EToken(Token::Uint(U256::from_str_radix(input.as_str(), 10).map_err(|e| e.to_string())?)));
+            return Ok(EToken(DynSolValue::Uint(U256::from_str_radix(input.as_str(), 10).map_err(|e| e.to_string())?, 256)));
         }
         if input.chars().all(|x| x.is_alphanumeric()) {
-            Ok(EToken(Token::String(input)))
+            Ok(EToken(DynSolValue::String(input)))
         } else if input.contains(',') {
             // Try to unwrap something like "100,0x123,20" without brackets
             let e_tokens: Result<Vec<EToken>, _> =
                 input.split(',').map(|x| x.replace([' ', '"', '\''], "")).map(EToken::try_from).collect();
-            let tokens: Vec<Token> = e_tokens?.into_iter().map(|x| x.0).collect();
-            Ok(EToken(Token::Array(tokens)))
+            let tokens: Vec<DynSolValue> = e_tokens?.into_iter().map(|x| x.0).collect();
+            Ok(EToken(DynSolValue::Array(tokens)))
         } else {
             Err(format!("Invalid input: {input}"))
         }
