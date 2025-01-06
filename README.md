@@ -27,7 +27,6 @@ We are very happy that someone picked up the work. In the meantime we still need
 You can use the installer `huff-neo-up` to install the latest version of `huff-neo`:
 ```bash
 curl -L https://raw.githubusercontent.com/cakevm/huff-neo/refs/heads/main/huff-neo-up/install | bash
-huff-neo-up
 ```
 
 As alternative, you can build it yourself by cloning the repository and running the following command:

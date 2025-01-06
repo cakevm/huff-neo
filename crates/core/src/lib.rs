@@ -3,7 +3,7 @@
 #![warn(unused_extern_crates)]
 #![forbid(unsafe_code)]
 
-use ethers_core::utils::hex;
+use alloy_primitives::hex;
 use huff_neo_codegen::*;
 use huff_neo_lexer::*;
 use huff_neo_parser::*;
@@ -206,7 +206,7 @@ impl<'a, 'l> Compiler<'a, 'l> {
         // Get our constructor arguments as a hex encoded string to compare to the cache
         let inputs = self.get_constructor_args();
         let encoded_inputs = Codegen::encode_constructor_args(inputs);
-        let encoded: Vec<Vec<u8>> = encoded_inputs.iter().map(|tok| ethers_core::abi::encode(&[tok.clone()])).collect();
+        let encoded: Vec<Vec<u8>> = encoded_inputs.iter().map(|tok| tok.abi_encode()).collect();
         let constructor_args = encoded.iter().map(|tok| hex::encode(tok.as_slice())).collect();
 
         // Get Cached or Generate Artifacts

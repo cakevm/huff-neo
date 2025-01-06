@@ -6,10 +6,10 @@
 #![forbid(unsafe_code)]
 #![allow(deprecated)]
 
+use alloy_primitives::hex;
 use atty::Stream;
-use clap::{App, CommandFactory, Parser as ClapParser, Subcommand};
+use clap::{CommandFactory, Parser as ClapParser, Subcommand};
 use comfy_table::{modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL, Cell, Color, Row, Table};
-use ethers_core::utils::hex;
 use huff_neo_codegen::Codegen;
 use huff_neo_core::Compiler;
 use huff_neo_tests::{
@@ -47,7 +47,7 @@ struct Huff {
     outputdir: String,
 
     /// The input constructor arguments
-    #[clap(short = 'i', long = "inputs", multiple_values = true)]
+    #[clap(short = 'i', long = "inputs", num_args = 1..)]
     inputs: Option<Vec<String>>,
 
     /// Interactively input the constructor args
@@ -63,7 +63,7 @@ struct Huff {
     optimize: bool,
 
     /// Generate solidity interface for a Huff artifact
-    #[clap(short = 'g', min_values = 0, long = "interface")]
+    #[clap(short = 'g', num_args = 0.., long = "interface")]
     interface: Option<String>,
 
     /// Generate and log bytecode.
@@ -87,7 +87,7 @@ struct Huff {
     label_indices: bool,
 
     /// Override / set constants for the compilation environment.
-    #[clap(short = 'c', long = "constants", multiple_values = true)]
+    #[clap(short = 'c', long = "constants", num_args = 1..)]
     constants: Option<Vec<String>>,
 
     /// Compile a specific macro
@@ -121,10 +121,8 @@ enum TestCommands {
     },
 }
 
-/// Helper function to read an stdin input
+/// Helper function to read a stdin input
 pub(crate) fn get_input(prompt: &str) -> String {
-    // let mut sp = Spinner::new(Spinners::Line, format!("{}{}",
-    // Paint::blue("[INTERACTIVE]".to_string()), prompt));
     print!("{} {prompt} ", Paint::blue(&"[INTERACTIVE]".to_string()));
     let mut input = String::new();
     let _ = std::io::stdout().flush();
@@ -134,8 +132,7 @@ pub(crate) fn get_input(prompt: &str) -> String {
 }
 
 fn main() {
-    // Into App
-    let mut app: App = Huff::into_app();
+    let mut command = Huff::command();
 
     // Parse the command line arguments
     let mut cli = Huff::parse();
@@ -148,7 +145,7 @@ fn main() {
     // Check if no argument is provided
     if cli.path.is_none() {
         // Print help and exit
-        app.print_help().unwrap();
+        command.print_help().unwrap();
         return;
     }
 
@@ -359,7 +356,7 @@ fn main() {
                 std::process::exit(1);
             }
 
-            if app.get_matches().is_present("interface") {
+            if command.get_matches().contains_id("interface") {
                 let mut interface: Option<String> = None;
                 if artifacts.len() == 1 {
                     let gen_interface: Option<String> = match artifacts[0].file.path.split('/').last() {
@@ -415,7 +412,7 @@ fn main() {
                                         ));
                                         let encoded =
                                             Codegen::encode_constructor_args(vec![arg_input]).iter().fold(String::default(), |acc, str| {
-                                                let inner: Vec<u8> = ethers_core::abi::encode(&[str.clone()]);
+                                                let inner: Vec<u8> = str.abi_encode();
                                                 let hex_args: String = hex::encode(inner.as_slice());
                                                 format!("{acc}{hex_args}")
                                             });
