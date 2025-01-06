@@ -6,7 +6,7 @@ use huff_neo_utils::{file_provider::FileSystemFileProvider, prelude::*};
 #[test]
 fn test_parses_foundry_aliased_imports() {
     // Set the current directory to the root of huff-neo-rs
-    std::env::set_current_dir("../").unwrap();
+    std::env::set_current_dir("../../").unwrap();
 
     // Create a remapper at the root level
     let remapper = Remapper::new("./");

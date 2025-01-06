@@ -10,19 +10,19 @@ run:
 	cargo run
 
 test:
-	cargo test
+	cargo test --workspace --bins --lib --tests
 
 clean:
 	cargo clean
 
 fmt:
-	cargo fmt
+	cargo fmt --all
 
 fmt-check:
 	cargo fmt --all --check
 
 clippy:
-	cargo clippy --all --all-features -- -D warnings
+	cargo clippy --all --all-features --lib --tests --benches -- -D warnings
 
 taplo:
 	taplo format

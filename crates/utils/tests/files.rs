@@ -11,7 +11,7 @@ fn test_generate_remappings() {
         eprintln!("Failed to initialize tracing!\nError: {e:?}")
     }
 
-    let remapper = files::Remapper::new("../");
+    let remapper = files::Remapper::new("../../");
     assert_eq!(remapper.remappings.len(), 1);
     assert_eq!(remapper.remappings.get("examples/").unwrap(), "huff-examples/");
 }

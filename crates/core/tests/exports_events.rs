@@ -27,7 +27,7 @@ fn test_abi_uint_events() {
         abi.events,
         BTreeMap::from([(
             "UintEvents".to_string(),
-            huff_utils::abi::Event {
+            huff_neo_utils::abi::Event {
                 name: "UintEvents".to_string(),
                 inputs: vec![
                     EventParam { name: "".to_string(), kind: FunctionParamType::Uint(256), indexed: false },
@@ -67,7 +67,7 @@ fn test_abi_int_events() {
         abi.events,
         BTreeMap::from([(
             "IntEvents".to_string(),
-            huff_utils::abi::Event {
+            huff_neo_utils::abi::Event {
                 name: "IntEvents".to_string(),
                 inputs: vec![
                     EventParam { name: "".to_string(), kind: FunctionParamType::Int(256), indexed: false },
@@ -107,7 +107,7 @@ fn test_abi_simple_events() {
         abi.events,
         BTreeMap::from([(
             "SimpleEvent".to_string(),
-            huff_utils::abi::Event {
+            huff_neo_utils::abi::Event {
                 name: "SimpleEvent".to_string(),
                 inputs: vec![
                     EventParam { name: "".to_string(), kind: FunctionParamType::Address, indexed: false },
@@ -146,7 +146,7 @@ fn test_abi_tuple_array_events() {
         abi.events,
         BTreeMap::from([(
             "SimpleEvent".to_string(),
-            huff_utils::abi::Event {
+            huff_neo_utils::abi::Event {
                 name: "SimpleEvent".to_string(),
                 inputs: vec![
                     EventParam { name: "".to_string(), kind: FunctionParamType::Address, indexed: false },
@@ -185,7 +185,7 @@ fn test_abi_nested_tuple_array_events() {
         abi.events,
         BTreeMap::from([(
             "SimpleEvent".to_string(),
-            huff_utils::abi::Event {
+            huff_neo_utils::abi::Event {
                 name: "SimpleEvent".to_string(),
                 inputs: vec![
                     EventParam { name: "".to_string(), kind: FunctionParamType::Address, indexed: false },

@@ -76,7 +76,7 @@ impl Remapper {
     /// Parse foundry toml remappings
     pub fn from_foundry(root: &str, inner: &mut HashMap<String, String>) {
         // Look for a `foundry.toml` file in the current directory.
-        let path = Path::new(root).join("../../../foundry.toml");
+        let path = Path::new(root).join("foundry.toml");
 
         match fs::File::open(&path) {
             Ok(f) => {

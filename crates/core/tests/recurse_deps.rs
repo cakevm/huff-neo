@@ -7,7 +7,7 @@ use huff_neo_utils::{file_provider::FileSystemFileProvider, files};
 fn test_recursing_fs_dependencies() {
     let file_provider = Arc::new(FileSystemFileProvider {});
     let file_sources: Vec<Arc<files::FileSource>> =
-        Compiler::fetch_sources(vec![PathBuf::from("../huff-examples/erc20/contracts/ERC20.huff".to_string())], file_provider.clone())
+        Compiler::fetch_sources(vec![PathBuf::from("../../huff-examples/erc20/contracts/ERC20.huff".to_string())], file_provider.clone())
             .iter()
             .map(|p| p.clone().unwrap())
             .collect();
@@ -27,7 +27,7 @@ fn test_recursing_fs_dependencies() {
 fn test_recursing_external_dependencies() {
     let file_provider = Arc::new(FileSystemFileProvider {});
     let file_sources: Vec<Arc<files::FileSource>> =
-        Compiler::fetch_sources(vec![PathBuf::from("../huff-examples/erc20/contracts/ERC20.huff".to_string())], file_provider.clone())
+        Compiler::fetch_sources(vec![PathBuf::from("../../huff-examples/erc20/contracts/ERC20.huff".to_string())], file_provider.clone())
             .iter()
             .map(|p| p.clone().unwrap())
             .collect();

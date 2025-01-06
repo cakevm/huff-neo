@@ -1,5 +1,3 @@
-# huff-neo
-
 <div align="center">
 
 [![CI status](https://github.com/cakevm/huff-neo/actions/workflows/ci.yaml/badge.svg?branch=main)][gh-huff-neo]
@@ -12,6 +10,7 @@
 
 </div>
 
+# huff-neo
 
 `huff-neo` marks a new dawn for the once-abandoned [huff-rs](https://github.com/huff-language/huff-rs), breathing fresh life into its legacy. This is a hard-fork with update dependencies and brings the project up-to-date with the latest Rust and EVM features. 
 
@@ -56,4 +55,4 @@ Please be aware that the resulting bytecode can be unsafe. It is your responsibi
 
 ## Acknowledgements
 
-Many thanks to all [huff-rs](https://github.com/huff-language/huff-rs) contributors and to the authors wo maintained it for such a long period! Again thanks to the original [Huff Language](https://github.com/huff-language) compiler: [`huffc`](https://github.com/huff-language/huffc). Thanks to [ripc](https://github.com/ibraheemdev/ripc). And big shoutout to [Paradigm](https://github.com/paradigmxyz). Without [Foundry](https://github.com/foundry-rs/foundry) the original implementation would not be possible.
+Many thanks to all [huff-rs](https://github.com/huff-language/huff-rs) contributors and to the authors wo maintained it for such a long period! Again thanks to the original [Huff Language](https://github.com/huff-language) compiler: [`huffc`](https://github.com/huff-language/huffc). Thanks to [ripc](https://github.com/ibraheemdev/ripc), and big shoutout to [Paradigm](https://github.com/paradigmxyz). Without [Foundry](https://github.com/foundry-rs/foundry) the original implementation would not be possible.

@@ -9,7 +9,7 @@ use std::{path::PathBuf, sync::Arc};
 fn lex_erc20_from_source_benchmark(c: &mut Criterion) {
     let file_provider = Arc::new(FileSystemFileProvider::new());
     let file_sources: Vec<Arc<FileSource>> =
-        Compiler::fetch_sources(vec![PathBuf::from("../huff-examples/erc20/contracts/ERC20.huff".to_string())], file_provider.clone())
+        Compiler::fetch_sources(vec![PathBuf::from("../../huff-examples/erc20/contracts/ERC20.huff".to_string())], file_provider.clone())
             .into_iter()
             .map(|p| p.unwrap())
             .collect();
@@ -32,7 +32,7 @@ fn lex_erc20_from_source_benchmark(c: &mut Criterion) {
 fn parse_erc20_benchmark(c: &mut Criterion) {
     let file_provider = Arc::new(FileSystemFileProvider::new());
     let file_sources: Vec<Arc<FileSource>> =
-        Compiler::fetch_sources(vec![PathBuf::from("../huff-examples/erc20/contracts/ERC20.huff".to_string())], file_provider.clone())
+        Compiler::fetch_sources(vec![PathBuf::from("../../huff-examples/erc20/contracts/ERC20.huff".to_string())], file_provider.clone())
             .into_iter()
             .map(|p| p.unwrap())
             .collect();
@@ -49,7 +49,7 @@ fn parse_erc20_benchmark(c: &mut Criterion) {
     // Isolate parsing to benchmark
     c.bench_function("Parser: ERC-20", |b| {
         b.iter(|| {
-            let mut parser = Parser::new(*tokens.clone(), Some("../huff-examples/erc20/contracts".to_string()));
+            let mut parser = Parser::new(*tokens.clone(), Some("../../huff-examples/erc20/contracts".to_string()));
             let mut contract = parser.parse().unwrap();
             contract.derive_storage_pointers();
         })
@@ -59,7 +59,7 @@ fn parse_erc20_benchmark(c: &mut Criterion) {
 fn codegen_erc20_benchmark(c: &mut Criterion) {
     let file_provider = Arc::new(FileSystemFileProvider::new());
     let file_sources: Vec<Arc<FileSource>> =
-        Compiler::fetch_sources(vec![PathBuf::from("../huff-examples/erc20/contracts/ERC20.huff".to_string())], file_provider.clone())
+        Compiler::fetch_sources(vec![PathBuf::from("../../huff-examples/erc20/contracts/ERC20.huff".to_string())], file_provider.clone())
             .into_iter()
             .map(|p| p.unwrap())
             .collect();
@@ -73,7 +73,7 @@ fn codegen_erc20_benchmark(c: &mut Criterion) {
     let lexer = Lexer::new(full_source.source);
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
 
-    let mut parser = Parser::new(tokens, Some("../huff-examples/erc20/contracts".to_string()));
+    let mut parser = Parser::new(tokens, Some("../../huff-examples/erc20/contracts".to_string()));
     let mut contract = parser.parse().unwrap();
     contract.derive_storage_pointers();
 
@@ -101,7 +101,7 @@ fn erc20_compilation_benchmark(c: &mut Criterion) {
     c.bench_function("Full ERC-20 compilation", |b| b.iter(|| {
         let file_provider = Arc::new(FileSystemFileProvider::new());
         let file_sources: Vec<Arc<FileSource>> = Compiler::fetch_sources(vec![PathBuf::from(
-            "../huff-examples/erc20/contracts/ERC20.huff".to_string(),
+            "../../huff-examples/erc20/contracts/ERC20.huff".to_string(),
         )], file_provider.clone())
             .into_iter()
             .map(|p| p.unwrap())
@@ -122,7 +122,7 @@ fn erc20_compilation_benchmark(c: &mut Criterion) {
         };
         let lexer = Lexer::new(full_source.source);
         let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
-        let mut parser = Parser::new(tokens, Some("../huff-examples/erc20/contracts".to_string()));
+        let mut parser = Parser::new(tokens, Some("../../huff-examples/erc20/contracts".to_string()));
         let mut contract = parser.parse().unwrap();
         contract.derive_storage_pointers();
 
@@ -148,7 +148,7 @@ fn erc721_compilation_benchmark(c: &mut Criterion) {
     c.bench_function("Full ERC-721 compilation", |b| b.iter(|| {
         let file_provider = Arc::new(FileSystemFileProvider::new());
         let file_sources: Vec<Arc<FileSource>> = Compiler::fetch_sources(vec![PathBuf::from(
-            "../huff-examples/erc721/contracts/ERC721.huff".to_string(),
+            "../../huff-examples/erc721/contracts/ERC721.huff".to_string(),
         )], file_provider.clone())
             .into_iter()
             .map(|p| p.unwrap())
@@ -169,7 +169,7 @@ fn erc721_compilation_benchmark(c: &mut Criterion) {
         };
         let lexer = Lexer::new(full_source.source);
         let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
-        let mut parser = Parser::new(tokens, Some("../huff-examples/erc20/contracts".to_string()));
+        let mut parser = Parser::new(tokens, Some("../../huff-examples/erc20/contracts".to_string()));
         let mut contract = parser.parse().unwrap();
         contract.derive_storage_pointers();
 

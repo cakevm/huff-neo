@@ -47,7 +47,7 @@ pub(crate) mod cache;
 ///
 /// let compiler = Compiler::new(
 ///     &EVMVersion::default(),
-///     Arc::new(vec!["../huff-examples/erc20/contracts/ERC20.huff".to_string()]),
+///     Arc::new(vec!["../../huff-examples/erc20/contracts/ERC20.huff".to_string()]),
 ///     Some("./artifacts".to_string()),
 ///     None,
 ///     None,

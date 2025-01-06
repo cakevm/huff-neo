@@ -99,7 +99,7 @@ The [huff-examples](https://github.com/huff-language/huff-examples) github repos
 
 To run `huffc` against one of the examples, the path may simply be passed to `huffc`.
 
-For example, to compile huff-example's [ERC20.huff](../huff-examples/erc20/contracts/ERC20.huff) contract, run:
+For example, to compile huff-example's [ERC20.huff](../../huff-examples/erc20/contracts/ERC20.huff) contract, run:
 
 ```bash
 huffc --bytecode ./huff-examples/erc20/contracts/ERC20.huff
