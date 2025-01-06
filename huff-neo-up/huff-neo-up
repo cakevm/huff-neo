@@ -125,7 +125,7 @@ main() {
     MAN_TARBALL_URL="${RELEASE_URL}huff_neo_man_${HUFF_NEO_UP_VERSION}.tar.gz"
 
     # Download the binaries tarball and unpack it into the .huff bin directory.
-    say "downloading latest huff-rs"
+    say "downloading latest huff-neo"
     ensure curl -# -L $BIN_TARBALL_URL | tar -xzC $HUFF_BIN_DIR
     # Download the man tarball and unpack it into the .huff man directory.
     say "downloading manpages"
@@ -134,7 +134,7 @@ main() {
     say "done"
 
     if [[ $(which huff-neo) =~ "cargo" ]]; then
-      warn "it appears your system already has huff-rs installed via cargo. you may need to run 'rm $(which huff-neo)' to allow huff-neo-up to take precedence!"
+      warn "it appears your system already has huff-neo installed via cargo. you may need to run 'rm $(which huff-neo)' to allow huff-neo-up to take precedence!"
     fi
   else
     need_cmd cargo

@@ -32,16 +32,16 @@ To install a specific **branch** (in this case the `release/0.3.1` branch's late
 huff-neo-up --branch release/0.3.1
 ```
 
-To install a **fork's main branch** (in this case `abigger87/huff-rs`'s main branch):
+To install a **fork's main branch** (in this case `abigger87/huff-neo`'s main branch):
 
 ```sh
-huff-neo-up --repo abigger87/huff-rs
+huff-neo-up --repo abigger87/huff-neo
 ```
 
-To install a **specific branch in a fork** (in this case the `patch-10` branch's latest commit in `abigger87/huff-rs`):
+To install a **specific branch in a fork** (in this case the `patch-10` branch's latest commit in `abigger87/huff-neo`):
 
 ```sh
-huff-neo-up --repo abigger87/huff-rs --branch patch-10
+huff-neo-up --repo abigger87/huff-neo --branch patch-10
 ```
 
 To install from a **specific Pull Request**:

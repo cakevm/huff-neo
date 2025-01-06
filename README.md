@@ -24,9 +24,15 @@ We are very happy that someone picked up the work. In the meantime we still need
 
 ## Installation
 
-You need to compile it yourself. Checkout the repository and run the following command:
+You can use the installer `huff-neo-up` to install the latest version of `huff-neo`:
 ```bash
-make
+curl -L https://raw.githubusercontent.com/cakevm/huff-neo/refs/heads/main/huff-neo-up/install | bash
+huff-neo-up
+```
+
+As alternative, you can build it yourself by cloning the repository and running the following command:
+```bash
+make release
 ```
 
 ## Modules
