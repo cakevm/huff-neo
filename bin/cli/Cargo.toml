@@ -16,10 +16,10 @@ huff-neo-core.workspace = true
 huff-neo-tests.workspace = true
 huff-neo-utils.workspace = true
 
+atty.workspace = true
 clap.workspace = true
 comfy-table.workspace = true
 ethers-core.workspace = true
-isatty.workspace = true
 spinners.workspace = true
 tracing.workspace = true
 uuid.workspace = true

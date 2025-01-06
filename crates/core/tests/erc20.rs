@@ -10,7 +10,7 @@ use huff_neo_utils::{file_provider::FileSystemFileProvider, files, prelude::*};
 fn test_erc20_compile() {
     let file_provider = Arc::new(FileSystemFileProvider {});
     let file_sources: Vec<Arc<FileSource>> =
-        Compiler::fetch_sources(vec![PathBuf::from("../huff-examples/erc20/contracts/ERC20.huff".to_string())], file_provider.clone())
+        Compiler::fetch_sources(vec![PathBuf::from("../../huff-examples/erc20/contracts/ERC20.huff".to_string())], file_provider.clone())
             .iter()
             .map(|p| p.clone().unwrap())
             .collect();
@@ -22,7 +22,7 @@ fn test_erc20_compile() {
     let full_source = FullFileSource { source: &flattened.0, file: Some(Arc::clone(file_source)), spans: flattened.1 };
     let lexer = Lexer::new(full_source.source);
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
-    let mut parser = Parser::new(tokens, Some("../huff-examples/erc20/contracts".to_string()));
+    let mut parser = Parser::new(tokens, Some("../../huff-examples/erc20/contracts".to_string()));
     let mut contract = parser.parse().unwrap();
     contract.derive_storage_pointers();
 

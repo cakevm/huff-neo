@@ -16,9 +16,8 @@ huff-neo-core.workspace = true
 huff-neo-parser.workspace = true
 huff-neo-utils.workspace = true
 
-bytes.workspace = true
+alloy-primitives.workspace = true
 comfy-table.workspace = true
-ethers-core.workspace = true
 lazy_static.workspace = true
 phf.workspace = true
 revm.workspace = true

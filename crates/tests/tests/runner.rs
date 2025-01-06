@@ -1,4 +1,4 @@
-use ethers_core::types::{Address, U256};
+use alloy_primitives::{Address, U256};
 use huff_neo_tests::prelude::{TestRunner, TestStatus};
 
 #[test]
@@ -6,7 +6,7 @@ fn test_runner_return() {
     let mut runner = TestRunner::default();
     let code = "602060005260206000F3";
     let deployed_addr = runner.deploy_code(code.to_string()).unwrap();
-    let result = runner.call(String::from("RETURN"), Address::zero(), deployed_addr, U256::zero(), String::default()).unwrap();
+    let result = runner.call(String::from("RETURN"), Address::ZERO, deployed_addr, U256::ZERO, String::default()).unwrap();
 
     assert_eq!(result.name, "RETURN");
     assert_eq!(std::mem::discriminant(&result.status), std::mem::discriminant(&TestStatus::Success));
@@ -19,7 +19,7 @@ fn test_runner_stop() {
     let mut runner = TestRunner::default();
     let code = "00";
     let deployed_addr = runner.deploy_code(code.to_string()).unwrap();
-    let result = runner.call(String::from("STOP"), Address::zero(), deployed_addr, U256::zero(), String::default()).unwrap();
+    let result = runner.call(String::from("STOP"), Address::ZERO, deployed_addr, U256::ZERO, String::default()).unwrap();
 
     assert_eq!(result.name, "STOP");
     assert_eq!(std::mem::discriminant(&result.status), std::mem::discriminant(&TestStatus::Success));
@@ -32,7 +32,7 @@ fn test_runner_revert() {
     let mut runner = TestRunner::default();
     let code = "60006000FD";
     let deployed_addr = runner.deploy_code(code.to_string()).unwrap();
-    let result = runner.call(String::from("REVERT"), Address::zero(), deployed_addr, U256::zero(), String::default()).unwrap();
+    let result = runner.call(String::from("REVERT"), Address::ZERO, deployed_addr, U256::ZERO, String::default()).unwrap();
 
     assert_eq!(result.name, "REVERT");
     assert_eq!(std::mem::discriminant(&result.status), std::mem::discriminant(&TestStatus::Revert));

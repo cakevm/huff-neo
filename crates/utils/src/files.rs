@@ -76,7 +76,7 @@ impl Remapper {
     /// Parse foundry toml remappings
     pub fn from_foundry(root: &str, inner: &mut HashMap<String, String>) {
         // Look for a `foundry.toml` file in the current directory.
-        let path = Path::new(root).join("../../../foundry.toml");
+        let path = Path::new(root).join("foundry.toml");
 
         match fs::File::open(&path) {
             Ok(f) => {
@@ -99,15 +99,15 @@ impl Remapper {
                 };
 
                 // Parse the toml as a map
-                let toml_map = toml.as_table().cloned().unwrap_or_else(toml::value::Map::new);
+                let toml_map = toml.as_table().cloned().unwrap_or_else(toml::map::Map::new);
 
                 // Transform the mappings into profiles
-                let profiles = toml_map.iter().filter_map(|p| p.1.as_table()).collect::<Vec<&toml::value::Map<String, toml::Value>>>();
+                let profiles = toml_map.iter().filter_map(|p| p.1.as_table()).collect::<Vec<&toml::map::Map<String, toml::Value>>>();
                 let unwrapped_profiles = profiles.iter().flat_map(|t| t.values().collect_vec()).collect::<Vec<&toml::Value>>();
 
                 // Extract the inner tables from each profile
                 let inner_tables =
-                    unwrapped_profiles.iter().filter_map(|t| t.as_table()).collect::<Vec<&toml::value::Map<String, toml::Value>>>();
+                    unwrapped_profiles.iter().filter_map(|t| t.as_table()).collect::<Vec<&toml::map::Map<String, toml::Value>>>();
                 let unwrapped_inner_tables = inner_tables
                     .iter()
                     .flat_map(|t| t.into_iter().filter(|m| m.0.eq("remappings")).map(|m| m.1).collect_vec())

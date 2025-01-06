@@ -12,7 +12,7 @@ Once you instantiate a [Compiler](struct.Compiler.html) (WLOG, `compiler`) with 
 let artifacts: Result<Vec<Artifact>, CompilerError> = compiler.execute();
 ```
 
-Below we demonstrate taking a source file `../huff-examples/erc20/contracts/ERC20.huff`, and generating the copmiled artifacts.
+Below we demonstrate taking a source file `../../huff-examples/erc20/contracts/ERC20.huff`, and generating the copmiled artifacts.
 
 ```rust
 use huff_neo_core::Compiler;
@@ -25,7 +25,7 @@ use std::rc::Rc;
 
 // Instantiate the Compiler Instance with a targeted evm version.
 let evm_version = &EVMVersion::default();
-let mut compiler = Compiler::new(evm_version, Arc::new(vec!["../huff-examples/erc20/contracts/ERC20.huff".to_string()]), None, None, None, None, None, false, false);
+let mut compiler = Compiler::new(evm_version, Arc::new(vec!["../../huff-examples/erc20/contracts/ERC20.huff".to_string()]), None, None, None, None, None, false, false);
 
 // Execute the compiler
 let res: Result<Vec<Arc<Artifact>>, Arc<CompilerError>> = compiler.execute();

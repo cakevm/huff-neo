@@ -69,9 +69,9 @@ pub fn print_test_report(results: Vec<TestResult>, report_kind: ReportKind, star
     }
     println!(
         "➜ {} tests passed, {} tests failed ({}%). ⏱ : {}",
-        Paint::green(n_passed),
-        Paint::red(n_results - n_passed),
-        Paint::yellow(n_passed * 100 / n_results),
-        Paint::magenta(format!("{:.4?}", start.elapsed()))
+        Paint::green(&n_passed),
+        Paint::red(&(n_results - n_passed)),
+        Paint::yellow(&(n_passed * 100 / n_results)),
+        Paint::magenta(&format!("{:.4?}", start.elapsed()))
     );
 }
