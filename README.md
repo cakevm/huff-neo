@@ -24,12 +24,19 @@ We are very happy that someone picked up the work. In the meantime we still need
 
 ## Installation
 
-You can use the installer `huff-neo-up` to install the latest version of `huff-neo`:
+Choose one of the following methods to install `huff-neo`:
+
+1. Install the latest version with cargo:
+```bash
+cargo install --git https://github.com/cakevm/huff-neo
+```
+
+2. You can use the installer `huff-neo-up` to install the latest version of `huff-neo` from a release or nightly build:
 ```bash
 curl -L https://raw.githubusercontent.com/cakevm/huff-neo/refs/heads/main/huff-neo-up/install | bash
 ```
 
-As alternative, you can build it yourself by cloning the repository and running the following command:
+3. Build it by cloning the repository and running the following command:
 ```bash
 make release
 ```
