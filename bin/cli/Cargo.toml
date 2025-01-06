@@ -1,0 +1,31 @@
+[package]
+name = "huff-neo-cli"
+version.workspace = true
+edition.workspace = true
+readme.workspace = true
+repository.workspace = true
+license.workspace = true
+description = """
+Huff Language Compiler built in Pure Rust.
+"""
+keywords = ["bytecode", "compiler", "evm", "huff", "rust"]
+
+[dependencies]
+huff-neo-codegen.workspace = true
+huff-neo-core.workspace = true
+huff-neo-tests.workspace = true
+huff-neo-utils.workspace = true
+
+clap.workspace = true
+comfy-table.workspace = true
+ethers-core.workspace = true
+isatty.workspace = true
+spinners.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+yansi.workspace = true
+
+[[bin]]
+doc = false
+name = "huffc"
+path = "src/huffc.rs"

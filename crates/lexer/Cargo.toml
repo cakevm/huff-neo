@@ -1,0 +1,16 @@
+[package]
+name = "huff-neo-lexer"
+version.workspace = true
+edition.workspace = true
+readme.workspace = true
+repository.workspace = true
+license.workspace = true
+description = """
+Lexical Analysis Crate for the Huff-Language
+"""
+keywords = ["bytecode", "compiler", "evm", "huff", "rust"]
+
+[dependencies]
+huff-neo-utils.workspace = true
+regex.workspace = true
+tracing.workspace = true

@@ -1,0 +1,43 @@
+[package]
+name = "huff-neo-core"
+version.workspace = true
+edition.workspace = true
+readme.workspace = true
+repository.workspace = true
+license.workspace = true
+description = """
+Core Compiler Crate for the Huff-Language
+"""
+keywords = ["bytecode", "compiler", "evm", "huff", "rust"]
+
+[dependencies]
+huff-neo-codegen.workspace = true
+huff-neo-lexer.workspace = true
+huff-neo-parser.workspace = true
+huff-neo-utils.workspace = true
+
+cfg-if.workspace = true
+ethers-core.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+tracing-test.workspace = true
+uuid.workspace = true
+walkdir.workspace = true
+
+[dev-dependencies]
+criterion.workspace = true
+rand.workspace = true
+
+[target.'cfg(not(all(target_arch = "wasm32", target_os = "unknown")))'.dependencies]
+rayon = { version = "1.5.3" }
+
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
+getrandom = { version = "0.2", features = ["js"] }
+
+[[bench]]
+harness = false
+name = "huff_benchmark"
+
+[features]
+verbose = []

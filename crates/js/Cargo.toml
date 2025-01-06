@@ -1,0 +1,23 @@
+[package]
+name = "huff-neo-js"
+version.workspace = true
+edition.workspace = true
+readme.workspace = true
+repository.workspace = true
+license.workspace = true
+description = """
+Wasm Core Compiler Crate for the Huff-Language
+"""
+keywords = ["bytecode", "compiler", "evm", "huff", "rust"]
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+huff-neo-core.workspace = true
+huff-neo-utils.workspace = true
+
+serde.workspace = true
+serde-wasm-bindgen.workspace = true
+serde_json.workspace = true
+wasm-bindgen.workspace = true

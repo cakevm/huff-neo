@@ -1,79 +1,98 @@
 name: CI
 
-on: [push]
+on:
+  push:
+    branches: [main]
+  pull_request_target:
+    branches: [main]
 
 jobs:
-  cargo-fmt:
+  fmt:
+    if: github.repository == 'cakevm/huff-neo'
     runs-on: ubuntu-latest
-    # self hosted since out of action capacity
-    # runs-on: self-hosted
     steps:
-      - name: Checkout sources
-        uses: actions/checkout@v2
-      - name: Install toolchain
-        uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v4
         with:
-          toolchain: nightly
-          profile: minimal
-          components: rustfmt, clippy
-          override: true
-      - uses: Swatinem/rust-cache@v1
-        with:
-          cache-on-failure: true
-      - name: cargo fmt
-        run: cargo +nightly fmt --all -- --check
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.ref }}
+      - uses: dtolnay/rust-toolchain@stable
 
-  cargo-docs:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v2
-      - name: Install toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          profile: minimal
-          components: rustfmt, clippy
-          override: true
-      - uses: Swatinem/rust-cache@v1
-        with:
-          cache-on-failure: true
-      - name: cargo doc
-        run: cargo doc --all-features --no-deps
+      - run: make fmt-check
 
-  cargo-clippy:
+  taplo:
+    if: github.repository == 'cakevm/huff-neo'
+    name: make taplo-check
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - name: Checkout sources
-        uses: actions/checkout@v2
-      - name: Install toolchain
-        uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v4
         with:
-          toolchain: stable
-          profile: minimal
-          components: rustfmt, clippy
-          override: true
-      - uses: Swatinem/rust-cache@v1
-        with:
-          cache-on-failure: false
-      - name: cargo clippy
-        run: cargo clippy --all --all-features -- -D warnings
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.ref }}
+      - uses: dtolnay/rust-toolchain@clippy
+      - run: cargo install taplo-cli --version ^0.9 --locked
+      - run: make taplo-check
 
-  tests:
+  doc:
+    if: github.repository == 'cakevm/huff-neo'
+    name: make test
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - name: Checkout sources
-        uses: actions/checkout@v2
-      - name: Checkout submodules
-        run: git submodule update --init
-      - name: Install toolchain
-        uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v4
         with:
-          toolchain: stable
-          profile: minimal
-          override: true
-      - uses: Swatinem/rust-cache@v1
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.ref }}
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - run: make docs
+
+  clippy:
+    if: github.repository == 'cakevm/huff-neo'
+    name: make clippy
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
         with:
-          cache-on-failure: true
-      - name: cargo test
-        run: cargo test --all --all-features
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.ref }}
+      - uses: dtolnay/rust-toolchain@clippy
+        with:
+          toolchain: "1.82"
+      - uses: Swatinem/rust-cache@v2
+
+      # workaround for latest stable rust
+      - run: cargo +1.82 clippy --all-targets --all-features -- -D warnings
+
+  test:
+    if: github.repository == 'cakevm/huff-neo'
+    name: make test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.ref }}
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - run: make test
+
+  deny:
+    if: github.repository == 'cakevm/huff-neo'
+    name: cargo deny check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.ref }}
+      - uses: EmbarkStudios/cargo-deny-action@v1
+        with:
+          log-level: warn
+          command: check
+          arguments: --all-features

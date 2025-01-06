@@ -1,0 +1,27 @@
+[package]
+name = "huff-neo-tests"
+version.workspace = true
+edition.workspace = true
+readme.workspace = true
+repository.workspace = true
+license.workspace = true
+description = """
+A stripped down testing framework for the Huff language.
+"""
+keywords = ["bytecode", "compiler", "evm", "huff", "rust"]
+
+[dependencies]
+huff-neo-codegen.workspace = true
+huff-neo-core.workspace = true
+huff-neo-parser.workspace = true
+huff-neo-utils.workspace = true
+
+bytes.workspace = true
+comfy-table.workspace = true
+ethers-core.workspace = true
+lazy_static.workspace = true
+phf.workspace = true
+revm.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+yansi.workspace = true
