@@ -303,7 +303,7 @@ impl Span {
     /// An EOF spans [0, 0].
     pub const EOF: Span = Span { start: 0, end: 0, file: None };
 
-    /// Public associated function to instatiate a new span.
+    /// Public associated function to instantiate a new span.
     pub fn new(Range { start, end }: Range<usize>, file: Option<Arc<FileSource>>) -> Self {
         Self { start, end, file }
     }

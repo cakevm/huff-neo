@@ -94,7 +94,7 @@ fn lex_imports_empty_quotes() {
 fn include_no_quotes() {
     let source = "#include";
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
-    let mut lexer = Lexer::new(flattened_source.source);
+    let mut lexer = Lexer::new(flattened_source.source, None);
 
     // The first token should be a single line comment
     let tok = lexer.next();
@@ -108,7 +108,7 @@ fn include_no_quotes() {
 fn include_with_string() {
     let source = "#include \"../../huff-examples/erc20/contracts/utils/Ownable.huff\"";
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
-    let mut lexer = Lexer::new(flattened_source.source);
+    let mut lexer = Lexer::new(flattened_source.source, None);
 
     // The first token should be a single line comment
     let tok = lexer.next();
@@ -137,7 +137,7 @@ fn include_with_string() {
 fn include_with_string_single_quote() {
     let source = "#include '../../huff-examples/erc20/contracts/utils/Ownable.huff'";
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
-    let mut lexer = Lexer::new(flattened_source.source);
+    let mut lexer = Lexer::new(flattened_source.source, None);
 
     // The first token should be a single line comment
     let tok = lexer.next();

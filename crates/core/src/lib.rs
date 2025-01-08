@@ -312,7 +312,7 @@ impl<'a, 'l> Compiler<'a, 'l> {
 
                 // Perform Lexical Analysis
                 // Create a new lexer from the FileSource, flattening dependencies
-                let lexer = Lexer::new(full_source.source);
+                let lexer = Lexer::new(full_source.source, Some(file.clone()));
 
                 // Grab the tokens from the lexer
                 let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
@@ -346,10 +346,18 @@ impl<'a, 'l> Compiler<'a, 'l> {
 
         // Perform Lexical Analysis
         // Create a new lexer from the FileSource, flattening dependencies
-        let lexer = Lexer::new(full_source.source);
+        let lexer = Lexer::new(full_source.source, Some(file.clone()));
 
         // Grab the tokens from the lexer
-        let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+        let mut tokens = Vec::new();
+        for token_result in lexer {
+            match token_result {
+                Ok(token) => tokens.push(token),
+                Err(err) => {
+                    return Err(CompilerError::LexicalError(err));
+                }
+            }
+        }
         tracing::info!(target: "core", "LEXICAL ANALYSIS COMPLETE FOR \"{}\"", file.path);
         tracing::info!(target: "core", "└─ TOKEN COUNT: {}", tokens.len());
 

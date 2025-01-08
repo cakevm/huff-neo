@@ -5,7 +5,7 @@ use huff_neo_utils::prelude::*;
 fn parses_jump_table() {
     let source = "#define jumptable JUMP_TABLE()";
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
-    let lexer = Lexer::new(flattened_source.source);
+    let lexer = Lexer::new(flattened_source.source, None);
     let tokens = lexer.into_iter().map(|x| x.unwrap()).filter(|x| !matches!(x.kind, TokenKind::Whitespace)).collect::<Vec<Token>>();
 
     assert_eq!(tokens.first().unwrap().kind, TokenKind::Define);
@@ -19,7 +19,7 @@ fn parses_jump_table() {
 fn parses_packed_jump_table() {
     let source = "#define jumptable__packed JUMP_TABLE_PACKED()";
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
-    let lexer = Lexer::new(flattened_source.source);
+    let lexer = Lexer::new(flattened_source.source, None);
     let tokens = lexer.into_iter().map(|x| x.unwrap()).filter(|x| !matches!(x.kind, TokenKind::Whitespace)).collect::<Vec<Token>>();
 
     assert_eq!(tokens.first().unwrap().kind, TokenKind::Define);
@@ -33,7 +33,7 @@ fn parses_packed_jump_table() {
 fn parses_code_table() {
     let source = "#define table CODE_TABLE()";
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
-    let lexer = Lexer::new(flattened_source.source);
+    let lexer = Lexer::new(flattened_source.source, None);
     let tokens = lexer.into_iter().map(|x| x.unwrap()).filter(|x| !matches!(x.kind, TokenKind::Whitespace)).collect::<Vec<Token>>();
 
     assert_eq!(tokens.first().unwrap().kind, TokenKind::Define);
