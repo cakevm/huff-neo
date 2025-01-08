@@ -1,10 +1,10 @@
+use huff_neo_codegen::Codegen;
+use huff_neo_utils::prelude::*;
+use std::collections::HashSet;
 use std::{
     collections::BTreeMap,
     sync::{Arc, Mutex},
 };
-
-use huff_neo_codegen::Codegen;
-use huff_neo_utils::prelude::*;
 
 #[test]
 fn constructs_valid_abi() {
@@ -28,6 +28,7 @@ fn constructs_valid_abi() {
         functions: vec![],
         events: vec![],
         tables: vec![],
+        labels: HashSet::new(),
     };
 
     // Generate the abi from the contract
@@ -68,6 +69,7 @@ fn missing_constructor_fails() {
         functions: vec![],
         events: vec![],
         tables: vec![],
+        labels: HashSet::new(),
     };
 
     // Generate the abi from the contract

@@ -68,7 +68,7 @@ impl Parser {
             }
             // Check for a decorator above a test macro
             else if self.check(TokenKind::Pound) {
-                let m = self.parse_macro()?;
+                let m = self.parse_macro(&mut contract)?;
                 tracing::info!(target: "parser", "SUCCESSFULLY PARSED MACRO {}", m.name);
                 contract.macros.push(m);
             }
@@ -100,7 +100,7 @@ impl Parser {
                         contract.errors.push(e);
                     }
                     TokenKind::Macro | TokenKind::Fn | TokenKind::Test => {
-                        let m = self.parse_macro()?;
+                        let m = self.parse_macro(&mut contract)?;
                         tracing::info!(target: "parser", "SUCCESSFULLY PARSED MACRO {}", m.name);
                         self.check_duplicate_macro(&contract, &m)?;
                         contract.macros.push(m);
@@ -185,6 +185,24 @@ impl Parser {
     /// Check the current token's type against the given type.
     pub fn check(&mut self, kind: TokenKind) -> bool {
         std::mem::discriminant(&self.current_token.kind) == std::mem::discriminant(&kind)
+    }
+
+    /// Checks whether the input label is unique in a macro.
+    fn check_duplicate_label(&self, contract: &mut Contract, macro_name: &str, label: String, span: AstSpan) -> Result<(), ParserError> {
+        let key = format!("{macro_name}{label}");
+        if contract.labels.contains(&key) {
+            println!("DUPLICATED LABEL NAME: {:?}", span);
+            tracing::error!(target: "parser", "DUPLICATED LABEL NAME: {}", label);
+            Err(ParserError {
+                kind: ParserErrorKind::DuplicateLabel(label.clone()),
+                hint: Some(format!("Duplicated label name: \"{label}\" in macro: \"{macro_name}\"")),
+                spans: span,
+                cursor: self.cursor,
+            })
+        } else {
+            contract.labels.insert(key);
+            Ok(())
+        }
     }
 
     /// Checks if there is a duplicate macro name
@@ -489,7 +507,7 @@ impl Parser {
     /// Parses a macro.
     ///
     /// It should parse the following : macro MACRO_NAME(args...) = takes (x) returns (n) {...}
-    pub fn parse_macro(&mut self) -> Result<MacroDefinition, ParserError> {
+    pub fn parse_macro(&mut self, contract: &mut Contract) -> Result<MacroDefinition, ParserError> {
         let mut decorator: Option<Decorator> = None;
         if self.check(TokenKind::Pound) {
             decorator = Some(self.parse_decorator()?);
@@ -518,7 +536,7 @@ impl Parser {
         let macro_takes = self.match_kind(TokenKind::Takes).map_or(Ok(0), |_| self.parse_single_arg())?;
         let macro_returns = self.match_kind(TokenKind::Returns).map_or(Ok(0), |_| self.parse_single_arg())?;
 
-        let macro_statements: Vec<Statement> = self.parse_body()?;
+        let macro_statements: Vec<Statement> = self.parse_body(&macro_name, contract)?;
 
         Ok(MacroDefinition::new(
             macro_name,
@@ -536,7 +554,7 @@ impl Parser {
     /// Parse the body of a macro.
     ///
     /// Only HEX, OPCODES, labels, builtins, and MACRO calls should be authorized.
-    pub fn parse_body(&mut self) -> Result<Vec<Statement>, ParserError> {
+    pub fn parse_body(&mut self, macro_name: &str, contract: &mut Contract) -> Result<Vec<Statement>, ParserError> {
         let mut statements: Vec<Statement> = Vec::new();
         self.match_kind(TokenKind::OpenBrace)?;
         tracing::info!(target: "parser", "PARSING MACRO BODY");
@@ -618,6 +636,7 @@ impl Parser {
                 TokenKind::Label(l) => {
                     let mut curr_spans = vec![self.current_token.span.clone()];
                     self.consume();
+                    self.check_duplicate_label(contract, macro_name, l.to_string(), AstSpan(curr_spans.clone()))?;
                     let inner_statements: Vec<Statement> = self.parse_label()?;
                     inner_statements.iter().for_each(|a| curr_spans.extend_from_slice(a.span.inner_ref()));
                     tracing::info!(target: "parser", "PARSED LABEL \"{}\" INSIDE MACRO WITH {} STATEMENTS.", l, inner_statements.len());

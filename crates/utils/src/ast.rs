@@ -10,6 +10,7 @@ use crate::{
     evm_version::EVMVersion,
     prelude::{MacroArg::Ident, Span, TokenKind},
 };
+use std::collections::HashSet;
 use std::{
     collections::BTreeMap,
     fmt::{Display, Formatter},
@@ -112,6 +113,8 @@ pub struct Contract {
     pub events: Vec<EventDefinition>,
     /// Tables
     pub tables: Vec<TableDefinition>,
+    /// Labels
+    pub labels: HashSet<String>,
 }
 
 impl Contract {
