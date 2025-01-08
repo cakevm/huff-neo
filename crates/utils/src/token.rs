@@ -1,4 +1,6 @@
+use crate::files::FileSource;
 use crate::{evm::Opcode, files::Span, types::PrimitiveEVMType};
+use std::sync::Arc;
 use std::{fmt, fmt::Write};
 
 type Literal = [u8; 32];
@@ -133,13 +135,13 @@ pub enum TokenKind {
 
 impl TokenKind {
     /// Transform a single char TokenKind into a Token given a single position
-    pub fn into_single_span(self, position: u32) -> Token {
-        self.into_span(position, position)
+    pub fn into_single_span(self, position: u32, file: Option<Arc<FileSource>>) -> Token {
+        self.into_span(position, position, file)
     }
 
     /// Transform a TokenKind into a Token given a start and end position
-    pub fn into_span(self, start: u32, end: u32) -> Token {
-        Token { kind: self, span: Span { start: start as usize, end: end as usize, file: None } }
+    pub fn into_span(self, start: u32, end: u32, file: Option<Arc<FileSource>>) -> Token {
+        Token { kind: self, span: Span { start: start as usize, end: end as usize, file } }
     }
 }
 

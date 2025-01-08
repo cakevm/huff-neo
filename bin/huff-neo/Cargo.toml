@@ -26,4 +26,4 @@ yansi.workspace = true
 [[bin]]
 doc = false
 name = "huff-neo"
-path = "src/huff_neo.rs"
+path = "src/main.rs"

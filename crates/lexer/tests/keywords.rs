@@ -5,7 +5,7 @@ use huff_neo_utils::prelude::*;
 fn parses_macro_keyword() {
     let source = "#define macro";
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
-    let mut lexer = Lexer::new(flattened_source.source);
+    let mut lexer = Lexer::new(flattened_source.source, None);
 
     // Define Identifier first
     let tok = lexer.next();
@@ -35,7 +35,7 @@ fn parses_macro_keyword() {
 fn parses_fn_keyword() {
     let source = "#define fn";
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
-    let mut lexer = Lexer::new(flattened_source.source);
+    let mut lexer = Lexer::new(flattened_source.source, None);
 
     // Define Identifier first
     let tok = lexer.next();
@@ -65,7 +65,7 @@ fn parses_fn_keyword() {
 fn parses_test_keyword() {
     let source = "#define test";
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
-    let mut lexer = Lexer::new(flattened_source.source);
+    let mut lexer = Lexer::new(flattened_source.source, None);
 
     // Define Identifier first
     let tok = lexer.next();
@@ -95,7 +95,7 @@ fn parses_test_keyword() {
 fn parses_function_keyword() {
     let source = "#define function";
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
-    let mut lexer = Lexer::new(flattened_source.source);
+    let mut lexer = Lexer::new(flattened_source.source, None);
 
     // Define Identifier first
     let tok = lexer.next();
@@ -125,7 +125,7 @@ fn parses_function_keyword() {
 fn parses_event_keyword() {
     let source = "#define event TestEvent(uint256)";
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
-    let mut lexer = Lexer::new(flattened_source.source);
+    let mut lexer = Lexer::new(flattened_source.source, None);
 
     // Define Identifier first
     let tok = lexer.next();
@@ -160,7 +160,7 @@ fn parses_event_keyword() {
 fn parses_constant_keyword() {
     let source = "#define constant";
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
-    let mut lexer = Lexer::new(flattened_source.source);
+    let mut lexer = Lexer::new(flattened_source.source, None);
 
     // Define Identifier first
     let tok = lexer.next();
@@ -190,7 +190,7 @@ fn parses_constant_keyword() {
 fn parses_takes_and_returns_keywords() {
     let source = "#define macro TEST() = takes   (0)   returns   (0)";
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
-    let mut lexer = Lexer::new(flattened_source.source);
+    let mut lexer = Lexer::new(flattened_source.source, None);
 
     let _ = lexer.next(); // #define
     let _ = lexer.next(); // whitespace
@@ -237,7 +237,7 @@ fn parses_takes_and_returns_keywords() {
 fn parses_takes_and_returns_keywords_tight_syntax() {
     let source = "#define macro TEST() = takes(0) returns(0)";
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
-    let mut lexer = Lexer::new(flattened_source.source);
+    let mut lexer = Lexer::new(flattened_source.source, None);
 
     let _ = lexer.next(); // #define
     let _ = lexer.next(); // whitespace
@@ -282,7 +282,7 @@ fn parses_takes_and_returns_keywords_tight_syntax() {
 fn parses_function_type_keywords() {
     let source = "#define function test() view returns (uint256)";
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
-    let mut lexer = Lexer::new(flattened_source.source);
+    let mut lexer = Lexer::new(flattened_source.source, None);
 
     let _ = lexer.next(); // #define
     let _ = lexer.next(); // whitespace
@@ -336,7 +336,7 @@ fn parses_function_definition_with_keyword_name() {
     for s in key_words {
         let source = &format!("#define function {s}(uint256) view returns(uint256)");
         let flattened_source = FullFileSource { source, file: None, spans: vec![] };
-        let mut lexer = Lexer::new(flattened_source.source);
+        let mut lexer = Lexer::new(flattened_source.source, None);
 
         let end_span_s = 17 + s.len();
 
@@ -408,7 +408,7 @@ fn parses_label_with_keyword_name() {
         );
 
         let flattened_source = FullFileSource { source, file: None, spans: vec![] };
-        let mut lexer = Lexer::new(flattened_source.source);
+        let mut lexer = Lexer::new(flattened_source.source, None);
 
         let tok = lexer.next();
         let unwrapped = tok.unwrap().unwrap();
@@ -458,7 +458,7 @@ fn parses_function_with_keyword_name() {
         let source = &format!("dup1 0x7c09063f eq {s} jumpi");
 
         let flattened_source = FullFileSource { source, file: None, spans: vec![] };
-        let mut lexer = Lexer::new(flattened_source.source);
+        let mut lexer = Lexer::new(flattened_source.source, None);
 
         let _ = lexer.next(); // dup1
         let _ = lexer.next(); // whitespace
@@ -515,7 +515,7 @@ fn parses_function_with_keyword_name_in_macro() {
         );
 
         let flattened_source = FullFileSource { source, file: None, spans: vec![] };
-        let mut lexer = Lexer::new(flattened_source.source);
+        let mut lexer = Lexer::new(flattened_source.source, None);
 
         let _ = lexer.next(); // whitespace
         let _ = lexer.next(); // #define
@@ -595,7 +595,7 @@ fn parses_keyword_arbitrary_whitespace() {
         let source = &format!("#define     {key}");
 
         let flattened_source = FullFileSource { source, file: None, spans: vec![] };
-        let mut lexer = Lexer::new(flattened_source.source);
+        let mut lexer = Lexer::new(flattened_source.source, None);
 
         // Define Identifier first
         let tok = lexer.next();
@@ -626,7 +626,7 @@ fn parses_keyword_arbitrary_whitespace() {
 fn parses_takes_keyword_arbitrary_whitespace() {
     let source = "#define macro TEST() =      takes (0) returns (0)";
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
-    let mut lexer = Lexer::new(flattened_source.source);
+    let mut lexer = Lexer::new(flattened_source.source, None);
 
     let _ = lexer.next(); // #define
     let _ = lexer.next(); // whitespace

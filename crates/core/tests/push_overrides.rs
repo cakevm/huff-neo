@@ -15,7 +15,7 @@ fn test_gracefully_pads_push_override() {
 
     // Lex and Parse the source code
     let flattened_source = FullFileSource { source: OVERRIDEN_PUSH, file: None, spans: vec![] };
-    let lexer = Lexer::new(flattened_source.source);
+    let lexer = Lexer::new(flattened_source.source, None);
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
     let mut parser = Parser::new(tokens, None);
 
@@ -48,7 +48,7 @@ fn test_constructs_exact_push_override() {
 
     // Lex and Parse the source code
     let flattened_source = FullFileSource { source: OVERRIDEN_PUSH, file: None, spans: vec![] };
-    let lexer = Lexer::new(flattened_source.source);
+    let lexer = Lexer::new(flattened_source.source, None);
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
     let mut parser = Parser::new(tokens, None);
 
@@ -81,7 +81,7 @@ fn test_no_push0_override() {
 
     // Lex and Parse the source code
     let flattened_source = FullFileSource { source: OVERRIDEN_PUSH, file: None, spans: vec![] };
-    let lexer = Lexer::new(flattened_source.source);
+    let lexer = Lexer::new(flattened_source.source, None);
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
     let mut parser = Parser::new(tokens, None);
 
@@ -113,7 +113,7 @@ fn test_fails_on_push_underflow() {
     "#;
 
     let flattened_source = FullFileSource { source: OVERRIDEN_PUSH, file: None, spans: vec![] };
-    let lexer = Lexer::new(flattened_source.source);
+    let lexer = Lexer::new(flattened_source.source, None);
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
     let mut parser = Parser::new(tokens, None);
     parser.parse().unwrap();
@@ -136,7 +136,7 @@ fn test_literal_to_push0() {
     "#;
 
     let flattened_source = FullFileSource { source: LITERAL_PUSH, file: None, spans: vec![] };
-    let lexer = Lexer::new(flattened_source.source);
+    let lexer = Lexer::new(flattened_source.source, None);
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
     let mut parser = Parser::new(tokens, None);
 

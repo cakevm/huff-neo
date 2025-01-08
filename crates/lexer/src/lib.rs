@@ -1,5 +1,6 @@
 use huff_neo_utils::prelude::*;
 use regex::Regex;
+use std::sync::Arc;
 use std::{
     iter::{Peekable, Zip},
     ops::RangeFrom,
@@ -7,7 +8,7 @@ use std::{
 };
 
 /// Defines a context in which the lexing happens.
-/// Allows to differientate between EVM types and opcodes that can either
+/// Allows to differentiate between EVM types and opcodes that can either
 /// be identical or the latter being a substring of the former (example : bytes32 and byte)
 #[derive(Debug, PartialEq, Eq)]
 pub enum Context {
@@ -44,12 +45,14 @@ pub struct Lexer<'a> {
     pub eof: bool,
     /// Current context.
     pub context: Context,
+    /// The file source to reference in the span
+    pub file: Option<Arc<FileSource>>,
 }
 
 pub type TokenResult = Result<Token, LexicalError>;
 
 impl<'a> Lexer<'a> {
-    pub fn new(source: &'a str) -> Self {
+    pub fn new(source: &'a str, file: Option<Arc<FileSource>>) -> Self {
         Lexer {
             // We zip with the character index here to ensure the first char has index 0
             chars: source.chars().zip(0..).peekable(),
@@ -57,6 +60,7 @@ impl<'a> Lexer<'a> {
             lookback: None,
             eof: false,
             context: Context::Global,
+            file,
         }
     }
 
@@ -86,7 +90,7 @@ impl<'a> Lexer<'a> {
                                 // Consume until newline
                                 comment_string.push(ch2);
                                 let (comment_string, start, end) = self.eat_while(Some(ch), |c| c != '\n');
-                                Ok(TokenKind::Comment(comment_string).into_span(start, end))
+                                Ok(TokenKind::Comment(comment_string).into_span(start, end, self.file.clone()))
                             }
                             '*' => {
                                 // ref: https://github.com/rust-lang/rust/blob/900c3540378c8422b8087ffa3db60fa6c8abfcad/compiler/rustc_lexer/src/lib.rs#L474
@@ -121,7 +125,7 @@ impl<'a> Lexer<'a> {
                                     }
                                 }
 
-                                Ok(TokenKind::Comment(comment_string).into_span(start, self.position))
+                                Ok(TokenKind::Comment(comment_string).into_span(start, self.position, self.file.clone()))
                             }
                             _ => self.single_char_token(TokenKind::Div),
                         }
@@ -147,15 +151,15 @@ impl<'a> Lexer<'a> {
                     }
 
                     if let Some(kind) = &found_kind {
-                        Ok(kind.clone().into_span(start, end))
+                        Ok(kind.clone().into_span(start, end, self.file.clone()))
                     } else if self.context == Context::Global && self.peek().unwrap() == '[' {
-                        Ok(TokenKind::Pound.into_single_span(self.position))
+                        Ok(TokenKind::Pound.into_single_span(self.position, self.file.clone()))
                     } else {
                         // Otherwise we don't support # prefixed indentifiers
                         tracing::error!(target: "lexer", "INVALID '#' CHARACTER USAGE");
                         return Err(LexicalError::new(
                             LexicalErrorKind::InvalidCharacter('#'),
-                            Span { start: self.position as usize, end: self.position as usize, file: None },
+                            Span { start: self.position as usize, end: self.position as usize, file: self.file.clone() },
                         ));
                     }
                 }
@@ -276,7 +280,7 @@ impl<'a> Lexer<'a> {
                                                 .map_err(|_| {
                                                     let err = LexicalError {
                                                         kind: LexicalErrorKind::InvalidArraySize(words[1].clone()),
-                                                        span: Span { start: start as usize, end: end as usize, file: None },
+                                                        span: Span { start: start as usize, end: end as usize, file: self.file.clone() },
                                                     };
                                                     tracing::error!(target: "lexer", "{}", format!("{err:?}"));
                                                     err
@@ -292,7 +296,7 @@ impl<'a> Lexer<'a> {
                                 } else {
                                     let err = LexicalError {
                                         kind: LexicalErrorKind::InvalidPrimitiveType(words[0].clone()),
-                                        span: Span { start: start as usize, end: end as usize, file: None },
+                                        span: Span { start: start as usize, end: end as usize, file: self.file.clone() },
                                     };
                                     tracing::error!(target: "lexer", "{}", format!("{err:?}"));
                                 }
@@ -323,7 +327,7 @@ impl<'a> Lexer<'a> {
                         TokenKind::Ident(word)
                     };
 
-                    Ok(kind.into_span(start, end))
+                    Ok(kind.into_span(start, end, self.file.clone()))
                 }
                 // If it's the start of a hex literal
                 ch if ch == '0' && self.peek().unwrap() == 'x' => self.eat_hex_digit(ch),
@@ -371,7 +375,7 @@ impl<'a> Lexer<'a> {
                 // Lexes Spaces and Newlines as Whitespace
                 ch if ch.is_ascii_whitespace() => {
                     let (_, start, end) = self.eat_whitespace();
-                    Ok(TokenKind::Whitespace.into_span(start, end))
+                    Ok(TokenKind::Whitespace.into_span(start, end, self.file.clone()))
                 }
                 // String literals. String literals can also be wrapped by single quotes
                 '"' | '\'' => Ok(self.eat_string_literal()),
@@ -379,7 +383,7 @@ impl<'a> Lexer<'a> {
                     tracing::error!(target: "lexer", "UNSUPPORTED TOKEN '{}'", ch);
                     return Err(LexicalError::new(
                         LexicalErrorKind::InvalidCharacter(ch),
-                        Span { start: self.position as usize, end: self.position as usize, file: None },
+                        Span { start: self.position as usize, end: self.position as usize, file: self.file.clone() },
                     ));
                 }
             }?;
@@ -391,12 +395,15 @@ impl<'a> Lexer<'a> {
             Ok(token)
         } else {
             self.eof = true;
-            Ok(Token { kind: TokenKind::Eof, span: Span { start: self.position as usize, end: self.position as usize, file: None } })
+            Ok(Token {
+                kind: TokenKind::Eof,
+                span: Span { start: self.position as usize, end: self.position as usize, file: self.file.clone() },
+            })
         }
     }
 
     fn single_char_token(&self, token_kind: TokenKind) -> TokenResult {
-        Ok(token_kind.into_single_span(self.position))
+        Ok(token_kind.into_single_span(self.position, self.file.clone()))
     }
 
     /// Keeps consuming tokens as long as the predicate is satisfied
@@ -435,7 +442,7 @@ impl<'a> Lexer<'a> {
         let integer = integer_str.parse().unwrap();
 
         let integer_token = TokenKind::Num(integer);
-        let span = Span { start: start as usize, end: end as usize, file: None };
+        let span = Span { start: start as usize, end: end as usize, file: self.file.clone() };
         Ok(Token { kind: integer_token, span })
     }
 
@@ -457,7 +464,7 @@ impl<'a> Lexer<'a> {
         };
 
         start += 2;
-        let span = Span { start: start as usize, end: end as usize, file: None };
+        let span = Span { start: start as usize, end: end as usize, file: self.file.clone() };
         Ok(Token { kind, span })
     }
 
@@ -470,7 +477,7 @@ impl<'a> Lexer<'a> {
         let (str_literal, start_span, end_span) = self.eat_while(None, |ch| ch != '"' && ch != '\'');
         let str_literal_token = TokenKind::Str(str_literal);
         self.consume(); // Advance past the closing quote
-        str_literal_token.into_span(start_span, end_span + 1)
+        str_literal_token.into_span(start_span, end_span + 1, self.file.clone())
     }
 
     /// Checks the previous token kind against the input.
