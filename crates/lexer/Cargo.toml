@@ -12,5 +12,7 @@ keywords = ["bytecode", "compiler", "evm", "huff", "rust"]
 
 [dependencies]
 huff-neo-utils.workspace = true
+
+lazy_static.workspace = true
 regex.workspace = true
 tracing.workspace = true

@@ -1,10 +1,36 @@
 use huff_neo_utils::prelude::*;
+use lazy_static::lazy_static;
 use regex::Regex;
+use std::collections::HashMap;
 use std::{
     iter::{Peekable, Zip},
     ops::RangeFrom,
     str::Chars,
 };
+
+lazy_static! {
+    static ref TOKEN: HashMap<String, TokenKind> = HashMap::from_iter(vec![
+        (TokenKind::Macro.to_string(), TokenKind::Macro),
+        (TokenKind::Fn.to_string(), TokenKind::Fn),
+        (TokenKind::Test.to_string(), TokenKind::Test),
+        (TokenKind::Function.to_string(), TokenKind::Function),
+        (TokenKind::Constant.to_string(), TokenKind::Constant),
+        (TokenKind::Error.to_string(), TokenKind::Error),
+        (TokenKind::Takes.to_string(), TokenKind::Takes),
+        (TokenKind::Returns.to_string(), TokenKind::Returns),
+        (TokenKind::Event.to_string(), TokenKind::Event),
+        (TokenKind::NonPayable.to_string(), TokenKind::NonPayable),
+        (TokenKind::Payable.to_string(), TokenKind::Payable),
+        (TokenKind::Indexed.to_string(), TokenKind::Indexed),
+        (TokenKind::View.to_string(), TokenKind::View),
+        (TokenKind::Pure.to_string(), TokenKind::Pure),
+        // First check for packed jump table
+        (TokenKind::JumpTablePacked.to_string(), TokenKind::JumpTablePacked),
+        // Match with jump table if not
+        (TokenKind::JumpTable.to_string(), TokenKind::JumpTable),
+        (TokenKind::CodeTable.to_string(), TokenKind::CodeTable),
+    ]);
+}
 
 /// Defines a context in which the lexing happens.
 /// Allows to differentiate between EVM types and opcodes that can either
@@ -168,37 +194,9 @@ impl<'a> Lexer<'a> {
                     let (word, start, mut end) = self.eat_while(Some(ch), |c| c.is_alphanumeric() || c == '_');
 
                     let mut found_kind: Option<TokenKind> = None;
-                    let keys = [
-                        TokenKind::Macro,
-                        TokenKind::Fn,
-                        TokenKind::Test,
-                        TokenKind::Function,
-                        TokenKind::Constant,
-                        TokenKind::Error,
-                        TokenKind::Takes,
-                        TokenKind::Returns,
-                        TokenKind::Event,
-                        TokenKind::NonPayable,
-                        TokenKind::Payable,
-                        TokenKind::Indexed,
-                        TokenKind::View,
-                        TokenKind::Pure,
-                        // First check for packed jump table
-                        TokenKind::JumpTablePacked,
-                        // Match with jump table if not
-                        TokenKind::JumpTable,
-                        TokenKind::CodeTable,
-                    ];
-                    for kind in keys.into_iter() {
-                        if self.context == Context::MacroBody {
-                            break;
-                        }
-                        let key = kind.to_string();
-                        let peeked = word.clone();
-
-                        if key == peeked {
-                            found_kind = Some(kind);
-                            break;
+                    if self.context != Context::MacroBody {
+                        if let Some(kind) = TOKEN.get(&word) {
+                            found_kind = Some(kind.clone());
                         }
                     }
 
@@ -209,6 +207,7 @@ impl<'a> Lexer<'a> {
                         found_kind = None;
                     }
 
+                    // Set the context based on the found token kind
                     if let Some(kind) = &found_kind {
                         match kind {
                             TokenKind::Macro | TokenKind::Fn | TokenKind::Test => self.context = Context::MacroDefinition,
@@ -437,10 +436,9 @@ impl<'a> Lexer<'a> {
         let (integer_str, start, end) = self.eat_while(Some(initial_char), |ch| ch.is_ascii_digit());
 
         let integer = integer_str.parse().unwrap();
-
         let integer_token = TokenKind::Num(integer);
-        let span = self.source.relative_span_by_pos(start, end);
-        Ok(Token { kind: integer_token, span })
+
+        Ok(Token { kind: integer_token, span: self.source.relative_span_by_pos(start, end) })
     }
 
     fn eat_hex_digit(&mut self, initial_char: char) -> TokenResult {
@@ -461,8 +459,8 @@ impl<'a> Lexer<'a> {
         };
 
         start += 2;
-        let span = self.source.relative_span_by_pos(start, end);
-        Ok(Token { kind, span })
+
+        Ok(Token { kind, span: self.source.relative_span_by_pos(start, end) })
     }
 
     /// Skips white space. They are not significant in the source language

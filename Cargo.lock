@@ -1122,6 +1122,7 @@ name = "huff-neo-lexer"
 version = "0.0.2"
 dependencies = [
  "huff-neo-utils",
+ "lazy_static",
  "regex",
  "tracing",
 ]
