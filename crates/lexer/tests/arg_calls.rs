@@ -16,7 +16,7 @@ fn lexes_arg_calls() {
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
 
     // Parse tokens
-    let mut lexer = Lexer::new(flattened_source.source, None);
+    let mut lexer = Lexer::new(flattened_source);
 
     // Eat Tokens
     let _ = lexer.next(); // Whitespace

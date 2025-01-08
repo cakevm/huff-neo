@@ -6,7 +6,7 @@ use huff_neo_utils::{ast::EventDefinition, prelude::*};
 fn test_prefix_event_arg_names_with_reserved_keywords() {
     let source: &str = "#define event TestEvent(bytes4 indexed interfaceId, uint256 uintTest, bool stringMe, string boolean)";
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
-    let lexer = Lexer::new(flattened_source.source, None);
+    let lexer = Lexer::new(flattened_source);
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
     let expected_tokens: Vec<Token> = vec![
         Token { kind: TokenKind::Define, span: Span { start: 0, end: 6, file: None } },
@@ -220,7 +220,7 @@ fn test_parse_event() {
 
     for (source, expected) in sources {
         let flattened_source = FullFileSource { source, file: None, spans: vec![] };
-        let lexer = Lexer::new(flattened_source.source, None);
+        let lexer = Lexer::new(flattened_source);
         let tokens = lexer.into_iter().map(|x| x.unwrap()).filter(|x| !matches!(x.kind, TokenKind::Whitespace)).collect::<Vec<Token>>();
         let mut parser = Parser::new(tokens, None);
         let _ = parser.match_kind(TokenKind::Define);

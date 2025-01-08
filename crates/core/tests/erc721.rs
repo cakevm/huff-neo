@@ -20,7 +20,7 @@ fn test_erc721_compile() {
     let recursed_file_source = Compiler::recurse_deps(Arc::clone(file_source), &files::Remapper::new("./"), file_provider).unwrap();
     let flattened = FileSource::fully_flatten(Arc::clone(&recursed_file_source));
     let full_source = FullFileSource { source: &flattened.0, file: Some(Arc::clone(file_source)), spans: flattened.1 };
-    let lexer = Lexer::new(full_source.source, None);
+    let lexer = Lexer::new(full_source);
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
     let mut parser = Parser::new(tokens, Some("../../huff-examples/erc20/contracts".to_string()));
     let mut contract = parser.parse().unwrap();

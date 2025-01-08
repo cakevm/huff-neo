@@ -14,7 +14,7 @@ use huff_neo_utils::prelude::*;
 fn instantiates() {
     let source = "#define macro HELLO_WORLD()";
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
-    let lexer = Lexer::new(flattened_source.source, None);
+    let lexer = Lexer::new(flattened_source);
     assert!(!lexer.eof);
 }
 
@@ -22,7 +22,7 @@ fn instantiates() {
 fn single_line_comments() {
     let source = "// comment contents \n#define macro HELLO_WORLD()";
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
-    let mut lexer = Lexer::new(flattened_source.source, None);
+    let mut lexer = Lexer::new(flattened_source);
 
     // The first token should be a single line comment
     let tok = lexer.next();
@@ -91,7 +91,7 @@ fn single_line_comments() {
 fn multi_line_comments() {
     let source = "/* comment contents*/#define macro HELLO_WORLD()";
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
-    let mut lexer = Lexer::new(flattened_source.source, None);
+    let mut lexer = Lexer::new(flattened_source);
 
     // The first token should be a single line comment
     let tok = lexer.next();

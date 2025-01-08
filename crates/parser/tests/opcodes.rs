@@ -17,7 +17,7 @@ fn not_mistaken_as_opcode() {
             "#
         );
         let flattened_source = FullFileSource { source, file: None, spans: vec![] };
-        let lexer = Lexer::new(flattened_source.source, None);
+        let lexer = Lexer::new(flattened_source);
 
         let tokens = lexer.into_iter().map(|x| x.unwrap()).filter(|x| !matches!(x.kind, TokenKind::Whitespace)).collect::<Vec<Token>>();
 
@@ -45,7 +45,7 @@ fn test_invalid_push_non_literal() {
 
     // Parse tokens
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
-    let lexer = Lexer::new(flattened_source.source, None);
+    let lexer = Lexer::new(flattened_source);
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
     let mut parser = Parser::new(tokens, None);
 
@@ -65,7 +65,7 @@ fn test_push_literals() {
 
     // Parse tokens
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
-    let lexer = Lexer::new(flattened_source.source, None);
+    let lexer = Lexer::new(flattened_source);
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
 
     let expected_tokens = vec![
@@ -132,7 +132,7 @@ fn test_push0() {
 
     // Parse tokens
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
-    let lexer = Lexer::new(flattened_source.source, None);
+    let lexer = Lexer::new(flattened_source);
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
 
     let expected_tokens = vec![

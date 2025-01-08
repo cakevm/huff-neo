@@ -143,6 +143,11 @@ impl TokenKind {
     pub fn into_span(self, start: u32, end: u32, file: Option<Arc<FileSource>>) -> Token {
         Token { kind: self, span: Span { start: start as usize, end: end as usize, file } }
     }
+
+    /// Transform a TokenKind into a Token given a Span
+    pub fn into_token_with_span(self, span: Span) -> Token {
+        Token { kind: self, span }
+    }
 }
 
 impl fmt::Display for TokenKind {

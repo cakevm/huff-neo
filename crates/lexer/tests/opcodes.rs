@@ -18,7 +18,7 @@ fn opcodes() {
             "{", "}",
         );
         let flattened_source = FullFileSource { source, file: None, spans: vec![] };
-        let lexer = Lexer::new(flattened_source.source, None);
+        let lexer = Lexer::new(flattened_source);
 
         let tokens = lexer.into_iter().map(|x| x.unwrap()).filter(|x| !matches!(x.kind, TokenKind::Whitespace)).collect::<Vec<Token>>();
 
