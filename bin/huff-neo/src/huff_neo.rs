@@ -7,7 +7,6 @@
 #![allow(deprecated)]
 
 use alloy_primitives::hex;
-use atty::Stream;
 use clap::{CommandFactory, Parser as ClapParser, Subcommand};
 use comfy_table::{modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL, Cell, Color, Row, Table};
 use huff_neo_codegen::Codegen;
@@ -23,7 +22,6 @@ use huff_neo_utils::{
         CompilerError, EVMVersion, FileSource, Literal, OutputLocation, Span,
     },
 };
-use spinners::{Spinner, Spinners};
 use std::{collections::BTreeMap, io::Write, path::Path, rc::Rc, sync::Arc, time::Instant};
 use yansi::Paint;
 
@@ -313,21 +311,8 @@ fn main() {
         return;
     }
 
-    // Create compiling spinner
-    tracing::debug!(target: "cli", "[⠔] COMPILING");
-    let mut sp: Option<Spinner> = None;
-    // If stdout is a TTY, create a spinner
-    if atty::is(Stream::Stdout) {
-        sp = Some(Spinner::new(Spinners::Dots, "Compiling...".into()));
-    }
-
     let compile_res = compiler.execute();
 
-    // Stop spinner animation if it exists
-    if let Some(mut sp) = sp {
-        sp.stop();
-        println!(" ");
-    }
     match compile_res {
         Ok(mut artifacts) => {
             if artifacts.is_empty() {

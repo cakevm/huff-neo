@@ -16,12 +16,9 @@ huff-neo-core.workspace = true
 huff-neo-tests.workspace = true
 huff-neo-utils.workspace = true
 
-alloy-dyn-abi.workspace = true
 alloy-primitives.workspace = true
-atty.workspace = true
 clap.workspace = true
 comfy-table.workspace = true
-spinners.workspace = true
 tracing.workspace = true
 uuid.workspace = true
 yansi.workspace = true
