@@ -1,9 +1,8 @@
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::{
-    cell::Ref,
     collections::HashMap,
-    fs,
+    fmt, fs,
     io::{BufReader, Read},
     path::{Path, PathBuf},
     sync::Arc,
@@ -26,15 +25,20 @@ pub struct FullFileSource<'a> {
 }
 
 impl<'a> FullFileSource<'a> {
-    /// Get the relative span
-    pub fn relative_span(&self, span: Ref<'a, Span>) -> Option<Span> {
+    /// Get the relative span by position. Because the file source is flattened, we need to find the correct file source.
+    pub fn relative_span_by_pos(&self, start: usize, end: usize) -> Span {
+        // If spans are empty we have a single file source e.g. for tests
+        if self.spans.is_empty() {
+            return Span { start, end, file: self.file.clone() };
+        }
         self.spans
             .iter()
-            .filter(|s| s.1.start < span.start && s.1.end > span.end)
-            .map(|s| Span { start: span.start - s.1.start, end: span.end - s.1.start, file: Some(s.0.clone()) })
+            .filter(|s| s.1.start < start && s.1.end > end)
+            .map(|s| Span { start: start - s.1.start, end: end - s.1.start, file: Some(s.0.clone()) })
             .collect::<Vec<Span>>()
             .into_iter()
             .next()
+            .unwrap_or_default()
     }
 }
 
@@ -173,7 +177,7 @@ impl Remapper {
 }
 
 /// File Encapsulation
-#[derive(Debug, Default, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Clone)]
+#[derive(Default, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub struct FileSource {
     /// File ID
     #[serde(skip)]
@@ -186,6 +190,19 @@ pub struct FileSource {
     pub access: Option<time::Time>,
     /// An Ordered List of File Dependencies
     pub dependencies: Option<Vec<Arc<FileSource>>>,
+}
+
+// Reduce the size of the debug output by not printing the source code and dependencies
+impl fmt::Debug for FileSource {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("FileSource")
+            .field("id", &self.id)
+            .field("path", &self.path)
+            .field("source", &"...")
+            .field("access", &self.access)
+            .field("dependencies", &"...")
+            .finish()
+    }
 }
 
 impl FileSource {

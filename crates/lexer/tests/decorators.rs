@@ -17,7 +17,7 @@ fn parses_decorator() {
         );
 
         let flattened_source = FullFileSource { source, file: None, spans: vec![] };
-        let mut lexer = Lexer::new(flattened_source.source, None);
+        let mut lexer = Lexer::new(flattened_source);
 
         let _ = lexer.next(); // whitespace
 
@@ -118,7 +118,7 @@ fn fails_to_parse_decorator_in_body() {
         );
 
         let flattened_source = FullFileSource { source, file: None, spans: vec![] };
-        let mut lexer = Lexer::new(flattened_source.source, None);
+        let mut lexer = Lexer::new(flattened_source);
 
         for token in lexer.by_ref() {
             if let Err(e) = token {

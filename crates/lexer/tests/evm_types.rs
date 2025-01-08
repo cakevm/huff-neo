@@ -16,7 +16,7 @@ fn primitive_type_parsing() {
     for (evm_type, evm_type_enum) in evm_types {
         let source = &format!("#define function test({evm_type}) view returns (uint256)");
         let flattened_source = FullFileSource { source, file: None, spans: vec![] };
-        let lexer = Lexer::new(flattened_source.source, None);
+        let lexer = Lexer::new(flattened_source);
         let tokens = lexer.into_iter().map(|x| x.unwrap()).filter(|x| !matches!(x.kind, TokenKind::Whitespace)).collect::<Vec<Token>>();
 
         assert_eq!(tokens.get(4).unwrap().kind, TokenKind::PrimitiveType(evm_type_enum));
@@ -38,7 +38,7 @@ fn bounded_array_parsing() {
     for (evm_type, evm_type_enum) in evm_types {
         let source = &format!("#define function test({evm_type}) view returns (uint256)");
         let flattened_source = FullFileSource { source, file: None, spans: vec![] };
-        let lexer = Lexer::new(flattened_source.source, None);
+        let lexer = Lexer::new(flattened_source);
         let tokens = lexer.into_iter().map(|x| x.unwrap()).filter(|x| !matches!(x.kind, TokenKind::Whitespace)).collect::<Vec<Token>>();
 
         assert_eq!(tokens.get(4).unwrap().kind, evm_type_enum);
@@ -60,7 +60,7 @@ fn unbounded_array_parsing() {
     for (evm_type, evm_type_enum) in evm_types {
         let source = &format!("#define function test({evm_type}) view returns (uint256)");
         let flattened_source = FullFileSource { source, file: None, spans: vec![] };
-        let lexer = Lexer::new(flattened_source.source, None);
+        let lexer = Lexer::new(flattened_source);
         let tokens = lexer.into_iter().map(|x| x.unwrap()).filter(|x| !matches!(x.kind, TokenKind::Whitespace)).collect::<Vec<Token>>();
         assert_eq!(tokens.get(4).unwrap().kind, evm_type_enum);
     }
@@ -81,7 +81,7 @@ fn multidim_array_parsing() {
     for (evm_type, evm_type_enum) in evm_types {
         let source = &format!("#define function test({evm_type}) view returns (uint256)");
         let flattened_source = FullFileSource { source, file: None, spans: vec![] };
-        let lexer = Lexer::new(flattened_source.source, None);
+        let lexer = Lexer::new(flattened_source);
         let tokens = lexer.into_iter().map(|x| x.unwrap()).filter(|x| !matches!(x.kind, TokenKind::Whitespace)).collect::<Vec<Token>>();
 
         assert_eq!(tokens.get(4).unwrap().kind, evm_type_enum);
