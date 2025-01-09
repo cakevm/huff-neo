@@ -1,6 +1,6 @@
 use clap::{Parser, Subcommand};
 use huff_neo_utils::error::CompilerError;
-use huff_neo_utils::io::unpack_files;
+use huff_neo_utils::file::unpack_files::unpack_files;
 use std::io::Write;
 use std::path::Path;
 use yansi::Paint;

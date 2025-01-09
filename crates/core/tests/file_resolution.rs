@@ -1,10 +1,9 @@
 use std::{path::PathBuf, sync::Arc};
 
 use huff_neo_core::Compiler;
-use huff_neo_utils::{
-    file_provider::{FileProvider, FileSystemFileProvider},
-    prelude::{CompilerError, EVMVersion, OutputLocation, UnpackError},
-};
+use huff_neo_utils::file::file_provider::{FileProvider, FileSystemFileProvider};
+use huff_neo_utils::file::full_file_source::OutputLocation;
+use huff_neo_utils::prelude::{CompilerError, EVMVersion, UnpackError};
 
 #[test]
 fn test_get_outputs_no_output() {

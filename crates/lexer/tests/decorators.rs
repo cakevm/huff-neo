@@ -1,5 +1,6 @@
 use huff_neo_lexer::*;
-use huff_neo_utils::prelude::{str_to_bytes32, FullFileSource, Span, Token, TokenKind};
+use huff_neo_utils::file::full_file_source::FullFileSource;
+use huff_neo_utils::prelude::{str_to_bytes32, Span, Token, TokenKind};
 
 #[test]
 fn parses_decorator() {

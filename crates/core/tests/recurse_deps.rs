@@ -1,19 +1,20 @@
 use std::{path::PathBuf, sync::Arc};
 
 use huff_neo_core::Compiler;
-use huff_neo_utils::{file_provider::FileSystemFileProvider, files};
+use huff_neo_utils::file::file_provider::FileSystemFileProvider;
+use huff_neo_utils::file::{file_source, remapper};
 
 #[test]
 fn test_recursing_fs_dependencies() {
     let file_provider = Arc::new(FileSystemFileProvider {});
-    let file_sources: Vec<Arc<files::FileSource>> =
+    let file_sources: Vec<Arc<file_source::FileSource>> =
         Compiler::fetch_sources(vec![PathBuf::from("../../huff-examples/erc20/contracts/ERC20.huff".to_string())], file_provider.clone())
             .iter()
             .map(|p| p.clone().unwrap())
             .collect();
     assert_eq!(file_sources.len(), 1);
     let erc20_file_source = file_sources[0].clone();
-    let res = Compiler::recurse_deps(Arc::clone(&erc20_file_source), &files::Remapper::new("./"), file_provider);
+    let res = Compiler::recurse_deps(Arc::clone(&erc20_file_source), &remapper::Remapper::new("./"), file_provider);
     let full_erc20_file_source = res.unwrap();
     let dependencies = full_erc20_file_source.dependencies.as_ref().unwrap();
     assert_eq!(dependencies.len(), 4);
@@ -26,14 +27,14 @@ fn test_recursing_fs_dependencies() {
 #[test]
 fn test_recursing_external_dependencies() {
     let file_provider = Arc::new(FileSystemFileProvider {});
-    let file_sources: Vec<Arc<files::FileSource>> =
+    let file_sources: Vec<Arc<file_source::FileSource>> =
         Compiler::fetch_sources(vec![PathBuf::from("../../huff-examples/erc20/contracts/ERC20.huff".to_string())], file_provider.clone())
             .iter()
             .map(|p| p.clone().unwrap())
             .collect();
     assert_eq!(file_sources.len(), 1);
     let erc20_file_source = file_sources[0].clone();
-    let res = Compiler::recurse_deps(Arc::clone(&erc20_file_source), &files::Remapper::new("./"), file_provider);
+    let res = Compiler::recurse_deps(Arc::clone(&erc20_file_source), &remapper::Remapper::new("./"), file_provider);
     let full_erc20_file_source = res.unwrap();
     let dependencies = full_erc20_file_source.dependencies.as_ref().unwrap();
     assert_eq!(dependencies.len(), 4);

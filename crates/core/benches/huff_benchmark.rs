@@ -3,7 +3,11 @@ use huff_neo_codegen::*;
 use huff_neo_core::Compiler;
 use huff_neo_lexer::*;
 use huff_neo_parser::*;
-use huff_neo_utils::{file_provider::FileSystemFileProvider, files, prelude::*};
+use huff_neo_utils::file::file_provider::FileSystemFileProvider;
+use huff_neo_utils::file::file_source::FileSource;
+use huff_neo_utils::file::full_file_source::FullFileSource;
+use huff_neo_utils::file::remapper;
+use huff_neo_utils::prelude::*;
 use std::{path::PathBuf, sync::Arc};
 
 fn lex_erc20_from_source_benchmark(c: &mut Criterion) {
@@ -16,14 +20,14 @@ fn lex_erc20_from_source_benchmark(c: &mut Criterion) {
 
     // Recurse file deps + generate flattened source
     let file_source = file_sources.first().unwrap();
-    let recursed_file_source = Compiler::recurse_deps(Arc::clone(file_source), &files::Remapper::new("./"), file_provider).unwrap();
+    let recursed_file_source = Compiler::recurse_deps(Arc::clone(file_source), &remapper::Remapper::new("./"), file_provider).unwrap();
     let flattened = FileSource::fully_flatten(Arc::clone(&recursed_file_source));
     let full_source = FullFileSource { source: &flattened.0, file: Some(Arc::clone(file_source)), spans: flattened.1 };
 
     // Isolate lexing to benchmark
     c.bench_function("Lexer: ERC-20", |b| {
         b.iter(|| {
-            let lexer = Lexer::new(full_source.source);
+            let lexer = Lexer::new(full_source.clone());
             let _ = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
         })
     });
@@ -39,11 +43,11 @@ fn parse_erc20_benchmark(c: &mut Criterion) {
 
     // Recurse file deps + generate flattened source
     let file_source = file_sources.first().unwrap();
-    let recursed_file_source = Compiler::recurse_deps(Arc::clone(file_source), &files::Remapper::new("./"), file_provider).unwrap();
+    let recursed_file_source = Compiler::recurse_deps(Arc::clone(file_source), &remapper::Remapper::new("./"), file_provider).unwrap();
     let flattened = FileSource::fully_flatten(Arc::clone(&recursed_file_source));
     let full_source = FullFileSource { source: &flattened.0, file: Some(Arc::clone(file_source)), spans: flattened.1 };
 
-    let lexer = Lexer::new(full_source.source);
+    let lexer = Lexer::new(full_source);
     let tokens = Box::new(lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>());
 
     // Isolate parsing to benchmark
@@ -66,11 +70,11 @@ fn codegen_erc20_benchmark(c: &mut Criterion) {
 
     // Recurse file deps + generate flattened source
     let file_source = file_sources.first().unwrap();
-    let recursed_file_source = Compiler::recurse_deps(Arc::clone(file_source), &files::Remapper::new("./"), file_provider).unwrap();
+    let recursed_file_source = Compiler::recurse_deps(Arc::clone(file_source), &remapper::Remapper::new("./"), file_provider).unwrap();
     let flattened = FileSource::fully_flatten(Arc::clone(&recursed_file_source));
     let full_source = FullFileSource { source: &flattened.0, file: Some(Arc::clone(file_source)), spans: flattened.1 };
 
-    let lexer = Lexer::new(full_source.source);
+    let lexer = Lexer::new(full_source);
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
 
     let mut parser = Parser::new(tokens, Some("../../huff-examples/erc20/contracts".to_string()));
@@ -111,7 +115,7 @@ fn erc20_compilation_benchmark(c: &mut Criterion) {
         let file_source = file_sources.first().unwrap();
         let recursed_file_source = Compiler::recurse_deps(
             Arc::clone(file_source),
-            &files::Remapper::new("./"),
+            &remapper::Remapper::new("./"),
             file_provider
         ).unwrap();
         let flattened = FileSource::fully_flatten(Arc::clone(&recursed_file_source));
@@ -120,7 +124,7 @@ fn erc20_compilation_benchmark(c: &mut Criterion) {
             file: Some(Arc::clone(file_source)),
             spans: flattened.1,
         };
-        let lexer = Lexer::new(full_source.source);
+        let lexer = Lexer::new(full_source);
         let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
         let mut parser = Parser::new(tokens, Some("../../huff-examples/erc20/contracts".to_string()));
         let mut contract = parser.parse().unwrap();
@@ -158,7 +162,7 @@ fn erc721_compilation_benchmark(c: &mut Criterion) {
         let file_source = file_sources.first().unwrap();
         let recursed_file_source = Compiler::recurse_deps(
             Arc::clone(file_source),
-            &files::Remapper::new("./"),
+            &remapper::Remapper::new("./"),
             file_provider
         ).unwrap();
         let flattened = FileSource::fully_flatten(Arc::clone(&recursed_file_source));
@@ -167,7 +171,7 @@ fn erc721_compilation_benchmark(c: &mut Criterion) {
             file: Some(Arc::clone(file_source)),
             spans: flattened.1,
         };
-        let lexer = Lexer::new(full_source.source);
+        let lexer = Lexer::new(full_source);
         let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
         let mut parser = Parser::new(tokens, Some("../../huff-examples/erc20/contracts".to_string()));
         let mut contract = parser.parse().unwrap();

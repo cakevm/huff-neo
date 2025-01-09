@@ -6,8 +6,8 @@ use crate::{
     bytecode::*,
     bytes_util::*,
     error::CodegenError,
-    evm::Opcode,
     evm_version::EVMVersion,
+    opcodes::Opcode,
     prelude::{MacroArg::Ident, Span, TokenKind},
 };
 use std::collections::HashSet;

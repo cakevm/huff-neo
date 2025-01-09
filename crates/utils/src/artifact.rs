@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::{fs, path::Path, sync::Arc};
 
 pub use crate::abi::Abi;
-use crate::prelude::FileSource;
+use crate::file::file_source::FileSource;
 
 /// A Codegen Artifact
 #[derive(Default, Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
@@ -23,7 +23,7 @@ pub struct Artifact {
 
 impl Artifact {
     /// Exports an artifact to a json file
-    pub fn export(&self, out: &str) -> std::result::Result<(), std::io::Error> {
+    pub fn export(&self, out: &str) -> Result<(), std::io::Error> {
         let serialized_artifact = serde_json::to_string_pretty(self)?;
         let file_path = Path::new(out);
         if let Some(p) = file_path.parent() {

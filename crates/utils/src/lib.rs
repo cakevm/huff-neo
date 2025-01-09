@@ -25,16 +25,10 @@ pub mod token;
 pub mod error;
 
 /// EVM Module
-pub mod evm;
-
-/// Files Module
-pub mod files;
+pub mod opcodes;
 
 /// Lexical Reporting Module
 pub mod report;
-
-/// IO Module
-pub mod io;
 
 /// EVM Types Module
 pub mod types;
@@ -45,9 +39,6 @@ pub mod bytes_util;
 /// Solidity Interface Generator
 pub mod sol_interface;
 
-/// File Provider Module
-pub mod file_provider;
-
 /// Time Module
 pub mod time;
 
@@ -57,10 +48,15 @@ pub mod wasm;
 /// EVM Version Module
 pub mod evm_version;
 
+/// File operations
+pub mod file;
+
 /// Prelude wraps common utilities.
 pub mod prelude {
+    pub use crate::file::span::*;
+    pub use crate::file::unpack_files::*;
     pub use crate::{
-        abi::*, artifact::*, ast::*, bytecode::*, bytes_util::*, error::*, evm::*, evm_version::*, files::*, io::*, report::*,
-        sol_interface::*, token::*, types::*,
+        abi::*, artifact::*, ast::*, bytecode::*, bytes_util::*, error::*, evm_version::*, opcodes::*, report::*, sol_interface::*,
+        token::*, types::*,
     };
 }

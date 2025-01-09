@@ -1,5 +1,6 @@
 use huff_neo_lexer::*;
-use huff_neo_utils::{evm::Opcode, prelude::*};
+use huff_neo_utils::file::full_file_source::FullFileSource;
+use huff_neo_utils::{opcodes::Opcode, prelude::*};
 
 #[test]
 fn lexes_arg_calls() {

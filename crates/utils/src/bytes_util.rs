@@ -1,4 +1,4 @@
-use crate::{evm::Opcode, evm_version::EVMVersion};
+use crate::{evm_version::EVMVersion, opcodes::Opcode};
 use std::num::ParseIntError;
 use tiny_keccak::{Hasher, Keccak};
 

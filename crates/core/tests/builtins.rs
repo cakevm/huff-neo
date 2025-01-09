@@ -1,6 +1,8 @@
 use huff_neo_codegen::*;
 use huff_neo_lexer::*;
 use huff_neo_parser::*;
+use huff_neo_utils::file::file_source::FileSource;
+use huff_neo_utils::file::full_file_source::FullFileSource;
 use huff_neo_utils::prelude::*;
 use std::sync::Arc;
 

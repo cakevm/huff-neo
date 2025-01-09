@@ -1,5 +1,6 @@
 /// Tests lexing the Free Storage Pointer Keyword
 use huff_neo_lexer::*;
+use huff_neo_utils::file::full_file_source::FullFileSource;
 use huff_neo_utils::prelude::*;
 
 #[test]

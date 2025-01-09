@@ -3,6 +3,7 @@
 #![warn(unused_extern_crates)]
 #![forbid(unsafe_code)]
 
+use huff_neo_utils::file::file_source::FileSource;
 use huff_neo_utils::{
     abi::*,
     artifact::*,
@@ -10,8 +11,8 @@ use huff_neo_utils::{
     bytecode::*,
     bytes_util,
     error::CodegenError,
-    evm::Opcode,
-    prelude::{format_even_bytes, pad_n_bytes, CodegenErrorKind, EVMVersion, FileSource, Span},
+    opcodes::Opcode,
+    prelude::{format_even_bytes, pad_n_bytes, CodegenErrorKind, EVMVersion, Span},
     types::EToken,
 };
 use regex::Regex;

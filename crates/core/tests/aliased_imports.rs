@@ -1,7 +1,9 @@
 use std::{str::FromStr, sync::Arc};
 
 use huff_neo_core::Compiler;
-use huff_neo_utils::{file_provider::FileSystemFileProvider, prelude::*};
+use huff_neo_utils::file::file_provider::FileSystemFileProvider;
+use huff_neo_utils::file::file_source::FileSource;
+use huff_neo_utils::file::remapper::Remapper;
 
 #[test]
 fn test_parses_foundry_aliased_imports() {

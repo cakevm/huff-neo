@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
-use huff_neo_utils::prelude::{Artifact, FileSource, OutputLocation};
+use huff_neo_utils::file::file_source::FileSource;
+use huff_neo_utils::file::full_file_source::OutputLocation;
+use huff_neo_utils::prelude::Artifact;
 use walkdir::WalkDir;
 
 /// Parallelized Artifact Cachcing
