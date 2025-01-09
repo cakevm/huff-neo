@@ -1,193 +1,294 @@
 #!/usr/bin/env bash
-set -e
+set -eo pipefail
 
 # -----------------------------------------------------------
 # Forked from Foundry.
-# https://github.com/foundry-rs/foundry/tree/master/foundryup
+# https://github.com/cakevm/huff-neo/tree/master/foundryup
 # -----------------------------------------------------------
 
-HUFF_DIR=${HUFF_DIR-"$HOME/.huff-neo"}
-HUFF_BIN_DIR="$HUFF_DIR/bin"
-HUFF_MAN_DIR="$HUFF_DIR/share/man/man1"
+BASE_DIR=${XDG_CONFIG_HOME:-$HOME}
+HUFF_NEO_DIR=${HUFF_NEO_DIR:-"$BASE_DIR/.huff-neo"}
+HUFF_NEO_VERSIONS_DIR="$HUFF_NEO_DIR/versions"
+HUFF_NEO_BIN_DIR="$HUFF_NEO_DIR/bin"
+
+HNC_UP_JOBS=""
+
+BINS=(hnc)
+
+export RUSTFLAGS="${RUSTFLAGS:--C target-cpu=native}"
 
 main() {
   need_cmd git
   need_cmd curl
 
-  # Otherwise, continue with hnc-up script
-  while [[ $1 ]]; do
+  while [[ -n $1 ]]; do
     case $1 in
       --)               shift; break;;
 
-      -r|--repo)        shift; HUFF_NEO_UP_REPO=$1;;
-      -b|--branch)      shift; HUFF_NEO_UP_BRANCH=$1;;
-      -v|--version)     shift; HUFF_NEO_UP_VERSION=$1;;
-      -p|--path)        shift; HUFF_NEO_UP_LOCAL_REPO=$1;;
-      -P|--pr)          shift; HUFF_NEO_UP_PR=$1;;
-      -C|--commit)      shift; HUFF_NEO_UP_COMMIT=$1;;
+      -r|--repo)        shift; HNC_UP_REPO=$1;;
+      -b|--branch)      shift; HNC_UP_BRANCH=$1;;
+      -i|--install)     shift; HNC_UP_VERSION=$1;;
+      -l|--list)        shift; list;;
+      -u|--use)         shift; HNC_UP_VERSION=$1; use;;
+      -p|--path)        shift; HNC_UP_LOCAL_REPO=$1;;
+      -P|--pr)          shift; HNC_UP_PR=$1;;
+      -C|--commit)      shift; HNC_UP_COMMIT=$1;;
+      -j|--jobs)        shift; HNC_UP_JOBS=$1;;
+      --arch)           shift; HNC_UP_ARCH=$1;;
+      --platform)       shift; HNC_UP_PLATFORM=$1;;
       -h|--help)
         usage
         exit 0
         ;;
       *)
-        err "internal error: unknown option '$1'\n";;
+        warn "unknown option: $1"
+        usage
+        exit 1
     esac; shift
   done
 
-  if [ ! -z "$HUFF_NEO_UP_PR" ]; then
-    if [ -z "$HUFF_NEO_UP_BRANCH" ]; then
-      HUFF_NEO_UP_BRANCH="refs/pull/$HUFF_NEO_UP_PR/head"
+  CARGO_BUILD_ARGS=(--release)
+
+  if [ -n "$HNC_UP_JOBS" ]; then
+    CARGO_BUILD_ARGS+=(--jobs "$HNC_UP_JOBS")
+  fi
+
+  # Print the banner after successfully parsing args
+  banner
+
+  if [ -n "$HNC_UP_PR" ]; then
+    if [ -z "$HNC_UP_BRANCH" ]; then
+      HNC_UP_BRANCH="refs/pull/$HNC_UP_PR/head"
     else
       err "can't use --pr and --branch at the same time"
     fi
   fi
 
-  # Installs huff from a local repository if --path parameter is provided
-  if [[ -n "$HUFF_NEO_UP_LOCAL_REPO" ]]; then
+  # Installs Huff Neo Compiler from a local repository if --path parameter is provided
+  if [[ -n "$HNC_UP_LOCAL_REPO" ]]; then
     need_cmd cargo
 
     # Ignore branches/versions as we do not want to modify local git state
-    if [ -n "$HUFF_NEO_UP_REPO" ] || [ -n "$HUFF_NEO_UP_BRANCH" ] || [ -n "$HUFF_NEO_UP_VERSION" ]; then
+    if [ -n "$HNC_UP_REPO" ] || [ -n "$HNC_UP_BRANCH" ] || [ -n "$HNC_UP_VERSION" ]; then
       warn "--branch, --version, and --repo arguments are ignored during local install"
     fi
 
     # Enter local repo and build
-    say "installing from $HUFF_NEO_UP_LOCAL_REPO"
-    cd $HUFF_NEO_UP_LOCAL_REPO
-    RUSTFLAGS="-C target-cpu=native" ensure cargo build --release # need 4 speed
+    say "installing from $HNC_UP_LOCAL_REPO"
+    cd "$HNC_UP_LOCAL_REPO"
+    ensure cargo build --bins "${CARGO_BUILD_ARGS[@]}"
 
-
-    # Remove prior installations if they exist
-    rm -f "$HUFF_BIN_DIR/huff-neo"
-
-    # Symlink from local repo binaries to bin dir
-    ensure ln -s "$PWD/target/release/hnc" "$HUFF_BIN_DIR/hnc"
+    for bin in "${BINS[@]}"; do
+      # Remove prior installations if they exist
+      rm -f "$HUFF_NEO_BIN_DIR/$bin"
+      # Symlink from local repo binaries to bin dir
+      ensure ln -s "$PWD/target/release/$bin" "$HUFF_NEO_BIN_DIR/$bin"
+    done
 
     say "done"
     exit 0
   fi
 
-  HUFF_NEO_UP_REPO=${HUFF_NEO_UP_REPO-cakevm/huff-neo}
+  HNC_UP_REPO=${HNC_UP_REPO:-cakevm/huff-neo}
 
-  if [[ "$HUFF_NEO_UP_REPO" == "cakevm/huff-neo" && -z "$HUFF_NEO_UP_BRANCH" && -z "$HUFF_NEO_UP_COMMIT" ]]; then
-    HUFF_NEO_UP_VERSION=${HUFF_NEO_UP_VERSION-nightly}
-    HUFF_NEO_UP_TAG=$HUFF_NEO_UP_VERSION
+  # Install by downloading binaries
+  if [[ "$HNC_UP_REPO" == "cakevm/huff-neo" && -z "$HNC_UP_BRANCH" && -z "$HNC_UP_COMMIT" ]]; then
+    HNC_UP_VERSION=$(curl https://api.github.com/repos/$HNC_UP_REPO/releases/latest -s | jq .name -r)
+    HNC_UP_TAG=$HNC_UP_VERSION
 
     # Normalize versions (handle channels, versions without v prefix
-    if [[ "$HUFF_NEO_UP_VERSION" == "nightly" ]]; then
-      # Locate real nightly tag
-      SHA=$(curl -sSf https://api.github.com/repos/${HUFF_NEO_UP_REPO}/git/refs/tags/nightly \
-        | grep -Eo '"sha"[^,]*' \
-        | grep -Eo '[^:]*$' \
-        | tr -d '"' \
-        | tr -d ' ')
-      HUFF_NEO_UP_TAG="nightly-${SHA}"
-    elif [[ "$HUFF_NEO_UP_VERSION" == nightly* ]]; then
-      HUFF_NEO_UP_VERSION="nightly"
-    elif [[ "$HUFF_NEO_UP_VERSION" == [[:digit:]]* ]]; then
+    if [[ "$HNC_UP_VERSION" == [[:digit:]]* ]]; then
       # Add v prefix
-      HUFF_NEO_UP_VERSION="v${HUFF_NEO_UP_VERSION}"
-      HUFF_NEO_UP_TAG="${HUFF_NEO_UP_VERSION}"
+      HNC_UP_VERSION="v${HNC_UP_VERSION}"
+      HNC_UP_TAG="${HNC_UP_VERSION}"
     fi
 
-    say "installing hnc (version ${HUFF_NEO_UP_VERSION}, tag ${HUFF_NEO_UP_TAG})"
+    say "Installing Huff Neo Compiler (version ${HNC_UP_VERSION}, tag ${HNC_UP_TAG})"
 
-    PLATFORM="$(uname -s)"
+    uname_s=$(uname -s)
+    PLATFORM=$(tolower "${HNC_UP_PLATFORM:-$uname_s}")
+    EXT="tar.gz"
     case $PLATFORM in
-      Linux)
-        PLATFORM="linux"
+      linux)
+        PLATFORM="unknown-linux"
         ;;
-      Darwin)
-        PLATFORM="darwin"
+      darwin|mac*)
+        PLATFORM="apple-darwin"
+        ;;
+      mingw*|win*)
+        EXT="zip"
+        PLATFORM="win32"
         ;;
       *)
         err "unsupported platform: $PLATFORM"
         ;;
     esac
 
-    ARCHITECTURE="$(uname -m)"
+    uname_m=$(uname -m)
+    ARCHITECTURE=$(tolower "${HNC_UP_ARCH:-$uname_m}")
     if [ "${ARCHITECTURE}" = "x86_64" ]; then
       # Redirect stderr to /dev/null to avoid printing errors if non Rosetta.
       if [ "$(sysctl -n sysctl.proc_translated 2>/dev/null)" = "1" ]; then
-        ARCHITECTURE="arm64" # Rosetta.
+        ARCHITECTURE="aarch64"
       else
-        ARCHITECTURE="amd64" # Intel.
+        ARCHITECTURE="x86_64"
       fi
     elif [ "${ARCHITECTURE}" = "arm64" ] ||[ "${ARCHITECTURE}" = "aarch64" ] ; then
-      ARCHITECTURE="arm64" # Arm.
+      ARCHITECTURE="aarch64"
     else
-      ARCHITECTURE="amd64" # Amd.
+      ARCHITECTURE="x86_64"
     fi
 
     # Compute the URL of the release tarball in the Huff Neo repository.
-    RELEASE_URL="https://github.com/${HUFF_NEO_UP_REPO}/releases/download/${HUFF_NEO_UP_TAG}/"
-    BIN_TARBALL_URL="${RELEASE_URL}huff_neo_${HUFF_NEO_UP_VERSION}_${PLATFORM}_${ARCHITECTURE}.tar.gz"
-    MAN_TARBALL_URL="${RELEASE_URL}huff_neo_man_${HUFF_NEO_UP_VERSION}.tar.gz"
+    RELEASE_URL="https://github.com/${HNC_UP_REPO}/releases/download/${HNC_UP_TAG}/"
+    BIN_ARCHIVE_URL="${RELEASE_URL}hnc-${HNC_UP_VERSION}-${ARCHITECTURE}-${PLATFORM}.$EXT"
 
-    # Download the binaries tarball and unpack it into the .huff bin directory.
-    say "downloading latest hnc"
-    ensure curl -# -L $BIN_TARBALL_URL | tar -xzC $HUFF_BIN_DIR
-    # Download the man tarball and unpack it into the .huff man directory.
-    say "downloading manpages"
-    ensure curl -# -L $MAN_TARBALL_URL | tar -xzC $HUFF_MAN_DIR
-    say "installed - $($HUFF_BIN_DIR/hnc --version)"
-    say "done"
-
-    if [[ $(which hnc) =~ "cargo" ]]; then
-      warn "it appears your system already has hnc installed via cargo. you may need to run 'rm $(which hnc)' to allow hnc-up to take precedence!"
+    ensure mkdir -p $HUFF_NEO_VERSIONS_DIR
+    # Download and extract the binaries archive
+    say "downloading Huff Neo Compiler for $HNC_UP_TAG version"
+    if [ "$PLATFORM" = "win32" ]; then
+      tmp="$(mktemp -d 2>/dev/null || echo ".")/hnc.zip"
+      ensure download "$BIN_ARCHIVE_URL" "$tmp"
+      ensure unzip "$tmp" -d "$HUFF_NEO_VERSIONS_DIR/$HNC_UP_TAG"
+      rm -f "$tmp"
+    else
+      tmp="$(mktemp -d 2>/dev/null || echo ".")/hnc.tar.gz"
+      ensure download "$BIN_ARCHIVE_URL" "$tmp"
+      # Make sure it's a valid tar archive.
+      ensure tar tf $tmp 1> /dev/null
+      ensure mkdir -p $HUFF_NEO_VERSIONS_DIR/$HNC_UP_TAG
+      ensure tar -C "$HUFF_NEO_VERSIONS_DIR/$HNC_UP_TAG" -xvf $tmp
+      rm -f "$tmp"
     fi
+
+    for bin in "${BINS[@]}"; do
+      bin_path="$HUFF_NEO_BIN_DIR/$bin"
+      echo cp $HUFF_NEO_VERSIONS_DIR/$HNC_UP_TAG/$bin $bin_path
+
+      # Print installed msg
+      say "installed - $(ensure "$bin_path" --version)"
+
+      # Check if the default path of the binary is not in HUFF_NEO_BIN_DIR
+      which_path="$(command -v "$bin" || true)"
+      if [ -n "$which_path" ] && [ "$which_path" != "$bin_path" ]; then
+        warn ""
+        cat 1>&2 <<EOF
+There are multiple binaries with the name '$bin' present in your 'PATH'.
+This may be the result of installing '$bin' using another method,
+like Cargo or other package managers.
+You may need to run 'rm $which_path' or move '$HUFF_NEO_BIN_DIR'
+in your 'PATH' to allow the newly installed version to take precedence!
+
+EOF
+      fi
+    done
+
+    say "done!"
+
+  # Install by cloning the repo with the provided branch/tag
   else
     need_cmd cargo
-    HUFF_NEO_UP_BRANCH=${HUFF_NEO_UP_BRANCH-main}
-    REPO_PATH="${HUFF_DIR}/${HUFF_NEO_UP_REPO}"
+    HNC_UP_BRANCH=${HNC_UP_BRANCH:-master}
+    REPO_PATH="$HUFF_NEO_DIR/$HNC_UP_REPO"
 
-    if [ ! -d $REPO_PATH ]; then
-      # Repo path did not exist, grab the author from the repo, make a directory in .huff, cd to it and clone.
-      IFS="/" read -ra AUTHOR <<< "$HUFF_NEO_UP_REPO"
-      ensure mkdir -p "$HUFF_DIR/$AUTHOR"
-      cd "$HUFF_DIR/$AUTHOR"
-      ensure git clone https://github.com/${HUFF_NEO_UP_REPO}
+    # If repo path does not exist, grab the author from the repo, make a directory in .huff-neo, cd to it and clone.
+    if [ ! -d "$REPO_PATH" ]; then
+      AUTHOR="$(echo "$HNC_UP_REPO" | cut -d'/' -f1 -)"
+      ensure mkdir -p "$HUFF_NEO_DIR/$AUTHOR"
+      cd "$HUFF_NEO_DIR/$AUTHOR"
+      ensure git clone "https://github.com/$HNC_UP_REPO"
     fi
-    # force checkout, discarding any local changes
-    cd $REPO_PATH
-    ensure git fetch origin ${HUFF_NEO_UP_BRANCH}:remotes/origin/${HUFF_NEO_UP_BRANCH}
-    ensure git checkout origin/${HUFF_NEO_UP_BRANCH}
+
+    # Force checkout, discarding any local changes
+    cd "$REPO_PATH"
+    ensure git fetch origin "${HNC_UP_BRANCH}:remotes/origin/${HNC_UP_BRANCH}"
+    ensure git checkout "origin/${HNC_UP_BRANCH}"
+
     # If set, checkout specific commit from branch
-    if [ ! -z $HUFF_NEO_UP_COMMIT ]; then
-      say "installing at commit ${HUFF_NEO_UP_COMMIT}"
-      ensure git checkout ${HUFF_NEO_UP_COMMIT}
+    if [ -n "$HNC_UP_COMMIT" ]; then
+      say "installing at commit $HNC_UP_COMMIT"
+      ensure git checkout "$HNC_UP_COMMIT"
     fi
-    # Build the repo and install it locally to the .huff bin directory.
-    # --root appends /bin to the directory it is given, so we pass HUFF_DIR.
-    RUSTFLAGS="-C target-cpu=native" ensure cargo install --path ./bin/cli --bins --locked --force --root $HUFF_DIR
 
-    # If help2man is installed, use it to add Huff man pages.
-    if command -v help2man &> /dev/null ; then
-      help2man -N $HUFF_BIN_DIR/hnc > $HUFF_MAN_DIR/huff.1
-    fi
+    # Build the repo and install the binaries locally to the .huff-neo bin directory.
+    ensure cargo build --bins "${CARGO_BUILD_ARGS[@]}"
+    for bin in "${BINS[@]}"; do
+      for try_path in target/release/$bin target/release/$bin.exe; do
+        if [ -f "$try_path" ]; then
+          [ -e "$HUFF_NEO_BIN_DIR/$bin" ] && warn "overwriting existing $bin in $HUFF_NEO_BIN_DIR"
+          mv -f "$try_path" "$HUFF_NEO_BIN_DIR"
+        fi
+      done
+    done
+
     say "done"
   fi
 }
 
 usage() {
   cat 1>&2 <<EOF
-The installer for Huff Neo compiler.
-Update or revert to a specific Huff version with ease.
+The installer for Foundry.
+
+Update or revert to a specific Foundry version with ease.
+
+By default, the latest stable version is installed from built binaries.
+
 USAGE:
     hnc-up <OPTIONS>
+
 OPTIONS:
     -h, --help      Print help information
-    -v, --version   Install a specific version
-    -b, --branch    Install a specific branch
-    -P, --pr        Install a specific Pull Request
-    -C, --commit    Install a specific commit
-    -r, --repo      Install from a remote GitHub repo (uses default branch if no other options are set)
-    -p, --path      Install a local repository
+    -i, --install   Install a specific version from built binaries
+    -l, --list      List versions installed from built binaries
+    -u, --use       Use a specific installed version from built binaries
+    -b, --branch    Build and install a specific branch
+    -P, --pr        Build and install a specific Pull Request
+    -C, --commit    Build and install a specific commit
+    -r, --repo      Build and install from a remote GitHub repo (uses default branch if no other options are set)
+    -p, --path      Build and install a local repository
+    -j, --jobs      Number of CPUs to use for building Huff Neo Compiler (default: all CPUs)
+    --arch          Install a specific architecture (supports amd64 and arm64)
+    --platform      Install a specific platform (supports win32, linux, and darwin)
 EOF
 }
 
+list() {
+  if [ -d "$HUFF_NEO_VERSIONS_DIR" ]; then
+    for VERSION in $HUFF_NEO_VERSIONS_DIR/*; do
+      say "${VERSION##*/}"
+      for bin in "${BINS[@]}"; do
+        bin_path="$VERSION/$bin"
+        say "- $(ensure "$bin_path" --version)"
+      done
+      printf "\n"
+    done
+  else
+    for bin in "${BINS[@]}"; do
+      bin_path="$HUFF_NEO_BIN_DIR/$bin"
+      say "- $(ensure "$bin_path" --version)"
+    done
+  fi
+  exit 0
+}
+
+use() {
+  [ -z "$HNC_UP_VERSION" ] && err "no version provided"
+  HUFF_NEO_VERSION_DIR="$HUFF_NEO_VERSIONS_DIR/$HNC_UP_VERSION"
+  if [ -d "$HUFF_NEO_VERSION_DIR" ]; then
+    for bin in "${BINS[@]}"; do
+      bin_path="$HUFF_NEO_BIN_DIR/$bin"
+      cp $HUFF_NEO_VERSION_DIR/$bin $bin_path
+      # Print usage msg
+      say "use - $(ensure "$bin_path" --version)"
+    done
+    exit 0
+  else
+    err "version $HNC_UP_VERSION not installed"
+  fi
+}
+
 say() {
-  printf 'hnc-up: %s\n' "$1"
+  printf "hnc-up: %s\n" "$1"
 }
 
 warn() {
@@ -199,6 +300,10 @@ err() {
   exit 1
 }
 
+tolower() {
+  echo "$1" | awk '{print tolower($0)}'
+}
+
 need_cmd() {
   if ! check_cmd "$1"; then
     err "need '$1' (command not found)"
@@ -206,14 +311,43 @@ need_cmd() {
 }
 
 check_cmd() {
-  command -v "$1" > /dev/null 2>&1
+  command -v "$1" &>/dev/null
 }
 
 # Run a command that should never fail. If the command fails execution
-# will immediately terminate with an error showing the failing
-# command.
+# will immediately terminate with an error showing the failing command.
 ensure() {
   if ! "$@"; then err "command failed: $*"; fi
 }
 
-main "$@" || exit 1
+# Downloads $1 into $2 or stdout
+download() {
+  if [ -n "$2" ]; then
+    # output into $2
+    if check_cmd curl; then
+      curl -#o "$2" -L "$1"
+    else
+      wget --show-progress -qO "$2" "$1"
+    fi
+  else
+    # output to stdout
+    if check_cmd curl; then
+      curl -#L "$1"
+    else
+      wget --show-progress -qO- "$1"
+    fi
+  fi
+}
+
+# Banner Function for Foundry
+banner() {
+  printf '
+ _|    _|  _|    _|  _|_|_|_|  _|_|_|_|      _|      _|  _|_|_|_|    _|_|
+ _|    _|  _|    _|  _|        _|            _|_|    _|  _|        _|    _|
+ _|_|_|_|  _|    _|  _|_|_|    _|_|_|        _|  _|  _|  _|_|_|    _|    _|
+ _|    _|  _|    _|  _|        _|            _|    _|_|  _|        _|    _|
+ _|    _|    _|_|    _|        _|            _|      _|  _|_|_|_|    _|_|
+'
+}
+
+main "$@"
