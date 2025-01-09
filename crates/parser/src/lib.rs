@@ -131,7 +131,7 @@ impl Parser {
                 return Err(ParserError {
                     kind: ParserErrorKind::UnexpectedType(self.current_token.kind.clone()),
                     hint: Some(format!("Expected either \"{}\" or \"{}\"", TokenKind::Define, TokenKind::Include)),
-                    spans: AstSpan(self.spans.clone()),
+                    spans: AstSpan(vec![self.current_token.span.clone()]),
                     cursor: self.cursor,
                 });
             }

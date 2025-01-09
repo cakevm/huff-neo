@@ -1,5 +1,3 @@
-use std::{path::PathBuf, sync::Arc};
-
 use huff_neo_codegen::Codegen;
 use huff_neo_core::*;
 use huff_neo_lexer::*;
@@ -9,6 +7,8 @@ use huff_neo_utils::file::file_source::FileSource;
 use huff_neo_utils::file::full_file_source::FullFileSource;
 use huff_neo_utils::file::remapper;
 use huff_neo_utils::prelude::*;
+use std::collections::HashSet;
+use std::{path::PathBuf, sync::Arc};
 
 #[test]
 fn test_erc20_compile() {
@@ -21,7 +21,8 @@ fn test_erc20_compile() {
 
     // Recurse file deps + generate flattened source
     let file_source = file_sources.first().unwrap();
-    let recursed_file_source = Compiler::recurse_deps(Arc::clone(file_source), &remapper::Remapper::new("./"), file_provider).unwrap();
+    let recursed_file_source =
+        Compiler::recurse_deps(Arc::clone(file_source), &remapper::Remapper::new("./"), file_provider, HashSet::new()).unwrap();
     let flattened = FileSource::fully_flatten(Arc::clone(&recursed_file_source));
     let full_source = FullFileSource { source: &flattened.0, file: Some(Arc::clone(file_source)), spans: flattened.1 };
     let lexer = Lexer::new(full_source);

@@ -6,7 +6,7 @@ set -eo pipefail
 # https://github.com/foundry-rs/foundry/tree/master/foundryup
 # -----------------------------------------------------------
 
-echo "Installing Huff Neo Compiler..."
+echo "Installing hnc-up..."
 
 BASE_DIR="${XDG_CONFIG_HOME:-$HOME}"
 HUFF_NEO_DIR="${HUFF_NEO_DIR:-"$BASE_DIR/.huff-neo"}"
@@ -15,7 +15,7 @@ HUFF_NEO_BIN_DIR="$HUFF_NEO_DIR/bin"
 BIN_URL="https://raw.githubusercontent.com/cakevm/huff-neo/main/hnc-up/hnc-up"
 BIN_PATH="$HUFF_NEO_BIN_DIR/hnc-up"
 
-# Create the .foundry bin directory and hnc-up binary if it doesn't exist.
+# Create the .huff-neo bin directory and hnc-up binary if it doesn't exist.
 mkdir -p "$HUFF_NEO_BIN_DIR"
 curl -sSf -L "$BIN_URL" -o "$BIN_PATH"
 chmod +x "$BIN_PATH"

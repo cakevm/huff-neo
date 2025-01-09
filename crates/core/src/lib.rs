@@ -16,6 +16,7 @@ use huff_neo_utils::wasm::IntoParallelIterator;
 use huff_neo_utils::{prelude::*, time};
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 use rayon::prelude::*;
+use std::collections::HashSet;
 use std::{
     collections::{BTreeMap, HashMap},
     ffi::OsString,
@@ -215,8 +216,10 @@ impl<'a, 'l> Compiler<'a, 'l> {
             None => {
                 tracing::debug!(target: "core", "FINISHED RECURSING DEPENDENCIES!");
                 // Parallel Dependency Resolution
-                let recursed_file_sources: Vec<Result<Arc<FileSource>, Arc<CompilerError>>> =
-                    files.into_par_iter().map(|v| Self::recurse_deps(v, &Remapper::new("./"), self.file_provider.clone())).collect();
+                let recursed_file_sources: Vec<Result<Arc<FileSource>, Arc<CompilerError>>> = files
+                    .into_par_iter()
+                    .map(|v| Self::recurse_deps(v, &Remapper::new("./"), self.file_provider.clone(), HashSet::new()))
+                    .collect();
 
                 // Collect Recurse Deps errors and try to resolve to the first one
                 let mut errors = recursed_file_sources.iter().filter_map(|rfs| rfs.as_ref().err()).collect::<Vec<&Arc<CompilerError>>>();
@@ -284,7 +287,9 @@ impl<'a, 'l> Compiler<'a, 'l> {
 
         let recursed_file_sources: Vec<Result<Arc<FileSource>, Arc<CompilerError>>> = files
             .into_par_iter()
-            .map(|f| Self::recurse_deps(f, &huff_neo_utils::file::remapper::Remapper::new("./"), self.file_provider.clone()))
+            .map(|f| {
+                Self::recurse_deps(f, &huff_neo_utils::file::remapper::Remapper::new("./"), self.file_provider.clone(), HashSet::new())
+            })
             .collect();
 
         // Collect Recurse Deps errors and try to resolve to the first one
@@ -463,8 +468,14 @@ impl<'a, 'l> Compiler<'a, 'l> {
         fs: Arc<FileSource>,
         remapper: &Remapper,
         reader: Arc<dyn FileProvider>,
+        mut walk_level: HashSet<String>,
     ) -> Result<Arc<FileSource>, Arc<CompilerError>> {
         tracing::debug!(target: "core", "RECURSING DEPENDENCIES FOR {}", fs.path);
+        // Check if we've already walked this path
+        if walk_level.contains(&fs.path) {
+            return Ok(Arc::new(FileSource::default()));
+        }
+        walk_level.insert(fs.path.clone());
         let mut new_fs = FileSource { path: fs.path.clone(), ..Default::default() };
         let file_source = if let Some(s) = &fs.source {
             s.clone()
@@ -484,6 +495,11 @@ impl<'a, 'l> Compiler<'a, 'l> {
         new_fs.source = Some(file_source);
         if !imports.is_empty() {
             tracing::info!(target: "core", "IMPORT LEXICAL ANALYSIS COMPLETE ON {:?}", imports);
+        }
+
+        // Check that no empty imports paths are present
+        if imports.iter().any(|i| i.is_empty()) {
+            return Err(Arc::new(CompilerError::EmptyImportPath(OsString::from(&fs.path))));
         }
 
         let localized_imports: Vec<String> = imports
@@ -523,7 +539,7 @@ impl<'a, 'l> Compiler<'a, 'l> {
         // Now that we have all the file sources, we have to recurse and get their source
         file_sources = file_sources
             .into_par_iter()
-            .map(|inner_fs| match Self::recurse_deps(Arc::clone(&inner_fs), remapper, reader.clone()) {
+            .map(|inner_fs| match Self::recurse_deps(Arc::clone(&inner_fs), remapper, reader.clone(), walk_level.clone()) {
                 Ok(new_fs) => new_fs,
                 Err(e) => {
                     tracing::error!(target: "core", "NESTED DEPENDENCY RESOLUTION FAILED: \"{:?}\"", e);

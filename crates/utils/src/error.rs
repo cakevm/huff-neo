@@ -264,6 +264,8 @@ pub enum CompilerError {
     ParserError(ParserError),
     /// Reading PathBuf Failed
     PathBufRead(OsString),
+    /// Empty Import Path
+    EmptyImportPath(OsString),
     /// Bytecode Generation Error
     CodegenError(CodegenError),
     /// Multiple Failed Compiles
@@ -495,6 +497,9 @@ impl fmt::Display for CompilerError {
                     let _ = write!(f, "{ce}");
                 });
                 Ok(())
+            }
+            CompilerError::EmptyImportPath(os_str) => {
+                write!(f, "\nError: Import path with empty string: \"{}\"", os_str.as_os_str().to_str().unwrap_or("<unknown import>"))
             }
         }
     }

@@ -45,14 +45,12 @@ impl AstSpan {
             let end = fs.1.iter().map(|fs2| fs2.end).max().unwrap_or(0);
             let newline_s = if s.is_empty() { "".to_string() } else { format!("{s}\n") };
             if start.eq(&0) && end.eq(&0) {
-                format!("{newline_s}-> {}:{start}\n   > 0|", fs.0)
+                format!("{newline_s}-> {}\n   > 0|", fs.0)
             } else {
                 format!(
-                    "{}-> {}:{}-{}{}",
+                    "{}-> {}:{}",
                     newline_s,
                     fs.0,
-                    start,
-                    end,
                     fs.1.iter()
                         .map(|sp| sp.source_seg())
                         .filter(|ss| !ss.is_empty())
@@ -63,6 +61,7 @@ impl AstSpan {
                 )
             }
         });
+
         // Add in optional hint message
         format!("{}{source_str}", hint.map(|msg| format!("{msg}\n")).unwrap_or_default())
     }

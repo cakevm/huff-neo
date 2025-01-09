@@ -7,23 +7,23 @@ _Forked from [foundry](https://github.com/foundry-rs/foundry/tree/master/foundry
 
 ## Installing
 
-`curl -L get.huff.sh | bash` (installs the `hnc-up` installer)
+`curl -L https://raw.githubusercontent.com/cakevm/huff-neo/main/hnc-up/hnc-up | bash` (installs the `hnc-up` installer)
 
-Run `hnc-up` to install the latest version of `huff-neo`.
+Run `hnc-up` to install the latest version of the Huff Neo Compiler.
 
 
 ## Usage
 
-To install the **nightly** version:
+To install the **latest** version:
 
 ```sh
 hnc-up
 ```
 
-To install a specific **version** (in this case the `nightly` version):
+To install a specific **version** (in this case the `1.0.0` version):
 
 ```sh
-hnc-up --version nightly
+hnc-up --version 1.0.0
 ```
 
 To install a specific **branch** (in this case the `release/0.3.1` branch's latest commit):
