@@ -3,7 +3,10 @@
 # Node cache changelog
 
 ## [Unreleased]
+
+## [1.0.0] - 2025-01-09
 - First stable release of `huff-neo`
+- Compiler binary is now `hnc` instead of `huffc`
 - Update all dependencies to the latest version
 - Restructure to a modern crate structure
 - Replace `ethers` with `alloy`
