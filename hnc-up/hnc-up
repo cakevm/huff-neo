@@ -93,7 +93,11 @@ main() {
 
   # Install by downloading binaries
   if [[ "$HNC_UP_REPO" == "cakevm/huff-neo" && -z "$HNC_UP_BRANCH" && -z "$HNC_UP_COMMIT" ]]; then
-    HNC_UP_VERSION=$(curl https://api.github.com/repos/$HNC_UP_REPO/releases/latest -s | jq .name -r)
+    # Fetch the latest release from the Huff Neo repository if no version is provided
+    if [ -z "$HNC_UP_VERSION" ]; then
+      HNC_UP_VERSION=$(curl https://api.github.com/repos/$HNC_UP_REPO/releases/latest -s | jq .name -r)
+    fi
+
     HNC_UP_TAG=$HNC_UP_VERSION
 
     # Normalize versions (handle channels, versions without v prefix
