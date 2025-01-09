@@ -8,6 +8,7 @@ use huff_neo_utils::file::file_source::FileSource;
 use huff_neo_utils::file::full_file_source::FullFileSource;
 use huff_neo_utils::file::remapper;
 use huff_neo_utils::prelude::*;
+use std::collections::HashSet;
 use std::{path::PathBuf, sync::Arc};
 
 fn lex_erc20_from_source_benchmark(c: &mut Criterion) {
@@ -20,7 +21,8 @@ fn lex_erc20_from_source_benchmark(c: &mut Criterion) {
 
     // Recurse file deps + generate flattened source
     let file_source = file_sources.first().unwrap();
-    let recursed_file_source = Compiler::recurse_deps(Arc::clone(file_source), &remapper::Remapper::new("./"), file_provider).unwrap();
+    let recursed_file_source =
+        Compiler::recurse_deps(Arc::clone(file_source), &remapper::Remapper::new("./"), file_provider, HashSet::new()).unwrap();
     let flattened = FileSource::fully_flatten(Arc::clone(&recursed_file_source));
     let full_source = FullFileSource { source: &flattened.0, file: Some(Arc::clone(file_source)), spans: flattened.1 };
 
@@ -43,7 +45,8 @@ fn parse_erc20_benchmark(c: &mut Criterion) {
 
     // Recurse file deps + generate flattened source
     let file_source = file_sources.first().unwrap();
-    let recursed_file_source = Compiler::recurse_deps(Arc::clone(file_source), &remapper::Remapper::new("./"), file_provider).unwrap();
+    let recursed_file_source =
+        Compiler::recurse_deps(Arc::clone(file_source), &remapper::Remapper::new("./"), file_provider, HashSet::new()).unwrap();
     let flattened = FileSource::fully_flatten(Arc::clone(&recursed_file_source));
     let full_source = FullFileSource { source: &flattened.0, file: Some(Arc::clone(file_source)), spans: flattened.1 };
 
@@ -70,7 +73,8 @@ fn codegen_erc20_benchmark(c: &mut Criterion) {
 
     // Recurse file deps + generate flattened source
     let file_source = file_sources.first().unwrap();
-    let recursed_file_source = Compiler::recurse_deps(Arc::clone(file_source), &remapper::Remapper::new("./"), file_provider).unwrap();
+    let recursed_file_source =
+        Compiler::recurse_deps(Arc::clone(file_source), &remapper::Remapper::new("./"), file_provider, HashSet::new()).unwrap();
     let flattened = FileSource::fully_flatten(Arc::clone(&recursed_file_source));
     let full_source = FullFileSource { source: &flattened.0, file: Some(Arc::clone(file_source)), spans: flattened.1 };
 
@@ -116,7 +120,8 @@ fn erc20_compilation_benchmark(c: &mut Criterion) {
         let recursed_file_source = Compiler::recurse_deps(
             Arc::clone(file_source),
             &remapper::Remapper::new("./"),
-            file_provider
+            file_provider,
+            HashSet::new()
         ).unwrap();
         let flattened = FileSource::fully_flatten(Arc::clone(&recursed_file_source));
         let full_source = FullFileSource {
@@ -163,7 +168,8 @@ fn erc721_compilation_benchmark(c: &mut Criterion) {
         let recursed_file_source = Compiler::recurse_deps(
             Arc::clone(file_source),
             &remapper::Remapper::new("./"),
-            file_provider
+            file_provider,
+            HashSet::new()
         ).unwrap();
         let flattened = FileSource::fully_flatten(Arc::clone(&recursed_file_source));
         let full_source = FullFileSource {

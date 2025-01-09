@@ -30,7 +30,7 @@ impl Span {
 
     /// Produces a file identifier string for errors
     pub fn identifier(&self) -> String {
-        self.file.as_ref().map(|f| format!("\n-> {}:{}-{}", f.path, self.start, self.end)).unwrap_or_default()
+        self.file.as_ref().map(|f| format!("\n-> {}", f.path)).unwrap_or_default()
     }
 
     /// Produces a source segment string
@@ -42,10 +42,8 @@ impl Span {
                     .as_ref()
                     .map(|s| {
                         if self.start >= s.len() {
-                            return "\nInternal compiler error: Start index out of range".to_string();
-                        }
-                        if self.end >= s.len() {
-                            return "\nInternal compiler error: End index out of range: file".to_string();
+                            // This should never happen, but currently does when the mapping from the flattened source is incorrect.
+                            return format!("\nInternal compiler error: Start index out of range start={} len={}.", self.start, s.len());
                         }
                         let line_num = &s[0..self.start].as_bytes().iter().filter(|&&c| c == b'\n').count() + 1;
                         let line_start = &s[0..self.start].rfind('\n').unwrap_or(0);
