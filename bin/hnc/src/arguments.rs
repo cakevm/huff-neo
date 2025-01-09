@@ -7,7 +7,7 @@ use yansi::Paint;
 
 /// The Huff CLI Args
 #[derive(Parser, Debug, Clone)]
-#[clap(name = "hnc", version, about, long_about = None)]
+#[clap(name = "hnc", about, long_about = None)]
 pub struct HuffArgs {
     /// The contract(s) to compile.
     pub path: Option<String>,
@@ -85,7 +85,7 @@ pub struct HuffArgs {
     pub test: Option<TestCommands>,
 
     /// Print version
-    #[arg(long)]
+    #[arg(short = 'V', long = "version")]
     pub version_long: bool,
 }
 

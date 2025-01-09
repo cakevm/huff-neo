@@ -40,7 +40,7 @@ fn main() {
 
     if cli.version_long {
         let git_clean = if build::GIT_CLEAN { "" } else { "-dirty" };
-        println!("hnc {} ({}{})", build::PKG_VERSION, build::SHORT_COMMIT, git_clean);
+        println!("hnc {} (rev: {}{})", build::PKG_VERSION, build::SHORT_COMMIT, git_clean);
         return;
     }
 
