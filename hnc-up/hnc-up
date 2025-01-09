@@ -163,7 +163,7 @@ main() {
 
     for bin in "${BINS[@]}"; do
       bin_path="$HUFF_NEO_BIN_DIR/$bin"
-      echo cp $HUFF_NEO_VERSIONS_DIR/$HNC_UP_TAG/$bin $bin_path
+      cp $HUFF_NEO_VERSIONS_DIR/$HNC_UP_TAG/$bin $bin_path
 
       # Print installed msg
       say "installed - $(ensure "$bin_path" --version)"
