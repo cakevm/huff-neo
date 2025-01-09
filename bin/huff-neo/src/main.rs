@@ -18,13 +18,14 @@ use huff_neo_tests::{
     prelude::{print_test_report, ReportKind},
     HuffTester,
 };
-use huff_neo_utils::{
-    file_provider::FileSystemFileProvider,
-    prelude::{
-        export_interfaces, gen_sol_interfaces, str_to_bytes32, AstSpan, BytecodeRes, CodegenError, CodegenErrorKind, CompilerError,
-        EVMVersion, FileSource, Literal, OutputLocation, Span,
-    },
+use huff_neo_utils::file::file_provider::FileSystemFileProvider;
+use huff_neo_utils::file::file_source::FileSource;
+use huff_neo_utils::file::full_file_source::OutputLocation;
+use huff_neo_utils::prelude::{
+    export_interfaces, gen_sol_interfaces, str_to_bytes32, AstSpan, BytecodeRes, CodegenError, CodegenErrorKind, CompilerError, EVMVersion,
+    Literal, Span,
 };
+use std::process::exit;
 use std::{collections::BTreeMap, rc::Rc, sync::Arc, time::Instant};
 use yansi::Paint;
 
@@ -51,7 +52,7 @@ fn main() {
         Ok(s) => Arc::new(s),
         Err(e) => {
             eprintln!("{}", Paint::red(&format!("{e}")));
-            std::process::exit(1);
+            exit(1);
         }
     };
 
@@ -71,7 +72,7 @@ fn main() {
                     || parts[1][2..].chars().any(|c| !(c.is_numeric() || matches!(c, '\u{0041}'..='\u{0046}' | '\u{0061}'..='\u{0066}')))
                 {
                     eprintln!("Invalid constant override argument: {}", Paint::red(&c.to_string()));
-                    std::process::exit(1);
+                    exit(1);
                 }
 
                 (parts[0], str_to_bytes32(&parts[1][2..]))
@@ -120,19 +121,19 @@ fn main() {
             Err(e) => {
                 tracing::error!(target: "cli", "PARSER ERRORED!");
                 eprintln!("{}", Paint::red(&e));
-                std::process::exit(1);
+                exit(1);
             }
         };
 
         if contracts.len() > 1 {
             eprintln!("{}", Paint::red("Multiple contracts found. Please specify a single contract and try again."));
-            std::process::exit(1);
+            exit(1);
         }
 
         if let Some(contract) = contracts.first() {
             let macro_def = contract.find_macro_by_name(&cli.alternative_main.unwrap_or_else(|| "MAIN".to_string())).unwrap_or_else(|| {
                 eprintln!("{}", Paint::red("Macro not found. Please specify a valid macro and try again."));
-                std::process::exit(1);
+                exit(1);
             });
 
             // Recurse through the macro and generate bytecode
@@ -140,31 +141,31 @@ fn main() {
                 Codegen::macro_to_bytecode(&evm_version, macro_def, contract, &mut vec![macro_def], 0, &mut Vec::default(), false, None)
                     .unwrap();
 
-            if !bytecode_res.label_indices.is_empty() {
-                // Format the label indices nicely in a table
-                let mut table = Table::new();
-                table.load_preset(UTF8_FULL).apply_modifier(UTF8_ROUND_CORNERS);
-                table
-                    .set_header(vec![Cell::new("Jump Label").fg(Color::Cyan), Cell::new("Program counter offset (in hex)").fg(Color::Cyan)])
-                    .add_rows(
-                        bytecode_res
-                            .label_indices
-                            .iter()
-                            .map(|(label, index)| Row::from(vec![Cell::new(label), Cell::new(format!("{:#04x}", index))])),
-                    );
-                println!("{table}");
-            } else {
+            if bytecode_res.label_indices.is_empty() {
                 eprintln!(
-                            "{}",
-                            Paint::red(
-                                "No jump labels found. Please try again.\nHint: you can run this command on a specific macro by adding the `-m <macro_name>` flag.\n"
-                            )
-                        );
-                std::process::exit(1);
+                    "{}",
+                    Paint::red(
+                        "No jump labels found. Please try again.\nHint: you can run this command on a specific macro by adding the `-m <macro_name>` flag.\n"
+                    )
+                );
+                exit(1);
             }
+
+            // Format the label indices nicely in a table
+            let mut table = Table::new();
+            table.load_preset(UTF8_FULL).apply_modifier(UTF8_ROUND_CORNERS);
+            table
+                .set_header(vec![Cell::new("Jump Label").fg(Color::Cyan), Cell::new("Program counter offset (in hex)").fg(Color::Cyan)])
+                .add_rows(
+                    bytecode_res
+                        .label_indices
+                        .iter()
+                        .map(|(label, index)| Row::from(vec![Cell::new(label), Cell::new(format!("{:#04x}", index))])),
+                );
+            println!("{table}");
         } else {
             eprintln!("{}", Paint::red("No contract found. Please specify a contract and try again."));
-            std::process::exit(1);
+            exit(1);
         }
 
         return;
@@ -185,7 +186,7 @@ fn main() {
                         }
                         Err(e) => {
                             eprintln!("{}", Paint::red(&e));
-                            std::process::exit(1);
+                            exit(1);
                         }
                     };
                 }
@@ -193,20 +194,18 @@ fn main() {
             Err(e) => {
                 tracing::error!(target: "cli", "PARSER ERRORED!");
                 eprintln!("{}", Paint::red(&e));
-                std::process::exit(1);
+                exit(1);
             }
         }
         return;
     }
 
-    let compile_res = compiler.execute();
-
-    let mut artifacts = match compile_res {
+    let mut artifacts = match compiler.execute() {
         Ok(artifacts) => artifacts,
         Err(e) => {
             tracing::error!(target: "cli", "COMPILER ERRORED: {}", e);
             eprintln!("{}", Paint::red(&format!("{e}")));
-            std::process::exit(1);
+            exit(1);
         }
     };
 
@@ -233,7 +232,7 @@ fn main() {
         });
         tracing::error!(target: "cli", "COMPILER ERRORED: {}", e);
         eprintln!("{}", Paint::red(&format!("{e}")));
-        std::process::exit(1);
+        exit(1);
     }
 
     if command.get_matches().contains_id("interface") {

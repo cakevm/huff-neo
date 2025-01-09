@@ -7,13 +7,13 @@ use alloy_primitives::hex;
 use huff_neo_codegen::*;
 use huff_neo_lexer::*;
 use huff_neo_parser::*;
+use huff_neo_utils::file::file_provider::{FileProvider, FileSystemFileProvider, InMemoryFileProvider};
+use huff_neo_utils::file::file_source::FileSource;
+use huff_neo_utils::file::full_file_source::{FullFileSource, OutputLocation};
+use huff_neo_utils::file::remapper::Remapper;
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 use huff_neo_utils::wasm::IntoParallelIterator;
-use huff_neo_utils::{
-    file_provider::{FileProvider, FileSystemFileProvider, InMemoryFileProvider},
-    prelude::*,
-    time,
-};
+use huff_neo_utils::{prelude::*, time};
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 use rayon::prelude::*;
 use std::{
@@ -179,17 +179,16 @@ impl<'a, 'l> Compiler<'a, 'l> {
         let file_paths: Vec<PathBuf> = self.file_provider.transform_paths(&self.sources)?;
 
         // Parallel file fetching
-        let files: Vec<Result<Arc<FileSource>, CompilerError>> = Self::fetch_sources(file_paths, self.file_provider.clone());
+        let files_fetched: Vec<Result<Arc<FileSource>, CompilerError>> = Self::fetch_sources(file_paths, self.file_provider.clone());
 
-        // Unwrap errors
-        let mut errors = files.iter().filter_map(|rfs| rfs.as_ref().err()).collect::<Vec<&CompilerError>>();
-        if !errors.is_empty() {
-            let error = errors.remove(0);
-            return Err(Arc::new(error.clone()));
+        // Check for errors
+        let mut files = Vec::new();
+        for file in files_fetched {
+            match file {
+                Ok(f) => files.push(f),
+                Err(err) => return Err(Arc::new(err.clone())),
+            }
         }
-
-        // Unpack files into their file sources
-        let files = files.iter().filter_map(|fs| fs.clone().ok()).collect::<Vec<Arc<FileSource>>>();
 
         // Grab the output
         let output = self.get_outputs();
@@ -201,13 +200,13 @@ impl<'a, 'l> Compiler<'a, 'l> {
         //     || cache::get_cached_artifacts(cloned_files, ol)
         // });
 
-        let mut artifacts: Vec<Arc<Artifact>> = vec![];
-
         // Get our constructor arguments as a hex encoded string to compare to the cache
         let inputs = self.get_constructor_args();
         let encoded_inputs = Codegen::encode_constructor_args(inputs);
         let encoded: Vec<Vec<u8>> = encoded_inputs.iter().map(|tok| tok.abi_encode()).collect();
         let constructor_args = encoded.iter().map(|tok| hex::encode(tok.as_slice())).collect();
+
+        let mut artifacts: Vec<Arc<Artifact>> = vec![];
 
         // Get Cached or Generate Artifacts
         tracing::debug!(target: "core", "Output directory: {}", output.0);
@@ -285,7 +284,7 @@ impl<'a, 'l> Compiler<'a, 'l> {
 
         let recursed_file_sources: Vec<Result<Arc<FileSource>, Arc<CompilerError>>> = files
             .into_par_iter()
-            .map(|f| Self::recurse_deps(f, &huff_neo_utils::files::Remapper::new("./"), self.file_provider.clone()))
+            .map(|f| Self::recurse_deps(f, &huff_neo_utils::file::remapper::Remapper::new("./"), self.file_provider.clone()))
             .collect();
 
         // Collect Recurse Deps errors and try to resolve to the first one
@@ -339,9 +338,9 @@ impl<'a, 'l> Compiler<'a, 'l> {
     pub fn gen_artifact(&self, file: Arc<FileSource>) -> Result<Artifact, CompilerError> {
         // Fully Flatten a file into a source string containing source code of file and all
         // its dependencies
-        let flattened = FileSource::fully_flatten(Arc::clone(&file));
+        let (merged_sources, spans) = FileSource::fully_flatten(Arc::clone(&file));
         tracing::info!(target: "core", "FLATTENED SOURCE FILE \"{}\"", file.path);
-        let full_source = FullFileSource { source: &flattened.0, file: Some(Arc::clone(&file)), spans: flattened.1 };
+        let full_source = FullFileSource { source: &merged_sources, file: Some(Arc::clone(&file)), spans };
         tracing::debug!(target: "core", "GOT FULL SOURCE FOR PATH: {:?}", file.path);
 
         // Perform Lexical Analysis
@@ -471,7 +470,7 @@ impl<'a, 'l> Compiler<'a, 'l> {
             s.clone()
         } else {
             // Read from path
-            let new_source = match std::fs::read_to_string(&fs.path) {
+            let new_source = match fs::read_to_string(&fs.path) {
                 Ok(source) => source,
                 Err(_) => {
                     tracing::error!(target: "core", "FILE READ FAILED: \"{}\"!", fs.path);

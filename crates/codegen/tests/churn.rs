@@ -1,6 +1,6 @@
 use alloy_dyn_abi::DynSolValue;
 use huff_neo_codegen::Codegen;
-use huff_neo_utils::prelude::FileSource;
+use huff_neo_utils::file::file_source::FileSource;
 use std::sync::Arc;
 
 #[test]

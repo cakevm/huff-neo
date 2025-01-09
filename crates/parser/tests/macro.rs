@@ -1,6 +1,7 @@
 use huff_neo_lexer::Lexer;
 use huff_neo_parser::*;
-use huff_neo_utils::{evm::Opcode, prelude::*};
+use huff_neo_utils::file::full_file_source::FullFileSource;
+use huff_neo_utils::{opcodes::Opcode, prelude::*};
 
 #[test]
 fn empty_macro() {

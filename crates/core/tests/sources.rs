@@ -1,7 +1,9 @@
 use std::{path::PathBuf, sync::Arc};
 
 use huff_neo_core::Compiler;
-use huff_neo_utils::{file_provider::FileSystemFileProvider, prelude::*};
+use huff_neo_utils::file::file_provider::FileSystemFileProvider;
+use huff_neo_utils::file::file_source::FileSource;
+use huff_neo_utils::prelude::*;
 
 #[test]
 fn test_fetch_sources() {

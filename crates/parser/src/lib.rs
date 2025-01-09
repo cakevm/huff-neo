@@ -3,10 +3,10 @@
 #![warn(unused_extern_crates)]
 #![forbid(unsafe_code)]
 
+use huff_neo_utils::file::remapper;
 use huff_neo_utils::{
     ast::*,
     error::*,
-    files,
     prelude::{bytes32_to_string, hash_bytes, str_to_bytes32, Span},
     token::{Token, TokenKind},
     types::*,
@@ -27,14 +27,14 @@ pub struct Parser {
     /// A collection of current spans
     pub spans: Vec<Span>,
     /// Our remapper
-    pub remapper: files::Remapper,
+    pub remapper: remapper::Remapper,
 }
 
 impl Parser {
     /// Public associated function that instantiates a Parser.
     pub fn new(tokens: Vec<Token>, base: Option<String>) -> Self {
         let initial_token = tokens.first().unwrap().clone();
-        let remapper = files::Remapper::new("./");
+        let remapper = remapper::Remapper::new("./");
         Self { tokens, cursor: 0, current_token: initial_token, base, spans: vec![], remapper }
     }
 

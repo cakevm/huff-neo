@@ -1,10 +1,8 @@
 use huff_neo_codegen::Codegen;
 use huff_neo_lexer::*;
 use huff_neo_parser::Parser;
-use huff_neo_utils::{
-    prelude::{EVMVersion, FullFileSource},
-    token::Token,
-};
+use huff_neo_utils::file::full_file_source::FullFileSource;
+use huff_neo_utils::{prelude::EVMVersion, token::Token};
 
 /// Check that free storage pointers referenced outside of macro bodies
 /// are assigned correctly at compilation

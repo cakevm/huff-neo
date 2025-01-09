@@ -1,7 +1,9 @@
 use huff_neo_codegen::Codegen;
 use huff_neo_lexer::*;
 use huff_neo_parser::Parser;
-use huff_neo_utils::prelude::{EVMVersion, FileSource, FullFileSource, Token};
+use huff_neo_utils::file::file_source::FileSource;
+use huff_neo_utils::file::full_file_source::FullFileSource;
+use huff_neo_utils::prelude::{EVMVersion, Token};
 use std::sync::Arc;
 
 #[test]

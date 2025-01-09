@@ -1,5 +1,6 @@
-use crate::files::FileSource;
-use crate::{evm::Opcode, files::Span, types::PrimitiveEVMType};
+use crate::file::file_source::FileSource;
+use crate::file::span::Span;
+use crate::{opcodes::Opcode, types::PrimitiveEVMType};
 use std::sync::Arc;
 use std::{fmt, fmt::Write};
 
