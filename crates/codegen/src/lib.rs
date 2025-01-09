@@ -3,6 +3,7 @@
 #![warn(unused_extern_crates)]
 #![forbid(unsafe_code)]
 
+use alloy_primitives::hex;
 use huff_neo_utils::file::file_source::FileSource;
 use huff_neo_utils::{
     abi::*,

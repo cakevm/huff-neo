@@ -3,11 +3,12 @@
 #![warn(unused_extern_crates)]
 #![forbid(unsafe_code)]
 
+use alloy_primitives::keccak256;
 use huff_neo_utils::file::remapper;
 use huff_neo_utils::{
     ast::*,
     error::*,
-    prelude::{bytes32_to_string, hash_bytes, str_to_bytes32, Span},
+    prelude::{bytes32_to_string, str_to_bytes32, Span},
     token::{Token, TokenKind},
     types::*,
 };
@@ -303,11 +304,11 @@ impl Parser {
         // function outputs should be next
         let outputs = self.parse_args(true, true, false, false)?;
 
-        let mut signature = [0u8; 4]; // Only keep first 4 bytes
         let input_types = inputs.iter().map(|i| i.arg_type.as_ref().unwrap().clone()).collect::<Vec<_>>();
-        hash_bytes(&mut signature, &format!("{name}({})", input_types.join(",")));
+        let method_signature = format!("{name}({})", input_types.join(","));
+        let selector = keccak256(method_signature)[..4].try_into().unwrap();
 
-        Ok(FunctionDefinition { name, signature, inputs, fn_type, outputs, span: AstSpan(self.spans.clone()) })
+        Ok(FunctionDefinition { name, signature: selector, inputs, fn_type, outputs, span: AstSpan(self.spans.clone()) })
     }
 
     /// Parse an event.
@@ -335,11 +336,11 @@ impl Parser {
         // Parse the event's parameters
         let parameters = self.parse_args(true, true, true, false)?;
 
-        let mut hash = [0u8; 32];
         let input_types = parameters.iter().map(|i| i.arg_type.as_ref().unwrap().clone()).collect::<Vec<_>>();
-        hash_bytes(&mut hash, &format!("{name}({})", input_types.join(",")));
+        let event_signature = format!("{name}({})", input_types.join(","));
+        let event_selector = keccak256(event_signature).0;
 
-        Ok(EventDefinition { name, parameters, span: AstSpan(self.spans.clone()), hash })
+        Ok(EventDefinition { name, parameters, span: AstSpan(self.spans.clone()), hash: event_selector })
     }
 
     /// Parse a constant.
@@ -418,9 +419,9 @@ impl Parser {
         // Get arguments for signature
         let parameters = self.parse_args(true, true, false, false)?;
 
-        let mut selector = [0u8; 4]; // Only keep first 4 bytes
         let input_types = parameters.iter().map(|i| i.arg_type.as_ref().unwrap().clone()).collect::<Vec<_>>();
-        hash_bytes(&mut selector, &format!("{name}({})", input_types.join(",")));
+        let method_signature = format!("{name}({})", input_types.join(","));
+        let selector = keccak256(method_signature)[..4].try_into().unwrap();
 
         // Clone spans and set to nothing
         let new_spans = self.spans.clone();

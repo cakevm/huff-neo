@@ -1,73 +1,65 @@
 [workspace]
-members = [
-  "crates/core",
-  "crates/codegen",
-  "crates/lexer",
-  "crates/utils",
-  "bin/huff-neo",
-  "crates/parser",
-  "crates/js",
-  "crates/tests"
-]
-exclude = [ "assets", "huff-neo-up", "huff-examples" ]
-default-members = ["bin/huff-neo"]
+default-members = ["bin/hnc"]
+exclude = ["assets", "hnc-up", "huff-examples"]
+members = ["bin/hnc", "crates/codegen", "crates/core", "crates/js", "crates/lexer", "crates/parser", "crates/tests", "crates/utils"]
 resolver = "2"
 
 [workspace.package]
-version = "0.0.2"
 edition = "2021"
+license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/cakevm/huff-neo"
-license = "MIT OR Apache-2.0"
+version = "0.0.3"
 
 [workspace.dependencies]
-huff-neo-core = { path = "crates/core" }
 huff-neo-codegen = { path = "crates/codegen" }
+huff-neo-core = { path = "crates/core" }
 huff-neo-lexer = { path = "crates/lexer" }
 huff-neo-parser = { path = "crates/parser" }
-huff-neo-utils = { path = "crates/utils" }
 huff-neo-tests = { path = "crates/tests" }
-huff-neo-js = { path = "crates/js" }
+huff-neo-utils = { path = "crates/utils" }
 
-
+alloy-dyn-abi = "0.8.18"
+alloy-primitives = "0.8.18"
+cfg-if = "1.0.0"
 clap = { version = "4.5.23", features = ["derive"] }
-comfy-table = "7.1"
-tracing = "0.1.34"
-yansi = "1.0.1"
-uuid = { version = "1.1.1", features = ["v4"] }
-serde_json = "1.0.81"
+comfy-table = "7.1.3"
 hex = "0.4.3"
-regex = "1.6.0"
-tracing-subscriber = { version = "0.3", default-features = false, features = ["env-filter", "fmt"] }
-walkdir = "2"
-cfg-if = "1"
+itertools = "0.14.0"
+js-sys = { version = "0.3.76" }
+lazy_static = "1.5.0"
+phf = { version = "0.11.1", features = ["macros"] }
+rand = "0.8.5"
+regex = "1.11.1"
+revm = "19.1.0"
+shadow-rs = "0.37.0"
+tracing = "0.1.41"
+tracing-subscriber = { version = "0.3.19", default-features = false, features = ["env-filter", "fmt"] }
+uuid = { version = "1.11.0", features = ["v4"] }
+walkdir = "2.5.0"
+wasm-bindgen = "0.2"
+yansi = "1.0.1"
+
+# serde
 serde = { version = "1.0", features = ["derive", "rc"] }
 serde-wasm-bindgen = "0.6.5"
-wasm-bindgen = "0.2"
-revm = "19.1.0"
-phf = { version = "0.11.1", features = ["macros"] }
+serde_json = "1.0.131"
 strum = "0.26.3"
 strum_macros = "0.26.4"
-lazy_static = "1"
-itertools = "0.14.0"
-tiny-keccak = { version = "2.0.2", features = ["keccak"] }
 toml = "0.8.19"
-js-sys = { version = "0.3" }
-alloy-primitives = "0.8"
-alloy-dyn-abi = "0.8"
-rand = "0.8.5"
 
-#dev
-rayon = "1.5.3"
+# dev
 criterion = "0.5.1"
+getrandom = { version = "0.2.15", features = ["js"] }
+rayon = "1.10.0"
 
 [profile.test]
 debug = 1
 incremental = true
 
 [profile.release]
-debug = "line-tables-only"
 codegen-units = 32
+debug = "line-tables-only"
 lto = "thin"
 opt-level = 3
 panic = "unwind"

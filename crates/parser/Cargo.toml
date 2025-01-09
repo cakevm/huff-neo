@@ -14,6 +14,7 @@ keywords = ["bytecode", "compiler", "evm", "huff", "rust"]
 huff-neo-lexer.workspace = true
 huff-neo-utils.workspace = true
 
+alloy-primitives.workspace = true
 hex.workspace = true
 regex.workspace = true
 tracing.workspace = true

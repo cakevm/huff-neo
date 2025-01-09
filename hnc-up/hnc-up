@@ -14,7 +14,7 @@ main() {
   need_cmd git
   need_cmd curl
 
-  # Otherwise, continue with huff-neo-up script
+  # Otherwise, continue with hnc-up script
   while [[ $1 ]]; do
     case $1 in
       --)               shift; break;;
@@ -61,7 +61,7 @@ main() {
     rm -f "$HUFF_BIN_DIR/huff-neo"
 
     # Symlink from local repo binaries to bin dir
-    ensure ln -s "$PWD/target/release/huff-neo" "$HUFF_BIN_DIR/huff-neo"
+    ensure ln -s "$PWD/target/release/hnc" "$HUFF_BIN_DIR/hnc"
 
     say "done"
     exit 0
@@ -90,7 +90,7 @@ main() {
       HUFF_NEO_UP_TAG="${HUFF_NEO_UP_VERSION}"
     fi
 
-    say "installing huff-neo (version ${HUFF_NEO_UP_VERSION}, tag ${HUFF_NEO_UP_TAG})"
+    say "installing hnc (version ${HUFF_NEO_UP_VERSION}, tag ${HUFF_NEO_UP_TAG})"
 
     PLATFORM="$(uname -s)"
     case $PLATFORM in
@@ -125,16 +125,16 @@ main() {
     MAN_TARBALL_URL="${RELEASE_URL}huff_neo_man_${HUFF_NEO_UP_VERSION}.tar.gz"
 
     # Download the binaries tarball and unpack it into the .huff bin directory.
-    say "downloading latest huff-neo"
+    say "downloading latest hnc"
     ensure curl -# -L $BIN_TARBALL_URL | tar -xzC $HUFF_BIN_DIR
     # Download the man tarball and unpack it into the .huff man directory.
     say "downloading manpages"
     ensure curl -# -L $MAN_TARBALL_URL | tar -xzC $HUFF_MAN_DIR
-    say "installed - $($HUFF_BIN_DIR/huff-neo --version)"
+    say "installed - $($HUFF_BIN_DIR/hnc --version)"
     say "done"
 
-    if [[ $(which huff-neo) =~ "cargo" ]]; then
-      warn "it appears your system already has huff-neo installed via cargo. you may need to run 'rm $(which huff-neo)' to allow huff-neo-up to take precedence!"
+    if [[ $(which hnc) =~ "cargo" ]]; then
+      warn "it appears your system already has hnc installed via cargo. you may need to run 'rm $(which hnc)' to allow hnc-up to take precedence!"
     fi
   else
     need_cmd cargo
@@ -163,7 +163,7 @@ main() {
 
     # If help2man is installed, use it to add Huff man pages.
     if command -v help2man &> /dev/null ; then
-      help2man -N $HUFF_BIN_DIR/huff-neo > $HUFF_MAN_DIR/huff.1
+      help2man -N $HUFF_BIN_DIR/hnc > $HUFF_MAN_DIR/huff.1
     fi
     say "done"
   fi
@@ -174,7 +174,7 @@ usage() {
 The installer for Huff Neo compiler.
 Update or revert to a specific Huff version with ease.
 USAGE:
-    huff-neo-up <OPTIONS>
+    hnc-up <OPTIONS>
 OPTIONS:
     -h, --help      Print help information
     -v, --version   Install a specific version
@@ -187,7 +187,7 @@ EOF
 }
 
 say() {
-  printf 'huff-neo-up: %s\n' "$1"
+  printf 'hnc-up: %s\n' "$1"
 }
 
 warn() {

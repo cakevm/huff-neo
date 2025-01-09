@@ -6,17 +6,17 @@ set -e
 # https://github.com/foundry-rs/foundry/tree/master/foundryup
 # -----------------------------------------------------------
 
-echo "Installing huff-neo-up..."
+echo "Installing hnc-up..."
 
 HUFF_DIR=${HUFF_DIR-"$HOME/.huff-neo"}
 HUFF_BIN_DIR="$HUFF_DIR/bin"
 HUFF_MAN_DIR="$HUFF_DIR/share/man/man1"
 
 
-BIN_URL="https://raw.githubusercontent.com/cakevm/huff-neo/main/huff-neo-up/huff-neo-up"
-BIN_PATH="$HUFF_BIN_DIR/huff-neo-up"
+BIN_URL="https://raw.githubusercontent.com/cakevm/huff-neo/main/hnc-up/hnc-up"
+BIN_PATH="$HUFF_BIN_DIR/hnc-up"
 
-# Create the .huff bin directory and huff-neo-up binary if it doesn't exist.
+# Create the .huff bin directory and hnc-up binary if it doesn't exist.
 mkdir -p $HUFF_BIN_DIR
 curl -# -L $BIN_URL -o $BIN_PATH
 chmod +x $BIN_PATH
@@ -39,13 +39,13 @@ case $SHELL in
     PREF_SHELL=fish
     ;;
 *)
-    echo "huff-neo-up: could not detect shell, manually add ${HUFF_BIN_DIR} to your PATH."
+    echo "hnc-up: could not detect shell, manually add ${HUFF_BIN_DIR} to your PATH."
     exit 1
 esac
 
-# Only add huff-neo-up if it isn't already in PATH.
+# Only add hnc-up if it isn't already in PATH.
 if [[ ":$PATH:" != *":${HUFF_BIN_DIR}:"* ]]; then
-    # Add the huff-neo-up directory to the path and ensure the old PATH variables remain.
+    # Add the hnc-up directory to the path and ensure the old PATH variables remain.
     echo >> $PROFILE && echo "export PATH=\"\$PATH:$HUFF_BIN_DIR\"" >> $PROFILE
 fi
 
@@ -54,5 +54,5 @@ if [[ "$OSTYPE" =~ ^darwin && ! -f /usr/local/opt/libusb/lib/libusb-1.0.0.dylib 
     echo && echo "warning: libusb not found. You may need to install it manually on MacOS via Homebrew (brew install libusb)."
 fi
 
-echo && echo "Detected your preferred shell is ${PREF_SHELL} and added huff-neo-up to PATH. Run 'source ${PROFILE}' or start a new terminal session to use huff-neo-up."
-echo "Then, simply run 'huff-neo-up' to install the Huff compiler."
+echo && echo "Detected your preferred shell is ${PREF_SHELL} and added hnc-up to PATH. Run 'source ${PROFILE}' or start a new terminal session to use hnc-up."
+echo "Then, simply run 'hnc-up' to install the Huff compiler."

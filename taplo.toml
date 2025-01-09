@@ -1,4 +1,4 @@
-include = ["crates/**/Cargo.toml", "bin/**/Cargo.toml", "deny.toml", "rust-toolchain.toml", "rustfmt.toml"]
+include = ["crates/**/Cargo.toml", "bin/**/Cargo.toml", "deny.toml", "rust-toolchain.toml", "rustfmt.toml", "Cargo.toml"]
 
 
 [formatting]
