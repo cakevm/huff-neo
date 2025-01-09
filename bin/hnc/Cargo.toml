@@ -1,5 +1,5 @@
 [package]
-name = "huff-neo-cli"
+name = "hnc"
 version.workspace = true
 edition.workspace = true
 readme.workspace = true
@@ -9,6 +9,7 @@ description = """
 Huff Language Compiler built in Pure Rust.
 """
 keywords = ["bytecode", "compiler", "evm", "huff", "rust"]
+build = "build.rs"
 
 [dependencies]
 huff-neo-codegen.workspace = true
@@ -19,11 +20,15 @@ huff-neo-utils.workspace = true
 alloy-primitives.workspace = true
 clap.workspace = true
 comfy-table.workspace = true
+shadow-rs.workspace = true
 tracing.workspace = true
 uuid.workspace = true
 yansi.workspace = true
 
+[build-dependencies]
+shadow-rs.workspace = true
+
 [[bin]]
 doc = false
-name = "huff-neo"
+name = "hnc"
 path = "src/main.rs"

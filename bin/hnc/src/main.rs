@@ -25,15 +25,24 @@ use huff_neo_utils::prelude::{
     export_interfaces, gen_sol_interfaces, str_to_bytes32, AstSpan, BytecodeRes, CodegenError, CodegenErrorKind, CompilerError, EVMVersion,
     Literal, Span,
 };
+use shadow_rs::shadow;
 use std::process::exit;
 use std::{collections::BTreeMap, rc::Rc, sync::Arc, time::Instant};
 use yansi::Paint;
+
+shadow!(build);
 
 fn main() {
     let mut command = HuffArgs::command();
 
     // Parse the command line arguments
     let mut cli = HuffArgs::parse();
+
+    if cli.version_long {
+        let git_clean = if build::GIT_CLEAN { "" } else { "-dirty" };
+        println!("hnc {} ({}{})", build::PKG_VERSION, build::SHORT_COMMIT, git_clean);
+        return;
+    }
 
     // Initiate Tracing if Verbose
     if cli.verbose {
@@ -42,6 +51,7 @@ fn main() {
 
     // Check if no argument is provided
     if cli.path.is_none() {
+        println!("{}", Paint::red("No input file provided"));
         // Print help and exit
         command.print_help().unwrap();
         return;
