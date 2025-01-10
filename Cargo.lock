@@ -1141,7 +1141,7 @@ dependencies = [
 
 [[package]]
 name = "hnc"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "alloy-primitives",
  "clap",
@@ -1158,7 +1158,7 @@ dependencies = [
 
 [[package]]
 name = "huff-neo-codegen"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "alloy-dyn-abi",
  "alloy-primitives",
@@ -1171,7 +1171,7 @@ dependencies = [
 
 [[package]]
 name = "huff-neo-core"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "alloy-dyn-abi",
  "alloy-primitives",
@@ -1192,7 +1192,7 @@ dependencies = [
 
 [[package]]
 name = "huff-neo-js"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "huff-neo-core",
  "huff-neo-utils",
@@ -1203,7 +1203,7 @@ dependencies = [
 
 [[package]]
 name = "huff-neo-lexer"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "huff-neo-utils",
  "lazy_static",
@@ -1213,7 +1213,7 @@ dependencies = [
 
 [[package]]
 name = "huff-neo-parser"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "alloy-primitives",
  "hex",
@@ -1225,13 +1225,11 @@ dependencies = [
 
 [[package]]
 name = "huff-neo-tests"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "alloy-primitives",
  "comfy-table",
  "huff-neo-codegen",
- "huff-neo-core",
- "huff-neo-parser",
  "huff-neo-utils",
  "lazy_static",
  "phf",
@@ -1243,7 +1241,7 @@ dependencies = [
 
 [[package]]
 name = "huff-neo-utils"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "alloy-dyn-abi",
  "alloy-primitives",
