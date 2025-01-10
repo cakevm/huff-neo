@@ -18,3 +18,17 @@ fn constant_hex_literal_too_long() {
     }
     panic!("Error did not occurred")
 }
+
+#[test]
+fn constant_invalid_hex_literal() {
+    let source = "#define constant TEST = 0x0x";
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    for tok in lexer {
+        if tok.is_err() {
+            assert_eq!(tok.unwrap_err().kind, LexicalErrorKind::InvalidHexLiteral("0x0x".to_string()));
+            return;
+        }
+    }
+    panic!("Error did not occurred")
+}

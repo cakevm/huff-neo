@@ -96,6 +96,8 @@ pub enum LexicalErrorKind {
     InvalidCharacter(char),
     /// Invalid hex literal
     HexLiteralTooLong(String),
+    /// Invalid Hex Literal
+    InvalidHexLiteral(String),
     /// Invalid Array Size
     /// String param expected to be usize parsable
     InvalidArraySize(String),
@@ -122,6 +124,9 @@ impl<W: Write> Report<W> for LexicalError {
             }
             LexicalErrorKind::HexLiteralTooLong(str) => {
                 write!(f.out, "Hex literal has more than 32 bytes '{str}'")
+            }
+            LexicalErrorKind::InvalidHexLiteral(str) => {
+                write!(f.out, "Invalid Hex literal '{str}'")
             }
         }
     }
@@ -295,6 +300,9 @@ impl fmt::Display for CompilerError {
                 }
                 LexicalErrorKind::HexLiteralTooLong(h) => {
                     write!(f, "\nError: Hex literal has more than 32 bytes: \"{}\" {}{}\n", h, le.span.identifier(), le.span.source_seg())
+                }
+                LexicalErrorKind::InvalidHexLiteral(h) => {
+                    write!(f, "\nError: Invalid Hex literal: \"{}\" {}{}\n", h, le.span.identifier(), le.span.source_seg())
                 }
             },
             CompilerError::FileUnpackError(ue) => match ue {
