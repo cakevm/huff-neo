@@ -3,11 +3,8 @@ use huff_neo_utils::prelude::*;
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::collections::HashMap;
-use std::{
-    iter::{Peekable, Zip},
-    ops::RangeFrom,
-    str::Chars,
-};
+use std::iter::Enumerate;
+use std::{iter::Peekable, str::Chars};
 
 lazy_static! {
     static ref TOKEN: HashMap<String, TokenKind> = HashMap::from_iter(vec![
@@ -62,7 +59,7 @@ pub enum Context {
 pub struct Lexer<'a> {
     /// The source code as peekable chars.
     /// WARN: SHOULD NEVER BE MODIFIED!
-    pub chars: Peekable<Zip<Chars<'a>, RangeFrom<usize>>>,
+    pub chars: Peekable<Enumerate<Chars<'a>>>,
     position: usize,
     /// The previous lexed Token.
     /// NOTE: Cannot be a whitespace.
@@ -80,8 +77,7 @@ pub type TokenResult = Result<Token, LexicalError>;
 impl<'a> Lexer<'a> {
     pub fn new(source: FullFileSource<'a>) -> Self {
         Lexer {
-            // We zip with the character index here to ensure the first char has index 0
-            chars: source.source.chars().zip(0..).peekable(),
+            chars: source.source.chars().enumerate().peekable(),
             position: 0,
             lookback: None,
             eof: false,
@@ -92,15 +88,14 @@ impl<'a> Lexer<'a> {
 
     /// Consumes the next character
     pub fn consume(&mut self) -> Option<char> {
-        let (c, index) = self.chars.next()?;
+        let (index, c) = self.chars.next()?;
         self.position = index;
         Some(c)
     }
 
     /// Try to peek at the next character from the source
     pub fn peek(&mut self) -> Option<char> {
-        //self.chars.peek().copied()
-        self.chars.peek().map(|(c, _)| *c)
+        self.chars.peek().map(|(_, c)| *c)
     }
 
     fn next_token(&mut self) -> TokenResult {
@@ -170,15 +165,14 @@ impl<'a> Lexer<'a> {
                     let keys = [TokenKind::Define, TokenKind::Include];
                     for kind in keys.into_iter() {
                         let key = kind.to_string();
-                        let peeked = word.clone();
-                        if key == peeked {
+                        if key == word {
                             found_kind = Some(kind);
                             break;
                         }
                     }
 
-                    if let Some(kind) = &found_kind {
-                        Ok(kind.clone().into_token_with_span(self.source.relative_span_by_pos(start, end)))
+                    if let Some(kind) = found_kind {
+                        Ok(kind.into_token_with_span(self.source.relative_span_by_pos(start, end)))
                     } else if self.context == Context::Global && self.peek().unwrap() == '[' {
                         Ok(TokenKind::Pound.into_token_with_span(self.source.relative_span_by_pos(self.position, self.position)))
                     } else {
@@ -319,8 +313,8 @@ impl<'a> Lexer<'a> {
                         }
                     }
 
-                    let kind = if let Some(kind) = &found_kind {
-                        kind.clone()
+                    let kind = if let Some(kind) = found_kind {
+                        kind
                     } else if self.context == Context::MacroBody && BuiltinFunctionKind::try_from(&word).is_ok() {
                         TokenKind::BuiltinFunction(word)
                     } else {
@@ -408,8 +402,8 @@ impl<'a> Lexer<'a> {
         let start = self.position;
 
         // This function is only called when we want to continue consuming a character of the same
-        // type. For example, we see a digit and we want to consume the whole integer
-        // Therefore, the current character which triggered this function will need to be appended
+        // type. For example, we see a digit, and we want to consume the whole integer.
+        // Therefore, the current character which triggered this function will need to be appended.
         let mut word = String::new();
         if let Some(init_char) = initial_char {
             word.push(init_char)
@@ -486,7 +480,7 @@ impl<'a> Lexer<'a> {
 
     /// Checks the previous token kind against the input.
     pub fn checked_lookback(&self, kind: TokenKind) -> bool {
-        self.lookback.clone().and_then(|t| if t.kind == kind { Some(true) } else { None }).is_some()
+        self.lookback.as_ref().and_then(|t| if t.kind == kind { Some(true) } else { None }).is_some()
     }
 
     /// Check if a given keyword follows the keyword rules in the `source`. If not, it is a
