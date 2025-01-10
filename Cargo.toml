@@ -9,7 +9,7 @@ edition = "2021"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/cakevm/huff-neo"
-version = "1.0.0"
+version = "1.0.1"
 
 [workspace.dependencies]
 huff-neo-codegen = { path = "crates/codegen" }

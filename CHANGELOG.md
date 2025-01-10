@@ -1,11 +1,14 @@
 <!-- Keep a Changelog guide -> https://keepachangelog.com -->
 
-# Node cache changelog
+# Huff Neo Compiler changelog
 
 ## [Unreleased]
+
+## [1.0.1] - 2025-01-10
 - Validate that a constant hex literal is not longer than 32 bytes
 - New flatten source algo to determine spans
 - Fix all errors related to invalid source code mapping
+- Limit label duplicate check to containing macro and file
 
 ## [1.0.0] - 2025-01-09
 - First stable release of `huff-neo`
