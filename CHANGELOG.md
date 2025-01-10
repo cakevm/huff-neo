@@ -4,6 +4,7 @@
 
 ## [Unreleased]
 - Use latest stable Rust version 1.84
+- Report error for invalid hex literals `0x0x`
 
 ## [1.0.1] - 2025-01-10
 - Validate that a constant hex literal is not longer than 32 bytes

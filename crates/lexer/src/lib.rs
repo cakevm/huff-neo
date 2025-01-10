@@ -444,17 +444,18 @@ impl<'a> Lexer<'a> {
 
     fn eat_hex_digit(&mut self, initial_char: char) -> TokenResult {
         let (integer_str, mut start, end) = self.eat_while(Some(initial_char), |ch| ch.is_ascii_hexdigit() | (ch == 'x'));
+        if integer_str.matches('x').count() != 1 {
+            return Err(LexicalError::new(
+                LexicalErrorKind::InvalidHexLiteral(integer_str.clone()),
+                self.source.relative_span_by_pos(start, end),
+            ));
+        }
 
-        // TODO: check for sure that we have a correct hex string, eg. 0x56 and not 0x56x34
         let kind = if self.context == Context::CodeTableBody {
             // In codetables, the bytecode provided is of arbitrary length. We pass
             // the code as an Ident, and it is appended to the end of the runtime
             // bytecode in codegen.
-            if &integer_str[0..2] == "0x" {
-                TokenKind::Ident(integer_str[2..].to_owned())
-            } else {
-                TokenKind::Ident(integer_str)
-            }
+            TokenKind::Ident(integer_str[2..].to_owned())
         } else {
             // Only max 32 Bytes is allowed for hex string 0x. 2 + 64 = 66 characters
             if integer_str.len() > 66 {
