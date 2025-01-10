@@ -24,7 +24,7 @@ pub fn bubble_arg_call(
     if let Some(macro_invoc) = mis.last() {
         // Literal, Ident & Arg Call Check
         // First get this arg_nam position in the macro definition params
-        if let Some(pos) = macro_def.parameters.iter().position(|r| r.name.as_ref().map_or(false, |s| s.eq(arg_name))) {
+        if let Some(pos) = macro_def.parameters.iter().position(|r| r.name.as_ref().is_some_and(|s| s.eq(arg_name))) {
             tracing::info!(target: "codegen", "GOT \"{}\" POS IN ARG LIST: {}", arg_name, pos);
 
             if let Some(arg) = macro_invoc.1.args.get(pos) {
