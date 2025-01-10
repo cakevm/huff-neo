@@ -45,16 +45,16 @@ fn test_fully_flatten() {
     assert_eq!(relative_positions.len(), 4);
 
     assert_eq!(relative_positions.first().unwrap().1.start, 0);
-    assert_eq!(relative_positions.first().unwrap().1.end, 13);
+    assert_eq!(relative_positions.first().unwrap().1.end, 12);
 
     assert_eq!(relative_positions.get(1).unwrap().1.start, 13);
-    assert_eq!(relative_positions.get(1).unwrap().1.end, 26);
+    assert_eq!(relative_positions.get(1).unwrap().1.end, 25);
 
     assert_eq!(relative_positions.get(2).unwrap().1.start, 26);
-    assert_eq!(relative_positions.get(2).unwrap().1.end, 39);
+    assert_eq!(relative_positions.get(2).unwrap().1.end, 38);
 
     assert_eq!(relative_positions.get(3).unwrap().1.start, 39);
-    assert_eq!(relative_positions.get(3).unwrap().1.end, 52);
+    assert_eq!(relative_positions.get(3).unwrap().1.end, 51);
 }
 
 #[test]

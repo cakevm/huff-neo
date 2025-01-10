@@ -74,7 +74,7 @@ impl FileSource {
             let Some(source) = child_file_source.source.clone() else {
                 continue;
             };
-            let span = Span::new(shift_pos..(shift_pos + source.len()), Some(child_file_source.clone()));
+            let span = Span::new(shift_pos..(shift_pos + source.len() - 1), Some(child_file_source.clone()));
             relative_positions.push((child_file_source, span));
             shift_pos += source.len();
             full_source = format!("{full_source}{source}");
