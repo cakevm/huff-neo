@@ -5,6 +5,7 @@ edition.workspace = true
 readme.workspace = true
 repository.workspace = true
 license.workspace = true
+homepage.workspace = true
 description = """
 A stripped down testing framework for the Huff language.
 """
@@ -12,8 +13,6 @@ keywords = ["bytecode", "compiler", "evm", "huff", "rust"]
 
 [dependencies]
 huff-neo-codegen.workspace = true
-huff-neo-core.workspace = true
-huff-neo-parser.workspace = true
 huff-neo-utils.workspace = true
 
 alloy-primitives.workspace = true

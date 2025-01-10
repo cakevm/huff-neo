@@ -66,12 +66,8 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.ref }}
       - uses: dtolnay/rust-toolchain@clippy
-        with:
-          toolchain: "1.82"
       - uses: Swatinem/rust-cache@v2
-
-      # workaround for latest stable rust
-      - run: cargo +1.82 clippy --all-targets --all-features -- -D warnings
+      - run: cargo clippy --all-targets --all-features -- -D warnings
 
   test:
     if: github.repository == 'cakevm/huff-neo'

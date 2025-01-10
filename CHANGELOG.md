@@ -3,6 +3,7 @@
 # Huff Neo Compiler changelog
 
 ## [Unreleased]
+- Use latest stable Rust version 1.84
 
 ## [1.0.1] - 2025-01-10
 - Validate that a constant hex literal is not longer than 32 bytes
