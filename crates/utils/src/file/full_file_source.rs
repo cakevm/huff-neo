@@ -26,7 +26,7 @@ impl FullFileSource<'_> {
         if self.spans.is_empty() {
             return Span { start, end, file: self.file.clone() };
         }
-        let r = self
+        let span_opt = self
             .spans
             .iter()
             .filter(|s| s.1.start <= start && s.1.end >= end)
@@ -34,10 +34,9 @@ impl FullFileSource<'_> {
             .collect::<Vec<Span>>()
             .into_iter()
             .next();
-        if let Some(r) = r {
-            r
+        if let Some(span) = span_opt {
+            span
         } else {
-            println!("Failed to find relative span for start: {} and end: {}", start, end);
             Span { start, end, file: self.file.clone() }
         }
     }

@@ -1,28 +1,60 @@
-use std::sync::Arc;
-
-use huff_neo_utils::file::{file_source, remapper};
+use huff_neo_utils::file::file_source;
+use huff_neo_utils::file::file_source::FileSource;
 use huff_neo_utils::prelude::Span;
-use tracing_subscriber::EnvFilter;
+use huff_neo_utils::time::Time;
+use std::sync::Arc;
+use uuid::Uuid;
 
 #[test]
-fn test_generate_remappings() {
-    let subscriber_builder = tracing_subscriber::fmt();
-    let env_filter = EnvFilter::from_default_env().add_directive(tracing::Level::DEBUG.into());
-    if let Err(e) = subscriber_builder.with_env_filter(env_filter).try_init() {
-        eprintln!("Failed to initialize tracing!\nError: {e:?}")
-    }
+fn test_fully_flatten() {
+    let file_d = Arc::new(FileSource {
+        id: Uuid::new_v4(),
+        path: "d.txt".to_string(),
+        source: Some("content of d ".to_string()),
+        access: Some(Time::now()),
+        dependencies: vec![],
+    });
 
-    let remapper = remapper::Remapper::new("../../");
-    assert_eq!(remapper.remappings.len(), 1);
-    assert_eq!(remapper.remappings.get("examples/").unwrap(), "huff-examples/");
-}
+    let file_b = Arc::new(FileSource {
+        id: Uuid::new_v4(),
+        path: "b.txt".to_string(),
+        source: Some("content of b ".to_string()),
+        access: Some(Time::now()),
+        dependencies: vec![file_d.clone()],
+    });
 
-#[test]
-fn test_remappings_from_file() {
-    let remapper = remapper::Remapper::new("./tests");
-    assert_eq!(remapper.remappings.len(), 2);
-    assert_eq!(remapper.remappings.get("@huffmate/").unwrap(), "lib/huffmate/src/");
-    assert_eq!(remapper.remappings.get("@openzeppelin/").unwrap(), "lib/openzeppelin-contracts/contracts/");
+    let file_c = Arc::new(FileSource {
+        id: Uuid::new_v4(),
+        path: "c.txt".to_string(),
+        source: Some("content of c ".to_string()),
+        access: Some(Time::now()),
+        dependencies: vec![],
+    });
+
+    let file_a_with_deps = Arc::new(FileSource {
+        id: Uuid::new_v4(),
+        path: "a.txt".to_string(),
+        source: Some("content of a ".to_string()),
+        access: Some(Time::now()),
+        dependencies: vec![file_b.clone(), file_c.clone(), file_d.clone()],
+    });
+
+    let (flattened_source, relative_positions) = FileSource::fully_flatten(file_a_with_deps);
+
+    assert_eq!(flattened_source, "content of d content of b content of c content of a ");
+    assert_eq!(relative_positions.len(), 4);
+
+    assert_eq!(relative_positions.first().unwrap().1.start, 0);
+    assert_eq!(relative_positions.first().unwrap().1.end, 12);
+
+    assert_eq!(relative_positions.get(1).unwrap().1.start, 13);
+    assert_eq!(relative_positions.get(1).unwrap().1.end, 25);
+
+    assert_eq!(relative_positions.get(2).unwrap().1.start, 26);
+    assert_eq!(relative_positions.get(2).unwrap().1.end, 38);
+
+    assert_eq!(relative_positions.get(3).unwrap().1.start, 39);
+    assert_eq!(relative_positions.get(3).unwrap().1.end, 51);
 }
 
 #[test]
@@ -36,15 +68,15 @@ fn test_source_seg() {
                 path: "./huff-examples/errors/error.huff".to_string(),
                 source: Some("#include \"./import.huff\"\n\n#define function addressGetter() internal returns (address)".to_string()),
                 access: None,
-                dependencies: Some(vec![
+                dependencies: vec![
                     Arc::new(file_source::FileSource {
                         id: uuid::Uuid::nil(),
                         path: "./huff-examples/errors/import.huff".to_string(),
                         source: Some("#define macro SOME_RANDOM_MACRO() = takes(2) returns (1) {\n    // Store the keys in memory\n    dup1 0x00 mstore\n    swap1 dup1 0x00 mstore\n\n    // Hash the data, generating a key.\n    0x40 sha3\n}\n".to_string()),
                         access: None,
-                        dependencies: Some(vec![])
+                        dependencies: vec![]
                     })
-                ])
+                ]
             }
         ))
     };

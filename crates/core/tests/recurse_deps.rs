@@ -16,11 +16,10 @@ fn test_recursing_fs_dependencies() {
     let erc20_file_source = file_sources[0].clone();
     let res = Compiler::recurse_deps(Arc::clone(&erc20_file_source), &remapper::Remapper::new("./"), file_provider, HashSet::new());
     let full_erc20_file_source = res.unwrap();
-    let dependencies = full_erc20_file_source.dependencies.as_ref().unwrap();
-    assert_eq!(dependencies.len(), 4);
-    for dep in dependencies {
+    assert_eq!(full_erc20_file_source.dependencies.len(), 4);
+    for dep in full_erc20_file_source.dependencies.iter() {
         assert!(dep.source.is_some());
-        assert_eq!(dep.dependencies.as_ref().unwrap().len(), 0);
+        assert_eq!(dep.dependencies.len(), 0);
     }
 }
 
@@ -36,10 +35,10 @@ fn test_recursing_external_dependencies() {
     let erc20_file_source = file_sources[0].clone();
     let res = Compiler::recurse_deps(Arc::clone(&erc20_file_source), &remapper::Remapper::new("./"), file_provider, HashSet::new());
     let full_erc20_file_source = res.unwrap();
-    let dependencies = full_erc20_file_source.dependencies.as_ref().unwrap();
-    assert_eq!(dependencies.len(), 4);
-    for dep in dependencies {
+
+    assert_eq!(full_erc20_file_source.dependencies.len(), 4);
+    for dep in full_erc20_file_source.dependencies.iter() {
         assert!(dep.source.is_some());
-        assert_eq!(dep.dependencies.as_ref().unwrap().len(), 0);
+        assert_eq!(dep.dependencies.len(), 0);
     }
 }

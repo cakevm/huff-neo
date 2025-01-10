@@ -3,6 +3,9 @@
 # Node cache changelog
 
 ## [Unreleased]
+- Validate that a constant hex literal is not longer than 32 bytes
+- New flatten source algo to determine spans
+- Fix all errors related to invalid source code mapping
 
 ## [1.0.0] - 2025-01-09
 - First stable release of `huff-neo`

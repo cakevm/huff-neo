@@ -287,9 +287,7 @@ impl<'a, 'l> Compiler<'a, 'l> {
 
         let recursed_file_sources: Vec<Result<Arc<FileSource>, Arc<CompilerError>>> = files
             .into_par_iter()
-            .map(|f| {
-                Self::recurse_deps(f, &huff_neo_utils::file::remapper::Remapper::new("./"), self.file_provider.clone(), HashSet::new())
-            })
+            .map(|f| Self::recurse_deps(f, &Remapper::new("./"), self.file_provider.clone(), HashSet::new()))
             .collect();
 
         // Collect Recurse Deps errors and try to resolve to the first one
@@ -343,9 +341,10 @@ impl<'a, 'l> Compiler<'a, 'l> {
     pub fn gen_artifact(&self, file: Arc<FileSource>) -> Result<Artifact, CompilerError> {
         // Fully Flatten a file into a source string containing source code of file and all
         // its dependencies
-        let (merged_sources, spans) = FileSource::fully_flatten(Arc::clone(&file));
+        let (merged_source, spans) = FileSource::fully_flatten(Arc::clone(&file));
+
         tracing::info!(target: "core", "FLATTENED SOURCE FILE \"{}\"", file.path);
-        let full_source = FullFileSource { source: &merged_sources, file: Some(Arc::clone(&file)), spans };
+        let full_source = FullFileSource { source: &merged_source, file: Some(Arc::clone(&file)), spans };
         tracing::debug!(target: "core", "GOT FULL SOURCE FOR PATH: {:?}", file.path);
 
         // Perform Lexical Analysis
@@ -549,7 +548,7 @@ impl<'a, 'l> Compiler<'a, 'l> {
             .collect();
 
         // Finally set the parent deps
-        new_fs.dependencies = Some(file_sources);
+        new_fs.dependencies = file_sources;
 
         Ok(Arc::new(new_fs))
     }

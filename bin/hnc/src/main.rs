@@ -233,7 +233,7 @@ fn main() {
                             path: s.clone(),
                             source: None,
                             access: None,
-                            dependencies: None,
+                            dependencies: vec![],
                         })),
                     })
                     .collect::<Vec<Span>>(),
