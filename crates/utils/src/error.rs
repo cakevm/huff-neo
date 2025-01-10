@@ -94,6 +94,8 @@ pub enum LexicalErrorKind {
     UnexpectedEof,
     /// Invalid character
     InvalidCharacter(char),
+    /// Invalid hex literal
+    HexLiteralTooLong(String),
     /// Invalid Array Size
     /// String param expected to be usize parsable
     InvalidArraySize(String),
@@ -117,6 +119,9 @@ impl<W: Write> Report<W> for LexicalError {
             }
             LexicalErrorKind::InvalidPrimitiveType(str) => {
                 write!(f.out, "Invalid Primitive EVM Type '{str}'")
+            }
+            LexicalErrorKind::HexLiteralTooLong(str) => {
+                write!(f.out, "Hex literal has more than 32 bytes '{str}'")
             }
         }
     }
@@ -287,6 +292,9 @@ impl fmt::Display for CompilerError {
                 }
                 LexicalErrorKind::InvalidPrimitiveType(ty) => {
                     write!(f, "\nError: Invalid Primitive Type: \"{}\" {}{}\n", ty, le.span.identifier(), le.span.source_seg())
+                }
+                LexicalErrorKind::HexLiteralTooLong(h) => {
+                    write!(f, "\nError: Hex literal has more than 32 bytes: \"{}\" {}{}\n", h, le.span.identifier(), le.span.source_seg())
                 }
             },
             CompilerError::FileUnpackError(ue) => match ue {

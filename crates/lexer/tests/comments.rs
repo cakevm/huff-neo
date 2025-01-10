@@ -2,15 +2,6 @@ use huff_neo_lexer::*;
 use huff_neo_utils::file::full_file_source::FullFileSource;
 use huff_neo_utils::prelude::*;
 
-// use proptest::prelude::*;
-
-// proptest! {
-//     #[test]
-//     fn doesnt_crash(s in "\\PC*") {
-//         parse_date(&s);
-//     }
-// }
-
 #[test]
 fn instantiates() {
     let source = "#define macro HELLO_WORLD()";

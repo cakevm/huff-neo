@@ -456,6 +456,13 @@ impl<'a> Lexer<'a> {
                 TokenKind::Ident(integer_str)
             }
         } else {
+            // Only max 32 Bytes is allowed for hex string 0x. 2 + 64 = 66 characters
+            if integer_str.len() > 66 {
+                return Err(LexicalError::new(
+                    LexicalErrorKind::HexLiteralTooLong(integer_str.clone()),
+                    self.source.relative_span_by_pos(start, end),
+                ));
+            }
             TokenKind::Literal(str_to_bytes32(integer_str[2..].as_ref()))
         };
 

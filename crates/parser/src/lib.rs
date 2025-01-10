@@ -189,15 +189,15 @@ impl Parser {
     }
 
     /// Checks whether the input label is unique in a macro.
-    fn check_duplicate_label(&self, contract: &mut Contract, macro_name: &str, label: String, span: AstSpan) -> Result<(), ParserError> {
-        let key = format!("{macro_name}{label}");
+    fn check_duplicate_label(&self, contract: &mut Contract, macro_name: &str, label: String, span: Span) -> Result<(), ParserError> {
+        let key = format!("{}{macro_name}{label}", span.clone().file.map(|f| f.path.clone()).unwrap_or_default());
+
         if contract.labels.contains(&key) {
-            println!("DUPLICATED LABEL NAME: {:?}", span);
             tracing::error!(target: "parser", "DUPLICATED LABEL NAME: {}", label);
             Err(ParserError {
                 kind: ParserErrorKind::DuplicateLabel(label.clone()),
                 hint: Some(format!("Duplicated label name: \"{label}\" in macro: \"{macro_name}\"")),
-                spans: span,
+                spans: AstSpan(vec![span]),
                 cursor: self.cursor,
             })
         } else {
@@ -637,7 +637,7 @@ impl Parser {
                 TokenKind::Label(l) => {
                     let mut curr_spans = vec![self.current_token.span.clone()];
                     self.consume();
-                    self.check_duplicate_label(contract, macro_name, l.to_string(), AstSpan(curr_spans.clone()))?;
+                    self.check_duplicate_label(contract, macro_name, l.to_string(), self.current_token.span.clone())?;
                     let inner_statements: Vec<Statement> = self.parse_label()?;
                     inner_statements.iter().for_each(|a| curr_spans.extend_from_slice(a.span.inner_ref()));
                     tracing::info!(target: "parser", "PARSED LABEL \"{}\" INSIDE MACRO WITH {} STATEMENTS.", l, inner_statements.len());

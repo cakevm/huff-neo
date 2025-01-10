@@ -1,6 +1,7 @@
 use crate::prelude::Span;
 use crate::time;
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use std::fmt;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -19,7 +20,7 @@ pub struct FileSource {
     /// Last File Access Time
     pub access: Option<time::Time>,
     /// An Ordered List of File Dependencies
-    pub dependencies: Option<Vec<Arc<FileSource>>>,
+    pub dependencies: Vec<Arc<FileSource>>,
 }
 
 // Reduce the size of the debug output by not printing the source code and dependencies
@@ -36,6 +37,24 @@ impl fmt::Debug for FileSource {
 }
 
 impl FileSource {
+    /// Visit all dependencies and return a list of none duplicate [FileSource] in order of occurrence.
+    fn discover_all_file_sources(node_file_source: Arc<FileSource>, visited_nodes: &mut HashSet<String>) -> Vec<Arc<FileSource>> {
+        if visited_nodes.contains(&node_file_source.path) {
+            return vec![];
+        }
+        visited_nodes.insert(node_file_source.path.clone());
+
+        let mut result = vec![];
+        for child_file_source in node_file_source.dependencies.iter() {
+            let mut child_result = FileSource::discover_all_file_sources(child_file_source.clone(), visited_nodes);
+            result.append(&mut child_result);
+        }
+
+        result.push(node_file_source);
+
+        result
+    }
+
     /// Generates a fully flattened source code for the given `FileSource` and all its dependencies
     ///
     /// ### Examples
@@ -43,24 +62,24 @@ impl FileSource {
     /// Let's say you have a file, `a.txt` with two dependencies, `b.txt` and `c.txt`,
     /// `fully_flatten()` will generate a source code string with the contents of `b.txt` and
     /// `c.txt` appended to the end of the contents of `a.txt`.
-    pub fn fully_flatten(self_ref: Arc<FileSource>) -> (String, Vec<(Arc<FileSource>, Span)>) {
-        // First grab the parent file source
-        let mut full_source = self_ref.source.clone().unwrap_or_default();
-        let span = Span::new(0..full_source.len(), Some(self_ref.clone()));
-        let mut relative_positions = vec![(Arc::clone(&self_ref), span)];
+    pub fn fully_flatten(node_file_source: Arc<FileSource>) -> (String, Vec<(Arc<FileSource>, Span)>) {
+        let all_file_sources = FileSource::discover_all_file_sources(node_file_source, &mut HashSet::new());
 
-        // Then recursively grab source code for dependencies
-        if let Some(vfs) = &self_ref.dependencies {
-            for fs in vfs {
-                let mut flattened = FileSource::fully_flatten(Arc::clone(fs));
-                let span = Span::new(full_source.len()..(full_source.len() + flattened.0.len()), Some(fs.clone()));
-                full_source.push_str(&flattened.0);
-                relative_positions.append(&mut flattened.1);
-                relative_positions.push((Arc::clone(fs), span))
-            }
+        let mut full_source = "".to_string();
+        let mut relative_positions = vec![];
+        let mut shift_pos = 0;
+
+        // Append all child elements
+        for child_file_source in all_file_sources {
+            let Some(source) = child_file_source.source.clone() else {
+                continue;
+            };
+            let span = Span::new(shift_pos..(shift_pos + source.len()), Some(child_file_source.clone()));
+            relative_positions.push((child_file_source, span));
+            shift_pos += source.len();
+            full_source = format!("{full_source}{source}");
         }
 
-        // Return the full source
         (full_source, relative_positions)
     }
 

@@ -44,7 +44,7 @@ impl FileProvider for FileSystemFileProvider {
                 path: file_loc,
                 source: Some(source),
                 access: Some(time::get_current_time()),
-                dependencies: None,
+                dependencies: vec![],
             })),
             Err(_) => {
                 tracing::error!(target: "core", "FILE READ FAILED: \"{}\"!", file_loc);
@@ -104,7 +104,7 @@ impl FileProvider for InMemoryFileProvider {
                 path: path.to_string(),
                 source: Some(source.to_string()),
                 access: Some(time::get_current_time()),
-                dependencies: None,
+                dependencies: vec![],
             })),
             None => {
                 tracing::error!(target: "core", "FILE READ FAILED: \"{}\"!", path);
