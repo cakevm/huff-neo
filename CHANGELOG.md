@@ -6,6 +6,7 @@
 - Use latest stable Rust version 1.84
 - Report error for invalid hex literals `0x0x`
 - Improve lexer performance by 1-2% by removing unnecessary cloning
+- Allow to use same name for test and macro or fn
 
 ## [1.0.1] - 2025-01-10
 - Validate that a constant hex literal is not longer than 32 bytes
