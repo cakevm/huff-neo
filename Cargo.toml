@@ -1,7 +1,7 @@
 [workspace]
 default-members = ["bin/hnc"]
 exclude = ["assets", "hnc-up", "huff-examples"]
-members = ["bin/hnc", "crates/codegen", "crates/core", "crates/js", "crates/lexer", "crates/parser", "crates/tests", "crates/utils"]
+members = ["bin/hnc", "crates/codegen", "crates/core", "crates/js", "crates/lexer", "crates/parser", "crates/test-runner", "crates/utils"]
 resolver = "2"
 
 [workspace.package]
@@ -18,7 +18,7 @@ huff-neo-codegen = { path = "crates/codegen" }
 huff-neo-core = { path = "crates/core" }
 huff-neo-lexer = { path = "crates/lexer" }
 huff-neo-parser = { path = "crates/parser" }
-huff-neo-tests = { path = "crates/tests" }
+huff-neo-test-runner = { path = "crates/test-runner" }
 huff-neo-utils = { path = "crates/utils" }
 
 alloy-dyn-abi = "0.8.18"

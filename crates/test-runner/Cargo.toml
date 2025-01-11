@@ -1,5 +1,5 @@
 [package]
-name = "huff-neo-tests"
+name = "huff-neo-test-runner"
 version.workspace = true
 edition.workspace = true
 readme.workspace = true

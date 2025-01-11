@@ -12,11 +12,35 @@
 
 # Huff Neo Compiler
 
-The Huff Neo Compiler (`hnc`) marks a new dawn for the once-abandoned [huff-rs](https://github.com/huff-language/huff-rs), breathing fresh life into its legacy. This is a hard-fork with update dependencies and brings the project up-to-date with the latest Rust version and dependencies. 
+The Huff Neo Compiler (`hnc`) marks a new dawn for the once-abandoned [huff-rs](https://github.com/huff-language/huff-rs), breathing fresh life into its legacy. This is a hard-fork with update dependencies, restructured code and several fixes (see [CHANGELOG](https://github.com/cakevm/huff-neo/blob/main/CHANGELOG.md)). 
+It can be used as drop-in replacement for the original compiler. But to not conflict with the original compiler, the binary is named `hnc`. All related Huff Neo projects are hard-forks as well to make them work with `hnc`.
 
 ## What is a Huff?
 
 Huff is a low-level programming language designed for developing highly optimized smart contracts. For a more detailed explanation, see the original repository [huff-rs](https://github.com/huff-language/huff-rs).
+
+The PR to add the [Huff Language support on GitHub](https://github.com/github-linguist/linguist/pull/6470) is still pending.
+
+## Huff Neo Ecosystem
+
+These are the projects that are maintained for Huff Neo:
+
+| Project                                                                          | Scope                    | Support |
+|----------------------------------------------------------------------------------|--------------------------|---------|
+| [huff-neo](https://github.com/cakevm/huff-neo)                                   | Compiler (This repo)     | ✅       |
+| [foundry-huff-neo](https://github.com/cakevm/foundry-huff-neo)                   | Foundry Plugin           | ✅       |
+| [huff-neo-toolchain](https://github.com/cakevm/huff-neo-toolchain)               | GitHub Action (Compiler) | ✅       |
+| [huff-neo-tests-action](https://github.com/cakevm/huff-neo-tests-action)         | GitHub Action (Tests)    | ✅       |
+| [huff-neo-project-template](https://github.com/cakevm/huff-neo-project-template) | Project Template         | ✅       |
+| [huffmate-neo](https://github.com/cakevm/huffmate-neo)                           | Example Contracts        | ✅       |
+| [huff-examples](https://github.com/cakevm/huff-examples)                         | Example Contracts        | ✅       |
+
+Supported IDEs:
+
+| Project                                                                | Editor   | Status |
+|------------------------------------------------------------------------|----------|--------|
+| [intellij-huff-plugin](https://github.com/cakevm/intellij-huff-plugin) | IntelliJ | ✅      |
+
 
 ## How about huff2?
 

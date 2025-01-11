@@ -1148,7 +1148,7 @@ dependencies = [
  "comfy-table",
  "huff-neo-codegen",
  "huff-neo-core",
- "huff-neo-tests",
+ "huff-neo-test-runner",
  "huff-neo-utils",
  "shadow-rs",
  "tracing",
@@ -1224,7 +1224,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "huff-neo-tests"
+name = "huff-neo-test-runner"
 version = "1.0.2"
 dependencies = [
  "alloy-primitives",

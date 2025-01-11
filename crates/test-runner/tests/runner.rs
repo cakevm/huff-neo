@@ -1,5 +1,5 @@
 use alloy_primitives::{Address, U256};
-use huff_neo_tests::prelude::{TestRunner, TestStatus};
+use huff_neo_test_runner::prelude::{TestRunner, TestStatus};
 
 #[test]
 fn test_runner_return() {
