@@ -32,7 +32,7 @@ fmt-check:
 
 .PHONY: clippy
 clippy:
-	cargo clippy --all --all-features --lib --tests --benches -- -D warnings
+	cargo +1.84 clippy --all --all-features --lib --tests --benches -- -D warnings
 
 .PHONY: taplo
 taplo:

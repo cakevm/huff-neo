@@ -13,6 +13,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          clean: true
+          fetch-depth: 0
       - uses: taiki-e/create-gh-release-action@v1
         with:
           # (optional) Path to changelog.
@@ -36,6 +39,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          clean: true
+          fetch-depth: 0
+
       - uses: taiki-e/upload-rust-binary-action@v1
         with:
           # (required) Comma-separated list of binary names (non-extension portion of filename) to build and upload.

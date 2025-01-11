@@ -100,10 +100,15 @@ impl Parser {
                         tracing::info!(target: "parser", "SUCCESSFULLY PARSED ERROR {}", e.name);
                         contract.errors.push(e);
                     }
-                    TokenKind::Macro | TokenKind::Fn | TokenKind::Test => {
+                    TokenKind::Macro | TokenKind::Fn => {
                         let m = self.parse_macro(&mut contract)?;
                         tracing::info!(target: "parser", "SUCCESSFULLY PARSED MACRO {}", m.name);
                         self.check_duplicate_macro(&contract, &m)?;
+                        contract.macros.push(m);
+                    }
+                    TokenKind::Test => {
+                        let m = self.parse_macro(&mut contract)?;
+                        tracing::info!(target: "parser", "SUCCESSFULLY PARSED TEST {}", m.name);
                         contract.macros.push(m);
                     }
                     TokenKind::JumpTable | TokenKind::JumpTablePacked | TokenKind::CodeTable => {
