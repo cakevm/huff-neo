@@ -14,7 +14,7 @@ use clap::{CommandFactory, Parser};
 use comfy_table::{modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL, Cell, Color, Row, Table};
 use huff_neo_codegen::Codegen;
 use huff_neo_core::Compiler;
-use huff_neo_tests::{
+use huff_neo_test_runner::{
     prelude::{print_test_report, ReportKind},
     HuffTester,
 };

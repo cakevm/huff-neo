@@ -48,7 +48,7 @@ todo!()
 ## Examples
 
 Define a test macro within your Huff contract
-```js
+```huff
 #[calldata("0xf8a8fd6d00000000000000000000000000000000000000027627abd8d94cf3a4eb06de95"), value(0x01)]
 #define test MY_TEST() = takes (0) returns (0) {
     // Initialize stack

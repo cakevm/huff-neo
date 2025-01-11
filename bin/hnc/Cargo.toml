@@ -15,7 +15,7 @@ build = "build.rs"
 [dependencies]
 huff-neo-codegen.workspace = true
 huff-neo-core.workspace = true
-huff-neo-tests.workspace = true
+huff-neo-test-runner.workspace = true
 huff-neo-utils.workspace = true
 
 alloy-primitives.workspace = true
