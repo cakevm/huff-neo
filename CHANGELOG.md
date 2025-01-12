@@ -6,7 +6,7 @@
 
 ## [1.0.3] - 2025-01-12
 - Remove huff-examples submodule
-- Fix invalid error mapping for import wih unmatched jump label
+- Fix invalid error mapping for import with unmatched jump labels
 - Print unmatched jump labels
 
 ## [1.0.2] - 2025-01-11
