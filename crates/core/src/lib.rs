@@ -221,15 +221,14 @@ impl<'a, 'l> Compiler<'a, 'l> {
                     .map(|v| Self::recurse_deps(v, &Remapper::new("./"), self.file_provider.clone(), HashSet::new()))
                     .collect();
 
-                // Collect Recurse Deps errors and try to resolve to the first one
-                let mut errors = recursed_file_sources.iter().filter_map(|rfs| rfs.as_ref().err()).collect::<Vec<&Arc<CompilerError>>>();
-                if !errors.is_empty() {
-                    let error = errors.remove(0);
-                    return Err(Arc::clone(error));
-                }
-
                 // Unpack recursed dependencies into FileSources
-                let files = recursed_file_sources.into_iter().filter_map(|fs| fs.ok()).collect::<Vec<Arc<FileSource>>>();
+                let mut files = vec![];
+                for fs in recursed_file_sources {
+                    match fs {
+                        Ok(f) => files.push(f),
+                        Err(e) => return Err(e),
+                    }
+                }
                 tracing::info!(target: "core", "COMPILER RECURSED {} FILE DEPENDENCIES", files.len());
 
                 // Parallel Compilation
@@ -290,15 +289,14 @@ impl<'a, 'l> Compiler<'a, 'l> {
             .map(|f| Self::recurse_deps(f, &Remapper::new("./"), self.file_provider.clone(), HashSet::new()))
             .collect();
 
-        // Collect Recurse Deps errors and try to resolve to the first one
-        let mut errors = recursed_file_sources.iter().filter_map(|rfs| rfs.as_ref().err()).collect::<Vec<&Arc<CompilerError>>>();
-        if !errors.is_empty() {
-            let error = errors.remove(0);
-            return Err(Arc::clone(error));
-        }
-
         // Unpack recursed dependencies into FileSources
-        let files = recursed_file_sources.into_iter().filter_map(|fs| fs.ok()).collect::<Vec<Arc<FileSource>>>();
+        let mut files = vec![];
+        for fs in recursed_file_sources {
+            match fs {
+                Ok(f) => files.push(f),
+                Err(e) => return Err(e),
+            }
+        }
         tracing::info!(target: "core", "COMPILER RECURSED {} FILE DEPENDENCIES", files.len());
 
         // Parse file sources and collect ASTs in parallel
@@ -386,7 +384,9 @@ impl<'a, 'l> Compiler<'a, 'l> {
                         .0
                         .into_iter()
                         .map(|mut s| {
-                            s.file = Some(Arc::clone(&file));
+                            if s.file.is_none() {
+                                s.file = Some(Arc::clone(&file));
+                            }
                             s
                         })
                         .collect::<Vec<Span>>(),
@@ -412,7 +412,9 @@ impl<'a, 'l> Compiler<'a, 'l> {
                             .0
                             .into_iter()
                             .map(|mut s| {
-                                s.file = Some(Arc::clone(&file));
+                                if s.file.is_none() {
+                                    s.file = Some(Arc::clone(&file));
+                                }
                                 s
                             })
                             .collect::<Vec<Span>>();

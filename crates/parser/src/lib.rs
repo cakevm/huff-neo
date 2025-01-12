@@ -580,7 +580,7 @@ impl Parser {
                     // If the opcode is a push that takes a literal value, we need to parse the next
                     // literal
                     if o.is_value_push() {
-                        match self.current_token.kind.clone() {
+                        match self.current_token.kind {
                             TokenKind::Literal(val) => {
                                 let curr_spans = vec![self.current_token.span.clone()];
                                 tracing::info!(target: "parser", "PARSING MACRO BODY: [LITERAL: {}]", hex::encode(val));
@@ -616,10 +616,10 @@ impl Parser {
                     tracing::info!(target: "parser", "PARSING MACRO BODY: [IDENT: {}]", ident_str);
                     self.match_kind(TokenKind::Ident("MACRO_NAME".to_string()))?;
                     // Can be a macro call or label call
-                    match self.current_token.kind.clone() {
+                    match self.current_token.kind {
                         TokenKind::OpenParen => {
                             // Parse Macro Call
-                            let lit_args = self.parse_macro_call()?;
+                            let lit_args = self.parse_macro_call_args()?;
                             // Grab all spans following our macro invocation spam
                             if let Some(i) = self.spans.iter().position(|s| s.eq(&curr_spans[0])) {
                                 curr_spans.append(&mut self.spans[(i + 1)..].to_vec());
@@ -728,7 +728,7 @@ impl Parser {
                     match self.current_token.kind.clone() {
                         TokenKind::OpenParen => {
                             // Parse Macro Call
-                            let lit_args = self.parse_macro_call()?;
+                            let lit_args = self.parse_macro_call_args()?;
                             // Grab all spans following our macro invocation spam
                             if let Some(i) = self.spans.iter().position(|s| s.eq(&curr_spans[0])) {
                                 curr_spans.append(&mut self.spans[(i + 1)..].to_vec());
@@ -969,11 +969,6 @@ impl Parser {
         };
         self.match_kind(TokenKind::CloseParen)?;
         Ok(value)
-    }
-
-    /// Parse call to a macro.
-    pub fn parse_macro_call(&mut self) -> Result<Vec<MacroArg>, ParserError> {
-        self.parse_macro_call_args()
     }
 
     /// Parse the arguments of a macro call.

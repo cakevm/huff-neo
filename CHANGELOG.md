@@ -4,6 +4,11 @@
 
 ## [Unreleased]
 
+## [1.0.3] - 2025-01-12
+- Remove huff-examples submodule
+- Fix invalid error mapping for import wih unmatched jump label
+- Print unmatched jump labels
+
 ## [1.0.2] - 2025-01-11
 - Use latest stable Rust version 1.84
 - Report error for invalid hex literals `0x0x`

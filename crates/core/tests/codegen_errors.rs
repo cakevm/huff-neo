@@ -303,7 +303,7 @@ fn test_unmatched_jump_label() {
             assert_eq!(
                 e,
                 CodegenError {
-                    kind: CodegenErrorKind::UnmatchedJumpLabel,
+                    kind: CodegenErrorKind::UnmatchedJumpLabels(vec!["err".to_string()]),
                     span: AstSpan(vec![
                         Span { start: 372, end: 375, file: None },
                         Span { start: 376, end: 376, file: None },

@@ -121,13 +121,15 @@ impl Codegen {
     /// Fills table JUMPDEST placeholders.
     pub fn gen_table_bytecode(res: BytecodeRes) -> Result<String, CodegenError> {
         if !res.unmatched_jumps.is_empty() {
+            let labels = res.unmatched_jumps.iter().map(|uj| uj.label.to_string()).collect::<Vec<String>>();
             tracing::error!(
                 target: "codegen",
                 "Source contains unmatched jump labels \"{}\"",
-                res.unmatched_jumps.iter().map(|uj| uj.label.to_string()).collect::<Vec<String>>().join(", ")
+                labels.join(", ")
             );
+
             return Err(CodegenError {
-                kind: CodegenErrorKind::UnmatchedJumpLabel,
+                kind: CodegenErrorKind::UnmatchedJumpLabels(labels),
                 span: AstSpan(res.unmatched_jumps.iter().flat_map(|uj| uj.span.0.clone()).collect::<Vec<Span>>()),
                 token: None,
             });
@@ -168,7 +170,11 @@ impl Codegen {
                                     "Definition not found for Jump Table Label: \"{}\"",
                                     label
                                 );
-                                return Err(CodegenError { kind: CodegenErrorKind::UnmatchedJumpLabel, span: s.span.clone(), token: None });
+                                return Err(CodegenError {
+                                    kind: CodegenErrorKind::UnmatchedJumpLabels(vec![label.clone()]),
+                                    span: s.span.clone(),
+                                    token: None,
+                                });
                             }
                         };
                         let hex = format_even_bytes(format!("{offset:02x}"));
@@ -363,7 +369,7 @@ impl Codegen {
         let bytes = bytes.into_iter().fold(Vec::default(), |mut acc, (code_index, mut formatted_bytes)| {
             // Check if a jump table exists at `code_index` (starting offset of `b`)
             if let Some(jt) = jump_table.get(&code_index) {
-                // Loop through jumps inside of the found JumpTable
+                // Loop through jumps inside the found JumpTable
                 for jump in jt {
                     // Check if the jump label has been defined. If not, add `jump` to the
                     // unmatched jumps and define its `bytecode_index`
