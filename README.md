@@ -33,7 +33,6 @@ These are the projects that are maintained for Huff Neo:
 | [huff-neo-tests-action](https://github.com/cakevm/huff-neo-tests-action)         | GitHub Action (Tests)    | ✅       |
 | [huff-neo-project-template](https://github.com/cakevm/huff-neo-project-template) | Project Template         | ✅       |
 | [huffmate-neo](https://github.com/cakevm/huffmate-neo)                           | Example Contracts        | ✅       |
-| [huff-examples](https://github.com/cakevm/huff-examples)                         | Example Contracts        | ✅       |
 
 Supported IDEs:
 

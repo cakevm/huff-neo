@@ -1,6 +1,6 @@
 [workspace]
 default-members = ["bin/hnc"]
-exclude = ["assets", "hnc-up", "huff-examples"]
+exclude = [".github", "assets", "hnc-up"]
 members = ["bin/hnc", "crates/codegen", "crates/core", "crates/js", "crates/lexer", "crates/parser", "crates/test-runner", "crates/utils"]
 resolver = "2"
 

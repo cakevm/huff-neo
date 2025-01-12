@@ -19,16 +19,14 @@ Error: Invalid File Directory ./contracts
 
 ```
 
-#### Examples using [`huff-examples`](https://github.com/huff-language/huff-examples)
+#### Usage
 
-The [huff-examples](https://github.com/huff-language/huff-examples) github repository is added as a submodule to this repo for testing.
+To run `hnc` against one of the resource test files, the path may simply be passed to `hnc`.
 
-To run `hnc` against one of the examples, the path may simply be passed to `hnc`.
-
-For example, to compile huff-example's [ERC20.huff](../../huff-examples/erc20/contracts/ERC20.huff) contract, run:
+For example, to compile huff-example's [ERC20.huff](../../resources/erc20/ERC20.huff) contract, run:
 
 ```bash
-hnc --bytecode ./huff-examples/erc20/contracts/ERC20.huff
+hnc --bytecode ./resources/erc20/ERC20.huff
 ```
 
 _NOTE: The `--bytecode` flag will output the full deploy bytecode._
@@ -36,7 +34,7 @@ _NOTE: The `--bytecode` flag will output the full deploy bytecode._
 `hnc` also supports tracing using the [`tracing`](https://docs.rs/tracing/0.1.29/tracing/) crate. To produce a verbose output using tracing, append the `--verbose` or `-v` flag like so:
 
 ```bash
-hnc --verbose --bytecode ./huff-examples/erc20/contracts/ERC20.huff
+hnc --verbose --bytecode ./resources/erc20/ERC20.huff
 ```
 
 #### Specifying Artifact Outputs
@@ -44,19 +42,19 @@ hnc --verbose --bytecode ./huff-examples/erc20/contracts/ERC20.huff
 **By default**, `hnc` will export json build artifacts to a `./artifacts` directory. This can be overidden using the `--output-directory` flag or shorthand `-d` flag and specifying a string following. For example:
 
 ```bash
-hnc -d ./output ./huff-examples/erc20/contracts/ERC20.huff
+hnc -d ./output ./resources/erc20/ERC20.huff
 ```
 
 _NOTE: The huff cli will gracefully remove double and single quotes, so the following will also compile:_
 
 ```bash
-hnc -d "./output" './huff-examples/erc20/contracts/ERC20.huff'
+hnc -d "./output" './resources/erc20/ERC20.huff'
 ```
 
 If a specific contract is specified for compiling (ie not a directory), a single `json` file may be specified as an output location for the contract artifact like so:
 
 ```bash
-hnc -o ./artifact.json ./huff-examples/erc20/contracts/ERC20.huff
+hnc -o ./artifact.json ./resources/erc20/ERC20.huff
 ```
 
 **NOTE**: The following will _not_ compile since multiple artifacts cannot be output to the same artifact json file.

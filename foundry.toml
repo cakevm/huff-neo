@@ -1,5 +1,5 @@
 [profile.default]
 optimizer = true
 remappings = [
-    "examples/=huff-examples/",
+    "examples/=resources/",
 ]
