@@ -12,14 +12,19 @@
 
 # Huff Neo Compiler
 
-The Huff Neo Compiler (`hnc`) marks a new dawn for the once-abandoned [huff-rs](https://github.com/huff-language/huff-rs), breathing fresh life into its legacy. This is a hard-fork with update dependencies, restructured code and several fixes (see [CHANGELOG](https://github.com/cakevm/huff-neo/blob/main/CHANGELOG.md)). 
-It can be used as drop-in replacement for the original compiler. But to not conflict with the original compiler, the binary is named `hnc`. All related Huff Neo projects are hard-forks as well to make them work with `hnc`.
+The Huff Neo Compiler (`hnc`) can be used as drop-in replacement for [huff-rs](https://github.com/huff-language/huff-rs) (`huffc`). Hopefully until [huff2](https://github.com/huff-language/huff2) is available. The compiler comes with update dependencies, improved codebase, and several fixes (see [CHANGELOG](https://github.com/cakevm/huff-neo/blob/main/CHANGELOG.md)). This compiler is for all those that require a production-ready compiler right now. As before, be warned that you are responsible for the contracts you deploy.
+
+Finally, the error reporting is hopefully fixed, and the compiler is more stable than before. Feel free to report any issues. Since there is more than just the compiler, the [foundry-huff-neo](https://github.com/cakevm/foundry-huff-neo) has you covered for testing and deployment. And [huff-neo-toolchain](https://github.com/cakevm/huff-neo-toolchain) for your CI/CD needs.
+
+## Why name it `hnc`?
+
+Since the original [huff-rs](https://github.com/huff-language/huff-rs) repository is archived, it makes it more clear that this is something new. You can overwrite the original `huffc` or use it as intended as `hnc` with all the other related tools for Foundry and CI/CD.
 
 ## What is a Huff?
 
 Huff is a low-level programming language designed for developing highly optimized smart contracts. For a more detailed explanation, see the original repository [huff-rs](https://github.com/huff-language/huff-rs).
 
-The PR to add the [Huff Language support on GitHub](https://github.com/github-linguist/linguist/pull/6470) is still pending.
+The [PR](https://github.com/github-linguist/linguist/pull/6470) to add the Huff Language support on GitHub is still pending.
 
 ## Huff Neo Ecosystem
 
