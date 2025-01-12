@@ -25,19 +25,15 @@ fn test_get_outputs_with_output() {
 #[test]
 fn test_transform_paths() {
     let file_provider = FileSystemFileProvider {};
-    let path_bufs: Result<Vec<PathBuf>, CompilerError> = file_provider.transform_paths(&[
-        "../../huff-examples/erc20/contracts/ERC20.huff".to_string(),
-        "../../huff-examples/erc20/contracts/utils/".to_string(),
-    ]);
+    let path_bufs: Result<Vec<PathBuf>, CompilerError> =
+        file_provider.transform_paths(&["../../resources/erc20/ERC20.huff".to_string(), "../../resources/utils/".to_string()]);
     assert!(path_bufs.is_ok());
     match path_bufs {
         Ok(bufs) => {
-            assert_eq!(bufs.len(), 5);
-            assert!(bufs.contains(&PathBuf::from("../../huff-examples/erc20/contracts/ERC20.huff".to_string())));
-            assert!(bufs.contains(&PathBuf::from("../../huff-examples/erc20/contracts/utils/Address.huff".to_string())));
-            assert!(bufs.contains(&PathBuf::from("../../huff-examples/erc20/contracts/utils/HashMap.huff".to_string())));
-            assert!(bufs.contains(&PathBuf::from("../../huff-examples/erc20/contracts/utils/Ownable.huff".to_string())));
-            assert!(bufs.contains(&PathBuf::from("../../huff-examples/erc20/contracts/utils/Utils.huff".to_string())));
+            assert_eq!(bufs.len(), 3);
+            assert!(bufs.contains(&PathBuf::from("../../resources/erc20/ERC20.huff".to_string())));
+            assert!(bufs.contains(&PathBuf::from("../../resources/utils/HashMap.huff".to_string())));
+            assert!(bufs.contains(&PathBuf::from("../../resources/utils/Ownable.huff".to_string())));
         }
         Err(_) => {
             panic!("moose")

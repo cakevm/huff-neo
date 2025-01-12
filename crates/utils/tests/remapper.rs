@@ -11,7 +11,7 @@ fn test_generate_remappings() {
 
     let remapper = remapper::Remapper::new("../../");
     assert_eq!(remapper.remappings.len(), 1);
-    assert_eq!(remapper.remappings.get("examples/").unwrap(), "huff-examples/");
+    assert_eq!(remapper.remappings.get("examples/").unwrap(), "resources/");
 }
 
 #[test]
