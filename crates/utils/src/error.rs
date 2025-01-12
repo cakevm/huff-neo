@@ -172,7 +172,7 @@ pub enum CodegenErrorKind {
     /// Abi Generation Failure
     AbiGenerationFailure,
     /// Unmatched Jump
-    UnmatchedJumpLabel,
+    UnmatchedJumpLabels(Vec<String>),
     /// An IO Error
     IOError(String),
     /// ArgCall has an unknown type
@@ -232,7 +232,7 @@ impl<W: Write> Report<W> for CodegenError {
                 write!(f.out, "Missing Error Definition for \"{ed}\"!")
             }
             CodegenErrorKind::AbiGenerationFailure => write!(f.out, "Abi generation failure!"),
-            CodegenErrorKind::UnmatchedJumpLabel => write!(f.out, "Unmatched jump label!"),
+            CodegenErrorKind::UnmatchedJumpLabels(labels) => write!(f.out, "Unmatched jump labels: \"{}\"!", labels.join(", ")),
             CodegenErrorKind::IOError(ioe) => write!(f.out, "IO ERROR: {ioe:?}"),
             CodegenErrorKind::UnkownArgcallType => write!(f.out, "Unknown Argcall Type!"),
             CodegenErrorKind::MissingMacroInvocation(str) => {
@@ -483,8 +483,8 @@ impl fmt::Display for CompilerError {
                 CodegenErrorKind::MissingMacroInvocation(mmi) => {
                     write!(f, "\nError: Missing Macro Invocation: \"{}\"\n{}\n", mmi, ce.span.error(None))
                 }
-                CodegenErrorKind::UnmatchedJumpLabel => {
-                    write!(f, "\nError: Unmatched Jump Label\n{}\n", ce.span.error(None))
+                CodegenErrorKind::UnmatchedJumpLabels(labels) => {
+                    write!(f, "\nError: Unmatched Jump Labels: \"{}\"\n{}\n", labels.join(", "), ce.span.error(None))
                 }
                 CodegenErrorKind::UsizeConversion(_) => {
                     write!(f, "\nError: Usize Conversion\n{}\n", ce.span.error(None))

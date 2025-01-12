@@ -43,7 +43,13 @@ impl Span {
                     .map(|s| {
                         if self.start >= s.len() {
                             // This should never happen, but currently does when the mapping from the flattened source is incorrect.
-                            return format!("\nInternal compiler error: Start index out of range start={} len={}.", self.start, s.len());
+                            return format!(
+                                "\nInternal compiler error: Start index out of range file={}, start={}, end={}, len={}.",
+                                self.file.clone().unwrap_or_default().path,
+                                self.start,
+                                self.end,
+                                s.len()
+                            );
                         }
                         let line_num = &s[0..self.start].as_bytes().iter().filter(|&&c| c == b'\n').count() + 1;
                         let line_start = &s[0..self.start].rfind('\n').unwrap_or(0);
