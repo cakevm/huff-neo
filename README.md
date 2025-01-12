@@ -96,7 +96,7 @@ make pre-release
 
 ## Acknowledgements
 
-Many thanks to all [huff-rs](https://github.com/huff-language/huff-rs) contributors and to the authors wo maintained it for such a long period! Again thanks to the original [Huff Language](https://github.com/huff-language) compiler: [`huffc`](https://github.com/huff-language/huffc). Thanks to [ripc](https://github.com/ibraheemdev/ripc), and big shoutout to [Paradigm](https://github.com/paradigmxyz). Without [Foundry](https://github.com/foundry-rs/foundry) the original implementation would not be possible.
+Many thanks to all [huff-rs](https://github.com/huff-language/huff-rs) contributors and to the authors who maintained it for such a long period! Again thanks to the original [Huff Language](https://github.com/huff-language) compiler: [`huffc`](https://github.com/huff-language/huffc). Thanks to [ripc](https://github.com/ibraheemdev/ripc), and big shoutout to [Paradigm](https://github.com/paradigmxyz). Without [Foundry](https://github.com/foundry-rs/foundry) the original implementation would not be possible.
 
 ## License
-This project is as the original huff-rs dual licensed under [Apache 2.0](./LICENSE-APACHE) or [MIT](./LICENSE-MIT) licence.
+This project is, as the original huff-rs, dual licensed under [Apache 2.0](./LICENSE-APACHE) or [MIT](./LICENSE-MIT) licence.
