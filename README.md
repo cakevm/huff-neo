@@ -91,7 +91,8 @@ make pre-release
 
 ## Safety
 
-Please be aware that the resulting bytecode can be unsafe. It is your responsibility to ensure that the contracts are safe and secure. The authors of this project are not responsible for any misuse or loss of funds.
+> [!CAUTION]
+> Please be aware that the resulting bytecode can be unsafe. It is your responsibility to ensure that the contracts are safe and secure. The authors of this project are not responsible for any misuse or loss of funds.
 
 ## Acknowledgements
 
