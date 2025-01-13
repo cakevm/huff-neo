@@ -16,7 +16,7 @@ The Huff Neo Compiler (`hnc`) can be used as drop-in replacement for [huff-rs](h
 
 **Highlights:**
 - Fixed line number and lexing/parsing error reporting
-- Additional error handling and adding for information for debugging
+- Additional error handling and more details for debugging
 - Migration from `ethers` to `alloy` and using latest `revm` version
 - Improved stability and updated all dependencies
 
