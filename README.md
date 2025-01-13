@@ -26,7 +26,7 @@ Feel free to report any issues. Since there is more than just the compiler, the 
 
 Since the original [huff-rs](https://github.com/huff-language/huff-rs) repository is archived, it makes it more clear that this is something new. You can overwrite the original `huffc` or use it as intended as `hnc` with all the other related tools for Foundry and CI/CD.
 
-## What is a Huff?
+## What is Huff?
 
 Huff is a low-level programming language designed for developing highly optimized smart contracts. For a more detailed explanation, see the original repository [huff-rs](https://github.com/huff-language/huff-rs).
 
