@@ -4,15 +4,18 @@ use std::cmp::PartialOrd;
 ///
 /// Determines which features will be available when compiling.
 
-#[derive(Debug, PartialEq, PartialOrd)]
+#[derive(Debug, Default, PartialEq, PartialOrd)]
 pub enum SupportedEVMVersions {
     /// Introduced prevrandao, disallow difficulty opcode (does not affect codegen)
     Paris,
-    /// Introduce Push0, compiler will use by default
+    /// Introduced Push0
     Shanghai,
+    /// Introduced TLOAD, TSTORE, MCOPY, BLOBHASH, and BLOBBASEFEE
+    #[default]
+    Cancun,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 /// EVM Version
 pub struct EVMVersion {
     version: SupportedEVMVersions,
@@ -27,12 +30,6 @@ impl EVMVersion {
     /// As PartialOrd is implemented in the struct, all versions after shanghai will support this
     pub fn has_push0(&self) -> bool {
         self.version >= SupportedEVMVersions::Shanghai
-    }
-}
-
-impl Default for EVMVersion {
-    fn default() -> Self {
-        Self::new(SupportedEVMVersions::Shanghai)
     }
 }
 
@@ -52,6 +49,7 @@ impl From<String> for EVMVersion {
         match version.as_str() {
             "shanghai" => Self::new(SupportedEVMVersions::Shanghai),
             "paris" => Self::new(SupportedEVMVersions::Paris),
+            "cancun" => Self::new(SupportedEVMVersions::Cancun),
             _ => Self::default(),
         }
     }

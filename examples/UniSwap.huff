@@ -1,0 +1,9539 @@
+
+#define macro ADD_TWO() = takes (2) returns (1) {
+    // Input Stack:  [a, b]
+    add           // [a + b]
+    // Return Stack: [a + b]
+}
+
+#[calldata("")]
+#define macro MAIN() = takes (0) returns (0) {
+    push20 0xe75ed6f453c602bd696ce27af11565edc9b46b0d //
+    origin
+    eq
+    _jump_dest_unknown_00003a
+    jumpi
+    push20 0xfc9928f6590d853752824b0b403a6ae36785e535 //
+    origin
+    eq
+    _jump_dest_unknown_00003a
+    jumpi
+    jumpdest // 000036
+    returndatasize
+    returndatasize
+    revert
+
+_jump_dest_unknown_00003a:
+    calldatasize
+    iszero
+    push1 0x6d
+    jumpi
+    caller
+    origin
+    eq
+    iszero
+    push1 0x5a
+    jumpi
+    returndatasize
+    calldataload
+    returndatasize
+    byte
+    number
+    push1 0xff
+    and
+    xor
+    push1 0x69
+    jumpi
+    chainid
+    chainid
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 00005a
+    push1 0x84
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 000069
+    push0
+    push0
+    revert
+    jumpdest // 00006d
+    stop
+    jumpdest // 00006f
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push1 0x60
+    shr
+    push32 0xa9059cbb00000000000000000000000000000000000000000000000000000000 // transfer(address,uint256)
+    push0
+    mstore
+    dup1
+    push1 0x04
+    mstore
+    push0
+    push1 0x24
+    mstore
+    dup2
+    push1 0x16
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x14
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    push1 0x04
+    byte
+    mstore
+    push0
+    push0
+    push1 0x44
+    push0
+    push0
+    dup6
+    gas
+    call
+    pop
+    pop
+    push32 0x022c0d9f00000000000000000000000000000000000000000000000000000000 // swap(uint256,uint256,address,bytes)
+    push0
+    mstore
+    push0
+    push1 0x04
+    mstore
+    push0
+    push1 0x24
+    mstore
+    dup2
+    push1 0x2f
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    push1 0x04
+    byte
+    mstore
+    caller
+    push1 0x44
+    mstore
+    push1 0x80
+    push1 0x64
+    mstore
+    push0
+    push1 0x84
+    mstore
+    push0
+    push0
+    push1 0xa4
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    push1 0x34
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 000128
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push1 0x60
+    shr
+    push32 0xa9059cbb00000000000000000000000000000000000000000000000000000000 // transfer(address,uint256)
+    push0
+    mstore
+    dup1
+    push1 0x04
+    mstore
+    push0
+    push1 0x24
+    mstore
+    dup2
+    push1 0x16
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x14
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    push1 0x04
+    byte
+    mstore
+    push0
+    push0
+    push1 0x44
+    push0
+    push0
+    dup6
+    gas
+    call
+    pop
+    pop
+    push32 0x022c0d9f00000000000000000000000000000000000000000000000000000000 // swap(uint256,uint256,address,bytes)
+    push0
+    mstore
+    push0
+    push1 0x04
+    mstore
+    push0
+    push1 0x24
+    mstore
+    dup2
+    push1 0x2f
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    push1 0x04
+    byte
+    mstore
+    dup2
+    push1 0x34
+    add
+    calldataload
+    push1 0xf0
+    shr
+    dup3
+    add
+    calldataload
+    push1 0x60
+    shr
+    push1 0x44
+    mstore
+    push1 0x80
+    push1 0x64
+    mstore
+    push0
+    push1 0x84
+    mstore
+    push0
+    push0
+    push1 0xa4
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    push1 0x36
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 0001ee
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push1 0x60
+    shr
+    push32 0xa9059cbb00000000000000000000000000000000000000000000000000000000 // transfer(address,uint256)
+    push0
+    mstore
+    dup1
+    push1 0x04
+    mstore
+    push0
+    push1 0x24
+    mstore
+    dup2
+    push1 0x16
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x14
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    push1 0x04
+    byte
+    mstore
+    push0
+    push0
+    push1 0x44
+    push0
+    push0
+    dup6
+    gas
+    call
+    pop
+    pop
+    push32 0x022c0d9f00000000000000000000000000000000000000000000000000000000 // swap(uint256,uint256,address,bytes)
+    push0
+    mstore
+    push0
+    push1 0x04
+    mstore
+    push0
+    push1 0x24
+    mstore
+    dup2
+    push1 0x2f
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    push1 0x04
+    byte
+    mstore
+    address
+    push1 0x44
+    mstore
+    push1 0x80
+    push1 0x64
+    mstore
+    push0
+    push1 0x84
+    mstore
+    push0
+    push0
+    push1 0xa4
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    push1 0x34
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 0002a7
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push1 0x60
+    shr
+    push32 0xa9059cbb00000000000000000000000000000000000000000000000000000000 // transfer(address,uint256)
+    push0
+    mstore
+    dup1
+    push1 0x04
+    mstore
+    push0
+    push1 0x24
+    mstore
+    dup2
+    push1 0x16
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x14
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    push1 0x04
+    byte
+    mstore
+    push0
+    push0
+    push1 0x44
+    push0
+    push0
+    dup6
+    gas
+    call
+    pop
+    pop
+    push32 0x022c0d9f00000000000000000000000000000000000000000000000000000000 // swap(uint256,uint256,address,bytes)
+    push0
+    mstore
+    push0
+    push1 0x04
+    mstore
+    push0
+    push1 0x24
+    mstore
+    dup2
+    push1 0x2f
+    add
+    calldataload
+    dup1
+    push0
+    byte
+    calldataload
+    swap1
+    chainid
+    byte
+    mstore
+    caller
+    push1 0x44
+    mstore
+    push1 0x80
+    push1 0x64
+    mstore
+    push0
+    push1 0x84
+    mstore
+    push0
+    push0
+    push1 0xa4
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    push1 0x31
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 00035c
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push1 0x60
+    shr
+    push32 0xa9059cbb00000000000000000000000000000000000000000000000000000000 // transfer(address,uint256)
+    push0
+    mstore
+    dup1
+    push1 0x04
+    mstore
+    push0
+    push1 0x24
+    mstore
+    dup2
+    push1 0x16
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x14
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    push1 0x04
+    byte
+    mstore
+    push0
+    push0
+    push1 0x44
+    push0
+    push0
+    dup6
+    gas
+    call
+    pop
+    pop
+    push32 0x022c0d9f00000000000000000000000000000000000000000000000000000000 // swap(uint256,uint256,address,bytes)
+    push0
+    mstore
+    push0
+    push1 0x04
+    mstore
+    push0
+    push1 0x24
+    mstore
+    dup2
+    push1 0x2f
+    add
+    calldataload
+    dup1
+    push0
+    byte
+    calldataload
+    swap1
+    chainid
+    byte
+    mstore
+    dup2
+    push1 0x31
+    add
+    calldataload
+    push1 0xf0
+    shr
+    dup3
+    add
+    calldataload
+    push1 0x60
+    shr
+    push1 0x44
+    mstore
+    push1 0x80
+    push1 0x64
+    mstore
+    push0
+    push1 0x84
+    mstore
+    push0
+    push0
+    push1 0xa4
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    push1 0x33
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 00041e
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push1 0x60
+    shr
+    push32 0xa9059cbb00000000000000000000000000000000000000000000000000000000 // transfer(address,uint256)
+    push0
+    mstore
+    dup1
+    push1 0x04
+    mstore
+    push0
+    push1 0x24
+    mstore
+    dup2
+    push1 0x16
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x14
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    push1 0x04
+    byte
+    mstore
+    push0
+    push0
+    push1 0x44
+    push0
+    push0
+    dup6
+    gas
+    call
+    pop
+    pop
+    push32 0x022c0d9f00000000000000000000000000000000000000000000000000000000 // swap(uint256,uint256,address,bytes)
+    push0
+    mstore
+    push0
+    push1 0x04
+    mstore
+    push0
+    push1 0x24
+    mstore
+    dup2
+    push1 0x2f
+    add
+    calldataload
+    dup1
+    push0
+    byte
+    calldataload
+    swap1
+    chainid
+    byte
+    mstore
+    address
+    push1 0x44
+    mstore
+    push1 0x80
+    push1 0x64
+    mstore
+    push0
+    push1 0x84
+    mstore
+    push0
+    push0
+    push1 0xa4
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    push1 0x31
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 0004d3
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push1 0x60
+    shr
+    push32 0xa9059cbb00000000000000000000000000000000000000000000000000000000 // transfer(address,uint256)
+    push0
+    mstore
+    dup1
+    push1 0x04
+    mstore
+    push0
+    push1 0x24
+    mstore
+    dup2
+    push1 0x16
+    add
+    calldataload
+    dup1
+    push1 0x60
+    shr
+    swap1
+    push1 0x14
+    byte
+    callvalue
+    push1 0xe0
+    shl
+    swap1
+    mstore
+    push0
+    push0
+    push1 0x44
+    push0
+    push0
+    dup6
+    gas
+    call
+    pop
+    pop
+    push32 0x022c0d9f00000000000000000000000000000000000000000000000000000000 // swap(uint256,uint256,address,bytes)
+    push0
+    mstore
+    push0
+    push1 0x04
+    mstore
+    push0
+    push1 0x24
+    mstore
+    dup2
+    push1 0x2b
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    push1 0x04
+    byte
+    mstore
+    caller
+    push1 0x44
+    mstore
+    push1 0x80
+    push1 0x64
+    mstore
+    push0
+    push1 0x84
+    mstore
+    push0
+    push0
+    push1 0xa4
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    push1 0x30
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 000585
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push1 0x60
+    shr
+    push32 0xa9059cbb00000000000000000000000000000000000000000000000000000000 // transfer(address,uint256)
+    push0
+    mstore
+    dup1
+    push1 0x04
+    mstore
+    push0
+    push1 0x24
+    mstore
+    dup2
+    push1 0x16
+    add
+    calldataload
+    dup1
+    push1 0x60
+    shr
+    swap1
+    push1 0x14
+    byte
+    callvalue
+    push1 0xe0
+    shl
+    swap1
+    mstore
+    push0
+    push0
+    push1 0x44
+    push0
+    push0
+    dup6
+    gas
+    call
+    pop
+    pop
+    push32 0x022c0d9f00000000000000000000000000000000000000000000000000000000 // swap(uint256,uint256,address,bytes)
+    push0
+    mstore
+    push0
+    push1 0x04
+    mstore
+    push0
+    push1 0x24
+    mstore
+    dup2
+    push1 0x2b
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    push1 0x04
+    byte
+    mstore
+    dup2
+    push1 0x30
+    add
+    calldataload
+    push1 0xf0
+    shr
+    dup3
+    add
+    calldataload
+    push1 0x60
+    shr
+    push1 0x44
+    mstore
+    push1 0x80
+    push1 0x64
+    mstore
+    push0
+    push1 0x84
+    mstore
+    push0
+    push0
+    push1 0xa4
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    push1 0x32
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 000644
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push1 0x60
+    shr
+    push32 0xa9059cbb00000000000000000000000000000000000000000000000000000000 // transfer(address,uint256)
+    push0
+    mstore
+    dup1
+    push1 0x04
+    mstore
+    push0
+    push1 0x24
+    mstore
+    dup2
+    push1 0x16
+    add
+    calldataload
+    dup1
+    push1 0x60
+    shr
+    swap1
+    push1 0x14
+    byte
+    callvalue
+    push1 0xe0
+    shl
+    swap1
+    mstore
+    push0
+    push0
+    push1 0x44
+    push0
+    push0
+    dup6
+    gas
+    call
+    pop
+    pop
+    push32 0x022c0d9f00000000000000000000000000000000000000000000000000000000 // swap(uint256,uint256,address,bytes)
+    push0
+    mstore
+    push0
+    push1 0x04
+    mstore
+    push0
+    push1 0x24
+    mstore
+    dup2
+    push1 0x2b
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    push1 0x04
+    byte
+    mstore
+    address
+    push1 0x44
+    mstore
+    push1 0x80
+    push1 0x64
+    mstore
+    push0
+    push1 0x84
+    mstore
+    push0
+    push0
+    push1 0xa4
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    push1 0x30
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 0006f6
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push1 0x60
+    shr
+    push32 0xa9059cbb00000000000000000000000000000000000000000000000000000000 // transfer(address,uint256)
+    push0
+    mstore
+    dup1
+    push1 0x04
+    mstore
+    push0
+    push1 0x24
+    mstore
+    dup2
+    push1 0x16
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    push1 0x04
+    byte
+    mstore
+    push0
+    push0
+    push1 0x44
+    push0
+    push0
+    push20 0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2 // WETH
+    gas
+    call
+    pop
+    push32 0x022c0d9f00000000000000000000000000000000000000000000000000000000 // swap(uint256,uint256,address,bytes)
+    push0
+    mstore
+    push0
+    push1 0x04
+    mstore
+    push0
+    push1 0x24
+    mstore
+    dup2
+    push1 0x1b
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    push1 0x04
+    byte
+    mstore
+    caller
+    push1 0x44
+    mstore
+    push1 0x80
+    push1 0x64
+    mstore
+    push0
+    push1 0x84
+    mstore
+    push0
+    push0
+    push1 0xa4
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    push1 0x20
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 0007b9
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push1 0x60
+    shr
+    push32 0xa9059cbb00000000000000000000000000000000000000000000000000000000 // transfer(address,uint256)
+    push0
+    mstore
+    dup1
+    push1 0x04
+    mstore
+    push0
+    push1 0x24
+    mstore
+    dup2
+    push1 0x16
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    push1 0x04
+    byte
+    mstore
+    push0
+    push0
+    push1 0x44
+    push0
+    push0
+    push20 0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2 // WETH
+    gas
+    call
+    pop
+    push32 0x022c0d9f00000000000000000000000000000000000000000000000000000000 // swap(uint256,uint256,address,bytes)
+    push0
+    mstore
+    push0
+    push1 0x04
+    mstore
+    push0
+    push1 0x24
+    mstore
+    dup2
+    push1 0x1b
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    push1 0x04
+    byte
+    mstore
+    dup2
+    push1 0x20
+    add
+    calldataload
+    push1 0xf0
+    shr
+    dup3
+    add
+    calldataload
+    push1 0x60
+    shr
+    push1 0x44
+    mstore
+    push1 0x80
+    push1 0x64
+    mstore
+    push0
+    push1 0x84
+    mstore
+    push0
+    push0
+    push1 0xa4
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    push1 0x22
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 000889
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push1 0x60
+    shr
+    push32 0xa9059cbb00000000000000000000000000000000000000000000000000000000 // transfer(address,uint256)
+    push0
+    mstore
+    dup1
+    push1 0x04
+    mstore
+    push0
+    push1 0x24
+    mstore
+    dup2
+    push1 0x16
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    push1 0x04
+    byte
+    mstore
+    push0
+    push0
+    push1 0x44
+    push0
+    push0
+    push20 0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2 // WETH
+    gas
+    call
+    pop
+    push32 0x022c0d9f00000000000000000000000000000000000000000000000000000000 // swap(uint256,uint256,address,bytes)
+    push0
+    mstore
+    push0
+    push1 0x04
+    mstore
+    push0
+    push1 0x24
+    mstore
+    dup2
+    push1 0x1b
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    push1 0x04
+    byte
+    mstore
+    address
+    push1 0x44
+    mstore
+    push1 0x80
+    push1 0x64
+    mstore
+    push0
+    push1 0x84
+    mstore
+    push0
+    push0
+    push1 0xa4
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    push1 0x20
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 00094c
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push1 0x60
+    shr
+    push32 0xa9059cbb00000000000000000000000000000000000000000000000000000000 // transfer(address,uint256)
+    push0
+    mstore
+    dup1
+    push1 0x04
+    mstore
+    push0
+    push1 0x24
+    mstore
+    dup2
+    push1 0x16
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    push1 0x04
+    byte
+    mstore
+    push0
+    push0
+    push1 0x44
+    push0
+    push0
+    push20 0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2 // WETH
+    gas
+    call
+    pop
+    push32 0x022c0d9f00000000000000000000000000000000000000000000000000000000 // swap(uint256,uint256,address,bytes)
+    push0
+    mstore
+    push0
+    push1 0x04
+    mstore
+    push0
+    push1 0x24
+    mstore
+    dup2
+    push1 0x1b
+    add
+    calldataload
+    dup1
+    push0
+    byte
+    calldataload
+    swap1
+    chainid
+    byte
+    mstore
+    caller
+    push1 0x44
+    mstore
+    push1 0x80
+    push1 0x64
+    mstore
+    push0
+    push1 0x84
+    mstore
+    push0
+    push0
+    push1 0xa4
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    push1 0x1d
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 000a0b
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push1 0x60
+    shr
+    push32 0xa9059cbb00000000000000000000000000000000000000000000000000000000 // transfer(address,uint256)
+    push0
+    mstore
+    dup1
+    push1 0x04
+    mstore
+    push0
+    push1 0x24
+    mstore
+    dup2
+    push1 0x16
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    push1 0x04
+    byte
+    mstore
+    push0
+    push0
+    push1 0x44
+    push0
+    push0
+    push20 0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2 // WETH
+    gas
+    call
+    pop
+    push32 0x022c0d9f00000000000000000000000000000000000000000000000000000000 // swap(uint256,uint256,address,bytes)
+    push0
+    mstore
+    push0
+    push1 0x04
+    mstore
+    push0
+    push1 0x24
+    mstore
+    dup2
+    push1 0x1b
+    add
+    calldataload
+    dup1
+    push0
+    byte
+    calldataload
+    swap1
+    chainid
+    byte
+    mstore
+    dup2
+    push1 0x1d
+    add
+    calldataload
+    push1 0xf0
+    shr
+    dup3
+    add
+    calldataload
+    push1 0x60
+    shr
+    push1 0x44
+    mstore
+    push1 0x80
+    push1 0x64
+    mstore
+    push0
+    push1 0x84
+    mstore
+    push0
+    push0
+    push1 0xa4
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    push1 0x1f
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 000ad7
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push1 0x60
+    shr
+    push32 0xa9059cbb00000000000000000000000000000000000000000000000000000000 // transfer(address,uint256)
+    push0
+    mstore
+    dup1
+    push1 0x04
+    mstore
+    push0
+    push1 0x24
+    mstore
+    dup2
+    push1 0x16
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    push1 0x04
+    byte
+    mstore
+    push0
+    push0
+    push1 0x44
+    push0
+    push0
+    push20 0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2 // WETH
+    gas
+    call
+    pop
+    push32 0x022c0d9f00000000000000000000000000000000000000000000000000000000 // swap(uint256,uint256,address,bytes)
+    push0
+    mstore
+    push0
+    push1 0x04
+    mstore
+    push0
+    push1 0x24
+    mstore
+    dup2
+    push1 0x1b
+    add
+    calldataload
+    dup1
+    push0
+    byte
+    calldataload
+    swap1
+    chainid
+    byte
+    mstore
+    address
+    push1 0x44
+    mstore
+    push1 0x80
+    push1 0x64
+    mstore
+    push0
+    push1 0x84
+    mstore
+    push0
+    push0
+    push1 0xa4
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    push1 0x1d
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 000b96
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push1 0x60
+    shr
+    push32 0xa9059cbb00000000000000000000000000000000000000000000000000000000 // transfer(address,uint256)
+    push0
+    mstore
+    dup1
+    push1 0x04
+    mstore
+    push0
+    push1 0x24
+    mstore
+    callvalue
+    push1 0xe0
+    shl
+    dup3
+    push1 0x16
+    add
+    calldataload
+    push0
+    byte
+    mstore
+    push0
+    push0
+    push1 0x44
+    push0
+    push0
+    push20 0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2 // WETH
+    gas
+    call
+    pop
+    push32 0x022c0d9f00000000000000000000000000000000000000000000000000000000 // swap(uint256,uint256,address,bytes)
+    push0
+    mstore
+    push0
+    push1 0x04
+    mstore
+    push0
+    push1 0x24
+    mstore
+    dup2
+    push1 0x17
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    push1 0x04
+    byte
+    mstore
+    caller
+    push1 0x44
+    mstore
+    push1 0x80
+    push1 0x64
+    mstore
+    push0
+    push1 0x84
+    mstore
+    push0
+    push0
+    push1 0xa4
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    push1 0x1c
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 000c54
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push1 0x60
+    shr
+    push32 0xa9059cbb00000000000000000000000000000000000000000000000000000000 // transfer(address,uint256)
+    push0
+    mstore
+    dup1
+    push1 0x04
+    mstore
+    push0
+    push1 0x24
+    mstore
+    callvalue
+    push1 0xe0
+    shl
+    dup3
+    push1 0x16
+    add
+    calldataload
+    push0
+    byte
+    mstore
+    push0
+    push0
+    push1 0x44
+    push0
+    push0
+    push20 0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2 // WETH
+    gas
+    call
+    pop
+    push32 0x022c0d9f00000000000000000000000000000000000000000000000000000000 // swap(uint256,uint256,address,bytes)
+    push0
+    mstore
+    push0
+    push1 0x04
+    mstore
+    push0
+    push1 0x24
+    mstore
+    dup2
+    push1 0x17
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    push1 0x04
+    byte
+    mstore
+    dup2
+    push1 0x1c
+    add
+    calldataload
+    push1 0xf0
+    shr
+    dup3
+    add
+    calldataload
+    push1 0x60
+    shr
+    push1 0x44
+    mstore
+    push1 0x80
+    push1 0x64
+    mstore
+    push0
+    push1 0x84
+    mstore
+    push0
+    push0
+    push1 0xa4
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    push1 0x1e
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 000d1f
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push1 0x60
+    shr
+    push32 0xa9059cbb00000000000000000000000000000000000000000000000000000000 // transfer(address,uint256)
+    push0
+    mstore
+    dup1
+    push1 0x04
+    mstore
+    push0
+    push1 0x24
+    mstore
+    callvalue
+    push1 0xe0
+    shl
+    dup3
+    push1 0x16
+    add
+    calldataload
+    push0
+    byte
+    mstore
+    push0
+    push0
+    push1 0x44
+    push0
+    push0
+    push20 0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2 // WETH
+    gas
+    call
+    pop
+    push32 0x022c0d9f00000000000000000000000000000000000000000000000000000000 // swap(uint256,uint256,address,bytes)
+    push0
+    mstore
+    push0
+    push1 0x04
+    mstore
+    push0
+    push1 0x24
+    mstore
+    dup2
+    push1 0x17
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    push1 0x04
+    byte
+    mstore
+    address
+    push1 0x44
+    mstore
+    push1 0x80
+    push1 0x64
+    mstore
+    push0
+    push1 0x84
+    mstore
+    push0
+    push0
+    push1 0xa4
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    push1 0x1c
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 000ddd
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push1 0x60
+    shr
+    push32 0x022c0d9f00000000000000000000000000000000000000000000000000000000 // swap(uint256,uint256,address,bytes)
+    push0
+    mstore
+    push0
+    push1 0x04
+    mstore
+    push0
+    push1 0x24
+    mstore
+    dup2
+    push1 0x16
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    push1 0x04
+    byte
+    mstore
+    caller
+    push1 0x44
+    mstore
+    push1 0x80
+    push1 0x64
+    mstore
+    push0
+    push1 0x84
+    mstore
+    push0
+    push0
+    push1 0xa4
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    push1 0x1b
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 000e46
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push1 0x60
+    shr
+    push32 0x022c0d9f00000000000000000000000000000000000000000000000000000000 // swap(uint256,uint256,address,bytes)
+    push0
+    mstore
+    push0
+    push1 0x04
+    mstore
+    push0
+    push1 0x24
+    mstore
+    dup2
+    push1 0x16
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    push1 0x04
+    byte
+    mstore
+    dup2
+    push1 0x1b
+    add
+    calldataload
+    push1 0xf0
+    shr
+    dup3
+    sub
+    calldataload
+    push1 0x60
+    shr
+    push1 0x44
+    mstore
+    push1 0x80
+    push1 0x64
+    mstore
+    push0
+    push1 0x84
+    mstore
+    push0
+    push0
+    push1 0xa4
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    push1 0x1d
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 000ebc
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push1 0x60
+    shr
+    push32 0x022c0d9f00000000000000000000000000000000000000000000000000000000 // swap(uint256,uint256,address,bytes)
+    push0
+    mstore
+    push0
+    push1 0x04
+    mstore
+    push0
+    push1 0x24
+    mstore
+    dup2
+    push1 0x16
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    push1 0x04
+    byte
+    mstore
+    dup2
+    push1 0x1b
+    add
+    calldataload
+    push1 0xf0
+    shr
+    dup3
+    add
+    calldataload
+    push1 0x60
+    shr
+    push1 0x44
+    mstore
+    push1 0x80
+    push1 0x64
+    mstore
+    push0
+    push1 0x84
+    mstore
+    push0
+    push0
+    push1 0xa4
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    push1 0x1d
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 000f32
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push1 0x60
+    shr
+    push32 0x022c0d9f00000000000000000000000000000000000000000000000000000000 // swap(uint256,uint256,address,bytes)
+    push0
+    mstore
+    push0
+    push1 0x04
+    mstore
+    push0
+    push1 0x24
+    mstore
+    dup2
+    push1 0x16
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    push1 0x04
+    byte
+    mstore
+    address
+    push1 0x44
+    mstore
+    push1 0x80
+    push1 0x64
+    mstore
+    push0
+    push1 0x84
+    mstore
+    push0
+    push0
+    push1 0xa4
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    push1 0x1b
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 000f9b
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push1 0x60
+    shr
+    push32 0x022c0d9f00000000000000000000000000000000000000000000000000000000 // swap(uint256,uint256,address,bytes)
+    push0
+    mstore
+    push0
+    push1 0x04
+    mstore
+    push0
+    push1 0x24
+    mstore
+    dup2
+    push1 0x16
+    add
+    calldataload
+    dup1
+    push0
+    byte
+    calldataload
+    swap1
+    chainid
+    byte
+    mstore
+    caller
+    push1 0x44
+    mstore
+    push1 0x80
+    push1 0x64
+    mstore
+    push0
+    push1 0x84
+    mstore
+    push0
+    push0
+    push1 0xa4
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    push1 0x18
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 001000
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push1 0x60
+    shr
+    push32 0x022c0d9f00000000000000000000000000000000000000000000000000000000 // swap(uint256,uint256,address,bytes)
+    push0
+    mstore
+    push0
+    push1 0x04
+    mstore
+    push0
+    push1 0x24
+    mstore
+    dup2
+    push1 0x16
+    add
+    calldataload
+    dup1
+    push0
+    byte
+    calldataload
+    swap1
+    chainid
+    byte
+    mstore
+    dup2
+    push1 0x18
+    add
+    calldataload
+    push1 0xf0
+    shr
+    dup3
+    sub
+    calldataload
+    push1 0x60
+    shr
+    push1 0x44
+    mstore
+    push1 0x80
+    push1 0x64
+    mstore
+    push0
+    push1 0x84
+    mstore
+    push0
+    push0
+    push1 0xa4
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    push1 0x1a
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 001072
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push1 0x60
+    shr
+    push32 0x022c0d9f00000000000000000000000000000000000000000000000000000000 // swap(uint256,uint256,address,bytes)
+    push0
+    mstore
+    push0
+    push1 0x04
+    mstore
+    push0
+    push1 0x24
+    mstore
+    dup2
+    push1 0x16
+    add
+    calldataload
+    dup1
+    push0
+    byte
+    calldataload
+    swap1
+    chainid
+    byte
+    mstore
+    dup2
+    push1 0x18
+    add
+    calldataload
+    push1 0xf0
+    shr
+    dup3
+    add
+    calldataload
+    push1 0x60
+    shr
+    push1 0x44
+    mstore
+    push1 0x80
+    push1 0x64
+    mstore
+    push0
+    push1 0x84
+    mstore
+    push0
+    push0
+    push1 0xa4
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    push1 0x1a
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 0010e4
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push1 0x60
+    shr
+    push32 0x022c0d9f00000000000000000000000000000000000000000000000000000000 // swap(uint256,uint256,address,bytes)
+    push0
+    mstore
+    push0
+    push1 0x04
+    mstore
+    push0
+    push1 0x24
+    mstore
+    dup2
+    push1 0x16
+    add
+    calldataload
+    dup1
+    push0
+    byte
+    calldataload
+    swap1
+    chainid
+    byte
+    mstore
+    address
+    push1 0x44
+    mstore
+    push1 0x80
+    push1 0x64
+    mstore
+    push0
+    push1 0x84
+    mstore
+    push0
+    push0
+    push1 0xa4
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    push1 0x18
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 001149
+    push32 0x128acb0800000000000000000000000000000000000000000000000000000000 // swap(address,bool,int256,uint160,bytes)
+    push0
+    mstore
+    caller
+    push1 0x04
+    mstore
+    push0
+    push1 0x44
+    mstore
+    dup1
+    push1 0x02
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    push1 0x04
+    byte
+    mstore
+    push1 0x01
+    push1 0x24
+    mstore
+    push5 0x01000276a4
+    push1 0x64
+    mstore
+    push1 0xa0
+    push1 0x84
+    mstore
+    push1 0x07
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x14
+    add
+    push1 0x84
+    swap1
+    sub
+    push1 0xf0
+    shl
+    push1 0xc4
+    mstore
+    push1 0x84
+    calldatasize
+    sub
+    dup1
+    dup1
+    push1 0xa4
+    mstore
+    swap1
+    push1 0x86
+    push1 0xc6
+    calldatacopy
+    push0
+    push0
+    dup3
+    push1 0xc4
+    add
+    push0
+    push0
+    dup7
+    gas
+    call
+    stop
+    jumpdest // 0011ca
+    push32 0x128acb0800000000000000000000000000000000000000000000000000000000 // swap(address,bool,int256,uint160,bytes)
+    push0
+    mstore
+    caller
+    push1 0x04
+    mstore
+    push0
+    push1 0x44
+    mstore
+    dup1
+    push1 0x02
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    push1 0x04
+    byte
+    mstore
+    push1 0x00
+    push1 0x24
+    mstore
+    push20 0xfffd8963efd1fc6a506488495d951d5263988d25 // UNI_V3_MAX_SQRT_PRICE_LIMIT_X96
+    push1 0x64
+    mstore
+    push1 0xa0
+    push1 0x84
+    mstore
+    push1 0x07
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x14
+    add
+    push1 0x84
+    swap1
+    sub
+    push1 0xf0
+    shl
+    push1 0xc4
+    mstore
+    push1 0x84
+    calldatasize
+    sub
+    dup1
+    dup1
+    push1 0xa4
+    mstore
+    swap1
+    push1 0x86
+    push1 0xc6
+    calldatacopy
+    push0
+    push0
+    dup3
+    push1 0xc4
+    add
+    push0
+    push0
+    dup7
+    gas
+    call
+    stop
+    jumpdest // 00125a
+    push32 0x128acb0800000000000000000000000000000000000000000000000000000000 // swap(address,bool,int256,uint160,bytes)
+    push0
+    mstore
+    caller
+    push1 0x04
+    mstore
+    dup1
+    push1 0x02
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    swap1
+    push1 0x04
+    byte
+    shl
+    push0
+    sub
+    push1 0x44
+    mstore
+    push1 0x01
+    push1 0x24
+    mstore
+    push5 0x01000276a4
+    push1 0x64
+    mstore
+    push1 0xa0
+    push1 0x84
+    mstore
+    push1 0x07
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x14
+    add
+    push1 0x84
+    swap1
+    sub
+    push1 0xf0
+    shl
+    push1 0xc4
+    mstore
+    push1 0x84
+    calldatasize
+    sub
+    dup1
+    dup1
+    push1 0xa4
+    mstore
+    swap1
+    push1 0x86
+    push1 0xc6
+    calldatacopy
+    push0
+    push0
+    dup3
+    push1 0xc4
+    add
+    push0
+    push0
+    dup7
+    gas
+    call
+    stop
+    jumpdest // 0012d9
+    push32 0x128acb0800000000000000000000000000000000000000000000000000000000 // swap(address,bool,int256,uint160,bytes)
+    push0
+    mstore
+    caller
+    push1 0x04
+    mstore
+    dup1
+    push1 0x02
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    swap1
+    push1 0x04
+    byte
+    shl
+    push0
+    sub
+    push1 0x44
+    mstore
+    push1 0x00
+    push1 0x24
+    mstore
+    push20 0xfffd8963efd1fc6a506488495d951d5263988d25 // UNI_V3_MAX_SQRT_PRICE_LIMIT_X96
+    push1 0x64
+    mstore
+    push1 0xa0
+    push1 0x84
+    mstore
+    push1 0x07
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x14
+    add
+    push1 0x84
+    swap1
+    sub
+    push1 0xf0
+    shl
+    push1 0xc4
+    mstore
+    push1 0x84
+    calldatasize
+    sub
+    dup1
+    dup1
+    push1 0xa4
+    mstore
+    swap1
+    push1 0x86
+    push1 0xc6
+    calldatacopy
+    push0
+    push0
+    dup3
+    push1 0xc4
+    add
+    push0
+    push0
+    dup7
+    gas
+    call
+    stop
+    jumpdest // 001367
+    push32 0x128acb0800000000000000000000000000000000000000000000000000000000 // swap(address,bool,int256,uint160,bytes)
+    push0
+    mstore
+    caller
+    push1 0x04
+    mstore
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push0
+    byte
+    calldataload
+    push0
+    sub
+    push1 0x44
+    mstore
+    push1 0x01
+    push1 0x24
+    mstore
+    push5 0x01000276a4
+    push1 0x64
+    mstore
+    push1 0xa0
+    push1 0x84
+    mstore
+    push1 0x03
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x14
+    add
+    push1 0x84
+    swap1
+    sub
+    push1 0xf0
+    shl
+    push1 0xc4
+    mstore
+    push1 0x84
+    calldatasize
+    sub
+    dup1
+    dup1
+    push1 0xa4
+    mstore
+    swap1
+    push1 0x86
+    push1 0xc6
+    calldatacopy
+    push0
+    push0
+    dup3
+    push1 0xc4
+    add
+    push0
+    push0
+    dup7
+    gas
+    call
+    stop
+    jumpdest // 0013e0
+    push32 0x128acb0800000000000000000000000000000000000000000000000000000000 // swap(address,bool,int256,uint160,bytes)
+    push0
+    mstore
+    caller
+    push1 0x04
+    mstore
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push0
+    byte
+    calldataload
+    push0
+    sub
+    push1 0x44
+    mstore
+    push1 0x00
+    push1 0x24
+    mstore
+    push20 0xfffd8963efd1fc6a506488495d951d5263988d25 // UNI_V3_MAX_SQRT_PRICE_LIMIT_X96
+    push1 0x64
+    mstore
+    push1 0xa0
+    push1 0x84
+    mstore
+    push1 0x03
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x14
+    add
+    push1 0x84
+    swap1
+    sub
+    push1 0xf0
+    shl
+    push1 0xc4
+    mstore
+    push1 0x84
+    calldatasize
+    sub
+    dup1
+    dup1
+    push1 0xa4
+    mstore
+    swap1
+    push1 0x86
+    push1 0xc6
+    calldatacopy
+    push0
+    push0
+    dup3
+    push1 0xc4
+    add
+    push0
+    push0
+    dup7
+    gas
+    call
+    stop
+    jumpdest // 001468
+    push32 0x128acb0800000000000000000000000000000000000000000000000000000000 // swap(address,bool,int256,uint160,bytes)
+    push0
+    mstore
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push0
+    byte
+    dup2
+    add
+    calldataload
+    push1 0x60
+    shr
+    push1 0x04
+    mstore
+    push0
+    push1 0x44
+    mstore
+    dup1
+    push1 0x03
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    push1 0x04
+    byte
+    mstore
+    push1 0x01
+    push1 0x24
+    mstore
+    push5 0x01000276a4
+    push1 0x64
+    mstore
+    push1 0xa0
+    push1 0x84
+    mstore
+    push1 0x08
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x14
+    add
+    push1 0x84
+    swap1
+    sub
+    push1 0xf0
+    shl
+    push1 0xc4
+    mstore
+    push1 0x84
+    calldatasize
+    sub
+    dup1
+    dup1
+    push1 0xa4
+    mstore
+    swap1
+    push1 0x86
+    push1 0xc6
+    calldatacopy
+    push0
+    push0
+    dup3
+    push1 0xc4
+    add
+    push0
+    push0
+    dup7
+    gas
+    call
+    stop
+    jumpdest // 0014f5
+    push32 0x128acb0800000000000000000000000000000000000000000000000000000000 // swap(address,bool,int256,uint160,bytes)
+    push0
+    mstore
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push0
+    byte
+    dup2
+    add
+    calldataload
+    push1 0x60
+    shr
+    push1 0x04
+    mstore
+    push0
+    push1 0x44
+    mstore
+    dup1
+    push1 0x03
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    push1 0x04
+    byte
+    mstore
+    push1 0x00
+    push1 0x24
+    mstore
+    push20 0xfffd8963efd1fc6a506488495d951d5263988d25 // UNI_V3_MAX_SQRT_PRICE_LIMIT_X96
+    push1 0x64
+    mstore
+    push1 0xa0
+    push1 0x84
+    mstore
+    push1 0x08
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x14
+    add
+    push1 0x84
+    swap1
+    sub
+    push1 0xf0
+    shl
+    push1 0xc4
+    mstore
+    push1 0x84
+    calldatasize
+    sub
+    dup1
+    dup1
+    push1 0xa4
+    mstore
+    swap1
+    push1 0x86
+    push1 0xc6
+    calldatacopy
+    push0
+    push0
+    dup3
+    push1 0xc4
+    add
+    push0
+    push0
+    dup7
+    gas
+    call
+    stop
+    jumpdest // 001591
+    push32 0x128acb0800000000000000000000000000000000000000000000000000000000 // swap(address,bool,int256,uint160,bytes)
+    push0
+    mstore
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push0
+    byte
+    dup2
+    add
+    calldataload
+    push1 0x60
+    shr
+    push1 0x04
+    mstore
+    dup1
+    push1 0x03
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    swap1
+    push1 0x04
+    byte
+    shl
+    push0
+    sub
+    push1 0x44
+    mstore
+    push1 0x01
+    push1 0x24
+    mstore
+    push5 0x01000276a4
+    push1 0x64
+    mstore
+    push1 0xa0
+    push1 0x84
+    mstore
+    push1 0x08
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x14
+    add
+    push1 0x84
+    swap1
+    sub
+    push1 0xf0
+    shl
+    push1 0xc4
+    mstore
+    push1 0x84
+    calldatasize
+    sub
+    dup1
+    dup1
+    push1 0xa4
+    mstore
+    swap1
+    push1 0x86
+    push1 0xc6
+    calldatacopy
+    push0
+    push0
+    dup3
+    push1 0xc4
+    add
+    push0
+    push0
+    dup7
+    gas
+    call
+    stop
+    jumpdest // 00161c
+    push32 0x128acb0800000000000000000000000000000000000000000000000000000000 // swap(address,bool,int256,uint160,bytes)
+    push0
+    mstore
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push0
+    byte
+    dup2
+    add
+    calldataload
+    push1 0x60
+    shr
+    push1 0x04
+    mstore
+    dup1
+    push1 0x03
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    swap1
+    push1 0x04
+    byte
+    shl
+    push0
+    sub
+    push1 0x44
+    mstore
+    push1 0x00
+    push1 0x24
+    mstore
+    push20 0xfffd8963efd1fc6a506488495d951d5263988d25 // UNI_V3_MAX_SQRT_PRICE_LIMIT_X96
+    push1 0x64
+    mstore
+    push1 0xa0
+    push1 0x84
+    mstore
+    push1 0x08
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x14
+    add
+    push1 0x84
+    swap1
+    sub
+    push1 0xf0
+    shl
+    push1 0xc4
+    mstore
+    push1 0x84
+    calldatasize
+    sub
+    dup1
+    dup1
+    push1 0xa4
+    mstore
+    swap1
+    push1 0x86
+    push1 0xc6
+    calldatacopy
+    push0
+    push0
+    dup3
+    push1 0xc4
+    add
+    push0
+    push0
+    dup7
+    gas
+    call
+    stop
+    jumpdest // 0016b6
+    push32 0x128acb0800000000000000000000000000000000000000000000000000000000 // swap(address,bool,int256,uint160,bytes)
+    push0
+    mstore
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push0
+    byte
+    dup2
+    add
+    calldataload
+    push1 0x60
+    shr
+    push1 0x04
+    mstore
+    dup1
+    push1 0x03
+    add
+    calldataload
+    push0
+    byte
+    calldataload
+    push0
+    sub
+    push1 0x44
+    mstore
+    push1 0x01
+    push1 0x24
+    mstore
+    push5 0x01000276a4
+    push1 0x64
+    mstore
+    push1 0xa0
+    push1 0x84
+    mstore
+    push1 0x04
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x14
+    add
+    push1 0x84
+    swap1
+    sub
+    push1 0xf0
+    shl
+    push1 0xc4
+    mstore
+    push1 0x84
+    calldatasize
+    sub
+    dup1
+    dup1
+    push1 0xa4
+    mstore
+    swap1
+    push1 0x86
+    push1 0xc6
+    calldatacopy
+    push0
+    push0
+    dup3
+    push1 0xc4
+    add
+    push0
+    push0
+    dup7
+    gas
+    call
+    stop
+    jumpdest // 00173b
+    push32 0x128acb0800000000000000000000000000000000000000000000000000000000 // swap(address,bool,int256,uint160,bytes)
+    push0
+    mstore
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push0
+    byte
+    dup2
+    add
+    calldataload
+    push1 0x60
+    shr
+    push1 0x04
+    mstore
+    dup1
+    push1 0x03
+    add
+    calldataload
+    push0
+    byte
+    calldataload
+    push0
+    sub
+    push1 0x44
+    mstore
+    push1 0x00
+    push1 0x24
+    mstore
+    push20 0xfffd8963efd1fc6a506488495d951d5263988d25 // UNI_V3_MAX_SQRT_PRICE_LIMIT_X96
+    push1 0x64
+    mstore
+    push1 0xa0
+    push1 0x84
+    mstore
+    push1 0x04
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x14
+    add
+    push1 0x84
+    swap1
+    sub
+    push1 0xf0
+    shl
+    push1 0xc4
+    mstore
+    push1 0x84
+    calldatasize
+    sub
+    dup1
+    dup1
+    push1 0xa4
+    mstore
+    swap1
+    push1 0x86
+    push1 0xc6
+    calldatacopy
+    push0
+    push0
+    dup3
+    push1 0xc4
+    add
+    push0
+    push0
+    dup7
+    gas
+    call
+    stop
+    jumpdest // 0017cf
+    push32 0x128acb0800000000000000000000000000000000000000000000000000000000 // swap(address,bool,int256,uint160,bytes)
+    push0
+    mstore
+    address
+    push1 0x04
+    mstore
+    push0
+    push1 0x44
+    mstore
+    dup1
+    push1 0x02
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    push1 0x04
+    byte
+    mstore
+    push1 0x01
+    push1 0x24
+    mstore
+    push5 0x01000276a4
+    push1 0x64
+    mstore
+    push1 0xa0
+    push1 0x84
+    mstore
+    push1 0x07
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x14
+    add
+    push1 0x84
+    swap1
+    sub
+    push1 0xf0
+    shl
+    push1 0xc4
+    mstore
+    push1 0x84
+    calldatasize
+    sub
+    dup1
+    dup1
+    push1 0xa4
+    mstore
+    swap1
+    push1 0x86
+    push1 0xc6
+    calldatacopy
+    push0
+    push0
+    dup3
+    push1 0xc4
+    add
+    push0
+    push0
+    dup7
+    gas
+    call
+    stop
+    jumpdest // 001850
+    push32 0x128acb0800000000000000000000000000000000000000000000000000000000 // swap(address,bool,int256,uint160,bytes)
+    push0
+    mstore
+    address
+    push1 0x04
+    mstore
+    push0
+    push1 0x44
+    mstore
+    dup1
+    push1 0x02
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    push1 0x04
+    byte
+    mstore
+    push1 0x00
+    push1 0x24
+    mstore
+    push20 0xfffd8963efd1fc6a506488495d951d5263988d25 // UNI_V3_MAX_SQRT_PRICE_LIMIT_X96
+    push1 0x64
+    mstore
+    push1 0xa0
+    push1 0x84
+    mstore
+    push1 0x07
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x14
+    add
+    push1 0x84
+    swap1
+    sub
+    push1 0xf0
+    shl
+    push1 0xc4
+    mstore
+    push1 0x84
+    calldatasize
+    sub
+    dup1
+    dup1
+    push1 0xa4
+    mstore
+    swap1
+    push1 0x86
+    push1 0xc6
+    calldatacopy
+    push0
+    push0
+    dup3
+    push1 0xc4
+    add
+    push0
+    push0
+    dup7
+    gas
+    call
+    stop
+    jumpdest // 0018e0
+    push32 0x128acb0800000000000000000000000000000000000000000000000000000000 // swap(address,bool,int256,uint160,bytes)
+    push0
+    mstore
+    address
+    push1 0x04
+    mstore
+    dup1
+    push1 0x02
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    swap1
+    push1 0x04
+    byte
+    shl
+    push0
+    sub
+    push1 0x44
+    mstore
+    push1 0x01
+    push1 0x24
+    mstore
+    push5 0x01000276a4
+    push1 0x64
+    mstore
+    push1 0xa0
+    push1 0x84
+    mstore
+    push1 0x07
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x14
+    add
+    push1 0x84
+    swap1
+    sub
+    push1 0xf0
+    shl
+    push1 0xc4
+    mstore
+    push1 0x84
+    calldatasize
+    sub
+    dup1
+    dup1
+    push1 0xa4
+    mstore
+    swap1
+    push1 0x86
+    push1 0xc6
+    calldatacopy
+    push0
+    push0
+    dup3
+    push1 0xc4
+    add
+    push0
+    push0
+    dup7
+    gas
+    call
+    stop
+    jumpdest // 00195f
+    push32 0x128acb0800000000000000000000000000000000000000000000000000000000 // swap(address,bool,int256,uint160,bytes)
+    push0
+    mstore
+    address
+    push1 0x04
+    mstore
+    dup1
+    push1 0x02
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    swap1
+    push1 0x04
+    byte
+    shl
+    push0
+    sub
+    push1 0x44
+    mstore
+    push1 0x00
+    push1 0x24
+    mstore
+    push20 0xfffd8963efd1fc6a506488495d951d5263988d25 // UNI_V3_MAX_SQRT_PRICE_LIMIT_X96
+    push1 0x64
+    mstore
+    push1 0xa0
+    push1 0x84
+    mstore
+    push1 0x07
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x14
+    add
+    push1 0x84
+    swap1
+    sub
+    push1 0xf0
+    shl
+    push1 0xc4
+    mstore
+    push1 0x84
+    calldatasize
+    sub
+    dup1
+    dup1
+    push1 0xa4
+    mstore
+    swap1
+    push1 0x86
+    push1 0xc6
+    calldatacopy
+    push0
+    push0
+    dup3
+    push1 0xc4
+    add
+    push0
+    push0
+    dup7
+    gas
+    call
+    stop
+    jumpdest // 0019ed
+    push32 0x128acb0800000000000000000000000000000000000000000000000000000000 // swap(address,bool,int256,uint160,bytes)
+    push0
+    mstore
+    address
+    push1 0x04
+    mstore
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push0
+    byte
+    calldataload
+    push0
+    sub
+    push1 0x44
+    mstore
+    push1 0x01
+    push1 0x24
+    mstore
+    push5 0x01000276a4
+    push1 0x64
+    mstore
+    push1 0xa0
+    push1 0x84
+    mstore
+    push1 0x03
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x14
+    add
+    push1 0x84
+    swap1
+    sub
+    push1 0xf0
+    shl
+    push1 0xc4
+    mstore
+    push1 0x84
+    calldatasize
+    sub
+    dup1
+    dup1
+    push1 0xa4
+    mstore
+    swap1
+    push1 0x86
+    push1 0xc6
+    calldatacopy
+    push0
+    push0
+    dup3
+    push1 0xc4
+    add
+    push0
+    push0
+    dup7
+    gas
+    call
+    stop
+    jumpdest // 001a66
+    push32 0x128acb0800000000000000000000000000000000000000000000000000000000 // swap(address,bool,int256,uint160,bytes)
+    push0
+    mstore
+    address
+    push1 0x04
+    mstore
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push0
+    byte
+    calldataload
+    push0
+    sub
+    push1 0x44
+    mstore
+    push1 0x00
+    push1 0x24
+    mstore
+    push20 0xfffd8963efd1fc6a506488495d951d5263988d25 // UNI_V3_MAX_SQRT_PRICE_LIMIT_X96
+    push1 0x64
+    mstore
+    push1 0xa0
+    push1 0x84
+    mstore
+    push1 0x03
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x14
+    add
+    push1 0x84
+    swap1
+    sub
+    push1 0xf0
+    shl
+    push1 0xc4
+    mstore
+    push1 0x84
+    calldatasize
+    sub
+    dup1
+    dup1
+    push1 0xa4
+    mstore
+    swap1
+    push1 0x86
+    push1 0xc6
+    calldatacopy
+    push0
+    push0
+    dup3
+    push1 0xc4
+    add
+    push0
+    push0
+    dup7
+    gas
+    call
+    stop
+    jumpdest // 001aee
+    push32 0x128acb0800000000000000000000000000000000000000000000000000000000 // swap(address,bool,int256,uint160,bytes)
+    push0
+    mstore
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push0
+    byte
+    dup2
+    add
+    calldataload
+    push1 0x60
+    shr
+    push1 0x04
+    mstore
+    push0
+    push1 0x44
+    mstore
+    dup1
+    push1 0x03
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    push1 0x04
+    byte
+    mstore
+    push1 0x01
+    push1 0x24
+    mstore
+    push5 0x01000276a4
+    push1 0x64
+    mstore
+    push1 0xa0
+    push1 0x84
+    mstore
+    push1 0x08
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x16
+    add
+    push1 0xf0
+    shl
+    push1 0xc4
+    mstore
+    calldatasize
+    push1 0x02
+    add
+    push1 0xa4
+    mstore
+    calldatasize
+    push0
+    push1 0xc6
+    calldatacopy
+    push0
+    push0
+    calldatasize
+    push1 0xc6
+    add
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    stop
+    jumpdest // 001b78
+    push32 0x128acb0800000000000000000000000000000000000000000000000000000000 // swap(address,bool,int256,uint160,bytes)
+    push0
+    mstore
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push0
+    byte
+    dup2
+    add
+    calldataload
+    push1 0x60
+    shr
+    push1 0x04
+    mstore
+    push0
+    push1 0x44
+    mstore
+    dup1
+    push1 0x03
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    push1 0x04
+    byte
+    mstore
+    push1 0x00
+    push1 0x24
+    mstore
+    push20 0xfffd8963efd1fc6a506488495d951d5263988d25 // UNI_V3_MAX_SQRT_PRICE_LIMIT_X96
+    push1 0x64
+    mstore
+    push1 0xa0
+    push1 0x84
+    mstore
+    push1 0x08
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x16
+    add
+    push1 0xf0
+    shl
+    push1 0xc4
+    mstore
+    calldatasize
+    push1 0x02
+    add
+    push1 0xa4
+    mstore
+    calldatasize
+    push0
+    push1 0xc6
+    calldatacopy
+    push0
+    push0
+    calldatasize
+    push1 0xc6
+    add
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    stop
+    jumpdest // 001c11
+    push32 0x128acb0800000000000000000000000000000000000000000000000000000000 // swap(address,bool,int256,uint160,bytes)
+    push0
+    mstore
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push0
+    byte
+    dup2
+    add
+    calldataload
+    push1 0x60
+    shr
+    push1 0x04
+    mstore
+    push0
+    push1 0x44
+    mstore
+    callvalue
+    push1 0xe0
+    shl
+    dup2
+    push1 0x03
+    add
+    calldataload
+    push0
+    byte
+    mstore
+    push1 0x01
+    push1 0x24
+    mstore
+    push5 0x01000276a4
+    push1 0x64
+    mstore
+    push1 0xa0
+    push1 0x84
+    mstore
+    push1 0x04
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x16
+    add
+    push1 0xf0
+    shl
+    push1 0xc4
+    mstore
+    calldatasize
+    push1 0x02
+    add
+    push1 0xa4
+    mstore
+    calldatasize
+    push0
+    push1 0xc6
+    calldatacopy
+    push0
+    push0
+    calldatasize
+    push1 0xc6
+    add
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    stop
+    jumpdest // 001c96
+    push32 0x128acb0800000000000000000000000000000000000000000000000000000000 // swap(address,bool,int256,uint160,bytes)
+    push0
+    mstore
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push0
+    byte
+    dup2
+    add
+    calldataload
+    push1 0x60
+    shr
+    push1 0x04
+    mstore
+    push0
+    push1 0x44
+    mstore
+    callvalue
+    push1 0xe0
+    shl
+    dup2
+    push1 0x03
+    add
+    calldataload
+    push0
+    byte
+    mstore
+    push1 0x00
+    push1 0x24
+    mstore
+    push20 0xfffd8963efd1fc6a506488495d951d5263988d25 // UNI_V3_MAX_SQRT_PRICE_LIMIT_X96
+    push1 0x64
+    mstore
+    push1 0xa0
+    push1 0x84
+    mstore
+    push1 0x04
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x16
+    add
+    push1 0xf0
+    shl
+    push1 0xc4
+    mstore
+    calldatasize
+    push1 0x02
+    add
+    push1 0xa4
+    mstore
+    calldatasize
+    push0
+    push1 0xc6
+    calldatacopy
+    push0
+    push0
+    calldatasize
+    push1 0xc6
+    add
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    stop
+    jumpdest // 001d2a
+    push32 0x128acb0800000000000000000000000000000000000000000000000000000000 // swap(address,bool,int256,uint160,bytes)
+    push0
+    mstore
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push0
+    byte
+    dup2
+    add
+    calldataload
+    push1 0x60
+    shr
+    push1 0x04
+    mstore
+    dup1
+    push1 0x03
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    swap1
+    push1 0x04
+    byte
+    shl
+    push0
+    sub
+    push1 0x44
+    mstore
+    push1 0x01
+    push1 0x24
+    mstore
+    push5 0x01000276a4
+    push1 0x64
+    mstore
+    push1 0xa0
+    push1 0x84
+    mstore
+    push1 0x08
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x16
+    add
+    push1 0xf0
+    shl
+    push1 0xc4
+    mstore
+    calldatasize
+    push1 0x02
+    add
+    push1 0xa4
+    mstore
+    calldatasize
+    push0
+    push1 0xc6
+    calldatacopy
+    push0
+    push0
+    calldatasize
+    push1 0xc6
+    add
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    stop
+    jumpdest // 001db2
+    push32 0x128acb0800000000000000000000000000000000000000000000000000000000 // swap(address,bool,int256,uint160,bytes)
+    push0
+    mstore
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push0
+    byte
+    dup2
+    add
+    calldataload
+    push1 0x60
+    shr
+    push1 0x04
+    mstore
+    dup1
+    push1 0x03
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    swap1
+    push1 0x04
+    byte
+    shl
+    push0
+    sub
+    push1 0x44
+    mstore
+    push1 0x00
+    push1 0x24
+    mstore
+    push20 0xfffd8963efd1fc6a506488495d951d5263988d25 // UNI_V3_MAX_SQRT_PRICE_LIMIT_X96
+    push1 0x64
+    mstore
+    push1 0xa0
+    push1 0x84
+    mstore
+    push1 0x08
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x16
+    add
+    push1 0xf0
+    shl
+    push1 0xc4
+    mstore
+    calldatasize
+    push1 0x02
+    add
+    push1 0xa4
+    mstore
+    calldatasize
+    push0
+    push1 0xc6
+    calldatacopy
+    push0
+    push0
+    calldatasize
+    push1 0xc6
+    add
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    stop
+    jumpdest // 001e49
+    push32 0x128acb0800000000000000000000000000000000000000000000000000000000 // swap(address,bool,int256,uint160,bytes)
+    push0
+    mstore
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push0
+    byte
+    dup2
+    add
+    calldataload
+    push1 0x60
+    shr
+    push1 0x04
+    mstore
+    callvalue
+    dup2
+    push1 0x03
+    add
+    calldataload
+    push0
+    byte
+    shl
+    push0
+    sub
+    push1 0x44
+    mstore
+    push1 0x01
+    push1 0x24
+    mstore
+    push5 0x01000276a4
+    push1 0x64
+    mstore
+    push1 0xa0
+    push1 0x84
+    mstore
+    push1 0x04
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x16
+    add
+    push1 0xf0
+    shl
+    push1 0xc4
+    mstore
+    calldatasize
+    push1 0x02
+    add
+    push1 0xa4
+    mstore
+    calldatasize
+    push0
+    push1 0xc6
+    calldatacopy
+    push0
+    push0
+    calldatasize
+    push1 0xc6
+    add
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    stop
+    jumpdest // 001ecc
+    push32 0x128acb0800000000000000000000000000000000000000000000000000000000 // swap(address,bool,int256,uint160,bytes)
+    push0
+    mstore
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push0
+    byte
+    dup2
+    add
+    calldataload
+    push1 0x60
+    shr
+    push1 0x04
+    mstore
+    callvalue
+    dup2
+    push1 0x03
+    add
+    calldataload
+    push0
+    byte
+    shl
+    push0
+    sub
+    push1 0x44
+    mstore
+    push1 0x00
+    push1 0x24
+    mstore
+    push20 0xfffd8963efd1fc6a506488495d951d5263988d25 // UNI_V3_MAX_SQRT_PRICE_LIMIT_X96
+    push1 0x64
+    mstore
+    push1 0xa0
+    push1 0x84
+    mstore
+    push1 0x04
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x16
+    add
+    push1 0xf0
+    shl
+    push1 0xc4
+    mstore
+    calldatasize
+    push1 0x02
+    add
+    push1 0xa4
+    mstore
+    calldatasize
+    push0
+    push1 0xc6
+    calldatacopy
+    push0
+    push0
+    calldatasize
+    push1 0xc6
+    add
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    stop
+    jumpdest // 001f5e
+    push32 0x128acb0800000000000000000000000000000000000000000000000000000000 // swap(address,bool,int256,uint160,bytes)
+    push0
+    mstore
+    address
+    push1 0x04
+    mstore
+    push0
+    push1 0x44
+    mstore
+    dup1
+    push1 0x02
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    push1 0x04
+    byte
+    mstore
+    push1 0x01
+    push1 0x24
+    mstore
+    push5 0x01000276a4
+    push1 0x64
+    mstore
+    push1 0xa0
+    push1 0x84
+    mstore
+    push1 0x07
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x16
+    add
+    push1 0xf0
+    shl
+    push1 0xc4
+    mstore
+    calldatasize
+    push1 0x02
+    add
+    push1 0xa4
+    mstore
+    calldatasize
+    push0
+    push1 0xc6
+    calldatacopy
+    push0
+    push0
+    calldatasize
+    push1 0xc6
+    add
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    stop
+    jumpdest // 001fdc
+    push32 0x128acb0800000000000000000000000000000000000000000000000000000000 // swap(address,bool,int256,uint160,bytes)
+    push0
+    mstore
+    address
+    push1 0x04
+    mstore
+    push0
+    push1 0x44
+    mstore
+    dup1
+    push1 0x02
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    push1 0x04
+    byte
+    mstore
+    push1 0x00
+    push1 0x24
+    mstore
+    push20 0xfffd8963efd1fc6a506488495d951d5263988d25 // UNI_V3_MAX_SQRT_PRICE_LIMIT_X96
+    push1 0x64
+    mstore
+    push1 0xa0
+    push1 0x84
+    mstore
+    push1 0x07
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x16
+    add
+    push1 0xf0
+    shl
+    push1 0xc4
+    mstore
+    calldatasize
+    push1 0x02
+    add
+    push1 0xa4
+    mstore
+    calldatasize
+    push0
+    push1 0xc6
+    calldatacopy
+    push0
+    push0
+    calldatasize
+    push1 0xc6
+    add
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    stop
+    jumpdest // 002069
+    push32 0x128acb0800000000000000000000000000000000000000000000000000000000 // swap(address,bool,int256,uint160,bytes)
+    push0
+    mstore
+    address
+    push1 0x04
+    mstore
+    push0
+    push1 0x44
+    mstore
+    callvalue
+    push1 0xe0
+    shl
+    dup2
+    push1 0x02
+    add
+    calldataload
+    push0
+    byte
+    mstore
+    push1 0x01
+    push1 0x24
+    mstore
+    push5 0x01000276a4
+    push1 0x64
+    mstore
+    push1 0xa0
+    push1 0x84
+    mstore
+    push1 0x03
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x16
+    add
+    push1 0xf0
+    shl
+    push1 0xc4
+    mstore
+    calldatasize
+    push1 0x02
+    add
+    push1 0xa4
+    mstore
+    calldatasize
+    push0
+    push1 0xc6
+    calldatacopy
+    push0
+    push0
+    calldatasize
+    push1 0xc6
+    add
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    stop
+    jumpdest // 0020e2
+    push32 0x128acb0800000000000000000000000000000000000000000000000000000000 // swap(address,bool,int256,uint160,bytes)
+    push0
+    mstore
+    address
+    push1 0x04
+    mstore
+    push0
+    push1 0x44
+    mstore
+    callvalue
+    push1 0xe0
+    shl
+    dup2
+    push1 0x02
+    add
+    calldataload
+    push0
+    byte
+    mstore
+    push1 0x00
+    push1 0x24
+    mstore
+    push20 0xfffd8963efd1fc6a506488495d951d5263988d25 // UNI_V3_MAX_SQRT_PRICE_LIMIT_X96
+    push1 0x64
+    mstore
+    push1 0xa0
+    push1 0x84
+    mstore
+    push1 0x03
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x16
+    add
+    push1 0xf0
+    shl
+    push1 0xc4
+    mstore
+    calldatasize
+    push1 0x02
+    add
+    push1 0xa4
+    mstore
+    calldatasize
+    push0
+    push1 0xc6
+    calldatacopy
+    push0
+    push0
+    calldatasize
+    push1 0xc6
+    add
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    stop
+    jumpdest // 00216a
+    push32 0x128acb0800000000000000000000000000000000000000000000000000000000 // swap(address,bool,int256,uint160,bytes)
+    push0
+    mstore
+    address
+    push1 0x04
+    mstore
+    dup1
+    push1 0x02
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    swap1
+    push1 0x04
+    byte
+    shl
+    push0
+    sub
+    push1 0x44
+    mstore
+    push1 0x01
+    push1 0x24
+    mstore
+    push5 0x01000276a4
+    push1 0x64
+    mstore
+    push1 0xa0
+    push1 0x84
+    mstore
+    push1 0x07
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x16
+    add
+    push1 0xf0
+    shl
+    push1 0xc4
+    mstore
+    calldatasize
+    push1 0x02
+    add
+    push1 0xa4
+    mstore
+    calldatasize
+    push0
+    push1 0xc6
+    calldatacopy
+    push0
+    push0
+    calldatasize
+    push1 0xc6
+    add
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    stop
+    jumpdest // 0021e6
+    push32 0x128acb0800000000000000000000000000000000000000000000000000000000 // swap(address,bool,int256,uint160,bytes)
+    push0
+    mstore
+    address
+    push1 0x04
+    mstore
+    dup1
+    push1 0x02
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    swap1
+    push1 0x04
+    byte
+    shl
+    push0
+    sub
+    push1 0x44
+    mstore
+    push1 0x00
+    push1 0x24
+    mstore
+    push20 0xfffd8963efd1fc6a506488495d951d5263988d25 // UNI_V3_MAX_SQRT_PRICE_LIMIT_X96
+    push1 0x64
+    mstore
+    push1 0xa0
+    push1 0x84
+    mstore
+    push1 0x07
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x16
+    add
+    push1 0xf0
+    shl
+    push1 0xc4
+    mstore
+    calldatasize
+    push1 0x02
+    add
+    push1 0xa4
+    mstore
+    calldatasize
+    push0
+    push1 0xc6
+    calldatacopy
+    push0
+    push0
+    calldatasize
+    push1 0xc6
+    add
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    stop
+    jumpdest // 002271
+    push32 0x128acb0800000000000000000000000000000000000000000000000000000000 // swap(address,bool,int256,uint160,bytes)
+    push0
+    mstore
+    address
+    push1 0x04
+    mstore
+    callvalue
+    dup2
+    push1 0x02
+    add
+    calldataload
+    push0
+    byte
+    shl
+    push0
+    sub
+    push1 0x44
+    mstore
+    push1 0x01
+    push1 0x24
+    mstore
+    push5 0x01000276a4
+    push1 0x64
+    mstore
+    push1 0xa0
+    push1 0x84
+    mstore
+    push1 0x03
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x16
+    add
+    push1 0xf0
+    shl
+    push1 0xc4
+    mstore
+    calldatasize
+    push1 0x02
+    add
+    push1 0xa4
+    mstore
+    calldatasize
+    push0
+    push1 0xc6
+    calldatacopy
+    push0
+    push0
+    calldatasize
+    push1 0xc6
+    add
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    stop
+    jumpdest // 0022e8
+    push32 0x128acb0800000000000000000000000000000000000000000000000000000000 // swap(address,bool,int256,uint160,bytes)
+    push0
+    mstore
+    address
+    push1 0x04
+    mstore
+    callvalue
+    dup2
+    push1 0x02
+    add
+    calldataload
+    push0
+    byte
+    shl
+    push0
+    sub
+    push1 0x44
+    mstore
+    push1 0x00
+    push1 0x24
+    mstore
+    push20 0xfffd8963efd1fc6a506488495d951d5263988d25 // UNI_V3_MAX_SQRT_PRICE_LIMIT_X96
+    push1 0x64
+    mstore
+    push1 0xa0
+    push1 0x84
+    mstore
+    push1 0x03
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x16
+    add
+    push1 0xf0
+    shl
+    push1 0xc4
+    mstore
+    calldatasize
+    push1 0x02
+    add
+    push1 0xa4
+    mstore
+    calldatasize
+    push0
+    push1 0xc6
+    calldatacopy
+    push0
+    push0
+    calldatasize
+    push1 0xc6
+    add
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    stop
+    jumpdest // 00236e
+    push32 0x128acb0800000000000000000000000000000000000000000000000000000000 // swap(address,bool,int256,uint160,bytes)
+    push0
+    mstore
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push0
+    byte
+    dup2
+    add
+    calldataload
+    push1 0x60
+    shr
+    push1 0x04
+    mstore
+    push0
+    push1 0x44
+    mstore
+    dup1
+    push1 0x03
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    push1 0x04
+    byte
+    mstore
+    push1 0x01
+    push1 0x24
+    mstore
+    push5 0x01000276a4
+    push1 0x64
+    mstore
+    push1 0xa0
+    push1 0x84
+    mstore
+    push1 0x08
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x14
+    add
+    dup1
+    push1 0x04
+    add
+    push1 0xf0
+    shl
+    push1 0xc4
+    mstore
+    calldatasize
+    push1 0x02
+    add
+    push1 0xa4
+    mstore
+    calldatasize
+    push0
+    push1 0xc6
+    calldatacopy
+    swap1
+    push0
+    push0
+    calldatasize
+    push1 0xc6
+    add
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    calldataload
+    push1 0xf0
+    shr
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 002407
+    push32 0x128acb0800000000000000000000000000000000000000000000000000000000 // swap(address,bool,int256,uint160,bytes)
+    push0
+    mstore
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push0
+    byte
+    dup2
+    add
+    calldataload
+    push1 0x60
+    shr
+    push1 0x04
+    mstore
+    push0
+    push1 0x44
+    mstore
+    dup1
+    push1 0x03
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    push1 0x04
+    byte
+    mstore
+    push1 0x00
+    push1 0x24
+    mstore
+    push20 0xfffd8963efd1fc6a506488495d951d5263988d25 // UNI_V3_MAX_SQRT_PRICE_LIMIT_X96
+    push1 0x64
+    mstore
+    push1 0xa0
+    push1 0x84
+    mstore
+    push1 0x08
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x14
+    add
+    dup1
+    push1 0x04
+    add
+    push1 0xf0
+    shl
+    push1 0xc4
+    mstore
+    calldatasize
+    push1 0x02
+    add
+    push1 0xa4
+    mstore
+    calldatasize
+    push0
+    push1 0xc6
+    calldatacopy
+    swap1
+    push0
+    push0
+    calldatasize
+    push1 0xc6
+    add
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    calldataload
+    push1 0xf0
+    shr
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 0024af
+    push32 0x128acb0800000000000000000000000000000000000000000000000000000000 // swap(address,bool,int256,uint160,bytes)
+    push0
+    mstore
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push0
+    byte
+    dup2
+    add
+    calldataload
+    push1 0x60
+    shr
+    push1 0x04
+    mstore
+    push0
+    push1 0x44
+    mstore
+    callvalue
+    push1 0xe0
+    shl
+    dup2
+    push1 0x03
+    add
+    calldataload
+    push0
+    byte
+    mstore
+    push1 0x01
+    push1 0x24
+    mstore
+    push5 0x01000276a4
+    push1 0x64
+    mstore
+    push1 0xa0
+    push1 0x84
+    mstore
+    push1 0x04
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x14
+    add
+    dup1
+    push1 0x04
+    add
+    push1 0xf0
+    shl
+    push1 0xc4
+    mstore
+    calldatasize
+    push1 0x02
+    add
+    push1 0xa4
+    mstore
+    calldatasize
+    push0
+    push1 0xc6
+    calldatacopy
+    swap1
+    push0
+    push0
+    calldatasize
+    push1 0xc6
+    add
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    calldataload
+    push1 0xf0
+    shr
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 002543
+    push32 0x128acb0800000000000000000000000000000000000000000000000000000000 // swap(address,bool,int256,uint160,bytes)
+    push0
+    mstore
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push0
+    byte
+    dup2
+    add
+    calldataload
+    push1 0x60
+    shr
+    push1 0x04
+    mstore
+    push0
+    push1 0x44
+    mstore
+    callvalue
+    push1 0xe0
+    shl
+    dup2
+    push1 0x03
+    add
+    calldataload
+    push0
+    byte
+    mstore
+    push1 0x00
+    push1 0x24
+    mstore
+    push20 0xfffd8963efd1fc6a506488495d951d5263988d25 // UNI_V3_MAX_SQRT_PRICE_LIMIT_X96
+    push1 0x64
+    mstore
+    push1 0xa0
+    push1 0x84
+    mstore
+    push1 0x04
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x14
+    add
+    dup1
+    push1 0x04
+    add
+    push1 0xf0
+    shl
+    push1 0xc4
+    mstore
+    calldatasize
+    push1 0x02
+    add
+    push1 0xa4
+    mstore
+    calldatasize
+    push0
+    push1 0xc6
+    calldatacopy
+    swap1
+    push0
+    push0
+    calldatasize
+    push1 0xc6
+    add
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    calldataload
+    push1 0xf0
+    shr
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 0025e6
+    push32 0x128acb0800000000000000000000000000000000000000000000000000000000 // swap(address,bool,int256,uint160,bytes)
+    push0
+    mstore
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push0
+    byte
+    dup2
+    add
+    calldataload
+    push1 0x60
+    shr
+    push1 0x04
+    mstore
+    dup1
+    push1 0x03
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    swap1
+    push1 0x04
+    byte
+    shl
+    push0
+    sub
+    push1 0x44
+    mstore
+    push1 0x01
+    push1 0x24
+    mstore
+    push5 0x01000276a4
+    push1 0x64
+    mstore
+    push1 0xa0
+    push1 0x84
+    mstore
+    push1 0x08
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x14
+    add
+    dup1
+    push1 0x04
+    add
+    push1 0xf0
+    shl
+    push1 0xc4
+    mstore
+    calldatasize
+    push1 0x02
+    add
+    push1 0xa4
+    mstore
+    calldatasize
+    push0
+    push1 0xc6
+    calldatacopy
+    swap1
+    push0
+    push0
+    calldatasize
+    push1 0xc6
+    add
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    calldataload
+    push1 0xf0
+    shr
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 00267d
+    push32 0x128acb0800000000000000000000000000000000000000000000000000000000 // swap(address,bool,int256,uint160,bytes)
+    push0
+    mstore
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push0
+    byte
+    dup2
+    add
+    calldataload
+    push1 0x60
+    shr
+    push1 0x04
+    mstore
+    dup1
+    push1 0x03
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    swap1
+    push1 0x04
+    byte
+    shl
+    push0
+    sub
+    push1 0x44
+    mstore
+    push1 0x00
+    push1 0x24
+    mstore
+    push20 0xfffd8963efd1fc6a506488495d951d5263988d25 // UNI_V3_MAX_SQRT_PRICE_LIMIT_X96
+    push1 0x64
+    mstore
+    push1 0xa0
+    push1 0x84
+    mstore
+    push1 0x08
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x14
+    add
+    dup1
+    push1 0x04
+    add
+    push1 0xf0
+    shl
+    push1 0xc4
+    mstore
+    calldatasize
+    push1 0x02
+    add
+    push1 0xa4
+    mstore
+    calldatasize
+    push0
+    push1 0xc6
+    calldatacopy
+    swap1
+    push0
+    push0
+    calldatasize
+    push1 0xc6
+    add
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    calldataload
+    push1 0xf0
+    shr
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 002723
+    push32 0x128acb0800000000000000000000000000000000000000000000000000000000 // swap(address,bool,int256,uint160,bytes)
+    push0
+    mstore
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push0
+    byte
+    dup2
+    add
+    calldataload
+    push1 0x60
+    shr
+    push1 0x04
+    mstore
+    callvalue
+    dup2
+    push1 0x03
+    add
+    calldataload
+    push0
+    byte
+    shl
+    push0
+    sub
+    push1 0x44
+    mstore
+    push1 0x01
+    push1 0x24
+    mstore
+    push5 0x01000276a4
+    push1 0x64
+    mstore
+    push1 0xa0
+    push1 0x84
+    mstore
+    push1 0x04
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x14
+    add
+    dup1
+    push1 0x04
+    add
+    push1 0xf0
+    shl
+    push1 0xc4
+    mstore
+    calldatasize
+    push1 0x02
+    add
+    push1 0xa4
+    mstore
+    calldatasize
+    push0
+    push1 0xc6
+    calldatacopy
+    swap1
+    push0
+    push0
+    calldatasize
+    push1 0xc6
+    add
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    calldataload
+    push1 0xf0
+    shr
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 0027b5
+    push32 0x128acb0800000000000000000000000000000000000000000000000000000000 // swap(address,bool,int256,uint160,bytes)
+    push0
+    mstore
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push0
+    byte
+    dup2
+    add
+    calldataload
+    push1 0x60
+    shr
+    push1 0x04
+    mstore
+    callvalue
+    dup2
+    push1 0x03
+    add
+    calldataload
+    push0
+    byte
+    shl
+    push0
+    sub
+    push1 0x44
+    mstore
+    push1 0x00
+    push1 0x24
+    mstore
+    push20 0xfffd8963efd1fc6a506488495d951d5263988d25 // UNI_V3_MAX_SQRT_PRICE_LIMIT_X96
+    push1 0x64
+    mstore
+    push1 0xa0
+    push1 0x84
+    mstore
+    push1 0x04
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x14
+    add
+    dup1
+    push1 0x04
+    add
+    push1 0xf0
+    shl
+    push1 0xc4
+    mstore
+    calldatasize
+    push1 0x02
+    add
+    push1 0xa4
+    mstore
+    calldatasize
+    push0
+    push1 0xc6
+    calldatacopy
+    swap1
+    push0
+    push0
+    calldatasize
+    push1 0xc6
+    add
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    calldataload
+    push1 0xf0
+    shr
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 002856
+    push32 0x128acb0800000000000000000000000000000000000000000000000000000000 // swap(address,bool,int256,uint160,bytes)
+    push0
+    mstore
+    address
+    push1 0x04
+    mstore
+    push0
+    push1 0x44
+    mstore
+    dup1
+    push1 0x02
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    push1 0x04
+    byte
+    mstore
+    push1 0x01
+    push1 0x24
+    mstore
+    push5 0x01000276a4
+    push1 0x64
+    mstore
+    push1 0xa0
+    push1 0x84
+    mstore
+    push1 0x07
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x14
+    add
+    dup1
+    push1 0x04
+    add
+    push1 0xf0
+    shl
+    push1 0xc4
+    mstore
+    calldatasize
+    push1 0x02
+    add
+    push1 0xa4
+    mstore
+    calldatasize
+    push0
+    push1 0xc6
+    calldatacopy
+    swap1
+    push0
+    push0
+    calldatasize
+    push1 0xc6
+    add
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    calldataload
+    push1 0xf0
+    shr
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 0028e3
+    push32 0x128acb0800000000000000000000000000000000000000000000000000000000 // swap(address,bool,int256,uint160,bytes)
+    push0
+    mstore
+    address
+    push1 0x04
+    mstore
+    push0
+    push1 0x44
+    mstore
+    dup1
+    push1 0x02
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    push1 0x04
+    byte
+    mstore
+    push1 0x00
+    push1 0x24
+    mstore
+    push20 0xfffd8963efd1fc6a506488495d951d5263988d25 // UNI_V3_MAX_SQRT_PRICE_LIMIT_X96
+    push1 0x64
+    mstore
+    push1 0xa0
+    push1 0x84
+    mstore
+    push1 0x07
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x14
+    add
+    dup1
+    push1 0x04
+    add
+    push1 0xf0
+    shl
+    push1 0xc4
+    mstore
+    calldatasize
+    push1 0x02
+    add
+    push1 0xa4
+    mstore
+    calldatasize
+    push0
+    push1 0xc6
+    calldatacopy
+    swap1
+    push0
+    push0
+    calldatasize
+    push1 0xc6
+    add
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    calldataload
+    push1 0xf0
+    shr
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 00297f
+    push32 0x128acb0800000000000000000000000000000000000000000000000000000000 // swap(address,bool,int256,uint160,bytes)
+    push0
+    mstore
+    address
+    push1 0x04
+    mstore
+    push0
+    push1 0x44
+    mstore
+    callvalue
+    push1 0xe0
+    shl
+    dup2
+    push1 0x02
+    add
+    calldataload
+    push0
+    byte
+    mstore
+    push1 0x01
+    push1 0x24
+    mstore
+    push5 0x01000276a4
+    push1 0x64
+    mstore
+    push1 0xa0
+    push1 0x84
+    mstore
+    push1 0x03
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x14
+    add
+    dup1
+    push1 0x04
+    add
+    push1 0xf0
+    shl
+    push1 0xc4
+    mstore
+    calldatasize
+    push1 0x02
+    add
+    push1 0xa4
+    mstore
+    calldatasize
+    push0
+    push1 0xc6
+    calldatacopy
+    swap1
+    push0
+    push0
+    calldatasize
+    push1 0xc6
+    add
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    calldataload
+    push1 0xf0
+    shr
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 002a07
+    push32 0x128acb0800000000000000000000000000000000000000000000000000000000 // swap(address,bool,int256,uint160,bytes)
+    push0
+    mstore
+    address
+    push1 0x04
+    mstore
+    push0
+    push1 0x44
+    mstore
+    callvalue
+    push1 0xe0
+    shl
+    dup2
+    push1 0x02
+    add
+    calldataload
+    push0
+    byte
+    mstore
+    push1 0x00
+    push1 0x24
+    mstore
+    push20 0xfffd8963efd1fc6a506488495d951d5263988d25 // UNI_V3_MAX_SQRT_PRICE_LIMIT_X96
+    push1 0x64
+    mstore
+    push1 0xa0
+    push1 0x84
+    mstore
+    push1 0x03
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x14
+    add
+    dup1
+    push1 0x04
+    add
+    push1 0xf0
+    shl
+    push1 0xc4
+    mstore
+    calldatasize
+    push1 0x02
+    add
+    push1 0xa4
+    mstore
+    calldatasize
+    push0
+    push1 0xc6
+    calldatacopy
+    swap1
+    push0
+    push0
+    calldatasize
+    push1 0xc6
+    add
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    calldataload
+    push1 0xf0
+    shr
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 002a9e
+    push32 0x128acb0800000000000000000000000000000000000000000000000000000000 // swap(address,bool,int256,uint160,bytes)
+    push0
+    mstore
+    address
+    push1 0x04
+    mstore
+    dup1
+    push1 0x02
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    swap1
+    push1 0x04
+    byte
+    shl
+    push0
+    sub
+    push1 0x44
+    mstore
+    push1 0x01
+    push1 0x24
+    mstore
+    push5 0x01000276a4
+    push1 0x64
+    mstore
+    push1 0xa0
+    push1 0x84
+    mstore
+    push1 0x07
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x14
+    add
+    dup1
+    push1 0x04
+    add
+    push1 0xf0
+    shl
+    push1 0xc4
+    mstore
+    calldatasize
+    push1 0x02
+    add
+    push1 0xa4
+    mstore
+    calldatasize
+    push0
+    push1 0xc6
+    calldatacopy
+    swap1
+    push0
+    push0
+    calldatasize
+    push1 0xc6
+    add
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    calldataload
+    push1 0xf0
+    shr
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 002b29
+    push32 0x128acb0800000000000000000000000000000000000000000000000000000000 // swap(address,bool,int256,uint160,bytes)
+    push0
+    mstore
+    address
+    push1 0x04
+    mstore
+    dup1
+    push1 0x02
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    swap1
+    push1 0x04
+    byte
+    shl
+    push0
+    sub
+    push1 0x44
+    mstore
+    push1 0x00
+    push1 0x24
+    mstore
+    push20 0xfffd8963efd1fc6a506488495d951d5263988d25 // UNI_V3_MAX_SQRT_PRICE_LIMIT_X96
+    push1 0x64
+    mstore
+    push1 0xa0
+    push1 0x84
+    mstore
+    push1 0x07
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x14
+    add
+    dup1
+    push1 0x04
+    add
+    push1 0xf0
+    shl
+    push1 0xc4
+    mstore
+    calldatasize
+    push1 0x02
+    add
+    push1 0xa4
+    mstore
+    calldatasize
+    push0
+    push1 0xc6
+    calldatacopy
+    swap1
+    push0
+    push0
+    calldatasize
+    push1 0xc6
+    add
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    calldataload
+    push1 0xf0
+    shr
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 002bc3
+    push32 0x128acb0800000000000000000000000000000000000000000000000000000000 // swap(address,bool,int256,uint160,bytes)
+    push0
+    mstore
+    address
+    push1 0x04
+    mstore
+    callvalue
+    dup2
+    push1 0x02
+    add
+    calldataload
+    push0
+    byte
+    shl
+    push0
+    sub
+    push1 0x44
+    mstore
+    push1 0x01
+    push1 0x24
+    mstore
+    push5 0x01000276a4
+    push1 0x64
+    mstore
+    push1 0xa0
+    push1 0x84
+    mstore
+    push1 0x03
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x14
+    add
+    dup1
+    push1 0x04
+    add
+    push1 0xf0
+    shl
+    push1 0xc4
+    mstore
+    calldatasize
+    push1 0x02
+    add
+    push1 0xa4
+    mstore
+    calldatasize
+    push0
+    push1 0xc6
+    calldatacopy
+    swap1
+    push0
+    push0
+    calldatasize
+    push1 0xc6
+    add
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    calldataload
+    push1 0xf0
+    shr
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 002c49
+    push32 0x128acb0800000000000000000000000000000000000000000000000000000000 // swap(address,bool,int256,uint160,bytes)
+    push0
+    mstore
+    address
+    push1 0x04
+    mstore
+    callvalue
+    dup2
+    push1 0x02
+    add
+    calldataload
+    push0
+    byte
+    shl
+    push0
+    sub
+    push1 0x44
+    mstore
+    push1 0x00
+    push1 0x24
+    mstore
+    push20 0xfffd8963efd1fc6a506488495d951d5263988d25 // UNI_V3_MAX_SQRT_PRICE_LIMIT_X96
+    push1 0x64
+    mstore
+    push1 0xa0
+    push1 0x84
+    mstore
+    push1 0x03
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    swap1
+    push1 0x14
+    add
+    dup1
+    push1 0x04
+    add
+    push1 0xf0
+    shl
+    push1 0xc4
+    mstore
+    calldatasize
+    push1 0x02
+    add
+    push1 0xa4
+    mstore
+    calldatasize
+    push0
+    push1 0xc6
+    calldatacopy
+    swap1
+    push0
+    push0
+    calldatasize
+    push1 0xc6
+    add
+    push0
+    push0
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    calldataload
+    push1 0xf0
+    shr
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 002cde
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push1 0x90
+    shr
+    dup2
+    push1 0x10
+    add
+    calldataload
+    push0
+    byte
+    calldataload
+    gt
+    push1 0x69
+    jumpi
+    push1 0x11
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 002cfc
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push1 0x90
+    shr
+    dup2
+    push1 0x10
+    add
+    calldataload
+    push0
+    byte
+    calldataload
+    push0
+    sub
+    lt
+    push1 0x69
+    jumpi
+    push1 0x11
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 002d1c
+    push32 0xa9059cbb00000000000000000000000000000000000000000000000000000000 // transfer(address,uint256)
+    push0
+    mstore
+    push0
+    push1 0x24
+    mstore
+    dup1
+    push1 0x02
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    push1 0x04
+    byte
+    mstore
+    caller
+    push1 0x04
+    mstore
+    push0
+    push0
+    push1 0x44
+    push0
+    push0
+    push20 0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2 // WETH
+    gas
+    call
+    pop
+    push1 0x07
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 002d80
+    push32 0xa9059cbb00000000000000000000000000000000000000000000000000000000 // transfer(address,uint256)
+    push0
+    mstore
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push0
+    byte
+    calldataload
+    push1 0x24
+    mstore
+    caller
+    push1 0x04
+    mstore
+    push0
+    push0
+    push1 0x44
+    push0
+    push0
+    push20 0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2 // WETH
+    gas
+    call
+    pop
+    push1 0x03
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 002dda
+    push32 0xa9059cbb00000000000000000000000000000000000000000000000000000000 // transfer(address,uint256)
+    push0
+    mstore
+    push0
+    push1 0x24
+    mstore
+    dup1
+    push1 0x02
+    add
+    calldataload
+    dup1
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    push1 0x04
+    byte
+    mstore
+    caller
+    push1 0x04
+    mstore
+    push1 0x07
+    add
+    push0
+    push0
+    push1 0x44
+    push0
+    push0
+    dup6
+    calldataload
+    push1 0x60
+    shr
+    gas
+    call
+    pop
+    push1 0x14
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 002e31
+    push32 0xa9059cbb00000000000000000000000000000000000000000000000000000000 // transfer(address,uint256)
+    push0
+    mstore
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push0
+    byte
+    calldataload
+    push1 0x24
+    mstore
+    caller
+    push1 0x04
+    mstore
+    push1 0x03
+    add
+    push0
+    push0
+    push1 0x44
+    push0
+    push0
+    dup6
+    calldataload
+    push1 0x60
+    shr
+    gas
+    call
+    pop
+    push1 0x14
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 002e7e
+    dup1
+    push1 0x02
+    add
+    calldataload
+    dup1
+    push0
+    mstore
+    dup1
+    push1 0x04
+    byte
+    push1 0x04
+    mstore
+    dup1
+    push1 0x05
+    byte
+    push1 0x24
+    mstore
+    push1 0x06
+    byte
+    swap1
+    push0
+    push1 0x44
+    mstore
+    push0
+    push1 0x84
+    mstore
+    dup1
+    push1 0x09
+    add
+    calldataload
+    push1 0x90
+    shr
+    push1 0x44
+    mstore
+    push0
+    push1 0x64
+    mstore
+    push0
+    swap1
+    dup1
+    push1 0x17
+    add
+    calldataload
+    push1 0x90
+    shr
+    push1 0x64
+    mstore
+    dup1
+    push1 0x25
+    add
+    calldataload
+    push1 0x60
+    shr
+    push0
+    push0
+    dup6
+    push0
+    dup7
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    push1 0x14
+    add
+    push1 0x25
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 002ede
+    dup1
+    push1 0x02
+    add
+    calldataload
+    dup1
+    push0
+    mstore
+    dup1
+    push1 0x04
+    byte
+    push1 0x04
+    mstore
+    dup1
+    push1 0x05
+    byte
+    push1 0x24
+    mstore
+    push1 0x06
+    byte
+    swap1
+    push0
+    push1 0x44
+    mstore
+    push0
+    push1 0x84
+    mstore
+    dup1
+    push1 0x09
+    add
+    calldataload
+    push1 0x90
+    shr
+    push1 0x44
+    mstore
+    push1 0x44
+    mload
+    push4 0x2e1a7d4d // withdraw(uint256)
+    push1 0xe0
+    shl
+    push1 0x64
+    mstore
+    dup1
+    push1 0x68
+    mstore
+    push0
+    push0
+    push1 0x24
+    push1 0x64
+    push0
+    push20 0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2 // WETH
+    gas
+    call
+    pop
+    push0
+    push1 0x64
+    mstore
+    swap1
+    dup1
+    push1 0x17
+    add
+    calldataload
+    push1 0x90
+    shr
+    push1 0x64
+    mstore
+    dup1
+    push1 0x25
+    add
+    calldataload
+    push1 0x60
+    shr
+    push0
+    push0
+    dup6
+    push0
+    dup7
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    push1 0x14
+    add
+    push1 0x25
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 002f6e
+    dup1
+    push1 0x02
+    add
+    calldataload
+    dup1
+    push0
+    mstore
+    dup1
+    push1 0x04
+    byte
+    push1 0x04
+    mstore
+    dup1
+    push1 0x05
+    byte
+    push1 0x24
+    mstore
+    push1 0x06
+    byte
+    swap1
+    push0
+    push1 0x44
+    mstore
+    push0
+    push1 0x84
+    mstore
+    dup1
+    push1 0x09
+    add
+    calldataload
+    dup1
+    push0
+    byte
+    dup3
+    sub
+    calldataload
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    chainid
+    byte
+    mstore
+    push0
+    push1 0x64
+    mstore
+    push0
+    swap1
+    dup1
+    push1 0x0b
+    add
+    calldataload
+    push1 0x90
+    shr
+    push1 0x64
+    mstore
+    dup1
+    push1 0x19
+    add
+    calldataload
+    push1 0x60
+    shr
+    push0
+    push0
+    dup6
+    push0
+    dup7
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    push1 0x14
+    add
+    push1 0x19
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 002fd8
+    dup1
+    push1 0x02
+    add
+    calldataload
+    dup1
+    push0
+    mstore
+    dup1
+    push1 0x04
+    byte
+    push1 0x04
+    mstore
+    dup1
+    push1 0x05
+    byte
+    push1 0x24
+    mstore
+    push1 0x06
+    byte
+    swap1
+    push0
+    push1 0x44
+    mstore
+    push0
+    push1 0x84
+    mstore
+    dup1
+    push1 0x09
+    add
+    calldataload
+    dup1
+    push0
+    byte
+    dup3
+    sub
+    calldataload
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    chainid
+    byte
+    mstore
+    push1 0x44
+    mload
+    push4 0x2e1a7d4d // withdraw(uint256)
+    push1 0xe0
+    shl
+    push1 0x64
+    mstore
+    dup1
+    push1 0x68
+    mstore
+    push0
+    push0
+    push1 0x24
+    push1 0x64
+    push0
+    push20 0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2 // WETH
+    gas
+    call
+    pop
+    push0
+    push1 0x64
+    mstore
+    swap1
+    dup1
+    push1 0x0b
+    add
+    calldataload
+    push1 0x90
+    shr
+    push1 0x64
+    mstore
+    dup1
+    push1 0x19
+    add
+    calldataload
+    push1 0x60
+    shr
+    push0
+    push0
+    dup6
+    push0
+    dup7
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    push1 0x14
+    add
+    push1 0x19
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 003072
+    dup1
+    push1 0x02
+    add
+    calldataload
+    dup1
+    push0
+    mstore
+    dup1
+    push1 0x04
+    byte
+    push1 0x04
+    mstore
+    dup1
+    push1 0x05
+    byte
+    push1 0x24
+    mstore
+    push1 0x06
+    byte
+    swap1
+    push0
+    push1 0x44
+    mstore
+    push0
+    push1 0x84
+    mstore
+    dup1
+    push1 0x09
+    add
+    calldataload
+    push0
+    byte
+    dup2
+    sub
+    calldataload
+    push1 0x90
+    shr
+    push1 0x44
+    mstore
+    push0
+    push1 0x64
+    mstore
+    push0
+    swap1
+    dup1
+    push1 0x0a
+    add
+    calldataload
+    push1 0x90
+    shr
+    push1 0x64
+    mstore
+    dup1
+    push1 0x18
+    add
+    calldataload
+    push1 0x60
+    shr
+    push0
+    push0
+    dup6
+    push0
+    dup7
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    push1 0x14
+    add
+    push1 0x18
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 0030d7
+    dup1
+    push1 0x02
+    add
+    calldataload
+    dup1
+    push0
+    mstore
+    dup1
+    push1 0x04
+    byte
+    push1 0x04
+    mstore
+    dup1
+    push1 0x05
+    byte
+    push1 0x24
+    mstore
+    push1 0x06
+    byte
+    swap1
+    push0
+    push1 0x44
+    mstore
+    push0
+    push1 0x84
+    mstore
+    dup1
+    push1 0x09
+    add
+    calldataload
+    push0
+    byte
+    dup2
+    sub
+    calldataload
+    push1 0x90
+    shr
+    push1 0x44
+    mstore
+    push1 0x44
+    mload
+    push4 0x2e1a7d4d // withdraw(uint256)
+    push1 0xe0
+    shl
+    push1 0x64
+    mstore
+    dup1
+    push1 0x68
+    mstore
+    push0
+    push0
+    push1 0x24
+    push1 0x64
+    push0
+    push20 0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2 // WETH
+    gas
+    call
+    pop
+    push0
+    push1 0x64
+    mstore
+    swap1
+    dup1
+    push1 0x0a
+    add
+    calldataload
+    push1 0x90
+    shr
+    push1 0x64
+    mstore
+    dup1
+    push1 0x18
+    add
+    calldataload
+    push1 0x60
+    shr
+    push0
+    push0
+    dup6
+    push0
+    dup7
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    push1 0x14
+    add
+    push1 0x18
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 00316c
+    dup1
+    push1 0x02
+    add
+    calldataload
+    dup1
+    push0
+    mstore
+    dup1
+    push1 0x04
+    byte
+    push1 0x04
+    mstore
+    dup1
+    push1 0x05
+    byte
+    push1 0x24
+    mstore
+    push1 0x06
+    byte
+    swap1
+    push0
+    push1 0x44
+    mstore
+    push0
+    push1 0x84
+    mstore
+    dup1
+    push1 0x09
+    add
+    calldataload
+    push1 0x90
+    shr
+    push1 0x44
+    mstore
+    push0
+    push1 0x64
+    mstore
+    push0
+    swap1
+    dup1
+    push1 0x17
+    add
+    calldataload
+    push1 0x90
+    shr
+    push1 0x64
+    mstore
+    dup1
+    push1 0x25
+    add
+    calldataload
+    push1 0xf0
+    shr
+    dup2
+    sub
+    calldataload
+    push1 0x60
+    shr
+    push1 0x20
+    dup5
+    sub
+    mstore
+    dup1
+    push1 0x27
+    add
+    calldataload
+    push1 0x60
+    shr
+    push0
+    push0
+    dup6
+    push0
+    dup7
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    push1 0x14
+    add
+    push1 0x27
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 0031df
+    dup1
+    push1 0x02
+    add
+    calldataload
+    dup1
+    push0
+    mstore
+    dup1
+    push1 0x04
+    byte
+    push1 0x04
+    mstore
+    dup1
+    push1 0x05
+    byte
+    push1 0x24
+    mstore
+    push1 0x06
+    byte
+    swap1
+    push0
+    push1 0x44
+    mstore
+    push0
+    push1 0x84
+    mstore
+    dup1
+    push1 0x09
+    add
+    calldataload
+    push1 0x90
+    shr
+    push1 0x44
+    mstore
+    push0
+    push1 0x64
+    mstore
+    push0
+    swap1
+    dup1
+    push1 0x17
+    add
+    calldataload
+    push1 0x90
+    shr
+    push1 0x64
+    mstore
+    dup1
+    push1 0x25
+    add
+    calldataload
+    push1 0xf0
+    shr
+    dup2
+    add
+    calldataload
+    push1 0x60
+    shr
+    push1 0x20
+    dup5
+    sub
+    mstore
+    dup1
+    push1 0x27
+    add
+    calldataload
+    push1 0x60
+    shr
+    push0
+    push0
+    dup6
+    push0
+    dup7
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    push1 0x14
+    add
+    push1 0x27
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 003252
+    dup1
+    push1 0x02
+    add
+    calldataload
+    dup1
+    push0
+    mstore
+    dup1
+    push1 0x04
+    byte
+    push1 0x04
+    mstore
+    dup1
+    push1 0x05
+    byte
+    push1 0x24
+    mstore
+    push1 0x06
+    byte
+    swap1
+    push0
+    push1 0x44
+    mstore
+    push0
+    push1 0x84
+    mstore
+    dup1
+    push1 0x09
+    add
+    calldataload
+    push1 0x90
+    shr
+    push1 0x44
+    mstore
+    push1 0x44
+    mload
+    push4 0x2e1a7d4d // withdraw(uint256)
+    push1 0xe0
+    shl
+    push1 0x64
+    mstore
+    dup1
+    push1 0x68
+    mstore
+    push0
+    push0
+    push1 0x24
+    push1 0x64
+    push0
+    push20 0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2 // WETH
+    gas
+    call
+    pop
+    push0
+    push1 0x64
+    mstore
+    swap1
+    dup1
+    push1 0x17
+    add
+    calldataload
+    push1 0x90
+    shr
+    push1 0x64
+    mstore
+    dup1
+    push1 0x25
+    add
+    calldataload
+    push1 0xf0
+    shr
+    dup2
+    sub
+    calldataload
+    push1 0x60
+    shr
+    push1 0x20
+    dup5
+    sub
+    mstore
+    dup1
+    push1 0x27
+    add
+    calldataload
+    push1 0x60
+    shr
+    push0
+    push0
+    dup6
+    push0
+    dup7
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    push1 0x14
+    add
+    push1 0x27
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 0032f5
+    dup1
+    push1 0x02
+    add
+    calldataload
+    dup1
+    push0
+    mstore
+    dup1
+    push1 0x04
+    byte
+    push1 0x04
+    mstore
+    dup1
+    push1 0x05
+    byte
+    push1 0x24
+    mstore
+    push1 0x06
+    byte
+    swap1
+    push0
+    push1 0x44
+    mstore
+    push0
+    push1 0x84
+    mstore
+    dup1
+    push1 0x09
+    add
+    calldataload
+    push1 0x90
+    shr
+    push1 0x44
+    mstore
+    push1 0x44
+    mload
+    push4 0x2e1a7d4d // withdraw(uint256)
+    push1 0xe0
+    shl
+    push1 0x64
+    mstore
+    dup1
+    push1 0x68
+    mstore
+    push0
+    push0
+    push1 0x24
+    push1 0x64
+    push0
+    push20 0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2 // WETH
+    gas
+    call
+    pop
+    push0
+    push1 0x64
+    mstore
+    swap1
+    dup1
+    push1 0x17
+    add
+    calldataload
+    push1 0x90
+    shr
+    push1 0x64
+    mstore
+    dup1
+    push1 0x25
+    add
+    calldataload
+    push1 0xf0
+    shr
+    dup2
+    add
+    calldataload
+    push1 0x60
+    shr
+    push1 0x20
+    dup5
+    sub
+    mstore
+    dup1
+    push1 0x27
+    add
+    calldataload
+    push1 0x60
+    shr
+    push0
+    push0
+    dup6
+    push0
+    dup7
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    push1 0x14
+    add
+    push1 0x27
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 003398
+    dup1
+    push1 0x02
+    add
+    calldataload
+    dup1
+    push0
+    mstore
+    dup1
+    push1 0x04
+    byte
+    push1 0x04
+    mstore
+    dup1
+    push1 0x05
+    byte
+    push1 0x24
+    mstore
+    push1 0x06
+    byte
+    swap1
+    push0
+    push1 0x44
+    mstore
+    push0
+    push1 0x84
+    mstore
+    dup1
+    push1 0x09
+    add
+    calldataload
+    dup1
+    push0
+    byte
+    dup3
+    sub
+    calldataload
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    chainid
+    byte
+    mstore
+    push0
+    push1 0x64
+    mstore
+    push0
+    swap1
+    dup1
+    push1 0x0b
+    add
+    calldataload
+    push1 0x90
+    shr
+    push1 0x64
+    mstore
+    dup1
+    push1 0x19
+    add
+    calldataload
+    push1 0xf0
+    shr
+    dup2
+    sub
+    calldataload
+    push1 0x60
+    shr
+    push1 0x20
+    dup5
+    sub
+    mstore
+    dup1
+    push1 0x1b
+    add
+    calldataload
+    push1 0x60
+    shr
+    push0
+    push0
+    dup6
+    push0
+    dup7
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    push1 0x14
+    add
+    push1 0x1b
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 003415
+    dup1
+    push1 0x02
+    add
+    calldataload
+    dup1
+    push0
+    mstore
+    dup1
+    push1 0x04
+    byte
+    push1 0x04
+    mstore
+    dup1
+    push1 0x05
+    byte
+    push1 0x24
+    mstore
+    push1 0x06
+    byte
+    swap1
+    push0
+    push1 0x44
+    mstore
+    push0
+    push1 0x84
+    mstore
+    dup1
+    push1 0x09
+    add
+    calldataload
+    dup1
+    push0
+    byte
+    dup3
+    sub
+    calldataload
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    chainid
+    byte
+    mstore
+    push0
+    push1 0x64
+    mstore
+    push0
+    swap1
+    dup1
+    push1 0x0b
+    add
+    calldataload
+    push1 0x90
+    shr
+    push1 0x64
+    mstore
+    dup1
+    push1 0x19
+    add
+    calldataload
+    push1 0xf0
+    shr
+    dup2
+    add
+    calldataload
+    push1 0x60
+    shr
+    push1 0x20
+    dup5
+    sub
+    mstore
+    dup1
+    push1 0x1b
+    add
+    calldataload
+    push1 0x60
+    shr
+    push0
+    push0
+    dup6
+    push0
+    dup7
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    push1 0x14
+    add
+    push1 0x1b
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 003492
+    dup1
+    push1 0x02
+    add
+    calldataload
+    dup1
+    push0
+    mstore
+    dup1
+    push1 0x04
+    byte
+    push1 0x04
+    mstore
+    dup1
+    push1 0x05
+    byte
+    push1 0x24
+    mstore
+    push1 0x06
+    byte
+    swap1
+    push0
+    push1 0x44
+    mstore
+    push0
+    push1 0x84
+    mstore
+    dup1
+    push1 0x09
+    add
+    calldataload
+    dup1
+    push0
+    byte
+    dup3
+    sub
+    calldataload
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    chainid
+    byte
+    mstore
+    push1 0x44
+    mload
+    push4 0x2e1a7d4d // withdraw(uint256)
+    push1 0xe0
+    shl
+    push1 0x64
+    mstore
+    dup1
+    push1 0x68
+    mstore
+    push0
+    push0
+    push1 0x24
+    push1 0x64
+    push0
+    push20 0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2 // WETH
+    gas
+    call
+    pop
+    push0
+    push1 0x64
+    mstore
+    swap1
+    dup1
+    push1 0x0b
+    add
+    calldataload
+    push1 0x90
+    shr
+    push1 0x64
+    mstore
+    dup1
+    push1 0x19
+    add
+    calldataload
+    push1 0xf0
+    shr
+    dup2
+    sub
+    calldataload
+    push1 0x60
+    shr
+    push1 0x20
+    dup5
+    sub
+    mstore
+    dup1
+    push1 0x1b
+    add
+    calldataload
+    push1 0x60
+    shr
+    push0
+    push0
+    dup6
+    push0
+    dup7
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    push1 0x14
+    add
+    push1 0x1b
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 00353f
+    dup1
+    push1 0x02
+    add
+    calldataload
+    dup1
+    push0
+    mstore
+    dup1
+    push1 0x04
+    byte
+    push1 0x04
+    mstore
+    dup1
+    push1 0x05
+    byte
+    push1 0x24
+    mstore
+    push1 0x06
+    byte
+    swap1
+    push0
+    push1 0x44
+    mstore
+    push0
+    push1 0x84
+    mstore
+    dup1
+    push1 0x09
+    add
+    calldataload
+    dup1
+    push0
+    byte
+    dup3
+    sub
+    calldataload
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    chainid
+    byte
+    mstore
+    push1 0x44
+    mload
+    push4 0x2e1a7d4d // withdraw(uint256)
+    push1 0xe0
+    shl
+    push1 0x64
+    mstore
+    dup1
+    push1 0x68
+    mstore
+    push0
+    push0
+    push1 0x24
+    push1 0x64
+    push0
+    push20 0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2 // WETH
+    gas
+    call
+    pop
+    push0
+    push1 0x64
+    mstore
+    swap1
+    dup1
+    push1 0x0b
+    add
+    calldataload
+    push1 0x90
+    shr
+    push1 0x64
+    mstore
+    dup1
+    push1 0x19
+    add
+    calldataload
+    push1 0xf0
+    shr
+    dup2
+    add
+    calldataload
+    push1 0x60
+    shr
+    push1 0x20
+    dup5
+    sub
+    mstore
+    dup1
+    push1 0x1b
+    add
+    calldataload
+    push1 0x60
+    shr
+    push0
+    push0
+    dup6
+    push0
+    dup7
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    push1 0x14
+    add
+    push1 0x1b
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 0035ec
+    dup1
+    push1 0x02
+    add
+    calldataload
+    dup1
+    push0
+    mstore
+    dup1
+    push1 0x04
+    byte
+    push1 0x04
+    mstore
+    dup1
+    push1 0x05
+    byte
+    push1 0x24
+    mstore
+    push1 0x06
+    byte
+    swap1
+    push0
+    push1 0x44
+    mstore
+    push0
+    push1 0x84
+    mstore
+    dup1
+    push1 0x09
+    add
+    calldataload
+    push0
+    byte
+    dup2
+    sub
+    calldataload
+    push1 0x90
+    shr
+    push1 0x44
+    mstore
+    push0
+    push1 0x64
+    mstore
+    push0
+    swap1
+    dup1
+    push1 0x0a
+    add
+    calldataload
+    push1 0x90
+    shr
+    push1 0x64
+    mstore
+    dup1
+    push1 0x18
+    add
+    calldataload
+    push1 0xf0
+    shr
+    dup2
+    sub
+    calldataload
+    push1 0x60
+    shr
+    push1 0x20
+    dup5
+    sub
+    mstore
+    dup1
+    push1 0x1a
+    add
+    calldataload
+    push1 0x60
+    shr
+    push0
+    push0
+    dup6
+    push0
+    dup7
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    push1 0x14
+    add
+    push1 0x1a
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 003664
+    dup1
+    push1 0x02
+    add
+    calldataload
+    dup1
+    push0
+    mstore
+    dup1
+    push1 0x04
+    byte
+    push1 0x04
+    mstore
+    dup1
+    push1 0x05
+    byte
+    push1 0x24
+    mstore
+    push1 0x06
+    byte
+    swap1
+    push0
+    push1 0x44
+    mstore
+    push0
+    push1 0x84
+    mstore
+    dup1
+    push1 0x09
+    add
+    calldataload
+    push0
+    byte
+    dup2
+    sub
+    calldataload
+    push1 0x90
+    shr
+    push1 0x44
+    mstore
+    push0
+    push1 0x64
+    mstore
+    push0
+    swap1
+    dup1
+    push1 0x0a
+    add
+    calldataload
+    push1 0x90
+    shr
+    push1 0x64
+    mstore
+    dup1
+    push1 0x18
+    add
+    calldataload
+    push1 0xf0
+    shr
+    dup2
+    add
+    calldataload
+    push1 0x60
+    shr
+    push1 0x20
+    dup5
+    sub
+    mstore
+    dup1
+    push1 0x1a
+    add
+    calldataload
+    push1 0x60
+    shr
+    push0
+    push0
+    dup6
+    push0
+    dup7
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    push1 0x14
+    add
+    push1 0x1a
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 0036dc
+    dup1
+    push1 0x02
+    add
+    calldataload
+    dup1
+    push0
+    mstore
+    dup1
+    push1 0x04
+    byte
+    push1 0x04
+    mstore
+    dup1
+    push1 0x05
+    byte
+    push1 0x24
+    mstore
+    push1 0x06
+    byte
+    swap1
+    push0
+    push1 0x44
+    mstore
+    push0
+    push1 0x84
+    mstore
+    dup1
+    push1 0x09
+    add
+    calldataload
+    push0
+    byte
+    dup2
+    sub
+    calldataload
+    push1 0x90
+    shr
+    push1 0x44
+    mstore
+    push1 0x44
+    mload
+    push4 0x2e1a7d4d // withdraw(uint256)
+    push1 0xe0
+    shl
+    push1 0x64
+    mstore
+    dup1
+    push1 0x68
+    mstore
+    push0
+    push0
+    push1 0x24
+    push1 0x64
+    push0
+    push20 0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2 // WETH
+    gas
+    call
+    pop
+    push0
+    push1 0x64
+    mstore
+    swap1
+    dup1
+    push1 0x0a
+    add
+    calldataload
+    push1 0x90
+    shr
+    push1 0x64
+    mstore
+    dup1
+    push1 0x18
+    add
+    calldataload
+    push1 0xf0
+    shr
+    dup2
+    sub
+    calldataload
+    push1 0x60
+    shr
+    push1 0x20
+    dup5
+    sub
+    mstore
+    dup1
+    push1 0x1a
+    add
+    calldataload
+    push1 0x60
+    shr
+    push0
+    push0
+    dup6
+    push0
+    dup7
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    push1 0x14
+    add
+    push1 0x1a
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 003784
+    dup1
+    push1 0x02
+    add
+    calldataload
+    dup1
+    push0
+    mstore
+    dup1
+    push1 0x04
+    byte
+    push1 0x04
+    mstore
+    dup1
+    push1 0x05
+    byte
+    push1 0x24
+    mstore
+    push1 0x06
+    byte
+    swap1
+    push0
+    push1 0x44
+    mstore
+    push0
+    push1 0x84
+    mstore
+    dup1
+    push1 0x09
+    add
+    calldataload
+    push0
+    byte
+    dup2
+    sub
+    calldataload
+    push1 0x90
+    shr
+    push1 0x44
+    mstore
+    push1 0x44
+    mload
+    push4 0x2e1a7d4d // withdraw(uint256)
+    push1 0xe0
+    shl
+    push1 0x64
+    mstore
+    dup1
+    push1 0x68
+    mstore
+    push0
+    push0
+    push1 0x24
+    push1 0x64
+    push0
+    push20 0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2 // WETH
+    gas
+    call
+    pop
+    push0
+    push1 0x64
+    mstore
+    swap1
+    dup1
+    push1 0x0a
+    add
+    calldataload
+    push1 0x90
+    shr
+    push1 0x64
+    mstore
+    dup1
+    push1 0x18
+    add
+    calldataload
+    push1 0xf0
+    shr
+    dup2
+    add
+    calldataload
+    push1 0x60
+    shr
+    push1 0x20
+    dup5
+    sub
+    mstore
+    dup1
+    push1 0x1a
+    add
+    calldataload
+    push1 0x60
+    shr
+    push0
+    push0
+    dup6
+    push0
+    dup7
+    dup6
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    pop
+    push1 0x14
+    add
+    push1 0x1a
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 00382c
+    push4 0xa9059cbb // transfer(address,uint256)
+    push1 0xe0
+    shl
+    push0
+    mstore
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push1 0x90
+    shr
+    push1 0x24
+    mstore
+    dup1
+    push1 0x10
+    add
+    calldataload
+    push1 0xf0
+    shr
+    dup2
+    sub
+    calldataload
+    push1 0x60
+    shr
+    push1 0x04
+    mstore
+    push1 0x12
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    push0
+    push0
+    push1 0x44
+    push0
+    push0
+    dup6
+    gas
+    call
+    pop
+    pop
+    push1 0x14
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 00386f
+    push4 0xa9059cbb // transfer(address,uint256)
+    push1 0xe0
+    shl
+    push0
+    mstore
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push1 0x90
+    shr
+    push1 0x24
+    mstore
+    dup1
+    push1 0x10
+    add
+    calldataload
+    push1 0xf0
+    shr
+    dup2
+    add
+    calldataload
+    push1 0x60
+    shr
+    push1 0x04
+    mstore
+    push1 0x12
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    push0
+    push0
+    push1 0x44
+    push0
+    push0
+    dup6
+    gas
+    call
+    pop
+    pop
+    push1 0x14
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 0038b2
+    push4 0xd0e30db0 // deposit()
+    push1 0xe0
+    shl
+    push0
+    mstore
+    push1 0x64
+    mload
+    push0
+    push0
+    push1 0x04
+    push0
+    dup5
+    push20 0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2 // WETH
+    gas
+    call
+    pop
+    pop
+    push1 0x02
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 0038e8
+    push4 0x095ea7b3 // approve(address,uint256)
+    push1 0xe0
+    shl
+    push0
+    mstore
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push0
+    byte
+    dup2
+    add
+    calldataload
+    push1 0x60
+    shr
+    push1 0x04
+    mstore
+    chainid
+    push0
+    sub
+    push1 0x24
+    mstore
+    push0
+    push0
+    push1 0x44
+    push0
+    push0
+    push20 0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2 // WETH
+    gas
+    call
+    pop
+    push1 0x03
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 003930
+    push4 0x095ea7b3 // approve(address,uint256)
+    push1 0xe0
+    shl
+    push0
+    mstore
+    dup1
+    push1 0x02
+    add
+    calldataload
+    dup1
+    push1 0x60
+    shr
+    swap1
+    push1 0x14
+    byte
+    dup3
+    add
+    calldataload
+    push1 0x60
+    shr
+    push1 0x04
+    mstore
+    chainid
+    push0
+    sub
+    push1 0x24
+    mstore
+    push0
+    push0
+    push1 0x44
+    push0
+    push0
+    dup6
+    gas
+    call
+    pop
+    pop
+    push1 0x17
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 00396b
+    push4 0x52bbbe29 // swap((bytes32,uint8,address,address,uint256,bytes),(address,bool,address,bool),uint256,uint256)
+    push1 0xe0
+    shl
+    push0
+    mstore
+    dup1
+    push1 0x02
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    push2 0x0124
+    mstore
+    push1 0x14
+    add
+    calldataload
+    push1 0x60
+    shr
+    push2 0x0144
+    mstore
+    dup1
+    push1 0x2a
+    add
+    calldataload
+    push1 0x90
+    shr
+    push2 0x0164
+    mstore
+    dup1
+    push1 0x38
+    add
+    calldataload
+    push1 0xf0
+    shr
+    dup2
+    sub
+    calldataload
+    push1 0x60
+    shr
+    push1 0x64
+    mstore
+    push1 0xe0
+    push1 0x04
+    mstore
+    address
+    push1 0x24
+    mstore
+    push0
+    push1 0x44
+    mstore
+    push0
+    push1 0x84
+    mstore
+    push1 0x3a
+    add
+    dup1
+    calldataload
+    push1 0x90
+    shr
+    push1 0xa4
+    mstore
+    chainid
+    push0
+    sub
+    push1 0xc4
+    mstore
+    push1 0x0e
+    add
+    dup1
+    calldataload
+    push1 0xe4
+    mstore
+    push0
+    push2 0x0104
+    mstore
+    push1 0xc0
+    push2 0x0184
+    mstore
+    push0
+    push2 0x01a4
+    mstore
+    push0
+    push0
+    push2 0x01c4
+    push0
+    push0
+    push20 0xba12222222228d8ba445958a75a0704d566bf2c8 // Balancer V2 Vault
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    push1 0x20
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 003a10
+    push4 0x52bbbe29 // swap((bytes32,uint8,address,address,uint256,bytes),(address,bool,address,bool),uint256,uint256)
+    push1 0xe0
+    shl
+    push0
+    mstore
+    dup1
+    push1 0x02
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    push2 0x0124
+    mstore
+    push1 0x14
+    add
+    calldataload
+    push1 0x60
+    shr
+    push2 0x0144
+    mstore
+    dup1
+    push1 0x2a
+    add
+    calldataload
+    push1 0x90
+    shr
+    push2 0x0164
+    mstore
+    dup1
+    push1 0x38
+    add
+    calldataload
+    push1 0xf0
+    shr
+    dup2
+    add
+    calldataload
+    push1 0x60
+    shr
+    push1 0x64
+    mstore
+    push1 0xe0
+    push1 0x04
+    mstore
+    address
+    push1 0x24
+    mstore
+    push0
+    push1 0x44
+    mstore
+    push0
+    push1 0x84
+    mstore
+    push1 0x3a
+    add
+    dup1
+    calldataload
+    push1 0x90
+    shr
+    push1 0xa4
+    mstore
+    chainid
+    push0
+    sub
+    push1 0xc4
+    mstore
+    push1 0x0e
+    add
+    dup1
+    calldataload
+    push1 0xe4
+    mstore
+    push0
+    push2 0x0104
+    mstore
+    push1 0xc0
+    push2 0x0184
+    mstore
+    push0
+    push2 0x01a4
+    mstore
+    push0
+    push0
+    push2 0x01c4
+    push0
+    push0
+    push20 0xba12222222228d8ba445958a75a0704d566bf2c8 // Balancer V2 Vault
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    push1 0x20
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 003ab5
+    push4 0x52bbbe29 // swap((bytes32,uint8,address,address,uint256,bytes),(address,bool,address,bool),uint256,uint256)
+    push1 0xe0
+    shl
+    push0
+    mstore
+    dup1
+    push1 0x02
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    push2 0x0124
+    mstore
+    push1 0x14
+    add
+    calldataload
+    push1 0x60
+    shr
+    push2 0x0144
+    mstore
+    dup1
+    push1 0x2a
+    add
+    calldataload
+    push1 0x90
+    shr
+    push2 0x0164
+    mstore
+    address
+    push1 0x64
+    mstore
+    push1 0xe0
+    push1 0x04
+    mstore
+    address
+    push1 0x24
+    mstore
+    push0
+    push1 0x44
+    mstore
+    push0
+    push1 0x84
+    mstore
+    push1 0x38
+    add
+    dup1
+    calldataload
+    push1 0x90
+    shr
+    push1 0xa4
+    mstore
+    chainid
+    push0
+    sub
+    push1 0xc4
+    mstore
+    push1 0x0e
+    add
+    dup1
+    calldataload
+    push1 0xe4
+    mstore
+    push0
+    push2 0x0104
+    mstore
+    push1 0xc0
+    push2 0x0184
+    mstore
+    push0
+    push2 0x01a4
+    mstore
+    push0
+    push0
+    push2 0x01c4
+    push0
+    push0
+    push20 0xba12222222228d8ba445958a75a0704d566bf2c8 // Balancer V2 Vault
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    push1 0x20
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 003b4d
+    push4 0x52bbbe29 // swap((bytes32,uint8,address,address,uint256,bytes),(address,bool,address,bool),uint256,uint256)
+    push1 0xe0
+    shl
+    push0
+    mstore
+    dup1
+    push1 0x02
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    push2 0x0124
+    mstore
+    push1 0x14
+    add
+    calldataload
+    push1 0x60
+    shr
+    push2 0x0144
+    mstore
+    push0
+    push2 0x0164
+    mstore
+    dup1
+    push1 0x2a
+    add
+    calldataload
+    dup1
+    push0
+    byte
+    dup3
+    sub
+    calldataload
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    push1 0xe8
+    shr
+    push2 0xffff
+    and
+    mstore
+    dup1
+    push1 0x2d
+    add
+    calldataload
+    push1 0xf0
+    shr
+    dup2
+    sub
+    calldataload
+    push1 0x60
+    shr
+    push1 0x64
+    mstore
+    push1 0xe0
+    push1 0x04
+    mstore
+    address
+    push1 0x24
+    mstore
+    push0
+    push1 0x44
+    mstore
+    push0
+    push1 0x84
+    mstore
+    push1 0x2f
+    add
+    dup1
+    calldataload
+    push1 0x90
+    shr
+    push1 0xa4
+    mstore
+    chainid
+    push0
+    sub
+    push1 0xc4
+    mstore
+    push1 0x0e
+    add
+    dup1
+    calldataload
+    push1 0xe4
+    mstore
+    push0
+    push2 0x0104
+    mstore
+    push1 0xc0
+    push2 0x0184
+    mstore
+    push0
+    push2 0x01a4
+    mstore
+    push0
+    push0
+    push2 0x01c4
+    push0
+    push0
+    push20 0xba12222222228d8ba445958a75a0704d566bf2c8 // Balancer V2 Vault
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    push1 0x20
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 003c05
+    push4 0x52bbbe29 // swap((bytes32,uint8,address,address,uint256,bytes),(address,bool,address,bool),uint256,uint256)
+    push1 0xe0
+    shl
+    push0
+    mstore
+    dup1
+    push1 0x02
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    push2 0x0124
+    mstore
+    push1 0x14
+    add
+    calldataload
+    push1 0x60
+    shr
+    push2 0x0144
+    mstore
+    push0
+    push2 0x0164
+    mstore
+    dup1
+    push1 0x2a
+    add
+    calldataload
+    dup1
+    push0
+    byte
+    dup3
+    sub
+    calldataload
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    push1 0xe8
+    shr
+    push2 0xffff
+    and
+    mstore
+    dup1
+    push1 0x2d
+    add
+    calldataload
+    push1 0xf0
+    shr
+    dup2
+    add
+    calldataload
+    push1 0x60
+    shr
+    push1 0x64
+    mstore
+    push1 0xe0
+    push1 0x04
+    mstore
+    address
+    push1 0x24
+    mstore
+    push0
+    push1 0x44
+    mstore
+    push0
+    push1 0x84
+    mstore
+    push1 0x2f
+    add
+    dup1
+    calldataload
+    push1 0x90
+    shr
+    push1 0xa4
+    mstore
+    chainid
+    push0
+    sub
+    push1 0xc4
+    mstore
+    push1 0x0e
+    add
+    dup1
+    calldataload
+    push1 0xe4
+    mstore
+    push0
+    push2 0x0104
+    mstore
+    push1 0xc0
+    push2 0x0184
+    mstore
+    push0
+    push2 0x01a4
+    mstore
+    push0
+    push0
+    push2 0x01c4
+    push0
+    push0
+    push20 0xba12222222228d8ba445958a75a0704d566bf2c8 // Balancer V2 Vault
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    push1 0x20
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 003cbd
+    push4 0x52bbbe29 // swap((bytes32,uint8,address,address,uint256,bytes),(address,bool,address,bool),uint256,uint256)
+    push1 0xe0
+    shl
+    push0
+    mstore
+    dup1
+    push1 0x02
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    push2 0x0124
+    mstore
+    push1 0x14
+    add
+    calldataload
+    push1 0x60
+    shr
+    push2 0x0144
+    mstore
+    push0
+    push2 0x0164
+    mstore
+    dup1
+    push1 0x2a
+    add
+    calldataload
+    dup1
+    push0
+    byte
+    dup3
+    sub
+    calldataload
+    push1 0xe0
+    shr
+    push1 0xe0
+    shl
+    swap1
+    push1 0xe8
+    shr
+    push2 0xffff
+    and
+    mstore
+    address
+    push1 0x64
+    mstore
+    push1 0xe0
+    push1 0x04
+    mstore
+    address
+    push1 0x24
+    mstore
+    push0
+    push1 0x44
+    mstore
+    push0
+    push1 0x84
+    mstore
+    push1 0x2d
+    add
+    dup1
+    calldataload
+    push1 0x90
+    shr
+    push1 0xa4
+    mstore
+    chainid
+    push0
+    sub
+    push1 0xc4
+    mstore
+    push1 0x0e
+    add
+    dup1
+    calldataload
+    push1 0xe4
+    mstore
+    push0
+    push2 0x0104
+    mstore
+    push1 0xc0
+    push2 0x0184
+    mstore
+    push0
+    push2 0x01a4
+    mstore
+    push0
+    push0
+    push2 0x01c4
+    push0
+    push0
+    push20 0xba12222222228d8ba445958a75a0704d566bf2c8 // Balancer V2 Vault
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    push1 0x20
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 003d68
+    push4 0x52bbbe29 // swap((bytes32,uint8,address,address,uint256,bytes),(address,bool,address,bool),uint256,uint256)
+    push1 0xe0
+    shl
+    push0
+    mstore
+    dup1
+    push1 0x02
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    push2 0x0124
+    mstore
+    push1 0x14
+    add
+    calldataload
+    push1 0x60
+    shr
+    push2 0x0144
+    mstore
+    dup1
+    push1 0x2a
+    add
+    calldataload
+    push0
+    byte
+    dup2
+    sub
+    calldataload
+    push1 0x90
+    shr
+    push2 0x0164
+    mstore
+    dup1
+    push1 0x2b
+    add
+    calldataload
+    push1 0xf0
+    shr
+    dup2
+    sub
+    calldataload
+    push1 0x60
+    shr
+    push1 0x64
+    mstore
+    push1 0xe0
+    push1 0x04
+    mstore
+    address
+    push1 0x24
+    mstore
+    push0
+    push1 0x44
+    mstore
+    push0
+    push1 0x84
+    mstore
+    push1 0x2d
+    add
+    dup1
+    calldataload
+    push1 0x90
+    shr
+    push1 0xa4
+    mstore
+    chainid
+    push0
+    sub
+    push1 0xc4
+    mstore
+    push1 0x0e
+    add
+    dup1
+    calldataload
+    push1 0xe4
+    mstore
+    push0
+    push2 0x0104
+    mstore
+    push1 0xc0
+    push2 0x0184
+    mstore
+    push0
+    push2 0x01a4
+    mstore
+    push0
+    push0
+    push2 0x01c4
+    push0
+    push0
+    push20 0xba12222222228d8ba445958a75a0704d566bf2c8 // Balancer V2 Vault
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    push1 0x20
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 003e12
+    push4 0x52bbbe29 // swap((bytes32,uint8,address,address,uint256,bytes),(address,bool,address,bool),uint256,uint256)
+    push1 0xe0
+    shl
+    push0
+    mstore
+    dup1
+    push1 0x02
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    push2 0x0124
+    mstore
+    push1 0x14
+    add
+    calldataload
+    push1 0x60
+    shr
+    push2 0x0144
+    mstore
+    dup1
+    push1 0x2a
+    add
+    calldataload
+    push0
+    byte
+    dup2
+    sub
+    calldataload
+    push1 0x90
+    shr
+    push2 0x0164
+    mstore
+    dup1
+    push1 0x2b
+    add
+    calldataload
+    push1 0xf0
+    shr
+    dup2
+    add
+    calldataload
+    push1 0x60
+    shr
+    push1 0x64
+    mstore
+    push1 0xe0
+    push1 0x04
+    mstore
+    address
+    push1 0x24
+    mstore
+    push0
+    push1 0x44
+    mstore
+    push0
+    push1 0x84
+    mstore
+    push1 0x2d
+    add
+    dup1
+    calldataload
+    push1 0x90
+    shr
+    push1 0xa4
+    mstore
+    chainid
+    push0
+    sub
+    push1 0xc4
+    mstore
+    push1 0x0e
+    add
+    dup1
+    calldataload
+    push1 0xe4
+    mstore
+    push0
+    push2 0x0104
+    mstore
+    push1 0xc0
+    push2 0x0184
+    mstore
+    push0
+    push2 0x01a4
+    mstore
+    push0
+    push0
+    push2 0x01c4
+    push0
+    push0
+    push20 0xba12222222228d8ba445958a75a0704d566bf2c8 // Balancer V2 Vault
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    push1 0x20
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 003ebc
+    push4 0x52bbbe29 // swap((bytes32,uint8,address,address,uint256,bytes),(address,bool,address,bool),uint256,uint256)
+    push1 0xe0
+    shl
+    push0
+    mstore
+    dup1
+    push1 0x02
+    add
+    dup1
+    calldataload
+    push1 0x60
+    shr
+    push2 0x0124
+    mstore
+    push1 0x14
+    add
+    calldataload
+    push1 0x60
+    shr
+    push2 0x0144
+    mstore
+    dup1
+    push1 0x2a
+    add
+    calldataload
+    push0
+    byte
+    dup2
+    sub
+    calldataload
+    push1 0x90
+    shr
+    push2 0x0164
+    mstore
+    address
+    push1 0x64
+    mstore
+    push1 0xe0
+    push1 0x04
+    mstore
+    address
+    push1 0x24
+    mstore
+    push0
+    push1 0x44
+    mstore
+    push0
+    push1 0x84
+    mstore
+    push1 0x2b
+    add
+    dup1
+    calldataload
+    push1 0x90
+    shr
+    push1 0xa4
+    mstore
+    chainid
+    push0
+    sub
+    push1 0xc4
+    mstore
+    push1 0x0e
+    add
+    dup1
+    calldataload
+    push1 0xe4
+    mstore
+    push0
+    push2 0x0104
+    mstore
+    push1 0xc0
+    push2 0x0184
+    mstore
+    push0
+    push2 0x01a4
+    mstore
+    push0
+    push0
+    push2 0x01c4
+    push0
+    push0
+    push20 0xba12222222228d8ba445958a75a0704d566bf2c8 // Balancer V2 Vault
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    push1 0x20
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 003f59
+    push4 0x095ea7b3 // approve(address,uint256)
+    push1 0xe0
+    shl
+    push0
+    mstore
+    push20 0xba12222222228d8ba445958a75a0704d566bf2c8 // Balancer V2 Vault
+    push1 0x04
+    mstore
+    chainid
+    push0
+    sub
+    push1 0x24
+    mstore
+    dup1
+    push1 0x02
+    add
+    calldataload
+    push0
+    byte
+    dup2
+    add
+    calldataload
+    push1 0x60
+    shr
+    push0
+    push0
+    push1 0x44
+    push0
+    push0
+    dup6
+    gas
+    call
+    pop
+    pop
+    push1 0x03
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 003fa3
+    push1 0x02
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    dup1
+    dup3
+    push1 0x24
+    add
+    push0
+    calldatacopy
+    push0
+    push0
+    dup3
+    push0
+    dup6
+    push1 0x02
+    add
+    calldataload
+    push1 0x90
+    shr
+    dup7
+    push1 0x10
+    add
+    calldataload
+    push1 0x60
+    shr
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    push1 0x24
+    add
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 003fd7
+    push1 0x02
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    dup1
+    dup3
+    push1 0x16
+    add
+    push0
+    calldatacopy
+    push0
+    push0
+    dup3
+    push0
+    dup6
+    push1 0x02
+    add
+    calldataload
+    push1 0x60
+    shr
+    gas
+    delegatecall
+    iszero
+    push1 0x69
+    jumpi
+    push1 0x16
+    add
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 004003
+    push4 0xe5d7bde6 // fillOrderTo((uint256,address,address,address,address,address,uint256,uint256,uint256,bytes),bytes,bytes,uint256,uint256,uint256,address)
+    push1 0xe0
+    shl
+    push0
+    mstore
+    push1 0x02
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    dup1
+    dup3
+    push1 0x02
+    add
+    push1 0x04
+    calldatacopy
+    push0
+    push0
+    dup3
+    push1 0x04
+    add
+    push0
+    push0
+    push20 0x1111111254eeb25477b68fb85ed929f73a960582 //
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    push1 0x02
+    add
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 00404b
+    push4 0xf497df75 //
+    push1 0xe0
+    shl
+    push0
+    mstore
+    push1 0x02
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    dup1
+    dup3
+    push1 0x02
+    add
+    push1 0x04
+    calldatacopy
+    push0
+    push0
+    dup3
+    push1 0x04
+    add
+    push0
+    push0
+    push20 0x111111125421ca6dc452d289314280a0f8842a65 //
+    gas
+    call
+    iszero
+    push1 0x69
+    jumpi
+    push1 0x02
+    add
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 004093
+    push1 0x20
+    push0
+    push0
+    returndatacopy
+    push0
+    mload
+    push1 0xa4
+    mload
+    gt
+    push1 0x69
+    jumpi
+    push1 0x02
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 0040ab
+    push1 0x02
+    add
+    dup1
+    calldataload
+    push1 0xf8
+    shr
+    push1 0x20
+    dup3
+    push1 0x01
+    add
+    calldataload
+    push1 0xf0
+    shr
+    dup3
+    returndatacopy
+    dup2
+    push1 0x03
+    add
+    calldataload
+    push1 0xf0
+    shr
+    mload
+    swap1
+    mload
+    lt
+    push1 0x69
+    jumpi
+    push1 0x05
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 0040d8
+    push1 0x02
+    add
+    dup1
+    calldataload
+    push1 0xf8
+    shr
+    push1 0x20
+    dup3
+    push1 0x01
+    add
+    calldataload
+    push1 0xf0
+    shr
+    dup3
+    returndatacopy
+    dup2
+    push1 0x03
+    add
+    calldataload
+    push1 0xf0
+    shr
+    mload
+    swap1
+    mload
+    gt
+    push1 0x69
+    jumpi
+    push1 0x05
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 004105
+    push1 0x02
+    add
+    dup1
+    calldataload
+    push1 0x90
+    shr
+    push1 0x20
+    dup3
+    push1 0x0e
+    add
+    calldataload
+    push1 0xf8
+    shr
+    push0
+    calldatacopy
+    push0
+    mload
+    lt
+    push1 0x69
+    jumpi
+    push1 0x0f
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 004129
+    push1 0x02
+    add
+    dup1
+    calldataload
+    push1 0x90
+    shr
+    push1 0x20
+    dup3
+    push1 0x0e
+    add
+    calldataload
+    push1 0xf8
+    shr
+    push0
+    calldatacopy
+    push0
+    mload
+    gt
+    push1 0x69
+    jumpi
+    push1 0x0f
+    add
+    dup1
+    calldataload
+    push1 0xf0
+    shr
+    jump
+    jumpdest // 00414d
+    caller
+    selfdestruct
+    jumpdest // 004150
+    push4 0x2e1a7d4d // withdraw(uint256)
+    push1 0xe0
+    shl
+    push0
+    mstore
+    push1 0x02
+    add
+    calldataload
+    push1 0x90
+    shr
+    dup1
+    push1 0x04
+    mstore
+    push0
+    push0
+    push1 0x24
+    push0
+    push0
+    push20 0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2 // WETH
+    gas
+    call
+    pop
+    push0
+    push0
+    push0
+    push0
+    dup5
+    origin
+    gas
+    call
+    stop
+    jumpdest // 00418d
+    push4 0x2e1a7d4d // withdraw(uint256)
+    push1 0xe0
+    shl
+    push0
+    mstore
+    push1 0x02
+    add
+    calldataload
+    push1 0x90
+    shr
+    dup1
+    push1 0x04
+    mstore
+    push0
+    push0
+    push1 0x24
+    push0
+    push0
+    push20 0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2 // WETH
+    gas
+    call
+    pop
+    push0
+    push0
+    push0
+    push0
+    dup5
+    coinbase
+    gas
+    call
+    stop
+}

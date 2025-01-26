@@ -1,3 +1,4 @@
+use anvil::eth::backend::mem::inspector::Inspector;
 use comfy_table::{Cell, Color};
 use serde::Serialize;
 use yansi::Paint;
@@ -9,11 +10,12 @@ pub struct TestResult {
     pub return_data: Option<String>,
     pub gas: u64,
     pub status: TestStatus,
-    pub logs: Vec<(u32, String)>,
+    #[serde(skip)]
+    pub inspector: Inspector,
 }
 
 /// A test status variant
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub enum TestStatus {
     Success,
     Revert,

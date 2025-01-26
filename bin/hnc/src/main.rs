@@ -12,11 +12,13 @@ use crate::arguments::{get_input, HuffArgs, TestCommands};
 use alloy_primitives::hex;
 use clap::{CommandFactory, Parser};
 use comfy_table::{modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL, Cell, Color, Row, Table};
+use foundry_cli::utils::LoadConfig;
+use foundry_evm_traces::InternalTraceMode;
 use huff_neo_codegen::Codegen;
 use huff_neo_core::Compiler;
 use huff_neo_test_runner::{
     prelude::{print_test_report, ReportKind},
-    HuffTester,
+    HuffTester, HuffTesterConfig, Inspector,
 };
 use huff_neo_utils::file::file_provider::FileSystemFileProvider;
 use huff_neo_utils::file::file_source::FileSource;
@@ -181,32 +183,80 @@ fn main() {
         return;
     }
 
-    if let Some(TestCommands::Test { format, match_ }) = cli.test {
-        match compiler.grab_contracts() {
-            Ok(contracts) => {
-                let match_ = Rc::new(match_);
-
-                for contract in &contracts {
-                    let tester = HuffTester::new(contract, Rc::clone(&match_));
-
-                    let start = Instant::now();
-                    match tester.execute() {
-                        Ok(res) => {
-                            print_test_report(res, ReportKind::from(&format), start);
-                        }
-                        Err(e) => {
-                            eprintln!("{}", Paint::red(&e));
-                            exit(1);
-                        }
-                    };
-                }
-            }
+    if let Some(TestCommands::Test(test_args)) = cli.test {
+        let contracts = match compiler.grab_contracts() {
+            Ok(contracts) => contracts,
             Err(e) => {
                 tracing::error!(target: "cli", "PARSER ERRORED!");
                 eprintln!("{}", Paint::red(&e));
                 exit(1);
             }
+        };
+
+        // Merge all configs.
+        let (mut config, mut evm_opts) = test_args.load_config_and_evm_opts().unwrap();
+
+        // Explicitly enable isolation for gas reports for more correct gas accounting.
+        if test_args.gas_report {
+            evm_opts.isolate = true;
+        } else {
+            // Do not collect gas report traces if gas report is not enabled.
+            config.fuzz.gas_report_samples = 0;
+            config.invariant.gas_report_samples = 0;
         }
+
+        let match_ = Rc::new(test_args.match_);
+        let rt = tokio::runtime::Builder::new_multi_thread().enable_all().build().unwrap();
+
+        for contract in &contracts {
+            let mut inspectors = Inspector::default();
+            if test_args.verbosity > 2 {
+                inspectors = inspectors.with_log_collector();
+            }
+            if test_args.verbosity > 3 {
+                inspectors = inspectors.with_steps_tracing();
+            }
+
+            let env = rt.block_on(evm_opts.evm_env()).unwrap();
+
+            // Choose the internal function tracing mode, if --decode-internal is provided.
+            let decode_internal = if test_args.decode_internal {
+                // If more than one function matched, we enable simple tracing.
+                // If only one function matched, we enable full tracing. This is done in `run_tests`.
+                if contracts.len() == 1 {
+                    InternalTraceMode::Full
+                } else {
+                    InternalTraceMode::Simple
+                }
+            } else {
+                InternalTraceMode::None
+            };
+
+            let tester_config = HuffTesterConfig::new()
+                .set_debug(test_args.debug)
+                .set_decode_internal(decode_internal)
+                .initial_balance(evm_opts.initial_balance)
+                .evm_spec(config.evm_spec_id())
+                .sender(evm_opts.sender)
+                .with_fork(evm_opts.get_fork(&config, env.clone()))
+                .enable_isolation(evm_opts.isolate)
+                .odyssey(evm_opts.odyssey);
+
+            let tester = HuffTester::new(contract, Rc::clone(&match_), inspectors, tester_config, env);
+
+            let _guard = rt.enter();
+            let start = Instant::now();
+            match tester.execute() {
+                Ok(res) => {
+                    rt.block_on(print_test_report(res, ReportKind::from(&test_args.format), start, test_args.verbosity));
+                }
+                Err(e) => {
+                    eprintln!("{}", Paint::red(&e));
+                    exit(1);
+                }
+            };
+        }
+
         return;
     }
 

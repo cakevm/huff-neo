@@ -1,0 +1,168 @@
+
+// https://docs.soliditylang.org/en/latest/control-structures.html?highlight=panic#panic-via-assert-and-error-via-require
+#define error Panic(uint256)
+// Constants
+// Solidity Panic Codes
+#define constant ASSERT_FALSE = 0x01
+
+// Events
+#define event LogOne()
+
+#define macro LOG() = takes (1) {
+    // Input stack:   [log_item]
+    pc             // [pc, log_item]
+    0x01           // [log_cheatcode, pc, log_item]
+    0x00 mstore    // [pc, log_item]
+    0x20 mstore    // [log_item]
+    0x40 mstore    // []
+    0x00 dup1      // [0x00, 0x00]
+    0x60 dup2      // [0x00, 0x60, 0x00, 0x00]
+    0x00000000000000000000000000000000bEefbabe
+    gas            // [gas, beef_babe, 0x00, 0x60, 0x00, 0x00]
+    staticcall pop // []
+}
+
+/*
+Solidity Panic.
+
+MEMORY LAYOUT WHEN THROWN
+| sig     || panic code                                                     |
+0x4e487b71  0000000000000000000000000000000000000000000000000000000000000001
+
+*/
+#define macro PANIC() = takes (1) returns (0) {
+    // takes:       // [panic_code]
+    __ERROR(Panic)  // [panic_sig, panic_code]
+    0x00            // [panic_sig_offset, panic_sig, panic_code]
+    mstore          // [panic_code]
+    0x04            // [panic_code_offset, panic_code]
+    mstore          // []
+    0x24            // [revert_size]
+    0x00            // [revert_offset, revert_size]
+    revert          // []
+}
+
+/*
+Solidity Assert.
+
+MEMORY LAYOUT WHEN THROWN
+| sig     || assert failed panic code                                       |
+0x4e487b71  0000000000000000000000000000000000000000000000000000000000000001
+
+*/
+#define macro ASSERT() = takes (1) returns (0) {
+    // takes:               // [condition]
+    do_not_panic            // [do_not_panic_jumpdest, condition]
+    jumpi                   // []
+    [ASSERT_FALSE]          // [assert_false]
+    PANIC()                 // []
+    do_not_panic:           // []
+}
+
+// memory reserved
+#define constant DEBUG_MSLOT = 0x220
+
+#define macro CONSOLE_LOG() = takes(2) returns (0) {
+    // see implementation of foundry console.log(string)
+    //  at https://github.com/foundry-rs/foundry/blob/master/testdata/logs/console.sol
+    // ________________________________________________________________
+    // Ex: console.log(iToHex(abi.encodeWithSignature("log(string)", "hello")));
+    // generates:
+    //   41304fac  signature (32 bits)
+    //   0000000000000000000000000000000000000000000000000000000000000020 string offset location
+    //   0000000000000000000000000000000000000000000000000000000000000005 string len
+    //   68656c6c6f000000000000000000000000000000000000000000000000000000 string data
+
+   /*
+        FYI, to replicate this in solidity/yul...
+        - The easy version:
+                bytes memory payload = abi.encodeWithSignature("log(string)", "hello");
+                // or: bytes memory payload = hex'41304fac0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000568656c6c6f000000000000000000000000000000000000000000000000000000';
+                uint256 payloadLength = payload.length;
+                address consoleAddress = address(0x000000000000000000636F6e736F6c652e6c6f67);
+                /// @solidity memory-safe-assembly
+                assembly {
+                    let payloadStart := add(payload, 32)
+                    let r := staticcall(gas(), consoleAddress, payloadStart, payloadLength, 0, 0)
+                }
+
+
+        - Or the full assembly version:
+                assembly {
+                    let loc:=0xa0
+                    mstore(loc, 0x41304fac00000000000000000000000000000000000000000000000000000000)
+                    mstore(add(loc, 4), 0x20) // header
+                    mstore(add(add(loc, 4), 0x20), 0x5) // string len
+                    mstore(add(add(loc, 4), 0x40), 0x68656c6c6f000000000000000000000000000000000000000000000000000000)
+                    let r := staticcall(gas(), 0x000000000000000000636F6e736F6c652e6c6f67, loc, 100, 0, 0)
+                }
+    */
+
+    //  => We're gonna replicate this behaviour here:
+
+    // 1) Copy args to memory
+    //    - store the "log" signature
+    0x41304fac00000000000000000000000000000000000000000000000000000000
+    [DEBUG_MSLOT]
+    mstore
+    //    - store the "0x20" offset
+    0x20
+    [DEBUG_MSLOT]
+    0x4 add // 4 is the signature size
+    mstore
+    //    - store string length at 0x20
+    // length is already pushed by caller on the stack... ex: 0x5
+    [DEBUG_MSLOT]
+    0x20 add
+    0x4 add
+    mstore
+    //    - store data at 0x40
+    // data is already pushed by caller on the stack... ex: 0x68656c6c6f000000000000000000000000000000000000000000000000000000
+    [DEBUG_MSLOT]
+    0x40 add
+    0x4 add
+    mstore
+
+    // 2) Perform the call
+    0x0
+    0x0
+    0x100 // payload size
+    [DEBUG_MSLOT] // payload start
+    0x000000000000000000636F6e736F6c652e6c6f67 // console address
+    gas
+    staticcall
+    pop // pop the "success" flag
+}
+
+
+#define macro CONSOLE_LOG_HELLO() = takes(0) returns (0) {
+    // console.log('hello')
+    0x68656c6c6f000000000000000000000000000000000000000000000000000000
+    0x5
+    CONSOLE_LOG()
+}
+
+
+#define macro ADD_TWO() = takes (2) returns (1) {
+    // Input Stack:  [a, b]
+    add           // [a + b]
+    // Return Stack: [a + b]
+}
+
+#[calldata("0x0000000000000000000000000000000000000000000000000000000000000001"), value(0x01)]
+#define test MY_TEST() = {
+    // Contract log
+    __EVENT_HASH(LogOne)      // [hash]
+    0x00 0x00 log1            // []
+
+
+    // console.log('hello')
+    0x68656c6c6f000000000000000000000000000000000000000000000000000000
+    0x5
+    CONSOLE_LOG()
+
+    // Test Assert
+    0x00 calldataload   // [0x01]
+    callvalue           // [0x01, 0x01]
+    eq ASSERT()
+}

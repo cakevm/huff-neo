@@ -1,4 +1,5 @@
 use crate::{evm_version::EVMVersion, opcodes::Opcode};
+use alloy_primitives::hex;
 use std::num::ParseIntError;
 
 /// Convert a string slice to a `[u8; 32]`
@@ -79,4 +80,9 @@ fn format_push0(evm_version: &EVMVersion, hex_literal: String) -> String {
 /// Converts a literal into its bytecode string representation
 pub fn format_literal(hex_literal: String) -> String {
     format!("{:02x}{hex_literal}", 95 + hex_literal.len() / 2)
+}
+
+/// Convert a slice of bytes to an u32
+pub fn bytes_to_u32(b: &[u8]) -> u32 {
+    u32::from_str_radix(hex::encode(b).as_str(), 16).unwrap_or(0)
 }

@@ -1,29 +1,26 @@
-use std::{convert::Infallible, fmt};
-
-use huff_neo_utils::prelude::CompilerError;
+use huff_neo_utils::error::CompilerError;
 use revm::primitives::EVMError;
+use std::convert::Infallible;
+use thiserror::Error;
 
 /// A Runner error
-#[derive(Debug)]
-pub struct RunnerError(pub String);
+#[derive(Debug, Error)]
+pub enum RunnerError {
+    #[error("Runner Error: {0}")]
+    GenericError(String),
 
-/// fmt::Display implementation for `RunnerError`
-impl fmt::Display for RunnerError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Runner Error: {}", self.0)
-    }
-}
+    #[error("Deployment Error: {0}")]
+    DeploymentError(String),
 
-/// Convert a `CompilerError` to a `RunnerError`
-impl From<CompilerError> for RunnerError {
-    fn from(e: CompilerError) -> Self {
-        RunnerError(e.to_string())
-    }
-}
+    #[error("Compiler Error: {0}")]
+    CompilerError(CompilerError),
 
-/// Convert a `EVMError` to a `RunnerError`
-impl From<EVMError<Infallible>> for RunnerError {
-    fn from(e: EVMError<Infallible>) -> Self {
-        RunnerError(format!("{e:?}"))
-    }
+    #[error("Evm transact error with err={0}")]
+    TransactError(String),
+
+    #[error(transparent)]
+    EVMError(#[from] EVMError<Infallible>),
+
+    #[error(transparent)]
+    EVMErrorDB(#[from] EVMError<foundry_evm::backend::DatabaseError>),
 }
