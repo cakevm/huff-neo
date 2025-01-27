@@ -4,6 +4,9 @@
 
 ## [Unreleased]
 
+## [1.0.5] - 2025-01-27
+- Use foundry's debugger for `--debug` flag.
+
 ## [1.0.4] - 2025-01-27
 - Rewrite the Huff test module to use `anvil` and `forge` features from `foundry` to fork the mainnet.
   - This is experimental, and there will be some breaking changes.
