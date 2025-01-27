@@ -20,9 +20,10 @@ pub mod errors;
 
 /// Re-export the Inspector from anvil crate
 pub use anvil::eth::backend::mem::inspector::Inspector;
+use foundry_debugger::Debugger;
 use foundry_evm::backend::Backend;
 use foundry_evm::fork::CreateFork;
-use foundry_evm::traces::InternalTraceMode;
+use foundry_evm::traces::{InternalTraceMode, SparsedTraceArena, TraceKind};
 use revm::db::CacheDB;
 use revm::primitives::{Env, SpecId};
 
@@ -157,13 +158,44 @@ impl<'t> HuffTester<'t> {
         }
 
         // Execute our tests and return a vector of the results
-        self.macros
+        let results = self
+            .macros
             .into_iter()
             .map(|macro_def| {
                 let db = Backend::spawn(self.config.fork.take());
                 let mut cache_db = CacheDB::new(db);
                 self.runner.run_test(&mut cache_db, macro_def, self.ast)
             })
-            .collect::<Result<Vec<TestResult>, RunnerError>>()
+            .collect::<Result<Vec<TestResult>, RunnerError>>();
+
+        if !self.config.debug {
+            return results;
+        }
+
+        //
+        // Run the debugger
+        //
+        let Ok(ref results_vec) = results else {
+            return results;
+        };
+        if results_vec.len() != 1 {
+            return Err(RunnerError::GenericError("Debugging is only supported for a single test".to_string()));
+        }
+        let Some(test_result) = results_vec.first() else {
+            return Err(RunnerError::GenericError("No test result found".to_string()));
+        };
+
+        let Some(trace_area) = test_result.clone().inspector.tracer else {
+            return Err(RunnerError::GenericError("No trace found".to_string()));
+        };
+
+        let traces = [(TraceKind::Execution, SparsedTraceArena { arena: trace_area.into_traces(), ignored: Default::default() })];
+
+        let builder = Debugger::builder().traces(traces.iter().filter(|(t, _)| t.is_execution()).cloned().collect());
+
+        let mut debugger = builder.build();
+        debugger.try_run_tui().map_err(|e| RunnerError::GenericError(format!("{:?}", e)))?;
+
+        results
     }
 }

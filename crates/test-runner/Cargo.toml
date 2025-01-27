@@ -19,6 +19,7 @@ alloy-primitives.workspace = true
 anvil.workspace = true
 comfy-table.workspace = true
 foundry-common.workspace = true
+foundry-debugger.workspace = true
 foundry-evm.workspace = true
 phf.workspace = true
 revm.workspace = true

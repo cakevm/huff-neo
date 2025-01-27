@@ -3786,6 +3786,7 @@ dependencies = [
  "anvil",
  "comfy-table",
  "foundry-common",
+ "foundry-debugger",
  "foundry-evm",
  "huff-neo-codegen",
  "huff-neo-utils",
