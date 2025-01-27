@@ -32,7 +32,7 @@ fn test_parses_free_storage_pointer_constant() {
 
 #[test]
 fn test_parses_literal_constant() {
-    let source = "#define constant LITERAL = 0x8C5BE1E5EBEC7D5BD14F71427D1E84F3DD0314C0F7B2291E5B200AC8C7C3B925";
+    let source = "#define constant LITERAL = 0x0000E1E5EBEC7D5BD14F71427D1E84F3DD0314C0F7B2291E5B200AC8C7C3B925";
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
     let lexer = Lexer::new(flattened_source);
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
@@ -41,7 +41,11 @@ fn test_parses_literal_constant() {
     assert_eq!(parser.current_token.kind, TokenKind::Eof);
 
     // Create const val
-    let arr: [u8; 32] = str_to_bytes32("8C5BE1E5EBEC7D5BD14F71427D1E84F3DD0314C0F7B2291E5B200AC8C7C3B925");
+    let arr: [u8; 32] = str_to_bytes32("0000E1E5EBEC7D5BD14F71427D1E84F3DD0314C0F7B2291E5B200AC8C7C3B925");
+
+    // Check that constant starts with 0x0000
+    assert_eq!(arr[0], 0);
+    assert_eq!(arr[1], 0);
 
     // Check Literal
     let fsp_constant = contract.constants.lock().unwrap()[0].clone();

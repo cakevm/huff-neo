@@ -60,7 +60,7 @@ pub fn str_to_vec(s: &str) -> Result<Vec<u8>, std::num::ParseIntError> {
     bytes
 }
 
-/// Converts a value literal to its smallest equivalent `PUSHX` bytecode
+/// Converts a value literal to its smallest equivalent `PUSHX` bytecode. Leading zeros are removed.
 pub fn literal_gen(evm_version: &EVMVersion, l: &[u8; 32]) -> String {
     let hex_literal: String = bytes32_to_string(l, false);
     match hex_literal.as_str() {
