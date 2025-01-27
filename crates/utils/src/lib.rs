@@ -51,6 +51,9 @@ pub mod evm_version;
 /// File operations
 pub mod file;
 
+/// Shell attributes
+pub mod shell;
+
 /// Prelude wraps common utilities.
 pub mod prelude {
     pub use crate::file::span::*;

@@ -1,6 +1,12 @@
-use clap::{Parser, Subcommand};
+use clap::{ArgAction, Parser, Subcommand};
+use foundry_cli::opts::BuildOpts;
+use foundry_common::evm::EvmArgs;
+use foundry_config::figment::value::{Dict, Map};
+use foundry_config::figment::{Metadata, Profile, Provider};
+use foundry_config::{figment, Config};
 use huff_neo_utils::error::CompilerError;
 use huff_neo_utils::file::unpack_files::unpack_files;
+use huff_neo_utils::shell::Verbosity;
 use std::io::Write;
 use std::path::Path;
 use yansi::Paint;
@@ -89,18 +95,89 @@ pub struct HuffArgs {
     pub version_long: bool,
 }
 
+// Loads project's figment and merges the build cli arguments into it
+foundry_config::merge_impl_figment_convert!(TestArgs, build, evm);
+
+/// The Test CLI Args
+#[derive(Parser, Debug, Clone)]
+pub struct TestArgs {
+    /// Format the test output as a list, table, or JSON.
+    #[clap(long = "format")]
+    pub format: Option<String>,
+
+    /// Match a specific test
+    #[clap(short = 'm', long = "match")]
+    pub match_: Option<String>,
+
+    // All those options are taken from https://github.com/foundry-rs/foundry
+    /// Verbosity level
+    #[arg(help_heading = "Display options", global = true, short, long, verbatim_doc_comment, action = ArgAction::Count)]
+    pub verbosity: Verbosity,
+
+    /// Run a single test in the debugger.
+    ///
+    /// The matching test will be opened in the debugger regardless of the outcome of the test.
+    ///
+    /// If the matching test is a fuzz test, then it will open the debugger on the first failure
+    /// case. If the fuzz test does not fail, it will open the debugger on the last fuzz case.
+    #[arg(long, conflicts_with_all = ["flamegraph", "flamechart", "decode_internal", "rerun"])]
+    pub debug: bool,
+
+    /// Generate a flamegraph for a single test. Implies `--decode-internal`.
+    ///
+    /// A flame graph is used to visualize which functions or operations within the smart contract
+    /// are consuming the most gas overall in a sorted manner.
+    #[arg(long)]
+    flamegraph: bool,
+
+    /// Generate a flamechart for a single test. Implies `--decode-internal`.
+    ///
+    /// A flame chart shows the gas usage over time, illustrating when each function is
+    /// called (execution order) and how much gas it consumes at each point in the timeline.
+    #[arg(long, conflicts_with = "flamegraph")]
+    flamechart: bool,
+
+    /// Identify internal functions in traces.
+    ///
+    /// This will trace internal functions and decode stack parameters.
+    ///
+    /// Parameters stored in memory (such as bytes or arrays) are currently decoded only when a
+    /// single function is matched, similarly to `--debug`, for performance reasons.
+    #[arg(long)]
+    pub decode_internal: bool,
+
+    /// Print a gas report.
+    #[arg(long, env = "FORGE_GAS_REPORT")]
+    pub gas_report: bool,
+
+    /// Anvil node parameters
+    #[command(flatten)]
+    pub evm: EvmArgs,
+
+    // required for figment
+    #[command(flatten)]
+    pub build: BuildOpts,
+
+    /// Re-run recorded test failures from last run.
+    /// If no failure recorded then regular test run is performed.
+    #[arg(long)]
+    pub rerun: bool,
+}
+
+impl Provider for TestArgs {
+    fn metadata(&self) -> Metadata {
+        Metadata::named("TestArgs Provider")
+    }
+
+    fn data(&self) -> Result<Map<Profile, Dict>, figment::Error> {
+        Ok(Map::from([(Config::selected_profile(), Dict::default())]))
+    }
+}
+
 #[derive(Subcommand, Clone, Debug)]
 pub enum TestCommands {
     /// Test subcommand
-    Test {
-        /// Format the test output as a list, table, or JSON.
-        #[clap(short = 'f', long = "format")]
-        format: Option<String>,
-
-        /// Match a specific test
-        #[clap(short = 'm', long = "match")]
-        match_: Option<String>,
-    },
+    Test(TestArgs),
 }
 
 impl HuffArgs {

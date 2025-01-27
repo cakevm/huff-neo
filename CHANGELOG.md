@@ -4,6 +4,20 @@
 
 ## [Unreleased]
 
+## [1.0.4] - 2025-01-27
+- Rewrite the Huff test module to use `anvil` and `forge` features from `foundry` to fork the mainnet.
+  - This is experimental, and there will be some breaking changes.
+- Allow printing logs with `-vvv` and call traces for tests with `-vvvv`.
+- Add `forge` EVM feature flags for testing.
+  - **Known issues**: The CLI reports more features than are actually available.
+- **Breaking**: Remove the Huff cheat code for logging.
+  - The `foundry` `console.log` should now be used.
+- **Breaking**: Remove logs from the test JSON output for now.
+- Fix error reporting for invalid literals during lexing in the test command.
+- Add `Cancun` as an EVM version and make it the default.
+- **Breaking**: The `-f` flag for formatting the output is now replaced with the fork URL. Please use `--format` instead.
+- Tokio is now used for the test runner to be able to use the db backend from `foundry`.
+
 ## [1.0.3] - 2025-01-12
 - Remove huff-examples submodule
 - Fix invalid error mapping for import with unmatched jump labels

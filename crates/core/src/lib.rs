@@ -315,7 +315,15 @@ impl<'a, 'l> Compiler<'a, 'l> {
                 let lexer = Lexer::new(full_source);
 
                 // Grab the tokens from the lexer
-                let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+                let mut tokens = vec![];
+                for token in lexer.into_iter() {
+                    match token {
+                        Ok(token) => tokens.push(token),
+                        Err(err) => {
+                            return Err(Arc::new(CompilerError::LexicalError(err)));
+                        }
+                    }
+                }
                 tracing::info!(target: "core", "LEXICAL ANALYSIS COMPLETE FOR \"{}\"", file.path);
                 tracing::info!(target: "core", "└─ TOKEN COUNT: {}", tokens.len());
 

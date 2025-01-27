@@ -1,4 +1,5 @@
 use crate::{errors::RunnerError, runner::TestRunner, types::TestResult};
+use alloy_primitives::{Address, U256};
 use huff_neo_utils::prelude::{Contract, MacroDefinition};
 use std::{borrow::Borrow, rc::Rc};
 
@@ -7,9 +8,6 @@ pub mod runner;
 
 /// The report module
 pub mod report;
-
-/// The inspectors module
-pub mod inspectors;
 
 /// The cheats module
 pub mod cheats;
@@ -20,13 +18,96 @@ pub mod types;
 /// The errors module
 pub mod errors;
 
+/// Re-export the Inspector from anvil crate
+pub use anvil::eth::backend::mem::inspector::Inspector;
+use foundry_evm::backend::Backend;
+use foundry_evm::fork::CreateFork;
+use foundry_evm::traces::InternalTraceMode;
+use revm::db::CacheDB;
+use revm::primitives::{Env, SpecId};
+
 /// Prelude wraps all modules within the crate
 pub mod prelude {
-    pub use crate::{errors::*, inspectors::*, report::*, runner::*, types::*};
+    pub use crate::{errors::*, report::*, runner::*, types::*};
 }
 
 /// A vector of shared references to test macro definitions
 pub type TestMacros<'t> = Vec<&'t MacroDefinition>;
+
+/// Builder for the HuffTester
+#[derive(Clone, Debug, Default)]
+pub struct HuffTesterConfig {
+    /// The address which will be used to deploy the initial contracts and send all
+    /// transactions
+    pub sender: Option<Address>,
+    /// The initial balance for each one of the deployed smart contracts
+    pub initial_balance: U256,
+    /// The EVM spec to use
+    pub evm_spec: Option<SpecId>,
+    /// The fork to use at launch
+    pub fork: Option<CreateFork>,
+    /// Whether or not to collect coverage info
+    pub coverage: bool,
+    /// Whether or not to collect debug info
+    pub debug: bool,
+    /// Whether to enable steps tracking in the tracer.
+    pub decode_internal: InternalTraceMode,
+    /// Whether to enable call isolation
+    pub isolation: bool,
+    /// Whether to enable Odyssey features.
+    pub odyssey: bool,
+}
+
+impl HuffTesterConfig {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn sender(mut self, sender: Address) -> Self {
+        self.sender = Some(sender);
+        self
+    }
+
+    pub fn initial_balance(mut self, initial_balance: U256) -> Self {
+        self.initial_balance = initial_balance;
+        self
+    }
+
+    pub fn evm_spec(mut self, spec: SpecId) -> Self {
+        self.evm_spec = Some(spec);
+        self
+    }
+
+    pub fn with_fork(mut self, fork: Option<CreateFork>) -> Self {
+        self.fork = fork;
+        self
+    }
+
+    pub fn set_coverage(mut self, enable: bool) -> Self {
+        self.coverage = enable;
+        self
+    }
+
+    pub fn set_debug(mut self, enable: bool) -> Self {
+        self.debug = enable;
+        self
+    }
+
+    pub fn set_decode_internal(mut self, mode: InternalTraceMode) -> Self {
+        self.decode_internal = mode;
+        self
+    }
+
+    pub fn enable_isolation(mut self, enable: bool) -> Self {
+        self.isolation = enable;
+        self
+    }
+
+    pub fn odyssey(mut self, enable: bool) -> Self {
+        self.odyssey = enable;
+        self
+    }
+}
 
 /// The core struct of the huff-tests crate.
 ///
@@ -42,12 +123,15 @@ pub struct HuffTester<'t> {
 
     /// The test runner
     pub runner: TestRunner,
+
+    /// The configuration for the test runner
+    pub config: HuffTesterConfig,
 }
 
 /// HuffTester implementation
 impl<'t> HuffTester<'t> {
     /// Create a new instance of `HuffTester` from a contract's AST.
-    pub fn new(ast: &'t Contract, match_: Rc<Option<String>>) -> Self {
+    pub fn new(ast: &'t Contract, match_: Rc<Option<String>>, inspectors: Inspector, config: HuffTesterConfig, env: Env) -> Self {
         Self {
             ast,
             macros: {
@@ -60,7 +144,8 @@ impl<'t> HuffTester<'t> {
                 }
                 macros
             },
-            runner: TestRunner::default(),
+            runner: TestRunner::new(env, inspectors),
+            config,
         }
     }
 
@@ -68,10 +153,17 @@ impl<'t> HuffTester<'t> {
     pub fn execute(mut self) -> Result<Vec<TestResult>, RunnerError> {
         // Check if any test macros exist
         if self.macros.is_empty() {
-            return Err(RunnerError(String::from("No test macros found.")));
+            return Err(RunnerError::GenericError(String::from("No test macros found.")));
         }
 
         // Execute our tests and return a vector of the results
-        self.macros.into_iter().map(|macro_def| self.runner.run_test(macro_def, self.ast)).collect::<Result<Vec<TestResult>, RunnerError>>()
+        self.macros
+            .into_iter()
+            .map(|macro_def| {
+                let db = Backend::spawn(self.config.fork.take());
+                let mut cache_db = CacheDB::new(db);
+                self.runner.run_test(&mut cache_db, macro_def, self.ast)
+            })
+            .collect::<Result<Vec<TestResult>, RunnerError>>()
     }
 }
