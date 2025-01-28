@@ -150,34 +150,32 @@ impl TestRunner {
         };
 
         // Check if the transaction was successful
-        let return_data = match execution_result {
+        let (return_data, revert_reason) = match execution_result {
             ExecutionResult::Success { output, .. } => {
                 if let Output::Call(b) = output {
                     if b.is_empty() {
-                        None
+                        (None, None)
                     } else {
-                        Some(hex::encode(b))
+                        (Some(hex::encode(b)), None)
                     }
                 } else {
-                    return Err(RunnerError::GenericError(String::from("Unexpected transaction kind (CREATE)")));
+                    (None, Some("Unexpected transaction kind (CREATE)".to_string()))
                 }
             }
             ExecutionResult::Revert { output, .. } => {
                 if output.is_empty() {
-                    None
+                    (None, None)
                 } else {
-                    Some(hex::encode(output))
+                    (Some(hex::encode(output)), None)
                 }
             }
-            ExecutionResult::Halt { reason, .. } => {
-                return Err(RunnerError::GenericError(format!("Transaction halted with reason: {:?}", reason)));
-            }
+            ExecutionResult::Halt { reason, .. } => (None, Some(format!("Transaction halted with reason: {:?}", reason))),
         };
 
         // Return our test result
         // NOTE: We subtract 21000 gas from the gas result to account for the
         // base cost of the CALL.
-        Ok(TestResult { name, return_data, gas: gas_used - 21000, status, inspector: evm.context.external })
+        Ok(TestResult { name, return_data, gas: gas_used - 21000, status, revert_reason, inspector: evm.context.external })
     }
 
     /// Compile a test macro and run it in an in-memory REVM instance.
