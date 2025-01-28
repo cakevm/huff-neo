@@ -3,6 +3,7 @@
 # Huff Neo Compiler changelog
 
 ## [Unreleased]
+- Allow to use `--debug` for reverting contracts.
 
 ## [1.0.5] - 2025-01-27
 - Use foundry's debugger for `--debug` flag.

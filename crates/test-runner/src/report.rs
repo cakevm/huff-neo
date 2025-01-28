@@ -52,6 +52,9 @@ pub async fn print_test_report(results: Vec<TestResult>, report_kind: ReportKind
                     Paint::yellow("Gas used:"),
                     result.gas
                 );
+                if result.status == TestStatus::Revert {
+                    println!("{}", Paint::red(&format!("└─ Revert: {}", result.revert_reason.clone().unwrap_or_default())));
+                }
 
                 let num_logs = match result.inspector.log_collector {
                     Some(ref log_collector) => log_collector.logs.len(),
