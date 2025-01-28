@@ -4,11 +4,11 @@ build:
 
 .PHONY: release
 release:
-	RUSTFLAGS="-D warnings -C target-cpu=native" cargo build --bin huff-neo --release
+	RUSTFLAGS="-D warnings -C target-cpu=native" cargo build --bin hnc --release
 
 .PHONY: maxperf
 maxperf:
-	RUSTFLAGS="-D warnings -C target-cpu=native" cargo build --bin huff-neo --profile maxperf
+	RUSTFLAGS="-D warnings -C target-cpu=native" cargo build --bin hnc --profile maxperf
 
 .PHONY: run
 run:

@@ -3,6 +3,8 @@
 # Huff Neo Compiler changelog
 
 ## [Unreleased]
+
+## [1.0.6] - 2025-01-28
 - Allow to use `--debug` for reverting contracts.
 - Refactored parsing for ABI and build-in argument.
   - This is the first step to push more steps into the lexing phase. 
