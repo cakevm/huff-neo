@@ -7,6 +7,7 @@ use alloy_primitives::hex;
 use huff_neo_codegen::*;
 use huff_neo_lexer::*;
 use huff_neo_parser::*;
+use huff_neo_utils::ast::span::AstSpan;
 use huff_neo_utils::file::file_provider::{FileProvider, FileSystemFileProvider, InMemoryFileProvider};
 use huff_neo_utils::file::file_source::FileSource;
 use huff_neo_utils::file::full_file_source::{FullFileSource, OutputLocation};

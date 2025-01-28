@@ -1,5 +1,7 @@
 use huff_neo_lexer::*;
 use huff_neo_parser::*;
+use huff_neo_utils::ast::abi::Argument;
+use huff_neo_utils::ast::span::AstSpan;
 use huff_neo_utils::file::full_file_source::FullFileSource;
 use huff_neo_utils::{error::ParserErrorKind, opcodes::Opcode, prelude::*};
 
@@ -207,13 +209,13 @@ pub fn builtins_under_labels() {
                     Statement {
                         ty: StatementType::BuiltinFunctionCall(BuiltinFunctionCall {
                             kind: BuiltinFunctionKind::Tablestart,
-                            args: vec![Argument {
+                            args: vec![BuiltinFunctionArg::Argument(Argument {
                                 arg_type: None,
                                 name: Some(String::from("TEST_TABLE")),
                                 indexed: false,
                                 arg_location: None,
                                 span: AstSpan(vec![Span { start: 342, end: 351, file: None }]),
-                            }],
+                            })],
                             span: AstSpan(vec![Span { start: 329, end: 340, file: None }, Span { start: 342, end: 351, file: None }]),
                         }),
                         span: AstSpan(vec![Span { start: 329, end: 340, file: None }, Span { start: 342, end: 351, file: None }]),
@@ -221,13 +223,13 @@ pub fn builtins_under_labels() {
                     Statement {
                         ty: StatementType::BuiltinFunctionCall(BuiltinFunctionCall {
                             kind: BuiltinFunctionKind::Tablesize,
-                            args: vec![Argument {
+                            args: vec![BuiltinFunctionArg::Argument(Argument {
                                 arg_type: None,
                                 name: Some(String::from("TEST_TABLE")),
                                 indexed: false,
                                 arg_location: None,
                                 span: AstSpan(vec![Span { start: 378, end: 387, file: None }]),
-                            }],
+                            })],
                             span: AstSpan(vec![Span { start: 366, end: 376, file: None }, Span { start: 378, end: 387, file: None }]),
                         }),
                         span: AstSpan(vec![Span { start: 366, end: 376, file: None }, Span { start: 378, end: 387, file: None }]),
@@ -235,13 +237,13 @@ pub fn builtins_under_labels() {
                     Statement {
                         ty: StatementType::BuiltinFunctionCall(BuiltinFunctionCall {
                             kind: BuiltinFunctionKind::Codesize,
-                            args: vec![Argument {
+                            args: vec![BuiltinFunctionArg::Argument(Argument {
                                 arg_type: None,
                                 name: Some(String::from("SMALL_MACRO")),
                                 indexed: false,
                                 arg_location: None,
                                 span: AstSpan(vec![Span { start: 413, end: 423, file: None }]),
-                            }],
+                            })],
                             span: AstSpan(vec![Span { start: 402, end: 411, file: None }, Span { start: 413, end: 423, file: None }]),
                         }),
                         span: AstSpan(vec![Span { start: 402, end: 411, file: None }, Span { start: 413, end: 423, file: None }]),
@@ -249,13 +251,13 @@ pub fn builtins_under_labels() {
                     Statement {
                         ty: StatementType::BuiltinFunctionCall(BuiltinFunctionCall {
                             kind: BuiltinFunctionKind::FunctionSignature,
-                            args: vec![Argument {
+                            args: vec![BuiltinFunctionArg::Argument(Argument {
                                 arg_type: None,
                                 name: Some(String::from("myFunc")),
                                 indexed: false,
                                 arg_location: None,
                                 span: AstSpan(vec![Span { start: 449, end: 454, file: None }]),
-                            }],
+                            })],
                             span: AstSpan(vec![Span { start: 438, end: 447, file: None }, Span { start: 449, end: 454, file: None }]),
                         }),
                         span: AstSpan(vec![Span { start: 438, end: 447, file: None }, Span { start: 449, end: 454, file: None }]),
@@ -263,13 +265,13 @@ pub fn builtins_under_labels() {
                     Statement {
                         ty: StatementType::BuiltinFunctionCall(BuiltinFunctionCall {
                             kind: BuiltinFunctionKind::Error,
-                            args: vec![Argument {
+                            args: vec![BuiltinFunctionArg::Argument(Argument {
                                 arg_type: None,
                                 name: Some(String::from("TestError")),
                                 indexed: false,
                                 arg_location: None,
                                 span: AstSpan(vec![Span { start: 477, end: 485, file: None }]),
-                            }],
+                            })],
                             span: AstSpan(vec![Span { start: 469, end: 475, file: None }, Span { start: 477, end: 485, file: None }]),
                         }),
                         span: AstSpan(vec![Span { start: 469, end: 475, file: None }, Span { start: 477, end: 485, file: None }]),
@@ -277,13 +279,13 @@ pub fn builtins_under_labels() {
                     Statement {
                         ty: StatementType::BuiltinFunctionCall(BuiltinFunctionCall {
                             kind: BuiltinFunctionKind::RightPad,
-                            args: vec![Argument {
+                            args: vec![BuiltinFunctionArg::Argument(Argument {
                                 arg_type: None,
                                 name: Some(String::from("bb")),
                                 indexed: false,
                                 arg_location: None,
                                 span: AstSpan(vec![Span { start: 513, end: 514, file: None }]),
-                            }],
+                            })],
                             span: AstSpan(vec![Span { start: 500, end: 509, file: None }, Span { start: 513, end: 514, file: None }]),
                         }),
                         span: AstSpan(vec![Span { start: 500, end: 509, file: None }, Span { start: 513, end: 514, file: None }]),

@@ -630,3 +630,36 @@ fn test_rightpad_builtin() {
         )
     );
 }
+
+#[test]
+fn test_builtin_rightpad_func_sig() {
+    let source: &str = r#"
+        #define macro MAIN() = takes (0) returns (0) {
+            __RIGHTPAD(__FUNC_SIG('transfer(address,uint256)'))
+        }
+    "#;
+
+    // Parse tokens
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+
+    // Parse the AST
+    let mut contract = parser.parse().unwrap();
+
+    // Derive storage pointers
+    contract.derive_storage_pointers();
+
+    // Instantiate Codegen
+    let cg = Codegen::new();
+
+    // The codegen instance should have no artifact
+    assert!(cg.artifact.is_none());
+
+    // Have Codegen create the runtime bytecode
+    let r_bytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+    // PUSH32 = 0x7f
+    // transfer(address,uint256) signature = 0xa9059cbb
+    assert_eq!(&r_bytes, "7fa9059cbb00000000000000000000000000000000000000000000000000000000");
+}

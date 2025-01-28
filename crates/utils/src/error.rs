@@ -1,7 +1,8 @@
+use crate::ast::span::AstSpan;
 use crate::file::span::{Span, Spanned};
 use crate::file::unpack_files::UnpackError;
 use crate::{
-    prelude::{parse_extension, AstSpan, Opcode},
+    prelude::{parse_extension, Opcode},
     report::{Report, Reporter},
     token::TokenKind,
 };

@@ -20,12 +20,13 @@ use huff_neo_test_runner::{
     prelude::{print_test_report, ReportKind},
     HuffTester, HuffTesterConfig, Inspector,
 };
+use huff_neo_utils::ast::span::AstSpan;
 use huff_neo_utils::file::file_provider::FileSystemFileProvider;
 use huff_neo_utils::file::file_source::FileSource;
 use huff_neo_utils::file::full_file_source::OutputLocation;
 use huff_neo_utils::prelude::{
-    export_interfaces, gen_sol_interfaces, str_to_bytes32, AstSpan, BytecodeRes, CodegenError, CodegenErrorKind, CompilerError, EVMVersion,
-    Literal, Span,
+    export_interfaces, gen_sol_interfaces, str_to_bytes32, BytecodeRes, CodegenError, CodegenErrorKind, CompilerError, EVMVersion, Literal,
+    Span,
 };
 use shadow_rs::shadow;
 use std::process::exit;

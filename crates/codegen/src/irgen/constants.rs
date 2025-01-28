@@ -1,4 +1,5 @@
-use huff_neo_utils::prelude::{literal_gen, AstSpan, CodegenError, CodegenErrorKind, ConstVal, Contract, EVMVersion};
+use huff_neo_utils::ast::span::AstSpan;
+use huff_neo_utils::prelude::{literal_gen, CodegenError, CodegenErrorKind, ConstVal, Contract, EVMVersion};
 
 /// Transforms a constant definition into it's respective bytecode
 pub fn constant_gen(evm_version: &EVMVersion, name: &str, contract: &Contract, ir_byte_span: &AstSpan) -> Result<String, CodegenError> {

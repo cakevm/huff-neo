@@ -51,6 +51,8 @@ pub enum Context {
     Constant,
     /// Code table context
     CodeTableBody,
+    // Built-in function context
+    BuiltinFunction,
 }
 
 /// ## Lexer
@@ -315,7 +317,9 @@ impl<'a> Lexer<'a> {
 
                     let kind = if let Some(kind) = found_kind {
                         kind
-                    } else if self.context == Context::MacroBody && BuiltinFunctionKind::try_from(&word).is_ok() {
+                    } else if (self.context == Context::MacroBody || self.context == Context::BuiltinFunction)
+                        && BuiltinFunctionKind::try_from(&word).is_ok()
+                    {
                         TokenKind::BuiltinFunction(word)
                     } else {
                         TokenKind::Ident(word)
@@ -329,7 +333,10 @@ impl<'a> Lexer<'a> {
                 '(' => {
                     match self.context {
                         Context::Abi => self.context = Context::AbiArgs,
-                        Context::MacroBody => self.context = Context::MacroArgs,
+                        Context::MacroBody => match self.lookback.as_ref().unwrap().kind {
+                            TokenKind::BuiltinFunction(_) => self.context = Context::BuiltinFunction,
+                            _ => self.context = Context::MacroArgs,
+                        },
                         _ => {}
                     }
                     self.single_char_token(TokenKind::OpenParen)
@@ -338,6 +345,7 @@ impl<'a> Lexer<'a> {
                     match self.context {
                         Context::AbiArgs => self.context = Context::Abi,
                         Context::MacroArgs => self.context = Context::MacroBody,
+                        Context::BuiltinFunction => self.context = Context::MacroBody,
                         _ => {}
                     }
                     self.single_char_token(TokenKind::CloseParen)

@@ -5,11 +5,13 @@
 //! #### Usage
 //!
 //! Let's say you have a `Contract<'a>` generated from the [huff_parser](./huff_parser),
-//! representing an AST. This crate let's you easily convert the `Contract<'a>` into an `Abi`
+//! representing an AST. This crate lets you easily convert the `Contract` into an `Abi`
 //! instance like so:
 //!
 //! ```rust
 //! use std::sync::{Arc, Mutex};
+//! use huff_neo_utils::ast::abi::FunctionType;
+//! use huff_neo_utils::ast::span::AstSpan;
 //! use huff_neo_utils::prelude::*;
 //!
 //! // Generate a default contract for demonstrative purposes.
@@ -20,7 +22,7 @@
 //!     imports: vec![],
 //!     constants: Arc::new(Mutex::new(vec![])),
 //!     errors: vec![],
-//!     functions: vec![huff_utils::ast::FunctionDefinition {
+//!     functions: vec![huff_neo_utils::ast::abi::FunctionDefinition {
 //!         name: "CONSTRUCTOR".to_string(),
 //!         signature: [0u8, 0u8, 0u8, 0u8],
 //!         inputs: vec![],
@@ -30,16 +32,18 @@
 //!     }],
 //!     events: vec![],
 //!     tables: vec![],
+//!     labels: Default::default(),
 //! };
 //!
 //! // Create an ABI using that generate contract
 //! let abi: Abi = contract.into();
 //! ```
 
+use crate::ast;
+use crate::ast::abi::FunctionType;
+use crate::ast::huff::{self};
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, fmt};
-
-use crate::ast::{self, FunctionType};
 
 /// #### Abi
 ///
@@ -68,8 +72,8 @@ impl Abi {
 }
 
 // Allows for simple ABI Generation by directly translating the AST
-impl From<ast::Contract> for Abi {
-    fn from(contract: ast::Contract) -> Self {
+impl From<huff::Contract> for Abi {
+    fn from(contract: huff::Contract) -> Self {
         // Try to get the constructor inputs from an overriden function
         // Otherwise, use the CONSTRUCTOR macro if one exists
         let constructor = contract
@@ -77,7 +81,7 @@ impl From<ast::Contract> for Abi {
             .iter()
             .filter(|m| m.name.to_lowercase() == "constructor")
             .cloned()
-            .collect::<Vec<ast::FunctionDefinition>>()
+            .collect::<Vec<ast::abi::FunctionDefinition>>()
             .first()
             .map(|func| Constructor {
                 inputs: func
@@ -91,7 +95,7 @@ impl From<ast::Contract> for Abi {
                     .collect(),
             })
             .or_else(|| {
-                contract.macros.iter().filter(|m| m.name == "CONSTRUCTOR").cloned().collect::<Vec<ast::MacroDefinition>>().first().map(
+                contract.macros.iter().filter(|m| m.name == "CONSTRUCTOR").cloned().collect::<Vec<huff::MacroDefinition>>().first().map(
                     |func| Constructor {
                         inputs: func
                             .parameters
@@ -113,7 +117,7 @@ impl From<ast::Contract> for Abi {
 
         // Translate contract functions
         // Excluding constructor
-        functions.extend(contract.functions.iter().filter(|function: &&ast::FunctionDefinition| function.name != "CONSTRUCTOR").map(
+        functions.extend(contract.functions.iter().filter(|function: &&ast::abi::FunctionDefinition| function.name != "CONSTRUCTOR").map(
             |function| {
                 (
                     function.name.to_string(),

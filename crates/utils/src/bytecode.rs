@@ -2,9 +2,10 @@
 //!
 //! Abstract translating state into bytecode.
 
+use crate::ast::span::AstSpan;
 use crate::{
     evm_version::EVMVersion,
-    prelude::{AstSpan, Statement, TableDefinition},
+    prelude::{Statement, TableDefinition},
 };
 use std::{
     collections::{BTreeMap, BTreeSet},

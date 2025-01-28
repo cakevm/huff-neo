@@ -1,10 +1,9 @@
 use huff_neo_lexer::*;
 use huff_neo_parser::*;
+use huff_neo_utils::ast::abi::{Argument, FunctionDefinition, FunctionType};
+use huff_neo_utils::ast::span::AstSpan;
 use huff_neo_utils::file::full_file_source::FullFileSource;
-use huff_neo_utils::{
-    ast::{FunctionDefinition, FunctionType},
-    prelude::*,
-};
+use huff_neo_utils::prelude::*;
 use std::collections::HashMap;
 
 #[test]
