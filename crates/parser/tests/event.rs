@@ -1,7 +1,9 @@
 use huff_neo_lexer::*;
 use huff_neo_parser::*;
+use huff_neo_utils::ast::abi::{Argument, EventDefinition};
+use huff_neo_utils::ast::span::AstSpan;
 use huff_neo_utils::file::full_file_source::FullFileSource;
-use huff_neo_utils::{ast::EventDefinition, prelude::*};
+use huff_neo_utils::prelude::*;
 
 #[test]
 fn test_prefix_event_arg_names_with_reserved_keywords() {

@@ -4,9 +4,11 @@
 #![forbid(unsafe_code)]
 
 use alloy_primitives::keccak256;
+use huff_neo_utils::ast::abi::{Argument, ArgumentLocation, EventDefinition, FunctionDefinition, FunctionType};
+use huff_neo_utils::ast::huff::*;
+use huff_neo_utils::ast::span::AstSpan;
 use huff_neo_utils::file::remapper;
 use huff_neo_utils::{
-    ast::*,
     error::*,
     prelude::{bytes32_to_string, str_to_bytes32, Span},
     token::{Token, TokenKind},
@@ -285,7 +287,7 @@ impl Parser {
         };
 
         // function inputs should be next
-        let inputs = self.parse_args(true, true, false, false)?;
+        let inputs = self.parse_args(true, true, false)?;
         // function type should be next
         let fn_type = match self.current_token.kind.clone() {
             TokenKind::View => FunctionType::View,
@@ -307,7 +309,7 @@ impl Parser {
         // next token should be of `TokenKind::Returns`
         self.match_kind(TokenKind::Returns)?;
         // function outputs should be next
-        let outputs = self.parse_args(true, true, false, false)?;
+        let outputs = self.parse_args(true, true, false)?;
 
         let input_types = inputs.iter().map(|i| i.arg_type.as_ref().unwrap().clone()).collect::<Vec<_>>();
         let method_signature = format!("{name}({})", input_types.join(","));
@@ -339,7 +341,7 @@ impl Parser {
         };
 
         // Parse the event's parameters
-        let parameters = self.parse_args(true, true, true, false)?;
+        let parameters = self.parse_args(true, true, true)?;
 
         let input_types = parameters.iter().map(|i| i.arg_type.as_ref().unwrap().clone()).collect::<Vec<_>>();
         let event_signature = format!("{name}({})", input_types.join(","));
@@ -422,7 +424,7 @@ impl Parser {
         };
 
         // Get arguments for signature
-        let parameters = self.parse_args(true, true, false, false)?;
+        let parameters = self.parse_args(true, true, false)?;
 
         let input_types = parameters.iter().map(|i| i.arg_type.as_ref().unwrap().clone()).collect::<Vec<_>>();
         let method_signature = format!("{name}({})", input_types.join(","));
@@ -536,7 +538,7 @@ impl Parser {
         let macro_name: String = self.match_kind(TokenKind::Ident("MACRO_NAME".to_string()))?.to_string();
         tracing::info!(target: "parser", "PARSING MACRO: \"{}\"", macro_name);
 
-        let macro_arguments = self.parse_args(true, false, false, false)?;
+        let macro_arguments = self.parse_args(true, false, false)?;
         self.match_kind(TokenKind::Assign)?;
 
         let macro_takes = self.match_kind(TokenKind::Takes).map_or(Ok(0), |_| self.parse_single_arg())?;
@@ -664,8 +666,8 @@ impl Parser {
                 TokenKind::BuiltinFunction(f) => {
                     let mut curr_spans = vec![self.current_token.span.clone()];
                     self.match_kind(TokenKind::BuiltinFunction(String::default()))?;
-                    let args = self.parse_args(true, false, false, true)?;
-                    args.iter().for_each(|a| curr_spans.extend_from_slice(a.span.inner_ref()));
+                    let args = self.parse_builtin_args()?;
+                    args.iter().for_each(|a| curr_spans.extend_from_slice(a.span().inner_ref()));
                     tracing::info!(target: "parser", "PARSING MACRO BODY: [BUILTIN FN: {}({:?})]", f, args);
                     statements.push(Statement {
                         ty: StatementType::BuiltinFunctionCall(BuiltinFunctionCall {
@@ -761,8 +763,8 @@ impl Parser {
                 TokenKind::BuiltinFunction(f) => {
                     let mut curr_spans = vec![self.current_token.span.clone()];
                     self.match_kind(TokenKind::BuiltinFunction(String::default()))?;
-                    let args = self.parse_args(true, false, false, true)?;
-                    args.iter().for_each(|a| curr_spans.extend_from_slice(a.span.inner_ref()));
+                    let args = self.parse_builtin_args()?;
+                    args.iter().for_each(|a| curr_spans.extend_from_slice(a.span().inner_ref()));
                     tracing::info!(target: "parser", "PARSING LABEL BODY: [BUILTIN FN: {}({:?})]", f, args);
                     statements.push(Statement {
                         ty: StatementType::BuiltinFunctionCall(BuiltinFunctionCall {
@@ -798,64 +800,87 @@ impl Parser {
         Ok(())
     }
 
-    /// Parse arguments
+    /// Parse the argument of a builtin function call.
+    pub fn parse_builtin_args(&mut self) -> Result<Vec<BuiltinFunctionArg>, ParserError> {
+        let mut args: Vec<BuiltinFunctionArg> = Vec::new();
+        self.match_kind(TokenKind::OpenParen)?;
+
+        tracing::debug!(target: "parser", "PARSING ARGs: {:?}", self.current_token.kind);
+        while !self.check(TokenKind::CloseParen) {
+            // Check for strings
+            if let TokenKind::Str(s) = &self.current_token.kind {
+                args.push(BuiltinFunctionArg::Argument(Argument {
+                    name: Some(s.to_owned()), // Place the string in the "name" field
+                    arg_type: None,
+                    indexed: false,
+                    span: AstSpan(vec![self.current_token.span.clone()]),
+                    arg_location: None,
+                }));
+                self.consume();
+            }
+
+            // Check for literals
+            if let TokenKind::Literal(l) = &self.current_token.kind {
+                args.push(BuiltinFunctionArg::Argument(Argument {
+                    // Place literal in the "name" field
+                    name: Some(bytes32_to_string(l, false)),
+                    arg_location: None,
+                    arg_type: None,
+                    indexed: false,
+                    span: AstSpan(vec![self.current_token.span.clone()]),
+                }));
+                self.consume();
+            }
+
+            // Check for identifiers
+            if let TokenKind::Ident(ident) = &self.current_token.kind {
+                args.push(BuiltinFunctionArg::Argument(Argument {
+                    name: Some(ident.to_owned()),
+                    arg_type: None,
+                    indexed: false,
+                    span: AstSpan(vec![self.current_token.span.clone()]),
+                    arg_location: None,
+                }));
+                self.consume();
+            }
+
+            let mut is_builtin = false;
+            let mut builtin = "".to_string();
+            if let TokenKind::BuiltinFunction(builtin_ref) = &self.current_token.kind {
+                is_builtin = true;
+                builtin = builtin_ref.clone();
+                self.consume();
+            }
+
+            if is_builtin {
+                args.push(BuiltinFunctionArg::BuiltinFunctionCall(BuiltinFunctionCall {
+                    kind: BuiltinFunctionKind::from(builtin.clone()),
+                    args: self.parse_builtin_args()?, // Recursively parse the arguments
+                    span: AstSpan(vec![self.current_token.span.clone()]),
+                }));
+            }
+
+            if self.check(TokenKind::Comma) {
+                self.consume();
+            }
+        }
+
+        // consume close parenthesis
+        self.match_kind(TokenKind::CloseParen)?;
+        Ok(args)
+    }
+
+    /// Parse abi arguments
     ///
     /// Arguments can be typed or not. Between parenthesis.
     /// Works for both inputs and outputs.
     /// It should parse the following : (uint256 a, bool b, ...)
-    pub fn parse_args(
-        &mut self,
-        select_name: bool,
-        select_type: bool,
-        has_indexed: bool,
-        is_builtin: bool,
-    ) -> Result<Vec<Argument>, ParserError> {
+    pub fn parse_args(&mut self, select_name: bool, select_type: bool, has_indexed: bool) -> Result<Vec<Argument>, ParserError> {
         let mut args: Vec<Argument> = Vec::new();
         self.match_kind(TokenKind::OpenParen)?;
         let mut on_type = true;
-        tracing::debug!(target: "parser", "PARSING ARGs: {:?}", self.current_token.kind);
+        tracing::debug!(target: "parser", "PARSING ABI ARGs: {:?}", self.current_token.kind);
         while !self.check(TokenKind::CloseParen) {
-            if is_builtin {
-                // Check for strings
-                if let TokenKind::Str(s) = &self.current_token.kind {
-                    args.push(Argument {
-                        name: Some(s.to_owned()), // Place the string in the "name" field
-                        arg_type: None,
-                        indexed: false,
-                        span: AstSpan(vec![self.current_token.span.clone()]),
-                        arg_location: None,
-                    });
-
-                    self.consume();
-                    // multiple args possible
-                    if self.check(TokenKind::Comma) {
-                        self.consume();
-                        on_type = true;
-                    }
-                    continue;
-                }
-
-                // Check for literals
-                if let TokenKind::Literal(l) = &self.current_token.kind {
-                    args.push(Argument {
-                        // Place literal in the "name" field
-                        name: Some(bytes32_to_string(l, false)),
-                        arg_location: None,
-                        arg_type: None,
-                        indexed: false,
-                        span: AstSpan(vec![self.current_token.span.clone()]),
-                    });
-                    self.consume();
-
-                    // multiple args possible
-                    if self.check(TokenKind::Comma) {
-                        self.consume();
-                        on_type = true;
-                    }
-                    continue;
-                }
-            }
-
             let mut arg = Argument::default();
             let mut arg_spans = vec![];
 

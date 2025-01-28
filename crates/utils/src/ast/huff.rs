@@ -1,7 +1,5 @@
-use itertools::Itertools;
-use serde::{Deserialize, Serialize};
-use std::ops::Index;
-
+use crate::ast::abi::{Argument, EventDefinition, FunctionDefinition};
+use crate::ast::span::AstSpan;
 use crate::{
     bytecode::*,
     bytes_util::*,
@@ -25,68 +23,6 @@ pub type Literal = [u8; 32];
 ///
 /// Used for parsing the huff imports.
 pub type FilePath = PathBuf;
-
-/// An AST-level Span
-#[derive(Debug, Default, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct AstSpan(pub Vec<Span>);
-
-impl AstSpan {
-    /// Coalesce Multiple Spans Into an error string
-    pub fn error(&self, hint: Option<&String>) -> String {
-        let file_to_source_map = self.0.iter().fold(BTreeMap::<String, Vec<&Span>>::new(), |mut m, s| {
-            let file_name = s.file.as_ref().map(|f2| f2.path.clone()).unwrap_or_default();
-            let mut new_vec: Vec<&Span> = m.get(&file_name).cloned().unwrap_or_default();
-            new_vec.push(s);
-            m.insert(file_name, new_vec);
-            m
-        });
-        let source_str = file_to_source_map.iter().filter(|fs| !fs.0.is_empty()).fold("".to_string(), |s, fs| {
-            let start = fs.1.iter().map(|fs2| fs2.start).min().unwrap_or(0);
-            let end = fs.1.iter().map(|fs2| fs2.end).max().unwrap_or(0);
-            let newline_s = if s.is_empty() { "".to_string() } else { format!("{s}\n") };
-            if start.eq(&0) && end.eq(&0) {
-                format!("{newline_s}-> {}\n   > 0|", fs.0)
-            } else {
-                format!(
-                    "{}-> {}:{}",
-                    newline_s,
-                    fs.0,
-                    fs.1.iter()
-                        .map(|sp| sp.source_seg())
-                        .filter(|ss| !ss.is_empty())
-                        .collect::<Vec<String>>()
-                        .into_iter()
-                        .unique()
-                        .fold("".to_string(), |acc, ss| { format!("{acc}{ss}") })
-                )
-            }
-        });
-
-        // Add in optional hint message
-        format!("{}{source_str}", hint.map(|msg| format!("{msg}\n")).unwrap_or_default())
-    }
-
-    /// Print just the file for missing
-    pub fn file(&self) -> String {
-        self.0.iter().fold("".to_string(), |acc, span| match &span.file {
-            Some(fs) => format!("-> {}\n{acc}", fs.path),
-            None => Default::default(),
-        })
-    }
-
-    /// Retrieve the underlying vector of spans
-    pub fn inner_ref(&self) -> &Vec<Span> {
-        &self.0
-    }
-}
-
-/// Allows AstSpan to be indexed into
-impl Index<usize> for AstSpan {
-    type Output = Span;
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.0[index]
-    }
-}
 
 /// A Huff Contract Representation
 ///
@@ -242,7 +178,8 @@ impl Contract {
                 }
                 StatementType::BuiltinFunctionCall(bfc) => {
                     tracing::debug!(target: "ast", "Deriving Storage Pointers: Found builtin function {:?}", bfc.kind);
-                    for a in &bfc.args {
+                    for builtin_fn_arg in &bfc.args {
+                        let BuiltinFunctionArg::Argument(a) = builtin_fn_arg else { continue };
                         if let Some(name) = &a.name {
                             match self.macros.iter().filter(|md| md.name.eq(name)).collect::<Vec<&MacroDefinition>>().first() {
                                 Some(&md) => {
@@ -330,88 +267,6 @@ impl Contract {
             }
         }
     }
-}
-
-/// An argument's location
-#[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub enum ArgumentLocation {
-    /// Memory location
-    #[default]
-    Memory,
-    /// Storage location
-    Storage,
-    /// Calldata location
-    Calldata,
-}
-
-/// A function, event, or macro argument
-#[derive(Debug, Default, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Argument {
-    /// Type of the argument
-    pub arg_type: Option<String>,
-    /// Optional Argument Location
-    pub arg_location: Option<ArgumentLocation>,
-    /// The name of the argument
-    pub name: Option<String>,
-    /// Is the argument indexed? TODO: should be valid for event arguments ONLY
-    pub indexed: bool,
-    /// The argument span
-    pub span: AstSpan,
-}
-
-/// A Function Signature
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct FunctionDefinition {
-    /// The name of the function
-    pub name: String,
-    /// The function signature
-    pub signature: [u8; 4],
-    /// The parameters of the function
-    pub inputs: Vec<Argument>,
-    /// The function type
-    pub fn_type: FunctionType,
-    /// The return values of the function
-    pub outputs: Vec<Argument>,
-    /// The span of the function
-    pub span: AstSpan,
-}
-
-/// Function Types
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub enum FunctionType {
-    /// Viewable Function
-    View,
-    /// Payable Function
-    Payable,
-    /// Non Payable Function
-    NonPayable,
-    /// Pure Function
-    Pure,
-}
-
-impl FunctionType {
-    /// Get the string representation of the function type for usage in Solidity interface
-    /// generation.
-    pub fn interface_mutability(&self) -> &str {
-        match self {
-            FunctionType::View => " view",
-            FunctionType::Pure => " pure",
-            _ => "", // payable / nonpayable types not valid in Solidity interfaces
-        }
-    }
-}
-
-/// An Event Signature
-#[derive(Debug, Default, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct EventDefinition {
-    /// The name of the event
-    pub name: String,
-    /// The parameters of the event
-    pub parameters: Vec<Argument>,
-    /// The event span
-    pub span: AstSpan,
-    /// The event hash
-    pub hash: Literal,
 }
 
 /// A Table Definition
@@ -663,6 +518,28 @@ pub struct Label {
     pub span: AstSpan,
 }
 
+/// A Builtin Function Argument
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum BuiltinFunctionArg {
+    /// A Literal Argument
+    Literal(Literal),
+    /// Builtin Function Call
+    BuiltinFunctionCall(BuiltinFunctionCall),
+    /// Abi Argument
+    Argument(Argument),
+}
+
+impl BuiltinFunctionArg {
+    /// Get the span of the Builtin Function Argument
+    pub fn span(&self) -> AstSpan {
+        match self {
+            BuiltinFunctionArg::Literal(_) => AstSpan::default(),
+            BuiltinFunctionArg::BuiltinFunctionCall(b) => b.span.clone(),
+            BuiltinFunctionArg::Argument(a) => a.span.clone(),
+        }
+    }
+}
+
 /// A Builtin Function Call
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct BuiltinFunctionCall {
@@ -671,7 +548,8 @@ pub struct BuiltinFunctionCall {
     /// Arguments for the builtin function call.
     /// TODO: Maybe make a better type for this other than `Argument`? Would be nice if it pointed
     ///       directly to the macro/table.
-    pub args: Vec<Argument>,
+    /// Update: Spitted with BuiltinFunctionArg, but still needs to be update for macro/table
+    pub args: Vec<BuiltinFunctionArg>,
     /// The builtin function call span
     pub span: AstSpan,
 }

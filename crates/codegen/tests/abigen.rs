@@ -1,4 +1,5 @@
 use huff_neo_codegen::Codegen;
+use huff_neo_utils::ast::span::AstSpan;
 use huff_neo_utils::prelude::*;
 use std::collections::HashSet;
 use std::{

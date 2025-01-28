@@ -146,3 +146,18 @@ fn fails_to_parse_invalid_builtin() {
         assert!(lexer.eof);
     }
 }
+
+#[test]
+fn parses_builtin_function_in_macro_body_nested() {
+    let source = r"
+         #define macro TEST() = takes(0) returns(0) {
+            __RIGHTPAD(__FUNC_SIG('hello()'))
+         }";
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens =
+        lexer.into_iter().map(|x| x.unwrap()).filter(|x| matches!(x.kind, TokenKind::BuiltinFunction { .. })).collect::<Vec<Token>>();
+    assert_eq!(tokens.len(), 2);
+    assert_eq!(tokens[0].kind, TokenKind::BuiltinFunction("__RIGHTPAD".to_string()));
+    assert_eq!(tokens[1].kind, TokenKind::BuiltinFunction("__FUNC_SIG".to_string()));
+}

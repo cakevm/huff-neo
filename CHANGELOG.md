@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 - Allow to use `--debug` for reverting contracts.
+- Refactored parsing for ABI and build-in argument.
+  - This is the first step to push more steps into the lexing phase. 
+- Extend parsing to allow `__FUNC_SIG` inside of `__RIGHTPAD`.
+  - Example: `__RIGHTPAD(__FUNC_SIG('transfer(address,uint256)'))`.
 
 ## [1.0.5] - 2025-01-27
 - Use foundry's debugger for `--debug` flag.

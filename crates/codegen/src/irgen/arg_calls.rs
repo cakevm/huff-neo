@@ -1,6 +1,6 @@
+use huff_neo_utils::ast::span::AstSpan;
 use huff_neo_utils::prelude::*;
 use std::str::FromStr;
-
 // Arguments can be literals, labels, opcodes, or constants
 // !! IF THERE IS AMBIGUOUS NOMENCLATURE
 // !! (E.G. BOTH OPCODE AND LABEL ARE THE SAME STRING)

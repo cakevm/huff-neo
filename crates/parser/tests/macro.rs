@@ -1,5 +1,7 @@
 use huff_neo_lexer::Lexer;
 use huff_neo_parser::*;
+use huff_neo_utils::ast::abi::Argument;
+use huff_neo_utils::ast::span::AstSpan;
 use huff_neo_utils::file::full_file_source::FullFileSource;
 use huff_neo_utils::{opcodes::Opcode, prelude::*};
 
@@ -758,13 +760,13 @@ fn macro_with_builtin_fn_call() {
         statements: vec![Statement {
             ty: StatementType::BuiltinFunctionCall(BuiltinFunctionCall {
                 kind: BuiltinFunctionKind::Codesize,
-                args: vec![Argument {
+                args: vec![BuiltinFunctionArg::Argument(Argument {
                     arg_type: None,
                     name: Some("TEST".to_string()),
                     indexed: false,
                     arg_location: None,
                     span: AstSpan(vec![Span { start: 77, end: 80, file: None }]),
-                }],
+                })],
                 span: AstSpan(vec![Span { start: 66, end: 75, file: None }, Span { start: 77, end: 80, file: None }]),
             }),
             span: AstSpan(vec![Span { start: 66, end: 75, file: None }, Span { start: 77, end: 80, file: None }]),

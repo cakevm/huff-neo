@@ -2,10 +2,8 @@ use crate::prelude::{RunnerError, TestResult, TestStatus};
 use alloy_primitives::{hex, Address, B256, U256};
 use anvil::eth::backend::mem::inspector::Inspector;
 use huff_neo_codegen::Codegen;
-use huff_neo_utils::{
-    ast::{DecoratorFlag, MacroDefinition},
-    prelude::{pad_n_bytes, CompilerError, Contract, EVMVersion},
-};
+use huff_neo_utils::ast::huff::{DecoratorFlag, MacroDefinition};
+use huff_neo_utils::prelude::{pad_n_bytes, CompilerError, Contract, EVMVersion};
 use revm::primitives::{Account, AccountInfo, AccountStatus};
 use revm::{
     inspector_handle_register,

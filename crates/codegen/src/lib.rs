@@ -4,11 +4,12 @@
 #![forbid(unsafe_code)]
 
 use alloy_primitives::hex;
+use huff_neo_utils::ast::huff::*;
+use huff_neo_utils::ast::span::AstSpan;
 use huff_neo_utils::file::file_source::FileSource;
 use huff_neo_utils::{
     abi::*,
     artifact::*,
-    ast::*,
     bytecode::*,
     bytes_util,
     error::CodegenError,

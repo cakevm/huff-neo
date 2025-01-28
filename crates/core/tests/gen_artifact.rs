@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use huff_neo_core::Compiler;
+use huff_neo_utils::ast::span::AstSpan;
 use huff_neo_utils::file::file_source::FileSource;
 use huff_neo_utils::prelude::*;
 
