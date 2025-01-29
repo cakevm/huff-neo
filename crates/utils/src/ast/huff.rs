@@ -380,7 +380,7 @@ impl MacroDefinition {
                     if o.is_value_push() {
                         match statement_iter.next() {
                             Some(Statement { ty: StatementType::Literal(l), span: _ }) => {
-                                let hex_literal: String = bytes32_to_string(l, false);
+                                let hex_literal: String = bytes32_to_hex_string(l, false);
                                 let prefixed_hex_literal = o.prefix_push_literal(&hex_literal);
                                 inner_irbytes.push(IRBytes { ty: IRByteType::Bytes(Bytes(prefixed_hex_literal)), span: &statement.span });
                             }
@@ -575,6 +575,8 @@ pub enum BuiltinFunctionKind {
     DynConstructorArg,
     /// Inject Raw Bytes
     Verbatim,
+    /// Bytes function to convert a string to bytes
+    Bytes,
 }
 
 impl From<String> for BuiltinFunctionKind {
@@ -589,6 +591,7 @@ impl From<String> for BuiltinFunctionKind {
             "__RIGHTPAD" => BuiltinFunctionKind::RightPad,
             "__CODECOPY_DYN_ARG" => BuiltinFunctionKind::DynConstructorArg,
             "__VERBATIM" => BuiltinFunctionKind::Verbatim,
+            "__BYTES" => BuiltinFunctionKind::Bytes,
             _ => panic!("Invalid Builtin Function Kind"), /* This should never be reached,
                                                            * builtins are validated with a
                                                            * `try_from` call in the lexer. */
@@ -610,6 +613,7 @@ impl TryFrom<&String> for BuiltinFunctionKind {
             "__RIGHTPAD" => Ok(BuiltinFunctionKind::RightPad),
             "__CODECOPY_DYN_ARG" => Ok(BuiltinFunctionKind::DynConstructorArg),
             "__VERBATIM" => Ok(BuiltinFunctionKind::Verbatim),
+            "__BYTES" => Ok(BuiltinFunctionKind::Bytes),
             _ => Err(()),
         }
     }
@@ -650,7 +654,7 @@ pub enum StatementType {
 impl Display for StatementType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            StatementType::Literal(l) => write!(f, "LITERAL: {}", bytes32_to_string(l, true)),
+            StatementType::Literal(l) => write!(f, "LITERAL: {}", bytes32_to_hex_string(l, true)),
             StatementType::Opcode(o) => write!(f, "OPCODE: {o}"),
             StatementType::Code(s) => write!(f, "CODE: {s}"),
             StatementType::MacroInvocation(m) => {

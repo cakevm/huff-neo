@@ -1,5 +1,4 @@
 use crate::{evm_version::EVMVersion, opcodes::Opcode};
-use alloy_primitives::hex;
 use std::num::ParseIntError;
 
 /// Convert a string slice to a `[u8; 32]`
@@ -21,7 +20,7 @@ pub fn str_to_bytes32(s: &str) -> [u8; 32] {
 }
 
 /// Convert a `[u8; 32]` to a bytes string.
-pub fn bytes32_to_string(bytes: &[u8; 32], prefixed: bool) -> String {
+pub fn bytes32_to_hex_string(bytes: &[u8; 32], prefixed: bool) -> String {
     let mut s = String::default();
     let start = bytes.iter().position(|b| *b != 0).unwrap_or(bytes.len() - 1);
     for b in &bytes[start..bytes.len()] {
@@ -62,7 +61,7 @@ pub fn str_to_vec(s: &str) -> Result<Vec<u8>, std::num::ParseIntError> {
 
 /// Converts a value literal to its smallest equivalent `PUSHX` bytecode. Leading zeros are removed.
 pub fn literal_gen(evm_version: &EVMVersion, l: &[u8; 32]) -> String {
-    let hex_literal: String = bytes32_to_string(l, false);
+    let hex_literal: String = bytes32_to_hex_string(l, false);
     match hex_literal.as_str() {
         "00" => format_push0(evm_version, hex_literal),
         _ => format_literal(hex_literal),
@@ -80,9 +79,4 @@ fn format_push0(evm_version: &EVMVersion, hex_literal: String) -> String {
 /// Converts a literal into its bytecode string representation
 pub fn format_literal(hex_literal: String) -> String {
     format!("{:02x}{hex_literal}", 95 + hex_literal.len() / 2)
-}
-
-/// Convert a slice of bytes to an u32
-pub fn bytes_to_u32(b: &[u8]) -> u32 {
-    u32::from_str_radix(hex::encode(b).as_str(), 16).unwrap_or(0)
 }

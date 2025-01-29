@@ -659,7 +659,134 @@ fn test_builtin_rightpad_func_sig() {
 
     // Have Codegen create the runtime bytecode
     let r_bytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
-    // PUSH32 = 0x7f
-    // transfer(address,uint256) signature = 0xa9059cbb
+    // PUSH32 = 0x7f, transfer(address,uint256) signature = 0xa9059cbb
     assert_eq!(&r_bytes, "7fa9059cbb00000000000000000000000000000000000000000000000000000000");
+}
+
+#[test]
+fn test_builtin_rightpad_bytes() {
+    let source: &str = r#"
+        #define macro MAIN() = takes (0) returns (0) {
+            __RIGHTPAD(__BYTES('hello'))
+        }
+    "#;
+
+    // Parse tokens
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+
+    // Parse the AST
+    let mut contract = parser.parse().unwrap();
+
+    // Derive storage pointers
+    contract.derive_storage_pointers();
+
+    // Instantiate Codegen
+    let cg = Codegen::new();
+
+    // The codegen instance should have no artifact
+    assert!(cg.artifact.is_none());
+
+    // Have Codegen create the runtime bytecode
+    let r_bytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+    // PUSH32 = 0x7f, "hello" = 0x68656c6c6f
+    assert_eq!(&r_bytes, "7f68656c6c6f000000000000000000000000000000000000000000000000000000");
+}
+
+#[test]
+fn test_bytes_builtin() {
+    let source: &str = r#"
+        #define macro MAIN() = takes (0) returns (0) {
+            __BYTES("hello")
+            __BYTES("hellohello")
+            __BYTES("🙂🙂") // Will be represended as UTF-8 4-byte
+        }
+    "#;
+
+    // Parse tokens
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+
+    // Parse the AST
+    let contract = parser.parse().unwrap();
+
+    // Instantiate Codegen
+    let cg = Codegen::new();
+
+    // The codegen instance should have no artifact
+    assert!(cg.artifact.is_none());
+
+    // Have Codegen create the runtime bytecode
+    let r_bytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+    // 64 = PUSH5, "hello" = 0x68656c6c6f
+    assert_eq!(&r_bytes[0..12], "6468656c6c6f"); // 2 + 2 * 5 chars
+                                                 // 69 = PUSH10, "hellohello" = 0x68656c6c6f68656c6c6f
+    assert_eq!(&r_bytes[12..34], "6968656c6c6f68656c6c6f"); // 2 + 2 * 10 chars
+                                                            // 67 = PUSH8, "🙂🙂" = 0xf09f9982f09f9982
+    assert_eq!(&r_bytes[34..52], "67f09f9982f09f9982"); // 2 + 8 * 2 chars
+    assert_eq!(r_bytes.len(), (2 + 5 * 2) + (2 + 2 * 10) + (2 + 8 * 2));
+}
+
+#[test]
+fn test_bytes_builtin_too_large_error() {
+    let source: &str = r#"
+        #define macro MAIN() = takes (0) returns (0) {
+            __BYTES("hellohellohellohellohellohellohello") // 35 characters, codegen will fail
+        }
+    "#;
+
+    // Parse tokens
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+
+    // Parse the AST
+    let contract = parser.parse().unwrap();
+
+    // Instantiate Codegen
+    let cg = Codegen::new();
+
+    // The codegen instance should have no artifact
+    assert!(cg.artifact.is_none());
+
+    // Codegen should fail with an error
+    let codegen_result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None);
+
+    assert!(codegen_result.is_err());
+    assert_eq!(codegen_result.unwrap_err().kind, CodegenErrorKind::InvalidArguments(String::from("Encoded bytes length exceeds 32 bytes")));
+}
+
+#[test]
+fn test_bytes_builtin_empty_string_error() {
+    let source: &str = r#"
+        #define macro MAIN() = takes (0) returns (0) {
+            __BYTES("")
+        }
+    "#;
+
+    // Parse tokens
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+
+    // Parse the AST
+    let contract = parser.parse().unwrap();
+
+    // Instantiate Codegen
+    let cg = Codegen::new();
+
+    // The codegen instance should have no artifact
+    assert!(cg.artifact.is_none());
+
+    // Codegen should fail with an error
+    let codegen_result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None);
+
+    assert!(codegen_result.is_err());
+    assert_eq!(codegen_result.unwrap_err().kind, CodegenErrorKind::InvalidArguments(String::from("Empty string passed to __BYTES")));
 }

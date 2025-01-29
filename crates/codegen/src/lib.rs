@@ -144,7 +144,7 @@ impl Codegen {
 
         res.utilized_tables.iter().try_for_each(|jt| {
             table_offsets.insert(jt.name.to_string(), table_offset);
-            let size = match bytes_util::hex_to_usize(bytes_util::bytes32_to_string(&jt.size, false).as_str()) {
+            let size = match bytes_util::hex_to_usize(bytes_util::bytes32_to_hex_string(&jt.size, false).as_str()) {
                 Ok(s) => s,
                 Err(e) => {
                     tracing::error!(target: "codegen", "Errored converting bytes32 to str. Bytes {:?} with error: {:?}", jt.size, e);
