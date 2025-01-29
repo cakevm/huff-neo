@@ -42,7 +42,7 @@ jobs:
 
   doc:
     if: github.repository == 'cakevm/huff-neo'
-    name: make test
+    name: make doc
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:

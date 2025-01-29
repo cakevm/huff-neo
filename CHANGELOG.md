@@ -3,6 +3,8 @@
 # Huff Neo Compiler changelog
 
 ## [Unreleased]
+
+## [1.0.8] - 2025-01-29
 - Support built-in function calls in code table (`#define table`) body.
   - Supported are `__BYTES`, `__FUNC_SIG`, and `__RIGHTPAD`.
 
