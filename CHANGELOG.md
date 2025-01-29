@@ -3,6 +3,8 @@
 # Huff Neo Compiler changelog
 
 ## [Unreleased]
+- Support built-in function calls in code table (`#define table`) body.
+  - Supported are `__BYTES`, `__FUNC_SIG`, and `__RIGHTPAD`.
 
 ## [1.0.7] - 2025-01-29
 - Add built-in macros for converting a string to bytes and push it to the stack.

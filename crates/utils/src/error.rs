@@ -70,6 +70,8 @@ pub enum ParserErrorKind {
     DuplicateLabel(String),
     /// Duplicate MACRO
     DuplicateMacro(String),
+    /// Invalid code table statement
+    InvalidTableStatement(String),
 }
 
 /// A Lexing Error
@@ -196,6 +198,12 @@ pub enum CodegenErrorKind {
     TestInvocation(String),
     /// Incorrect dynamic argument index
     InvalidDynArgIndex,
+    /// Missing Table Size
+    MissingTableSize(String),
+    /// Unsupported Builtin Function
+    UnsupportedBuiltinFunction(String),
+    /// Unsupported Statement Type
+    UnsupportedStatementType(String),
 }
 
 impl Spanned for CodegenError {
@@ -259,6 +267,15 @@ impl<W: Write> Report<W> for CodegenError {
             }
             CodegenErrorKind::InvalidDynArgIndex => {
                 write!(f.out, "Invalid Dynamic Constructor Argument Index")
+            }
+            CodegenErrorKind::MissingTableSize(table_name) => {
+                write!(f.out, "Missing Table Size for table: \"{table_name}\"")
+            }
+            CodegenErrorKind::UnsupportedBuiltinFunction(bf) => {
+                write!(f.out, "Unsupported Builtin Function: \"{bf}\"")
+            }
+            CodegenErrorKind::UnsupportedStatementType(st) => {
+                write!(f.out, "Unsupported Statement Type: \"{st}\"")
             }
         }
     }
@@ -440,6 +457,9 @@ impl fmt::Display for CompilerError {
                 ParserErrorKind::DuplicateMacro(mn) => {
                     write!(f, "\nError: Duplicate MACRO name found: \"{}\" \n{}\n", mn, pe.spans.error(pe.hint.as_ref()))
                 }
+                ParserErrorKind::InvalidTableStatement(statement_type) => {
+                    write!(f, "\nError: Invalid Table Statement: \"{}\" \n{}\n", statement_type, pe.spans.error(pe.hint.as_ref()))
+                }
             },
             CompilerError::PathBufRead(os_str) => {
                 write!(f, "\nError: Invalid Import Path: \"{}\"", os_str.as_os_str().to_str().unwrap_or("<unknown import>"))
@@ -507,6 +527,15 @@ impl fmt::Display for CompilerError {
                 }
                 CodegenErrorKind::InvalidDynArgIndex => {
                     write!(f, "\nError: Invalid Dynamic Constructor Argument Index:\n{}\n", ce.span.error(None))
+                }
+                CodegenErrorKind::MissingTableSize(table_name) => {
+                    write!(f, "\nError: Missing Table Size for table: \"{table_name}\"\n{}\n", ce.span.error(None))
+                }
+                CodegenErrorKind::UnsupportedBuiltinFunction(bf) => {
+                    write!(f, "\nError: Unsupported Builtin Function: \"{bf}\"\n{}\n", ce.span.error(None))
+                }
+                CodegenErrorKind::UnsupportedStatementType(st) => {
+                    write!(f, "\nError: Unsupported Statement Type: \"{st}\"\n{}\n", ce.span.error(None))
                 }
             },
             CompilerError::FailedCompiles(v) => {

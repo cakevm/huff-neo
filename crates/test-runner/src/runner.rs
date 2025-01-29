@@ -194,7 +194,7 @@ impl TestRunner {
         };
 
         // Generate table bytecode for compiled test macro
-        let bytecode = match Codegen::gen_table_bytecode(res) {
+        let bytecode = match Codegen::gen_table_bytecode(&evm_version, contract, res) {
             Ok(bytecode) => bytecode,
             Err(e) => return Err(RunnerError::CompilerError(CompilerError::CodegenError(e))),
         };

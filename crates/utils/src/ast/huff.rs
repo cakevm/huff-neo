@@ -278,15 +278,15 @@ pub struct TableDefinition {
     pub kind: TableKind,
     /// The table's statements
     pub statements: Vec<Statement>,
-    /// Size of table
-    pub size: Literal,
+    /// Size of table if known. If built-in function is used, this will be `None` and the size will be calculated during codegen.
+    pub size: Option<Literal>,
     /// The table span
     pub span: AstSpan,
 }
 
 impl TableDefinition {
     /// Public associated function that instantiates a TableDefinition from a string
-    pub fn new(name: String, kind: TableKind, statements: Vec<Statement>, size: Literal, span: AstSpan) -> Self {
+    pub fn new(name: String, kind: TableKind, statements: Vec<Statement>, size: Option<Literal>, span: AstSpan) -> Self {
         TableDefinition { name, kind, statements, size, span }
     }
 }
@@ -615,6 +615,23 @@ impl TryFrom<&String> for BuiltinFunctionKind {
             "__VERBATIM" => Ok(BuiltinFunctionKind::Verbatim),
             "__BYTES" => Ok(BuiltinFunctionKind::Bytes),
             _ => Err(()),
+        }
+    }
+}
+
+impl Display for BuiltinFunctionKind {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BuiltinFunctionKind::Tablesize => write!(f, "__tablesize"),
+            BuiltinFunctionKind::Codesize => write!(f, "__codesize"),
+            BuiltinFunctionKind::Tablestart => write!(f, "__tablestart"),
+            BuiltinFunctionKind::FunctionSignature => write!(f, "__FUNC_SIG"),
+            BuiltinFunctionKind::EventHash => write!(f, "__EVENT_HASH"),
+            BuiltinFunctionKind::Error => write!(f, "__ERROR"),
+            BuiltinFunctionKind::RightPad => write!(f, "__RIGHTPAD"),
+            BuiltinFunctionKind::DynConstructorArg => write!(f, "__CODECOPY_DYN_ARG"),
+            BuiltinFunctionKind::Verbatim => write!(f, "__VERBATIM"),
+            BuiltinFunctionKind::Bytes => write!(f, "__BYTES"),
         }
     }
 }
