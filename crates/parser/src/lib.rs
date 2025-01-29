@@ -1064,36 +1064,43 @@ impl Parser {
         // Parse the core table
         let table_statements: Vec<Statement> = self.parse_table_body(is_code_table)?;
         let size = match kind {
-            TableKind::JumpTablePacked => table_statements.len() * 0x02,
-            TableKind::JumpTable => table_statements.len() * 0x20,
+            TableKind::JumpTablePacked => Some(table_statements.len() * 0x02),
+            TableKind::JumpTable => Some(table_statements.len() * 0x20),
             TableKind::CodeTable => {
-                table_statements
-                    .iter()
-                    .map(|s| {
-                        if let StatementType::Code(c) = &s.ty {
-                            c.len()
-                        } else {
-                            // TODO: Throw an error here.
-                            tracing::error!(
-                                target: "parser",
-                                "Invalid table statement. Must be valid hex bytecode. Got: {:?}",
-                                s
-                            );
-                            0_usize
+                let mut table_size = 0;
+                let mut builtins_used = false;
+                for s in &table_statements {
+                    if let StatementType::Code(c) = &s.ty {
+                        if c.len() % 2 != 0 {
+                            return Err(ParserError {
+                                kind: ParserErrorKind::InvalidTableStatement(format!("{}", s.ty.clone())),
+                                hint: Some("CodeTable bytecode must be an even number of characters.".to_string()),
+                                spans: AstSpan(s.span.inner_ref().to_vec()),
+                                cursor: self.cursor,
+                            });
                         }
-                    })
-                    .sum::<usize>()
-                    / 2
+                        table_size += c.len();
+                    } else if let StatementType::BuiltinFunctionCall(_) = &s.ty {
+                        builtins_used = true;
+                    } else {
+                        return Err(ParserError {
+                            kind: ParserErrorKind::InvalidTableStatement(format!("{}", s.ty)),
+                            hint: Some(format!("Invalid table statement. Must be valid hex bytecode. Got: {:?}", s)),
+                            spans: AstSpan(s.span.inner_ref().to_vec()),
+                            cursor: self.cursor,
+                        });
+                    }
+                }
+                if builtins_used {
+                    None
+                } else {
+                    Some(table_size / 2)
+                }
             }
         };
 
-        Ok(TableDefinition::new(
-            table_name,
-            kind,
-            table_statements,
-            str_to_bytes32(format!("{size:02x}").as_str()),
-            AstSpan(self.spans.clone()),
-        ))
+        let table_size = size.map(|s| str_to_bytes32(format!("{:02x}", s).as_str()));
+        Ok(TableDefinition::new(table_name, kind, table_statements, table_size, AstSpan(self.spans.clone())))
     }
 
     /// Parse the body of a table.
@@ -1101,16 +1108,16 @@ impl Parser {
     /// Only `LabelCall` and `Code` Statements should be authorized.
     pub fn parse_table_body(&mut self, is_code_table: bool) -> Result<Vec<Statement>, ParserError> {
         let mut statements: Vec<Statement> = Vec::new();
-        let code_statement_regex = Regex::new(r"^([a-fA-F\d]+)$").unwrap();
+        let hex_string_regex = Regex::new(r"^([a-fA-F\d]+)$").unwrap();
 
         self.match_kind(TokenKind::OpenBrace)?;
         while !self.check(TokenKind::CloseBrace) {
             let new_spans = vec![self.current_token.span.clone()];
-            match &self.current_token.kind {
+            match self.current_token.kind.clone() {
                 TokenKind::Ident(ident_str) => {
                     statements.push(Statement {
                         ty: if is_code_table {
-                            if code_statement_regex.is_match(ident_str) {
+                            if hex_string_regex.is_match(&ident_str) {
                                 StatementType::Code(ident_str.to_string())
                             } else {
                                 tracing::error!("Invalid CodeTable Body Token: {:?}", self.current_token.kind);
@@ -1127,6 +1134,21 @@ impl Parser {
                         span: AstSpan(new_spans),
                     });
                     self.consume();
+                }
+                TokenKind::BuiltinFunction(f) => {
+                    let mut curr_spans = vec![self.current_token.span.clone()];
+                    self.match_kind(TokenKind::BuiltinFunction(String::default()))?;
+                    let args = self.parse_builtin_args()?;
+                    args.iter().for_each(|a| curr_spans.extend_from_slice(a.span().inner_ref()));
+                    tracing::info!(target: "parser", "PARSING CODE TABLE BODY: [BUILTIN FN: {}({:?})]", f, args);
+                    statements.push(Statement {
+                        ty: StatementType::BuiltinFunctionCall(BuiltinFunctionCall {
+                            kind: BuiltinFunctionKind::from(f.clone()),
+                            args,
+                            span: AstSpan(curr_spans.clone()),
+                        }),
+                        span: AstSpan(curr_spans),
+                    });
                 }
                 kind => {
                     tracing::error!("Invalid Table Body Token: {:?}", kind);

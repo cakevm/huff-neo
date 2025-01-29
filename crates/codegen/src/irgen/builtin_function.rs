@@ -310,7 +310,7 @@ fn codesize<'a>(
     Ok((codesize_offset, push_bytes))
 }
 
-fn error(contract: &Contract, bf: &BuiltinFunctionCall) -> Result<String, CodegenError> {
+pub fn error(contract: &Contract, bf: &BuiltinFunctionCall) -> Result<String, CodegenError> {
     if bf.args.len() != 1 {
         tracing::error!(
             target: "codegen",
@@ -355,7 +355,7 @@ fn error(contract: &Contract, bf: &BuiltinFunctionCall) -> Result<String, Codege
     Ok(push_bytes)
 }
 
-fn tablesize(contract: &Contract, bf: &BuiltinFunctionCall) -> Result<(TableDefinition, String), CodegenError> {
+pub fn tablesize(contract: &Contract, bf: &BuiltinFunctionCall) -> Result<(TableDefinition, String), CodegenError> {
     let BuiltinFunctionArg::Argument(ref first_arg) = bf.args[0] else {
         return Err(CodegenError {
             kind: CodegenErrorKind::InvalidArguments(String::from("Incorrect arguments type passed to __tablesize")),
@@ -377,13 +377,15 @@ fn tablesize(contract: &Contract, bf: &BuiltinFunctionCall) -> Result<(TableDefi
             token: None,
         });
     };
-
-    let size = bytes32_to_hex_string(&ir_table.size, false);
+    let Some(table_size) = ir_table.size else {
+        return Err(CodegenError { kind: CodegenErrorKind::MissingTableSize(ir_table.name.clone()), span: bf.span.clone(), token: None });
+    };
+    let size = bytes32_to_hex_string(&table_size, false);
     let push_bytes = format!("{:02x}{size}", 95 + size.len() / 2);
     Ok((ir_table, push_bytes))
 }
 
-fn event_hash(contract: &Contract, bf: &BuiltinFunctionCall) -> Result<String, CodegenError> {
+pub fn event_hash(contract: &Contract, bf: &BuiltinFunctionCall) -> Result<String, CodegenError> {
     if bf.args.len() != 1 {
         tracing::error!(
             target: "codegen",
@@ -427,7 +429,7 @@ fn event_hash(contract: &Contract, bf: &BuiltinFunctionCall) -> Result<String, C
     Ok(push_bytes)
 }
 
-fn function_signature(contract: &Contract, bf: &BuiltinFunctionCall) -> Result<String, CodegenError> {
+pub fn function_signature(contract: &Contract, bf: &BuiltinFunctionCall) -> Result<String, CodegenError> {
     if bf.args.len() != 1 {
         tracing::error!(
             target: "codegen",
@@ -473,7 +475,7 @@ fn function_signature(contract: &Contract, bf: &BuiltinFunctionCall) -> Result<S
     Ok(push_bytes)
 }
 
-fn right_pad(evm_version: &EVMVersion, contract: &Contract, bf: &BuiltinFunctionCall) -> Result<String, CodegenError> {
+pub fn right_pad(evm_version: &EVMVersion, contract: &Contract, bf: &BuiltinFunctionCall) -> Result<String, CodegenError> {
     if bf.args.len() != 1 {
         tracing::error!(target = "codegen", "Incorrect number of arguments passed to __RIGHTPAD, should be 1: {}", bf.args.len());
         return Err(CodegenError {
@@ -521,7 +523,7 @@ fn right_pad(evm_version: &EVMVersion, contract: &Contract, bf: &BuiltinFunction
     Ok(push_bytes)
 }
 
-fn builtin_bytes(evm_version: &EVMVersion, bf: &BuiltinFunctionCall) -> Result<String, CodegenError> {
+pub fn builtin_bytes(evm_version: &EVMVersion, bf: &BuiltinFunctionCall) -> Result<String, CodegenError> {
     if bf.args.len() != 1 {
         tracing::error!(target = "codegen", "Incorrect number of arguments passed to __BYTES, should be 1: {}", bf.args.len());
         return Err(CodegenError {

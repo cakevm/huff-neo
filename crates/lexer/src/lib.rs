@@ -317,7 +317,9 @@ impl<'a> Lexer<'a> {
 
                     let kind = if let Some(kind) = found_kind {
                         kind
-                    } else if (self.context == Context::MacroBody || self.context == Context::BuiltinFunction)
+                    } else if (self.context == Context::MacroBody
+                        || self.context == Context::BuiltinFunction
+                        || self.context == Context::CodeTableBody)
                         && BuiltinFunctionKind::try_from(&word).is_ok()
                     {
                         TokenKind::BuiltinFunction(word)
