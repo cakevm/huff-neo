@@ -3,6 +3,9 @@
 # Huff Neo Compiler changelog
 
 ## [Unreleased]
+- Add built-in macros for converting a string to bytes and push it to the stack.
+  - `__BYTES("hello")` -> `PUSH5 0x68656c6c6f`
+  - This can also be used here: `__RIGHTPAD(__BYTES("hello"))`.
 
 ## [1.0.6] - 2025-01-28
 - Allow to use `--debug` for reverting contracts.

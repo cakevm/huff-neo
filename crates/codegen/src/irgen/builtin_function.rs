@@ -1,7 +1,7 @@
 use crate::Codegen;
 use alloy_primitives::{hex, keccak256};
 use huff_neo_utils::bytecode::{BytecodeRes, Bytes, CircularCodeSizeIndices, Jump, Jumps};
-use huff_neo_utils::bytes_util::{bytes32_to_string, format_even_bytes, pad_n_bytes};
+use huff_neo_utils::bytes_util::{bytes32_to_hex_string, format_even_bytes, literal_gen, pad_n_bytes};
 use huff_neo_utils::error::{CodegenError, CodegenErrorKind};
 use huff_neo_utils::evm_version::EVMVersion;
 use huff_neo_utils::opcodes::Opcode;
@@ -98,7 +98,7 @@ pub fn builtin_function_gen<'a>(
             bytes.push((starting_offset, Bytes(push_bytes)));
         }
         BuiltinFunctionKind::RightPad => {
-            let push_bytes = right_pad(contract, bf)?;
+            let push_bytes = right_pad(evm_version, contract, bf)?;
             *offset += push_bytes.len() / 2;
             bytes.push((starting_offset, Bytes(push_bytes)));
         }
@@ -216,6 +216,11 @@ pub fn builtin_function_gen<'a>(
             let push_bytes = hex.to_string();
             *offset += hex.len() / 2;
 
+            bytes.push((starting_offset, Bytes(push_bytes)));
+        }
+        BuiltinFunctionKind::Bytes => {
+            let push_bytes = builtin_bytes(evm_version, bf)?;
+            *offset += push_bytes.len() / 2;
             bytes.push((starting_offset, Bytes(push_bytes)));
         }
     }
@@ -373,7 +378,7 @@ fn tablesize(contract: &Contract, bf: &BuiltinFunctionCall) -> Result<(TableDefi
         });
     };
 
-    let size = bytes32_to_string(&ir_table.size, false);
+    let size = bytes32_to_hex_string(&ir_table.size, false);
     let push_bytes = format!("{:02x}{size}", 95 + size.len() / 2);
     Ok((ir_table, push_bytes))
 }
@@ -402,7 +407,7 @@ fn event_hash(contract: &Contract, bf: &BuiltinFunctionCall) -> Result<String, C
         });
     };
     let push_bytes = if let Some(event) = contract.events.iter().find(|e| first_arg.name.as_ref().unwrap().eq(&e.name)) {
-        let hash = bytes32_to_string(&event.hash, false);
+        let hash = bytes32_to_hex_string(&event.hash, false);
         format!("{}{hash}", Opcode::Push32)
     } else if let Some(s) = &first_arg.name {
         let event_selector = keccak256(s).0;
@@ -468,7 +473,7 @@ fn function_signature(contract: &Contract, bf: &BuiltinFunctionCall) -> Result<S
     Ok(push_bytes)
 }
 
-fn right_pad(contract: &Contract, bf: &BuiltinFunctionCall) -> Result<String, CodegenError> {
+fn right_pad(evm_version: &EVMVersion, contract: &Contract, bf: &BuiltinFunctionCall) -> Result<String, CodegenError> {
     if bf.args.len() != 1 {
         tracing::error!(target = "codegen", "Incorrect number of arguments passed to __RIGHTPAD, should be 1: {}", bf.args.len());
         return Err(CodegenError {
@@ -486,6 +491,10 @@ fn right_pad(contract: &Contract, bf: &BuiltinFunctionCall) -> Result<String, Co
             match inner_call.kind {
                 BuiltinFunctionKind::FunctionSignature => {
                     let push_bytes = function_signature(contract, inner_call)?;
+                    push_bytes[2..].to_string() // remove opcode
+                }
+                BuiltinFunctionKind::Bytes => {
+                    let push_bytes = builtin_bytes(evm_version, inner_call)?;
                     push_bytes[2..].to_string() // remove opcode
                 }
                 _ => {
@@ -509,5 +518,52 @@ fn right_pad(contract: &Contract, bf: &BuiltinFunctionCall) -> Result<String, Co
     };
     let hex = format_even_bytes(first_arg);
     let push_bytes = format!("{}{hex}{}", Opcode::Push32, "0".repeat(64 - hex.len()));
+    Ok(push_bytes)
+}
+
+fn builtin_bytes(evm_version: &EVMVersion, bf: &BuiltinFunctionCall) -> Result<String, CodegenError> {
+    if bf.args.len() != 1 {
+        tracing::error!(target = "codegen", "Incorrect number of arguments passed to __BYTES, should be 1: {}", bf.args.len());
+        return Err(CodegenError {
+            kind: CodegenErrorKind::InvalidArguments(format!(
+                "Incorrect number of arguments passed to __BYTES, should be 1: {}",
+                bf.args.len()
+            )),
+            span: bf.span.clone(),
+            token: None,
+        });
+    }
+    let first_arg = match bf.args[0] {
+        BuiltinFunctionArg::Argument(ref arg) => arg.name.clone().unwrap_or_default(),
+        _ => {
+            tracing::error!(target: "codegen", "Invalid argument type passed to __BYTES");
+            return Err(CodegenError {
+                kind: CodegenErrorKind::InvalidArguments(String::from("Invalid argument type passed to __BYTES")),
+                span: bf.span.clone(),
+                token: None,
+            });
+        }
+    };
+
+    if first_arg.is_empty() {
+        return Err(CodegenError {
+            kind: CodegenErrorKind::InvalidArguments(String::from("Empty string passed to __BYTES")),
+            span: bf.span.clone(),
+            token: None,
+        });
+    }
+
+    let bytes = first_arg.as_bytes();
+    if bytes.len() > 32 {
+        return Err(CodegenError {
+            kind: CodegenErrorKind::InvalidArguments(String::from("Encoded bytes length exceeds 32 bytes")),
+            span: bf.span.clone(),
+            token: None,
+        });
+    }
+    let mut bytes_array = [0u8; 32];
+    bytes_array[32 - bytes.len()..].copy_from_slice(bytes);
+
+    let push_bytes = literal_gen(evm_version, &bytes_array);
     Ok(push_bytes)
 }

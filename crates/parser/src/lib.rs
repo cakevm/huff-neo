@@ -10,7 +10,7 @@ use huff_neo_utils::ast::span::AstSpan;
 use huff_neo_utils::file::remapper;
 use huff_neo_utils::{
     error::*,
-    prelude::{bytes32_to_string, str_to_bytes32, Span},
+    prelude::{bytes32_to_hex_string, str_to_bytes32, Span},
     token::{Token, TokenKind},
     types::*,
 };
@@ -75,12 +75,12 @@ impl Parser {
                 tracing::info!(target: "parser", "SUCCESSFULLY PARSED MACRO {}", m.name);
                 contract.macros.push(m);
             }
-            // Check for a defition with the "#define" keyword
+            // Check for a definition with the "#define" keyword
             else if self.check(TokenKind::Define) {
                 // Consume the definition token
                 self.match_kind(TokenKind::Define)?;
 
-                // match to fucntion, constant, macro, or event
+                // match to function, constant, macro, or event
                 match self.current_token.kind {
                     TokenKind::Function => {
                         let func = self.parse_function()?;
@@ -589,7 +589,7 @@ impl Parser {
                                 self.consume();
 
                                 // Check that the literal does not overflow the push size
-                                let hex_literal: String = bytes32_to_string(&val, false);
+                                let hex_literal: String = bytes32_to_hex_string(&val, false);
                                 if o.push_overflows(&hex_literal) {
                                     return Err(ParserError {
                                         kind: ParserErrorKind::InvalidPush(o),
@@ -823,7 +823,7 @@ impl Parser {
             if let TokenKind::Literal(l) = &self.current_token.kind {
                 args.push(BuiltinFunctionArg::Argument(Argument {
                     // Place literal in the "name" field
-                    name: Some(bytes32_to_string(l, false)),
+                    name: Some(bytes32_to_hex_string(l, false)),
                     arg_location: None,
                     arg_type: None,
                     indexed: false,
