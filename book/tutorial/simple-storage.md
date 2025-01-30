@@ -19,7 +19,7 @@ First define the constant that will represent your storage slot using the `FREE_
 ```javascript
 #define constant VALUE = FREE_STORAGE_POINTER()
 ```
-We can then reference this slot throughout the code by wrapping it in square brackets - like so `[VALUE]`. The example below demonstrates a macro that will store the value 5 in the slot [VALUE].
+We can then reference this slot throughout the code by wrapping it in square brackets - like so `[VALUE]`. The example below demonstrates a macro that will store the value 5 in the slot `[VALUE]`.
 ```javascript
 #define macro SET_5() = takes(0) returns(0) {
     0x5             // [0x5] 
@@ -28,7 +28,7 @@ We can then reference this slot throughout the code by wrapping it in square bra
 }
 ```
 
-Test this out interactively [here](https://www.evm.codes/playground?unit=Wei&codeType=Bytecode&code='6005600055'_) ([VALUE] has been hardcoded to 0)
+Test this out interactively [here](https://www.evm.codes/playground?unit=Wei&codeType=Bytecode&code='6005600055'_) (`[VALUE]` has been hardcoded to 0)
 
 ## Reading from storage
 Now you know how to write to storage, reading from storage is trivial. Simply replace `sstore` with `sload` and your ready to go. We are going to extend our example above to both write and read from storage.

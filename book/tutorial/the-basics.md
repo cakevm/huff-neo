@@ -121,7 +121,7 @@ As mentioned before, EVM contracts use an ABI to determine which function should
 
 The contract ABI specification dictates that contract calls will select which function they want to call by prepending a 4 byte (function selector) to their calls. The 4 bytes are sliced from the start of the keccak of the function's abi definition. For example, `addTwo(uint256,uint256)`'s function selector will become `0x0f52d66e` (You can confirm this by using a command line tool such as [`cast`](https://book.getfoundry.sh/cast/)'s `sig` command, or online sites such as [keccak256 online](https://emn178.github.io/online-tools/keccak_256.html)). If you are curious as to what these look like you can find a registry of common 4byte function selectors in the [4 byte directory](https://www.4byte.directory/).
 
-Calculating the function selector each time can be tedious. To make life easy, huff has an included builtin `__FUNC_SIG()`. If a function interface is declared within the file's current scope, it's function selector will be calculated and inlined for you. You can view more information about huff's builtin functions [here](/get-started/huff-by-example/#func-sig-func-def-string).
+Calculating the function selector each time can be tedious. To make life easy, huff has an included builtin `__FUNC_SIG()`. If a function interface is declared within the file's current scope, it's function selector will be calculated and inlined for you. You can view more information about huff's builtin functions [here](../get-started/huff-by-example.md#Builtin-Functions).
 
 #### Modifying our contract to accept external function calls
 
