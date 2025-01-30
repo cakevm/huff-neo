@@ -1,6 +1,6 @@
 ## Compiling Contracts with the Huff Compiler
 
-_NOTE: Installing the Huff Compiler is a prerequisite for compiling contracts. See [installing](https://docs.huff.sh/get-started/installing/) to install huffc._
+_NOTE: Installing the Huff Compiler is a prerequisite for compiling contracts. See [installing](https://docs.huff.sh/get-started/installing/) to install `hnc`._
 
 Below we outline the few steps it takes to compile a Huff contract.
 
@@ -21,10 +21,10 @@ Below we outline the few steps it takes to compile a Huff contract.
    }
    ```
 
-2. Use `huffc` to compile the contract and output bytecode:
+2. Use `hnc` to compile the contract and output bytecode:
 
    ```shell
-   huffc addition.huff --bytecode
+   hnc addition.huff --bytecode
    ```
 
    This will output something similar to:

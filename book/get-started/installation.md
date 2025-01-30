@@ -12,7 +12,7 @@ curl -L https://raw.githubusercontent.com/cakevm/huff-neo/main/hnc-up/install | 
 
 _NOTE: This installs the `hnc-up` binary, but does not guarantee it is added to your path. If you get an error like `hnc-up: command not found`, you will need to source your path by running `source ~/.bashrc` or `source ~/.zshrc`. Alternatively, you can open a new terminal window._
 
-Now, with `hnc-up` installed and in your path, you can simply run `hnc-up` to install the latest stable version of `huffc` (the huff compiler).
+Now, with `hnc-up` installed and in your path, you can simply run `hnc-up` to install the latest stable version of `hnc` (the huff compiler).
 
 ### On Windows, build from the source
 
