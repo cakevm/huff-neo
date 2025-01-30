@@ -170,11 +170,10 @@ impl<'a, 'l> Compiler<'a, 'l> {
     ///
     /// ### Steps
     ///
-    /// 1. Transform inputs into File Paths with [transform_paths](Compiler::transform_paths).
+    /// 1. Transform inputs into File Paths with [transform_paths](FileProvider::transform_paths).
     /// 2. Fetch file sources in parallel with [fetch_sources](Compiler::fetch_sources).
     /// 3. Recurse file dependencies in parallel with [recurse_deps](Compiler::recurse_deps).
-    /// 4. For each top-level file [Parallelized], generate the artifact using
-    ///    [gen_artifact](Compiler::gen_artifact).
+    /// 4. For each top-level file generate the artifact using [gen_artifact](Compiler::gen_artifact).
     /// 5. Return the compiling error(s) or successfully generated artifacts.
     pub fn execute(&self) -> Result<Vec<Arc<Artifact>>, Arc<CompilerError>> {
         // Grab the input files
@@ -263,10 +262,10 @@ impl<'a, 'l> Compiler<'a, 'l> {
     ///
     /// ### Steps
     ///
-    /// 1. Transform inputs into File Paths with [transform_paths](Compiler::transform_paths).
+    /// 1. Transform inputs into File Paths with [transform_paths](FileProvider::transform_paths).
     /// 2. Fetch file sources in parallel with [fetch_sources](Compiler::fetch_sources).
     /// 3. Recurse file dependencies in parallel with [recurse_deps](Compiler::recurse_deps).
-    /// 4. For each top-level file, parse its contents and return a vec of [Contract](Contract)
+    /// 4. For each top-level file, parse its contents and return a vec of [Contract]
     ///    ASTs.
     pub fn grab_contracts(&self) -> Result<Vec<Contract>, Arc<CompilerError>> {
         // Grab the input files

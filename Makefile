@@ -48,7 +48,8 @@ deny-check:
 
 .PHONY: doc
 doc:
-	cargo doc --workspace --all-features --no-deps
+	RUSTDOCFLAGS="--show-type-layout --generate-link-to-definition --enable-index-page -D warnings -Z unstable-options" \
+	cargo +nightly doc --workspace --all-features --no-deps --document-private-items
 
 .PHONY: pre-release
 pre-release:

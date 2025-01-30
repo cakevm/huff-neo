@@ -113,8 +113,8 @@ impl HuffTesterConfig {
 /// The core struct of the huff-tests crate.
 ///
 /// A `HuffTester` struct is instantiated with an AST of a contract that contains test
-/// macros. The struct can be consumed by the [HuffTester::execute](execute) method,
-/// returning a vector of [TestResult](TestResult) structs.
+/// macros. The struct can be consumed by the [HuffTester::execute] method,
+/// returning a vector of [TestResult] structs.
 pub struct HuffTester<'t> {
     /// The AST of the contract
     pub ast: &'t Contract,

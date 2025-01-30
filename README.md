@@ -39,7 +39,6 @@ These are the projects that are maintained for Huff Neo:
 | Project                                                                          | Scope                    | Support |
 |----------------------------------------------------------------------------------|--------------------------|---------|
 | [huff-neo](https://github.com/cakevm/huff-neo)                                   | Compiler (This repo)     | ✅       |
-| [huff-neo-docs](https://github.com/cakevm/huff-neo-docs)                         | Documentation            | ✅       |
 | [foundry-huff-neo](https://github.com/cakevm/foundry-huff-neo)                   | Foundry Plugin           | ✅       |
 | [huff-neo-toolchain](https://github.com/cakevm/huff-neo-toolchain)               | GitHub Action (Compiler) | ✅       |
 | [huff-neo-tests-action](https://github.com/cakevm/huff-neo-tests-action)         | GitHub Action (Tests)    | ✅       |
@@ -74,7 +73,7 @@ make release
 
 **Option 3:** Install the latest version with cargo:
 ```bash
-cargo install --git https://github.com/cakevm/huff-neo --locked
+cargo install --git https://github.com/cakevm/huff-neo.git hnc --bins --locked
 ```
 
 ## Modules
@@ -104,7 +103,7 @@ make pre-release
 
 ## Acknowledgements
 
-Many thanks to all [huff-rs](https://github.com/huff-language/huff-rs) contributors and to the authors who maintained it for such a long period! Again thanks to the original [Huff Language](https://github.com/huff-language) compiler: [`huffc`](https://github.com/huff-language/huffc). Thanks to [ripc](https://github.com/ibraheemdev/ripc), and big shoutout to [Paradigm](https://github.com/paradigmxyz). Without [Foundry](https://github.com/foundry-rs/foundry) the original implementation would not be possible.
+Many thanks to all [huff-rs](https://github.com/huff-language/huff-rs) contributors and to the authors who maintained it for such a long period! Many thanks as well to the [huff-docs](https://github.com/huff-language/huff-docs) contributors. The `book` directory is a hard-fork from this repository. Again thanks to the original [Huff Language](https://github.com/huff-language) compiler: [`huffc`](https://github.com/huff-language/huffc). Thanks to [ripc](https://github.com/ibraheemdev/ripc), and big shoutout to [Paradigm](https://github.com/paradigmxyz). Without [Foundry](https://github.com/foundry-rs/foundry) the original implementation would not be possible.
 
 ## License
-This project is, as the original huff-rs, dual licensed under [Apache 2.0](./LICENSE-APACHE) or [MIT](./LICENSE-MIT) licence.
+The all code and content except the `book` directory is, as the original huff-rs, dual licensed under [Apache 2.0](./LICENSE-APACHE) or [MIT](./LICENSE-MIT) licence. The `book` directory is a hard-fork from [huff-docs](https://github.com/huff-language/huff-docs) and licensed as the source under the [MIT](./LICENSE-MIT) license.

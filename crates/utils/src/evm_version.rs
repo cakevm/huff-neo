@@ -33,7 +33,7 @@ impl EVMVersion {
     }
 }
 
-/// Convert from Option<String> to EVMVersion
+/// Convert from `Option<String>` to EVMVersion
 impl From<Option<String>> for EVMVersion {
     fn from(version: Option<String>) -> Self {
         match version {

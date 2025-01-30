@@ -116,7 +116,7 @@ pub enum TokenKind {
     /// EVM Type
     PrimitiveType(PrimitiveEVMType),
     /// Array of EVM Types
-    /// uint256[5][2][3] => ArrayType(PrimitiveEVMType::Uint(256), [5, 2, 3])
+    /// `uint256[5][2][3]` => `ArrayType(PrimitiveEVMType::Uint(256)`, `[5, 2, 3]`)
     ArrayType(PrimitiveEVMType, Vec<usize>),
     /// A Jump Table
     JumpTable,
