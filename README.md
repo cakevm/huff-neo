@@ -1,10 +1,14 @@
 <div align="center">
 
 [![CI status](https://github.com/cakevm/huff-neo/actions/workflows/ci.yaml/badge.svg?branch=main)][gh-huff-neo]
+[![Book status](https://github.com/cakevm/huff-neo/actions/workflows/book.yml/badge.svg?branch=main)][gh-book]
 [![Telegram Chat][tg-badge]][tg-url]
 
+| [User Book](https://cakevm.github.io/huff-neo/)
+| [Crate Docs](https://cakevm.github.io/huff-neo/docs/) |
 
 [gh-huff-neo]: https://github.com/cakevm/huff-neo/actions/workflows/ci.yaml
+[gh-book]: https://github.com/cakevm/huff-neo/actions/workflows/book.yml
 [tg-badge]: https://img.shields.io/badge/telegram-huff_neo-2CA5E0?style=plastic&logo=telegram
 [tg-url]: https://t.me/huff_neo
 
