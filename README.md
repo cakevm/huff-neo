@@ -16,7 +16,7 @@
 
 # Huff Neo Compiler
 
-The Huff Neo Compiler `hnc` can be used as drop-in replacement for `huffc`. This repository is a hard-fork from [huff-rs](https://github.com/huff-language/huff-rs), hopefully until [huff2](https://github.com/huff-language/huff2) is available. The compiler comes with update dependencies, improved codebase, and several fixes (see [CHANGELOG](https://github.com/cakevm/huff-neo/blob/main/CHANGELOG.md)). This compiler is for all those that require a production-ready compiler right now, as the original repository is archived and not supported anymore. As before, be warned that you are responsible for the contracts you deploy. Find the documentation [here](https://cakevm.github.io/huff-neo-docs).
+The Huff Neo Compiler `hnc` can be used as drop-in replacement for `huffc`. This repository is a hard-fork from [huff-rs](https://github.com/huff-language/huff-rs), hopefully until [huff2](https://github.com/huff-language/huff2) is available. The compiler comes with update dependencies, improved codebase, and several fixes (see [CHANGELOG](https://github.com/cakevm/huff-neo/blob/main/CHANGELOG.md)). This compiler is for all those that require a production-ready compiler right now, as the original repository is archived and not supported anymore. As before, be warned that you are responsible for the contracts you deploy. Find the documentation [here](https://cakevm.github.io/huff-neo/).
 
 **Highlights:**
 - Fixed line number and lexing/parsing error reporting
