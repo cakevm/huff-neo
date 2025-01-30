@@ -53,6 +53,8 @@ doc:
 
 .PHONY: pre-release
 pre-release:
+	mdbook test
+	mdbook-linkcheck --standalone
 	make fmt
 	make clippy
 	make test
