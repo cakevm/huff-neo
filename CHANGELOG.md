@@ -6,6 +6,7 @@
 
 ## [1.0.10] - 2025-01-31
 - Add windows binary to the release.
+- Revert static linking for the linux binary.
 
 ## [1.0.9] - 2025-01-31
 - Use static linking for the linux binary.
