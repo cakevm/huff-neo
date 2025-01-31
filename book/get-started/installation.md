@@ -1,6 +1,6 @@
 ## Installing Huff
 
-The [Huff Neo Compiler](https://github.com/cakevm/huff-neos) is built in Rust to create an extremely performant experience compiling huff.
+The [Huff Neo Compiler](https://github.com/cakevm/huff-neo) is built in Rust to create an extremely performant experience compiling huff.
 
 Installation of the compiler is similar to that of [Foundry](https://github.com/foundry-rs/foundry).
 
