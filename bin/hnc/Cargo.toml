@@ -30,6 +30,8 @@ tokio.workspace = true
 tracing.workspace = true
 uuid.workspace = true
 yansi.workspace = true
+# Workaround to pin the version. See root Cargo.toml for more details.
+crunchy.workspace = true
 
 [build-dependencies]
 shadow-rs.workspace = true

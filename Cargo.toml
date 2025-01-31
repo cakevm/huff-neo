@@ -11,7 +11,7 @@ license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/cakevm/huff-neo"
 rust-version = "1.84"
-version = "1.0.9"
+version = "1.0.10"
 
 [workspace.dependencies]
 huff-neo-codegen = { path = "crates/codegen" }
@@ -51,6 +51,8 @@ uuid = { version = "1.11.1", features = ["v4"] }
 walkdir = "2.5.0"
 wasm-bindgen = "0.2"
 yansi = "1.0.1"
+# Pin version als workaround for: https://github.com/eira-fransham/crunchy/issues/13
+crunchy = "=0.2.2"
 
 # serde
 serde = { version = "1.0", features = ["derive", "rc"] }
