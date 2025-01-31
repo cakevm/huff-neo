@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 
+## [1.0.9] - 2025-01-31
+- Use static linking for the linux binary.
+  - This resolves issues when `hnc` is on a linux with a different glibc version.
+
 ## [1.0.8] - 2025-01-29
 - Support built-in function calls in code table (`#define table`) body.
   - Supported are `__BYTES`, `__FUNC_SIG`, and `__RIGHTPAD`.
