@@ -533,6 +533,8 @@ pub enum BuiltinFunctionArg {
     BuiltinFunctionCall(BuiltinFunctionCall),
     /// Abi Argument
     Argument(Argument),
+    /// Constant Argument
+    Constant(String, AstSpan),
 }
 
 impl BuiltinFunctionArg {
@@ -542,6 +544,7 @@ impl BuiltinFunctionArg {
             BuiltinFunctionArg::Literal(_) => AstSpan::default(),
             BuiltinFunctionArg::BuiltinFunctionCall(b) => b.span.clone(),
             BuiltinFunctionArg::Argument(a) => a.span.clone(),
+            BuiltinFunctionArg::Constant(_, span) => span.clone(),
         }
     }
 }
@@ -577,6 +580,8 @@ pub enum BuiltinFunctionKind {
     Error,
     /// Rightpad function
     RightPad,
+    /// Leftpad function (only available in code tables)
+    LeftPad,
     /// Dynamic constructor arg function
     DynConstructorArg,
     /// Inject Raw Bytes
@@ -595,6 +600,7 @@ impl From<String> for BuiltinFunctionKind {
             "__EVENT_HASH" => BuiltinFunctionKind::EventHash,
             "__ERROR" => BuiltinFunctionKind::Error,
             "__RIGHTPAD" => BuiltinFunctionKind::RightPad,
+            "__LEFTPAD" => BuiltinFunctionKind::LeftPad,
             "__CODECOPY_DYN_ARG" => BuiltinFunctionKind::DynConstructorArg,
             "__VERBATIM" => BuiltinFunctionKind::Verbatim,
             "__BYTES" => BuiltinFunctionKind::Bytes,
@@ -617,6 +623,7 @@ impl TryFrom<&String> for BuiltinFunctionKind {
             "__EVENT_HASH" => Ok(BuiltinFunctionKind::EventHash),
             "__ERROR" => Ok(BuiltinFunctionKind::Error),
             "__RIGHTPAD" => Ok(BuiltinFunctionKind::RightPad),
+            "__LEFTPAD" => Ok(BuiltinFunctionKind::LeftPad),
             "__CODECOPY_DYN_ARG" => Ok(BuiltinFunctionKind::DynConstructorArg),
             "__VERBATIM" => Ok(BuiltinFunctionKind::Verbatim),
             "__BYTES" => Ok(BuiltinFunctionKind::Bytes),
@@ -635,6 +642,7 @@ impl Display for BuiltinFunctionKind {
             BuiltinFunctionKind::EventHash => write!(f, "__EVENT_HASH"),
             BuiltinFunctionKind::Error => write!(f, "__ERROR"),
             BuiltinFunctionKind::RightPad => write!(f, "__RIGHTPAD"),
+            BuiltinFunctionKind::LeftPad => write!(f, "__LEFTPAD"),
             BuiltinFunctionKind::DynConstructorArg => write!(f, "__CODECOPY_DYN_ARG"),
             BuiltinFunctionKind::Verbatim => write!(f, "__VERBATIM"),
             BuiltinFunctionKind::Bytes => write!(f, "__BYTES"),

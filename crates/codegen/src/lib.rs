@@ -3,7 +3,7 @@
 #![warn(unused_extern_crates)]
 #![forbid(unsafe_code)]
 
-use crate::irgen::builtin_function::{builtin_bytes, function_signature, right_pad};
+use crate::irgen::builtin_function::{builtin_bytes, builtin_pad, function_signature, PadDirection};
 use alloy_primitives::hex;
 use huff_neo_utils::ast::huff::*;
 use huff_neo_utils::ast::span::AstSpan;
@@ -163,7 +163,11 @@ impl Codegen {
                         byte_code = format!("{byte_code}{}", &bytes[2..]);
                     }
                     BuiltinFunctionKind::RightPad => {
-                        let bytes = right_pad(evm_version, contract, &bf)?;
+                        let bytes = builtin_pad(evm_version, contract, &bf, PadDirection::Right)?;
+                        byte_code = format!("{byte_code}{}", &bytes[2..]);
+                    }
+                    BuiltinFunctionKind::LeftPad => {
+                        let bytes = builtin_pad(evm_version, contract, &bf, PadDirection::Left)?;
                         byte_code = format!("{byte_code}{}", &bytes[2..]);
                     }
                     BuiltinFunctionKind::Bytes => {
