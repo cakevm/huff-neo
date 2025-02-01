@@ -48,7 +48,7 @@ fn parses_code_table() {
 fn parse_code_table_with_func_sign() {
     let source = r"#define table CODE_TABLE() {
         __FUNC_SIG('hello()')
-        0x123
+        0x1234
     }";
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
     let lexer = Lexer::new(flattened_source);
@@ -64,7 +64,7 @@ fn parse_code_table_with_func_sign() {
     assert_eq!(tokens.get(7).unwrap().kind, TokenKind::OpenParen);
     assert_eq!(tokens.get(8).unwrap().kind, TokenKind::Str(String::from("hello()")));
     assert_eq!(tokens.get(9).unwrap().kind, TokenKind::CloseParen);
-    assert_eq!(tokens.get(10).unwrap().kind, TokenKind::Ident("123".to_string()));
+    assert_eq!(tokens.get(10).unwrap().kind, TokenKind::Bytes("1234".to_string()));
     assert_eq!(tokens.get(11).unwrap().kind, TokenKind::CloseBrace);
     assert_eq!(tokens.get(12).unwrap().kind, TokenKind::Eof);
 }
@@ -84,7 +84,7 @@ fn parse_code_table_with_constant() {
     assert_eq!(tokens.get(1).unwrap().kind, TokenKind::Constant);
     assert_eq!(tokens.get(2).unwrap().kind, TokenKind::Ident(String::from("ADDR")));
     assert_eq!(tokens.get(3).unwrap().kind, TokenKind::Assign);
-    assert_eq!(tokens.get(4).unwrap().kind, TokenKind::Literal(str_to_bytes32("0101010101010101010101010101010101010101")));
+    assert_eq!(tokens.get(4).unwrap().kind, TokenKind::Bytes("0101010101010101010101010101010101010101".to_string()));
     assert_eq!(tokens.get(5).unwrap().kind, TokenKind::Define);
     assert_eq!(tokens.get(6).unwrap().kind, TokenKind::CodeTable);
     assert_eq!(tokens.get(7).unwrap().kind, TokenKind::Ident(String::from("CODE_TABLE")));

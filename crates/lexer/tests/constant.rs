@@ -34,12 +34,29 @@ fn constant_invalid_hex_literal() {
 }
 
 #[test]
-fn constant_leading_zeros_hex_literal() {
-    let source = "#define constant TEST = 0x0000000000000000000000000000000000000000000000000000000010203";
+fn constant_uneven_hex_literal_length() {
+    let source = "#define constant TEST = 0x1";
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
     let lexer = Lexer::new(flattened_source);
-    let tokens = lexer.into_iter().map(|x| x.unwrap()).filter(|x| matches!(x.kind, TokenKind::Literal { .. })).collect::<Vec<Token>>();
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).filter(|x| !matches!(x.kind, TokenKind::Whitespace)).collect::<Vec<Token>>();
 
-    let TokenKind::Literal(value) = tokens.first().unwrap().kind else { panic!("Expected Literal token") };
-    assert_eq!(value, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3]);
+    assert_eq!(tokens[0].kind, TokenKind::Define);
+    assert_eq!(tokens[1].kind, TokenKind::Constant);
+    assert_eq!(tokens[2].kind, TokenKind::Ident("TEST".to_string()));
+    assert_eq!(tokens[3].kind, TokenKind::Assign);
+    assert_eq!(tokens[4].kind, TokenKind::Bytes("01".to_string()));
+}
+
+#[test]
+fn constant_leading_zeros_hex_literal() {
+    let source = "#define constant TEST = 0x000000000000000000000000000000000000000000000000000000010203";
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).filter(|x| !matches!(x.kind, TokenKind::Whitespace)).collect::<Vec<Token>>();
+
+    assert_eq!(tokens[0].kind, TokenKind::Define);
+    assert_eq!(tokens[1].kind, TokenKind::Constant);
+    assert_eq!(tokens[2].kind, TokenKind::Ident("TEST".to_string()));
+    assert_eq!(tokens[3].kind, TokenKind::Assign);
+    assert_eq!(tokens[4].kind, TokenKind::Bytes("000000000000000000000000000000000000000000000000000000010203".to_string()));
 }

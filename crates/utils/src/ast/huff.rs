@@ -102,7 +102,7 @@ impl Contract {
         for c in self.constants.lock().unwrap().iter_mut() {
             match storage_pointers.iter().filter(|pointer| pointer.0.eq(&c.name)).collect::<Vec<&(String, [u8; 32])>>().first() {
                 Some(p) => {
-                    *c = ConstantDefinition { name: c.name.to_string(), value: ConstVal::Literal(p.1), span: c.span.clone() };
+                    *c = ConstantDefinition { name: c.name.to_string(), value: ConstVal::StoragePointer(p.1), span: c.span.clone() };
                 }
                 None => {
                     tracing::warn!(target: "ast", "SET STORAGE POINTER BUT FAILED TO SET DERIVED CONSTANT VALUE FOR \"{}\"", c.name)
@@ -228,15 +228,19 @@ impl Contract {
             // Get the associated constant
             match self.constants.lock().unwrap().iter().filter(|c| c.name.eq(const_name)).collect::<Vec<&ConstantDefinition>>().first() {
                 Some(c) => {
-                    let new_value = match c.value {
-                        ConstVal::Literal(l) => l,
+                    match c.value {
                         ConstVal::FreeStoragePointer(_) => {
                             let old_p = *last_p;
                             *last_p += 1;
-                            str_to_bytes32(&format!("{old_p}"))
+                            let new_value = str_to_bytes32(&format!("{old_p}"));
+                            storage_pointers.push((const_name.to_string(), new_value));
                         }
+                        ConstVal::Bytes(_) => {
+                            // Skip constants that are not free storage pointers
+                        }
+                        // This should never be reached, as we only assign free storage pointers
+                        _ => panic!("Invalid Constant Value"),
                     };
-                    storage_pointers.push((const_name.to_string(), new_value));
                 }
                 None => {
                     tracing::warn!(target: "ast", "CONSTANT \"{}\" NOT FOUND IN AST CONSTANTS", const_name)
@@ -251,16 +255,16 @@ impl Contract {
     ///
     /// For each override constant, add it to the AST if it doesn't already exist. Override
     /// constants can be passed in via the CLI.
-    pub fn add_override_constants(&self, override_constants: &Option<BTreeMap<&str, Literal>>) {
+    pub fn add_override_constants(&self, override_constants: &Option<BTreeMap<&str, Bytes>>) {
         if let Some(override_constants) = override_constants {
             for (name, value) in override_constants {
                 let mut constants = self.constants.lock().unwrap();
                 if let Some(c) = constants.iter_mut().find(|c| c.name.as_str().eq(*name)) {
-                    c.value = ConstVal::Literal(*value);
+                    c.value = ConstVal::Bytes(value.clone());
                 } else {
                     constants.push(ConstantDefinition {
                         name: name.to_string(),
-                        value: ConstVal::Literal(*value),
+                        value: ConstVal::Bytes(value.clone()),
                         span: AstSpan::default(),
                     });
                 }
@@ -477,10 +481,12 @@ pub struct FreeStoragePointer;
 /// A Constant Value
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ConstVal {
-    /// A literal value for the constant
-    Literal(Literal),
+    /// Bytes value for the constant
+    Bytes(Bytes),
     /// A Free Storage Pointer
     FreeStoragePointer(FreeStoragePointer),
+    /// A Storage Pointer assigned by the compiler
+    StoragePointer(Literal),
 }
 
 /// A Constant Definition

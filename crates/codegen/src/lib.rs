@@ -179,8 +179,18 @@ impl Codegen {
                     }
                 },
                 StatementType::Constant(name) => {
-                    let bytes = constant_gen(evm_version, &name, contract, &statement.span)?;
-                    byte_code = format!("{byte_code}{}", &bytes[2..]);
+                    let constant = lookup_constant(&name, contract, &statement.span)?;
+                    let bytes = match constant.value {
+                        ConstVal::Bytes(bytes) => bytes,
+                        _ => {
+                            return Err(CodegenError {
+                                kind: CodegenErrorKind::InvalidArguments("Constant must be a hex literal".to_string()),
+                                span: statement.span.clone(),
+                                token: None,
+                            });
+                        }
+                    };
+                    byte_code = format!("{byte_code}{}", bytes.0);
                 }
                 _ => {
                     return Err(CodegenError {

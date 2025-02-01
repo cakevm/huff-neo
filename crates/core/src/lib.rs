@@ -74,7 +74,7 @@ pub struct Compiler<'a, 'l> {
     /// Constructor Input Arguments
     pub construct_args: Option<Vec<String>>,
     /// Constant Overrides
-    pub constant_overrides: Option<BTreeMap<&'a str, Literal>>,
+    pub constant_overrides: Option<BTreeMap<&'a str, Bytes>>,
     /// Whether to optimize compilation or not.
     pub optimize: bool,
     /// Generate and log bytecode
@@ -95,7 +95,7 @@ impl<'a, 'l> Compiler<'a, 'l> {
         alternative_main: Option<String>,
         alternative_constructor: Option<String>,
         construct_args: Option<Vec<String>>,
-        constant_overrides: Option<BTreeMap<&'a str, Literal>>,
+        constant_overrides: Option<BTreeMap<&'a str, Bytes>>,
         verbose: bool,
         cached: bool,
     ) -> Self {
@@ -127,7 +127,7 @@ impl<'a, 'l> Compiler<'a, 'l> {
         alternative_main: Option<String>,
         alternative_constructor: Option<String>,
         construct_args: Option<Vec<String>>,
-        constant_overrides: Option<BTreeMap<&'a str, Literal>>,
+        constant_overrides: Option<BTreeMap<&'a str, Bytes>>,
         verbose: bool,
     ) -> Self {
         if cfg!(feature = "verbose") || verbose {

@@ -129,7 +129,7 @@ impl<W: Write> Report<W> for LexicalError {
                 write!(f.out, "Hex literal has more than 32 bytes '{str}'")
             }
             LexicalErrorKind::InvalidHexLiteral(str) => {
-                write!(f.out, "Invalid Hex literal '{str}'")
+                write!(f.out, "Invalid hex literal '{str}'")
             }
         }
     }

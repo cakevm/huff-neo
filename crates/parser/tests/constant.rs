@@ -41,20 +41,13 @@ fn test_parses_literal_constant() {
     let contract = parser.parse().unwrap();
     assert_eq!(parser.current_token.kind, TokenKind::Eof);
 
-    // Create const val
-    let arr: [u8; 32] = str_to_bytes32("0000E1E5EBEC7D5BD14F71427D1E84F3DD0314C0F7B2291E5B200AC8C7C3B925");
-
-    // Check that constant starts with 0x0000
-    assert_eq!(arr[0], 0);
-    assert_eq!(arr[1], 0);
-
     // Check Literal
     let fsp_constant = contract.constants.lock().unwrap()[0].clone();
     assert_eq!(
         fsp_constant,
         ConstantDefinition {
             name: "LITERAL".to_string(),
-            value: ConstVal::Literal(arr),
+            value: ConstVal::Bytes(Bytes("0000e1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925".to_string())),
             span: AstSpan(vec![
                 Span { start: 0, end: 6, file: None },
                 Span { start: 8, end: 15, file: None },

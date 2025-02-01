@@ -158,9 +158,9 @@ fn code_table_builtin_func_sign() {
 }
 
 #[test]
-fn code_table_uneven_error() {
+fn code_table_uneven_bytes() {
     let source = r"#define table CODE_TABLE() = {
-        0x123
+        0xa23
     }";
 
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
@@ -168,10 +168,11 @@ fn code_table_uneven_error() {
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
 
     let mut parser = Parser::new(tokens, None);
-    let parse_result = parser.parse();
+    let parse_result = parser.parse().unwrap();
 
-    assert!(parse_result.is_err());
-    assert_eq!(parse_result.unwrap_err().kind, ParserErrorKind::InvalidTableStatement("CODE: 123".to_string()));
+    assert_eq!(parse_result.tables[0].size, Some(str_to_bytes32("2")));
+    assert_eq!(parse_result.tables[0].statements.len(), 1);
+    assert_eq!(parse_result.tables[0].statements[0].ty, StatementType::Code("0a23".to_string()));
 }
 
 #[test]

@@ -21,12 +21,12 @@ use huff_neo_test_runner::{
     HuffTester, HuffTesterConfig, Inspector,
 };
 use huff_neo_utils::ast::span::AstSpan;
+use huff_neo_utils::bytecode::Bytes;
 use huff_neo_utils::file::file_provider::FileSystemFileProvider;
 use huff_neo_utils::file::file_source::FileSource;
 use huff_neo_utils::file::full_file_source::OutputLocation;
 use huff_neo_utils::prelude::{
-    export_interfaces, gen_sol_interfaces, str_to_bytes32, BytecodeRes, CodegenError, CodegenErrorKind, CompilerError, EVMVersion, Literal,
-    Span,
+    export_interfaces, gen_sol_interfaces, BytecodeRes, CodegenError, CodegenErrorKind, CompilerError, EVMVersion, Span,
 };
 use shadow_rs::shadow;
 use std::process::exit;
@@ -70,7 +70,7 @@ fn main() {
     };
 
     // If constant overrides were passed, create a map of their names and values
-    let constants: Option<BTreeMap<&str, Literal>> = cli.constants.as_ref().map(|_constants| {
+    let constants: Option<BTreeMap<&str, Bytes>> = cli.constants.as_ref().map(|_constants| {
         _constants
             .iter()
             .map(|c: &String| {
@@ -88,7 +88,7 @@ fn main() {
                     exit(1);
                 }
 
-                (parts[0], str_to_bytes32(&parts[1][2..]))
+                (parts[0], Bytes(parts[1][2..].to_string()))
             })
             .collect()
     });
