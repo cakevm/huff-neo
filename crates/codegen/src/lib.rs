@@ -173,13 +173,13 @@ impl Codegen {
                     _ => {
                         return Err(CodegenError {
                             kind: CodegenErrorKind::UnsupportedBuiltinFunction(format!("{}", bf.kind)),
-                            span: table_definition.span.clone(),
+                            span: statement.span.clone(),
                             token: None,
                         });
                     }
                 },
                 StatementType::Constant(name) => {
-                    let bytes = constant_gen(evm_version, &name, contract, &table_definition.span)?;
+                    let bytes = constant_gen(evm_version, &name, contract, &statement.span)?;
                     byte_code = format!("{byte_code}{}", &bytes[2..]);
                 }
                 _ => {

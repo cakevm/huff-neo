@@ -218,7 +218,15 @@ fn main() {
                 inspectors = inspectors.with_steps_tracing();
             }
 
-            let env = rt.block_on(evm_opts.evm_env()).unwrap();
+            let mut env = rt.block_on(evm_opts.evm_env()).unwrap();
+
+            // Set the sender address if provided.
+            if let Some(sender) = test_args.evm.sender {
+                env.tx.caller = sender;
+            }
+
+            // Disable base fee because simulation would fail
+            env.cfg.disable_base_fee = true;
 
             // Choose the internal function tracing mode, if --decode-internal is provided.
             let decode_internal = if test_args.decode_internal {
@@ -241,7 +249,8 @@ fn main() {
                 .sender(evm_opts.sender)
                 .with_fork(evm_opts.get_fork(&config, env.clone()))
                 .enable_isolation(evm_opts.isolate)
-                .odyssey(evm_opts.odyssey);
+                .odyssey(evm_opts.odyssey)
+                .target_address(test_args.target_address);
 
             let tester = HuffTester::new(contract, Rc::clone(&match_), inspectors, tester_config, env);
 
@@ -249,7 +258,15 @@ fn main() {
             let start = Instant::now();
             match tester.execute() {
                 Ok(res) => {
-                    rt.block_on(print_test_report(res, ReportKind::from(&test_args.format), start, test_args.verbosity));
+                    rt.block_on(async {
+                        match print_test_report(res, ReportKind::from(&test_args.format), start).await {
+                            Ok(_) => {}
+                            Err(e) => {
+                                eprintln!("{}", Paint::red(&format!("{e}")));
+                                exit(1);
+                            }
+                        }
+                    });
                 }
                 Err(e) => {
                     eprintln!("{}", Paint::red(&e));

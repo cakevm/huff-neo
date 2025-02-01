@@ -1,10 +1,10 @@
 use crate::prelude::{RunnerError, TestResult, TestStatus};
-use alloy_primitives::{hex, Address, B256, U256};
+use alloy_primitives::{hex, Address, Bytes, B256, U256};
 use anvil::eth::backend::mem::inspector::Inspector;
 use huff_neo_codegen::Codegen;
 use huff_neo_utils::ast::huff::{DecoratorFlag, MacroDefinition};
 use huff_neo_utils::prelude::{pad_n_bytes, CompilerError, Contract, EVMVersion};
-use revm::primitives::{Account, AccountInfo, AccountStatus};
+use revm::primitives::{Account, AccountInfo, AccountStatus, Bytecode};
 use revm::{
     inspector_handle_register,
     primitives::{Env, ExecutionResult, Output, TransactTo, CANCUN},
@@ -18,11 +18,12 @@ use std::collections::HashMap;
 pub struct TestRunner {
     pub env: Env,
     pub inspector: Inspector,
+    pub target_address: Option<Address>,
 }
 
 impl TestRunner {
-    pub fn new(env: Env, inspectors: Inspector) -> Self {
-        Self { env, inspector: inspectors }
+    pub fn new(env: Env, inspector: Inspector, target_address: Option<Address>) -> Self {
+        Self { env, inspector, target_address }
     }
 
     /// Set the balance of an account.
@@ -41,6 +42,37 @@ impl TestRunner {
             }
             None => Account {
                 info: AccountInfo { balance: amount, nonce: 0, code_hash: B256::ZERO, code: None },
+                storage: Default::default(),
+                status: AccountStatus::Created,
+            },
+        };
+
+        changes.insert(address, account);
+        db.commit(changes);
+
+        Ok(())
+    }
+
+    pub fn set_code<DB>(&self, db: &mut DB, address: Address, code: String) -> Result<(), RunnerError>
+    where
+        DB: Database + DatabaseCommit,
+        <DB as Database>::Error: std::fmt::Debug,
+    {
+        let basic_account = db.basic(address).map_err(|e| RunnerError::GenericError(format!("{:?}", e)))?;
+
+        let mut changes = HashMap::default();
+        let account = match basic_account {
+            Some(mut account_info) => {
+                account_info.code = Some(Bytecode::LegacyRaw(Bytes::from(hex::decode(code).expect("Invalid code"))));
+                Account { info: account_info, storage: Default::default(), status: AccountStatus::Touched }
+            }
+            None => Account {
+                info: AccountInfo {
+                    balance: U256::ZERO,
+                    nonce: 0,
+                    code_hash: B256::ZERO,
+                    code: Some(Bytecode::LegacyRaw(Bytes::from(hex::decode(code).expect("Invalid code")))),
+                },
                 storage: Default::default(),
                 status: AccountStatus::Created,
             },
@@ -200,7 +232,13 @@ impl TestRunner {
             .map_err(|e| RunnerError::CompilerError(CompilerError::CodegenError(e)))?;
 
         // Deploy compiled test macro
-        let address = self.deploy_code(db, bytecode)?;
+        let address = match self.target_address {
+            Some(address) => {
+                self.set_code(db, address, bytecode.clone())?;
+                address
+            }
+            None => self.deploy_code(db, bytecode.clone())?,
+        };
 
         // Set environment flags passed through the test decorator
         let mut data = String::default();

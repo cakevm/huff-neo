@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 - Support for constants in code tables.
+- Use correct code line for error messages in code tables for builtins.
+- Switch to Foundry's print function for trace logs.
+- Allow to use `--target-address` to specify the contract address during a test.
+- Disable base fee check for tests.
 
 ## [1.0.10] - 2025-01-31
 - Add windows binary to the release.
