@@ -1068,7 +1068,8 @@ impl Parser {
             TableKind::JumpTable => Some(table_statements.len() * 0x20),
             TableKind::CodeTable => {
                 let mut table_size = 0;
-                let mut builtins_used = false;
+                // If builtins or constants are used, we cannot determine the size of the table. This will happen during code generation.
+                let mut unknown_size = false;
                 for s in &table_statements {
                     if let StatementType::Code(c) = &s.ty {
                         if c.len() % 2 != 0 {
@@ -1081,7 +1082,9 @@ impl Parser {
                         }
                         table_size += c.len();
                     } else if let StatementType::BuiltinFunctionCall(_) = &s.ty {
-                        builtins_used = true;
+                        unknown_size = true;
+                    } else if let StatementType::Constant(_) = &s.ty {
+                        unknown_size = true;
                     } else {
                         return Err(ParserError {
                             kind: ParserErrorKind::InvalidTableStatement(format!("{}", s.ty)),
@@ -1091,7 +1094,7 @@ impl Parser {
                         });
                     }
                 }
-                if builtins_used {
+                if unknown_size {
                     None
                 } else {
                     Some(table_size / 2)
@@ -1149,6 +1152,11 @@ impl Parser {
                         }),
                         span: AstSpan(curr_spans),
                     });
+                }
+                TokenKind::OpenBracket => {
+                    let (constant, const_span) = self.parse_constant_push()?;
+                    tracing::info!(target: "parser", "PARSING CODE TABLE BODY: [CONSTANT: {}]", constant);
+                    statements.push(Statement { ty: StatementType::Constant(constant), span: AstSpan(vec![const_span]) });
                 }
                 kind => {
                     tracing::error!("Invalid Table Body Token: {:?}", kind);

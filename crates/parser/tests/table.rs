@@ -190,3 +190,24 @@ fn code_table_invalid_body_token() {
     assert!(parse_result.is_err());
     assert_eq!(parse_result.unwrap_err().kind, ParserErrorKind::InvalidTableBodyToken(TokenKind::Ident("z".to_string())));
 }
+
+#[test]
+fn code_table_constant() {
+    let source = r"#define constant ADDR = 0x0101010101010101010101010101010101010101
+    #define table CODE_TABLE() {
+        [ADDR]
+    }";
+
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+
+    let mut parser = Parser::new(tokens, None);
+    let table_definition = parser.parse().unwrap().tables[0].clone();
+
+    assert_eq!(table_definition.name, "CODE_TABLE");
+    assert_eq!(table_definition.kind, TableKind::CodeTable);
+    assert_eq!(table_definition.size, None);
+    assert_eq!(table_definition.statements.len(), 1);
+    assert_eq!(table_definition.statements[0].ty, StatementType::Constant("ADDR".to_string()));
+}

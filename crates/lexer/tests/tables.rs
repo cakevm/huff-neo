@@ -68,3 +68,32 @@ fn parse_code_table_with_func_sign() {
     assert_eq!(tokens.get(11).unwrap().kind, TokenKind::CloseBrace);
     assert_eq!(tokens.get(12).unwrap().kind, TokenKind::Eof);
 }
+
+#[test]
+fn parse_code_table_with_constant() {
+    let source = r"
+    #define constant ADDR = 0x0101010101010101010101010101010101010101
+    #define table CODE_TABLE() {
+        [ADDR]
+    }";
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).filter(|x| !matches!(x.kind, TokenKind::Whitespace)).collect::<Vec<Token>>();
+
+    assert_eq!(tokens.first().unwrap().kind, TokenKind::Define);
+    assert_eq!(tokens.get(1).unwrap().kind, TokenKind::Constant);
+    assert_eq!(tokens.get(2).unwrap().kind, TokenKind::Ident(String::from("ADDR")));
+    assert_eq!(tokens.get(3).unwrap().kind, TokenKind::Assign);
+    assert_eq!(tokens.get(4).unwrap().kind, TokenKind::Literal(str_to_bytes32("0101010101010101010101010101010101010101")));
+    assert_eq!(tokens.get(5).unwrap().kind, TokenKind::Define);
+    assert_eq!(tokens.get(6).unwrap().kind, TokenKind::CodeTable);
+    assert_eq!(tokens.get(7).unwrap().kind, TokenKind::Ident(String::from("CODE_TABLE")));
+    assert_eq!(tokens.get(8).unwrap().kind, TokenKind::OpenParen);
+    assert_eq!(tokens.get(9).unwrap().kind, TokenKind::CloseParen);
+    assert_eq!(tokens.get(10).unwrap().kind, TokenKind::OpenBrace);
+    assert_eq!(tokens.get(11).unwrap().kind, TokenKind::OpenBracket);
+    assert_eq!(tokens.get(12).unwrap().kind, TokenKind::Ident(String::from("ADDR")));
+    assert_eq!(tokens.get(13).unwrap().kind, TokenKind::CloseBracket);
+    assert_eq!(tokens.get(14).unwrap().kind, TokenKind::CloseBrace);
+    assert_eq!(tokens.get(15).unwrap().kind, TokenKind::Eof);
+}
