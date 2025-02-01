@@ -1,3 +1,4 @@
+use alloy_primitives::Address;
 use clap::{ArgAction, Parser, Subcommand};
 use foundry_cli::opts::BuildOpts;
 use foundry_common::evm::EvmArgs;
@@ -108,6 +109,10 @@ pub struct TestArgs {
     /// Match a specific test
     #[clap(short = 'm', long = "match")]
     pub match_: Option<String>,
+
+    /// Target address for the contract
+    #[arg(long)]
+    pub target_address: Option<Address>,
 
     // All those options are taken from https://github.com/foundry-rs/foundry
     /// Verbosity level

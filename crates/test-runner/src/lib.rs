@@ -9,9 +9,6 @@ pub mod runner;
 /// The report module
 pub mod report;
 
-/// The cheats module
-pub mod cheats;
-
 /// The types module
 pub mod types;
 
@@ -57,6 +54,8 @@ pub struct HuffTesterConfig {
     pub isolation: bool,
     /// Whether to enable Odyssey features.
     pub odyssey: bool,
+    /// The target address for the contract
+    pub target_address: Option<Address>,
 }
 
 impl HuffTesterConfig {
@@ -108,6 +107,11 @@ impl HuffTesterConfig {
         self.odyssey = enable;
         self
     }
+
+    pub fn target_address(mut self, target_address: Option<Address>) -> Self {
+        self.target_address = target_address;
+        self
+    }
 }
 
 /// The core struct of the huff-tests crate.
@@ -145,7 +149,7 @@ impl<'t> HuffTester<'t> {
                 }
                 macros
             },
-            runner: TestRunner::new(env, inspectors),
+            runner: TestRunner::new(env, inspectors, config.target_address),
             config,
         }
     }

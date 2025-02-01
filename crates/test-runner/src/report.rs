@@ -1,16 +1,15 @@
 use crate::prelude::{ReportKind, TestResult, TestStatus};
 use comfy_table::{modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL, Attribute, Cell, Color, ContentArrangement, Row, Table};
-use foundry_common::ContractsByArtifact;
+use foundry_cli::utils::{handle_traces, TraceResult};
+use foundry_config::Config;
 use foundry_evm::decode::decode_console_logs;
-use foundry_evm::traces::identifier::TraceIdentifiers;
-use foundry_evm::traces::{decode_trace_arena, render_trace_arena_inner, CallTraceDecoderBuilder, SparsedTraceArena, TraceKind};
-use huff_neo_utils::shell::Verbosity;
+use foundry_evm::traces::{SparsedTraceArena, TraceKind};
 use revm_inspectors::tracing::TracingInspector;
 use std::time::Instant;
 use yansi::Paint;
 
 /// Print a report of the test results, formatted according to the `report_kind` parameter.
-pub async fn print_test_report(results: Vec<TestResult>, report_kind: ReportKind, start: Instant, verbosity: Verbosity) {
+pub async fn print_test_report(results: Vec<TestResult>, report_kind: ReportKind, start: Instant) -> eyre::Result<()> {
     // Gather how many of our tests passed *before* generating our report,
     // as we pass ownership of `results` to both the `ReportKind::Table`
     // and `ReportKind::List` arms.
@@ -67,15 +66,17 @@ pub async fn print_test_report(results: Vec<TestResult>, report_kind: ReportKind
                 }
 
                 if let Some(ref log_collector) = result.inspector.log_collector {
-                    println!("Console logs:");
                     let filtered_logs = decode_console_logs(&log_collector.logs);
-                    for (i, log) in filtered_logs.iter().enumerate() {
-                        println!("  {} {log}", if filtered_logs.len() - 1 == i { "└─" } else { "├─" });
+                    if !filtered_logs.is_empty() {
+                        println!("├─ {}", Paint::cyan("CONSOLE LOGS"));
+                        for (i, log) in filtered_logs.iter().enumerate() {
+                            println!("{} {log}", if filtered_logs.len() - 1 == i { "└─" } else { "├─" });
+                        }
                     }
                 }
 
                 if let Some(tracer) = result.inspector.tracer.clone() {
-                    print_call_trace(verbosity, &result, tracer).await;
+                    print_call_trace(&result, tracer).await?;
                 }
             }
         }
@@ -85,7 +86,7 @@ pub async fn print_test_report(results: Vec<TestResult>, report_kind: ReportKind
             } else {
                 eprintln!("Error serializing test results into JSON.");
             }
-            return;
+            return Ok(());
         }
     }
     println!(
@@ -95,54 +96,19 @@ pub async fn print_test_report(results: Vec<TestResult>, report_kind: ReportKind
         Paint::yellow(&(n_passed * 100 / n_results)),
         Paint::magenta(&format!("{:.4?}", start.elapsed()))
     );
+
+    Ok(())
 }
 
 /// Print the call trace for a given test result.
-async fn print_call_trace(verbosity: Verbosity, result: &TestResult, tracer: TracingInspector) {
+async fn print_call_trace(result: &TestResult, tracer: TracingInspector) -> eyre::Result<()> {
     // This code is taken and adapted from https://github.com/foundry-rs/foundry
 
-    let known_contracts = ContractsByArtifact::default();
-
-    // Set up trace identifiers.
-    let mut identifier = TraceIdentifiers::new().with_local(&known_contracts);
-
-    // Build the trace decoder.
-    let builder = CallTraceDecoderBuilder::new().with_known_contracts(&known_contracts).with_verbosity(verbosity);
-
-    let mut decoder = builder.build();
-
-    // We identify addresses if we're going to print *any* trace or gas report.
-    let identify_addresses = false;
-
+    let config = Config::default();
     let traces = vec![(TraceKind::Execution, SparsedTraceArena { arena: tracer.into_traces(), ignored: Default::default() })];
-    // Identify addresses and decode traces.
-    let mut decoded_traces = Vec::with_capacity(traces.len());
-    for (kind, arena) in &mut traces.clone() {
-        if identify_addresses {
-            decoder.identify(arena, &mut identifier);
-        }
+    let trace_tesult = TraceResult { success: result.status == TestStatus::Success, traces: Some(traces), gas_used: result.gas };
 
-        // verbosity:
-        // - 0..3: nothing
-        // - 3: only display traces for failed tests
-        // - 4: also display the setup trace for failed tests
-        // - 5..: display all traces for all tests, including storage changes
-        let should_include = match kind {
-            TraceKind::Execution => (verbosity == 3 && result.status == TestStatus::Revert) || verbosity >= 4,
-            TraceKind::Setup => (verbosity == 4 && result.status == TestStatus::Revert) || verbosity >= 5,
-            TraceKind::Deployment => false,
-        };
+    handle_traces(trace_tesult, &config, None, vec![], false, false, false).await?;
 
-        if should_include {
-            decode_trace_arena(arena, &decoder).await.unwrap();
-            decoded_traces.push(render_trace_arena_inner(arena, false, verbosity > 4));
-        }
-
-        if !decoded_traces.is_empty() {
-            println!("Traces:");
-            for trace in &decoded_traces {
-                println!("{trace}");
-            }
-        }
-    }
+    Ok(())
 }
