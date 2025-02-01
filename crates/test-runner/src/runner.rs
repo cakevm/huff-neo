@@ -187,17 +187,17 @@ impl TestRunner {
 
         let name = m.name.to_owned();
 
+        // Update the table size in the contract
+        let contract =
+            Codegen::update_table_size(&evm_version, contract).map_err(|e| RunnerError::CompilerError(CompilerError::CodegenError(e)))?;
+
         // Compile the passed test macro
-        let res = match Codegen::macro_to_bytecode(&evm_version, m, contract, &mut vec![m], 0, &mut Vec::default(), false, None) {
-            Ok(res) => res,
-            Err(e) => return Err(RunnerError::CompilerError(CompilerError::CodegenError(e))),
-        };
+        let res = Codegen::macro_to_bytecode(&evm_version, m, &contract, &mut vec![m], 0, &mut Vec::default(), false, None)
+            .map_err(|e| RunnerError::CompilerError(CompilerError::CodegenError(e)))?;
 
         // Generate table bytecode for compiled test macro
-        let bytecode = match Codegen::gen_table_bytecode(&evm_version, contract, res) {
-            Ok(bytecode) => bytecode,
-            Err(e) => return Err(RunnerError::CompilerError(CompilerError::CodegenError(e))),
-        };
+        let bytecode = Codegen::gen_table_bytecode(&evm_version, &contract, res)
+            .map_err(|e| RunnerError::CompilerError(CompilerError::CodegenError(e)))?;
 
         // Deploy compiled test macro
         let address = self.deploy_code(db, bytecode)?;

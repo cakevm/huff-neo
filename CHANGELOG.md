@@ -3,11 +3,12 @@
 # Huff Neo Compiler changelog
 
 ## [Unreleased]
+- Support for constants in code tables.
 
 ## [1.0.10] - 2025-01-31
 - Add windows binary to the release.
 - Add linux binary build with `musl` to the release.
-  - This can be helpful for e.g. outdated glibc versions in a Docker container.
+  - This can be helpful for e.g. outdated glibc version in a Docker container.
 - Revert static linking for the linux binary.
 
 ## [1.0.9] - 2025-01-31
