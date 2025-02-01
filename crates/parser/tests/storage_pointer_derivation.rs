@@ -54,7 +54,7 @@ fn derives_storage_pointers() {
         num_constant,
         ConstantDefinition {
             name: "NUM".to_string(),
-            value: ConstVal::Literal(str_to_bytes32("a57B")),
+            value: ConstVal::Bytes(Bytes("a57b".to_string())),
             span: AstSpan(vec![
                 Span { start: 112, end: 118, file: None },
                 Span { start: 120, end: 127, file: None },
@@ -71,5 +71,5 @@ fn derives_storage_pointers() {
     // Ensure that the storage pointers were set for the FSP constants in the AST
     assert_eq!(contract.constants.lock().unwrap()[0].value, ConstVal::FreeStoragePointer(FreeStoragePointer));
     assert_eq!(contract.constants.lock().unwrap()[1].value, ConstVal::FreeStoragePointer(FreeStoragePointer));
-    assert_eq!(contract.constants.lock().unwrap()[2].value, ConstVal::Literal(str_to_bytes32("a57B")));
+    assert_eq!(contract.constants.lock().unwrap()[2].value, ConstVal::Bytes(Bytes("a57b".to_string())));
 }

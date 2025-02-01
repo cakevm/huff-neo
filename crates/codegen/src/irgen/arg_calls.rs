@@ -90,8 +90,12 @@ pub fn bubble_arg_call(
                         {
                             tracing::info!(target: "codegen", "ARGCALL IS CONSTANT: {:?}", constant);
                             let push_bytes = match &constant.value {
-                                ConstVal::Literal(l) => {
-                                    let hex_literal: String = bytes32_to_hex_string(l, false);
+                                ConstVal::Bytes(bytes) => {
+                                    let hex_literal: String = bytes.clone().0;
+                                    format!("{:02x}{hex_literal}", 95 + hex_literal.len() / 2)
+                                }
+                                ConstVal::StoragePointer(sp) => {
+                                    let hex_literal: String = bytes32_to_hex_string(sp, false);
                                     format!("{:02x}{hex_literal}", 95 + hex_literal.len() / 2)
                                 }
                                 ConstVal::FreeStoragePointer(fsp) => {

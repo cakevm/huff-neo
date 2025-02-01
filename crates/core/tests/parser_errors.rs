@@ -140,7 +140,7 @@ fn test_invalid_constant_value() {
                     e,
                     ParserError {
                         kind: ParserErrorKind::InvalidConstantValue(kind),
-                        hint: Some("Expected constant value to be a literal or `FREE_STORAGE_POINTER()`".to_string()),
+                        hint: Some("Expected constant value to be Hex or `FREE_STORAGE_POINTER()`".to_string()),
                         spans: AstSpan(vec![Span {
                             start: source.find(value).unwrap_or(0),
                             end: source.find(value).unwrap_or(0) + value.len() - 1,

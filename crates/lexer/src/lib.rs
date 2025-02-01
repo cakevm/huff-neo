@@ -455,13 +455,21 @@ impl<'a> Lexer<'a> {
             ));
         }
 
-        let kind = if self.context == Context::CodeTableBody {
-            // In codetables, the bytecode provided is of arbitrary length. We pass
-            // the code as an Ident, and it is appended to the end of the runtime
-            // bytecode in codegen.
-            TokenKind::Ident(integer_str[2..].to_owned())
+        let kind = if self.context == Context::CodeTableBody || self.context == Context::Constant {
+            // In code tables, or constant values the bytecode provided is of arbitrary length. We pass
+            // the code as an Ident, and parse it later.
+
+            // For constants only max 32 Bytes is allowed for hex string 0x. 2 + 64 = 66 characters
+            if self.context == Context::Constant && integer_str.len() > 66 {
+                return Err(LexicalError::new(
+                    LexicalErrorKind::HexLiteralTooLong(integer_str.clone()),
+                    self.source.relative_span_by_pos(start, end),
+                ));
+            }
+            let hex_string = format_even_bytes(integer_str[2..].to_lowercase());
+            TokenKind::Bytes(hex_string)
         } else {
-            // Only max 32 Bytes is allowed for hex string 0x. 2 + 64 = 66 characters
+            // See above comment for the 66-character limit
             if integer_str.len() > 66 {
                 return Err(LexicalError::new(
                     LexicalErrorKind::HexLiteralTooLong(integer_str.clone()),

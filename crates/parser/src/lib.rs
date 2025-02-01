@@ -7,6 +7,7 @@ use alloy_primitives::keccak256;
 use huff_neo_utils::ast::abi::{Argument, ArgumentLocation, EventDefinition, FunctionDefinition, FunctionType};
 use huff_neo_utils::ast::huff::*;
 use huff_neo_utils::ast::span::AstSpan;
+use huff_neo_utils::bytecode::Bytes;
 use huff_neo_utils::file::remapper;
 use huff_neo_utils::{
     error::*,
@@ -14,7 +15,6 @@ use huff_neo_utils::{
     token::{Token, TokenKind},
     types::*,
 };
-use regex::Regex;
 
 /// The Parser
 #[derive(Debug, Clone)]
@@ -379,15 +379,15 @@ impl Parser {
                 self.consume();
                 ConstVal::FreeStoragePointer(FreeStoragePointer {})
             }
-            TokenKind::Literal(l) => {
+            TokenKind::Bytes(l) => {
                 self.consume();
-                ConstVal::Literal(l)
+                ConstVal::Bytes(Bytes(l))
             }
             kind => {
-                tracing::error!(target: "parser", "TOKEN MISMATCH - EXPECTED FreeStoragePointer OR Literal, GOT: {}", self.current_token.kind);
+                tracing::error!(target: "parser", "TOKEN MISMATCH - EXPECTED FreeStoragePointer OR Hex, GOT: {}", self.current_token.kind);
                 return Err(ParserError {
                     kind: ParserErrorKind::InvalidConstantValue(kind),
-                    hint: Some("Expected constant value to be a literal or `FREE_STORAGE_POINTER()`".to_string()),
+                    hint: Some("Expected constant value to be Hex or `FREE_STORAGE_POINTER()`".to_string()),
                     spans: AstSpan(vec![self.current_token.span.clone()]),
                     cursor: self.cursor,
                 });
@@ -1072,14 +1072,6 @@ impl Parser {
                 let mut unknown_size = false;
                 for s in &table_statements {
                     if let StatementType::Code(c) = &s.ty {
-                        if c.len() % 2 != 0 {
-                            return Err(ParserError {
-                                kind: ParserErrorKind::InvalidTableStatement(format!("{}", s.ty.clone())),
-                                hint: Some("CodeTable bytecode must be an even number of characters.".to_string()),
-                                spans: AstSpan(s.span.inner_ref().to_vec()),
-                                cursor: self.cursor,
-                            });
-                        }
                         table_size += c.len();
                     } else if let StatementType::BuiltinFunctionCall(_) = &s.ty {
                         unknown_size = true;
@@ -1111,34 +1103,49 @@ impl Parser {
     /// Only `LabelCall` and `Code` Statements should be authorized.
     pub fn parse_table_body(&mut self, is_code_table: bool) -> Result<Vec<Statement>, ParserError> {
         let mut statements: Vec<Statement> = Vec::new();
-        let hex_string_regex = Regex::new(r"^([a-fA-F\d]+)$").unwrap();
 
         self.match_kind(TokenKind::OpenBrace)?;
         while !self.check(TokenKind::CloseBrace) {
             let new_spans = vec![self.current_token.span.clone()];
             match self.current_token.kind.clone() {
                 TokenKind::Ident(ident_str) => {
-                    statements.push(Statement {
-                        ty: if is_code_table {
-                            if hex_string_regex.is_match(&ident_str) {
-                                StatementType::Code(ident_str.to_string())
-                            } else {
-                                tracing::error!("Invalid CodeTable Body Token: {:?}", self.current_token.kind);
-                                return Err(ParserError {
-                                    kind: ParserErrorKind::InvalidTableBodyToken(self.current_token.kind.clone()),
-                                    hint: Some("Expected valid hex bytecode.".to_string()),
-                                    spans: AstSpan(new_spans),
-                                    cursor: self.cursor,
-                                });
-                            }
-                        } else {
-                            StatementType::LabelCall(ident_str.to_string())
-                        },
-                        span: AstSpan(new_spans),
-                    });
+                    if is_code_table {
+                        tracing::error!("Invalid CodeTable Body Token: {:?}", self.current_token.kind);
+                        return Err(ParserError {
+                            kind: ParserErrorKind::InvalidTableBodyToken(self.current_token.kind.clone()),
+                            hint: Some("Expected valid hex bytecode.".to_string()),
+                            spans: AstSpan(new_spans),
+                            cursor: self.cursor,
+                        });
+                    }
+                    statements.push(Statement { ty: StatementType::LabelCall(ident_str.to_string()), span: AstSpan(new_spans) });
                     self.consume();
                 }
+                TokenKind::Bytes(bytes) => {
+                    if !is_code_table {
+                        tracing::error!("Invalid JumpTable Body Token: {:?}", self.current_token.kind);
+                        return Err(ParserError {
+                            kind: ParserErrorKind::InvalidTableBodyToken(self.current_token.kind.clone()),
+                            hint: Some("Expected an identifier string.".to_string()),
+                            spans: AstSpan(new_spans),
+                            cursor: self.cursor,
+                        });
+                    }
+                    let curr_spans = vec![self.current_token.span.clone()];
+                    tracing::info!(target: "parser", "PARSING CODE TABLE BODY: [BYTES: {}]", hex::encode(&bytes));
+                    self.consume();
+                    statements.push(Statement { ty: StatementType::Code(bytes), span: AstSpan(curr_spans) });
+                }
                 TokenKind::BuiltinFunction(f) => {
+                    if !is_code_table {
+                        tracing::error!("Invalid JumpTable Body Token: {:?}", self.current_token.kind);
+                        return Err(ParserError {
+                            kind: ParserErrorKind::InvalidTableBodyToken(self.current_token.kind.clone()),
+                            hint: Some("Expected an identifier string.".to_string()),
+                            spans: AstSpan(new_spans),
+                            cursor: self.cursor,
+                        });
+                    }
                     let mut curr_spans = vec![self.current_token.span.clone()];
                     self.match_kind(TokenKind::BuiltinFunction(String::default()))?;
                     let args = self.parse_builtin_args()?;

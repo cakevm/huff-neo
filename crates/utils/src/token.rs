@@ -25,6 +25,8 @@ impl Token {
 /// The kind of token
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub enum TokenKind {
+    /// Bytes (hex always with an even number of characters)
+    Bytes(String),
     /// EOF Token
     Eof,
     /// A Comment
@@ -154,6 +156,7 @@ impl TokenKind {
 impl fmt::Display for TokenKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let x = match self {
+            TokenKind::Bytes(s) => return write!(f, "0x{s}"),
             TokenKind::Eof => "EOF",
             TokenKind::Comment(s) => return write!(f, "Comment({s})"),
             TokenKind::Div => "/",

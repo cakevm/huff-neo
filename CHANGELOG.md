@@ -8,6 +8,10 @@
 - Switch to Foundry's print function for trace logs.
 - Allow to use `--target-address` to specify the contract address during a test.
 - Disable base fee check for tests.
+- Allow uneven bytes for code tables e.g. `0x1` is valid and results in `0x01` bytecode.
+- Introduce new lexer token type `Bytes`, as not all hex should be parsed to bytes32.
+  - For constants in code tables the bytes are copied as defined with e.g. leading zeros.
+  - For all other cases leading zeros are removed and the smallest push operation is used.
 
 ## [1.0.10] - 2025-01-31
 - Add windows binary to the release.
