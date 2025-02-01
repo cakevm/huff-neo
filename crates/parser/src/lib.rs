@@ -807,49 +807,68 @@ impl Parser {
 
         tracing::debug!(target: "parser", "PARSING ARGs: {:?}", self.current_token.kind);
         while !self.check(TokenKind::CloseParen) {
-            // Check for strings
-            if let TokenKind::Str(s) = &self.current_token.kind {
-                args.push(BuiltinFunctionArg::Argument(Argument {
-                    name: Some(s.to_owned()), // Place the string in the "name" field
-                    arg_type: None,
-                    indexed: false,
-                    span: AstSpan(vec![self.current_token.span.clone()]),
-                    arg_location: None,
-                }));
-                self.consume();
-            }
-
-            // Check for literals
-            if let TokenKind::Literal(l) = &self.current_token.kind {
-                args.push(BuiltinFunctionArg::Argument(Argument {
-                    // Place literal in the "name" field
-                    name: Some(bytes32_to_hex_string(l, false)),
-                    arg_location: None,
-                    arg_type: None,
-                    indexed: false,
-                    span: AstSpan(vec![self.current_token.span.clone()]),
-                }));
-                self.consume();
-            }
-
-            // Check for identifiers
-            if let TokenKind::Ident(ident) = &self.current_token.kind {
-                args.push(BuiltinFunctionArg::Argument(Argument {
-                    name: Some(ident.to_owned()),
-                    arg_type: None,
-                    indexed: false,
-                    span: AstSpan(vec![self.current_token.span.clone()]),
-                    arg_location: None,
-                }));
-                self.consume();
-            }
-
             let mut is_builtin = false;
             let mut builtin = "".to_string();
-            if let TokenKind::BuiltinFunction(builtin_ref) = &self.current_token.kind {
-                is_builtin = true;
-                builtin = builtin_ref.clone();
-                self.consume();
+
+            match &self.current_token.kind {
+                TokenKind::Str(s) => {
+                    args.push(BuiltinFunctionArg::Argument(Argument {
+                        name: Some(s.to_owned()), // Place the string in the "name" field
+                        arg_type: None,
+                        indexed: false,
+                        span: AstSpan(vec![self.current_token.span.clone()]),
+                        arg_location: None,
+                    }));
+                    self.consume();
+                }
+                TokenKind::Bytes(bytes) => {
+                    args.push(BuiltinFunctionArg::Argument(Argument {
+                        name: Some(bytes.to_owned()),
+                        arg_type: None,
+                        indexed: false,
+                        span: AstSpan(vec![self.current_token.span.clone()]),
+                        arg_location: None,
+                    }));
+                    self.consume();
+                }
+                TokenKind::Literal(l) => {
+                    args.push(BuiltinFunctionArg::Argument(Argument {
+                        // Place literal in the "name" field
+                        name: Some(bytes32_to_hex_string(l, false)),
+                        arg_location: None,
+                        arg_type: None,
+                        indexed: false,
+                        span: AstSpan(vec![self.current_token.span.clone()]),
+                    }));
+                    self.consume();
+                }
+                TokenKind::Ident(ident) => {
+                    args.push(BuiltinFunctionArg::Argument(Argument {
+                        name: Some(ident.to_owned()),
+                        arg_type: None,
+                        indexed: false,
+                        span: AstSpan(vec![self.current_token.span.clone()]),
+                        arg_location: None,
+                    }));
+                    self.consume();
+                }
+                TokenKind::BuiltinFunction(builtin_ref) => {
+                    is_builtin = true;
+                    builtin = builtin_ref.clone();
+                    self.consume();
+                }
+                TokenKind::OpenBracket => {
+                    let (constant_name, span) = self.parse_constant_push()?;
+                    args.push(BuiltinFunctionArg::Constant(constant_name, AstSpan(vec![span])));
+                }
+                _ => {
+                    return Err(ParserError {
+                        kind: ParserErrorKind::UnexpectedType(self.current_token.kind.clone()),
+                        hint: Some("Expected string, literal, hex, identifier or build-in".to_string()),
+                        spans: AstSpan(vec![self.current_token.span.clone()]),
+                        cursor: self.cursor,
+                    });
+                }
             }
 
             if is_builtin {
@@ -1147,7 +1166,7 @@ impl Parser {
                         });
                     }
                     let mut curr_spans = vec![self.current_token.span.clone()];
-                    self.match_kind(TokenKind::BuiltinFunction(String::default()))?;
+                    self.consume();
                     let args = self.parse_builtin_args()?;
                     args.iter().for_each(|a| curr_spans.extend_from_slice(a.span().inner_ref()));
                     tracing::info!(target: "parser", "PARSING CODE TABLE BODY: [BUILTIN FN: {}({:?})]", f, args);

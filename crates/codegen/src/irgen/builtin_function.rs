@@ -1,3 +1,4 @@
+use crate::irgen::constants::constant_gen;
 use crate::Codegen;
 use alloy_primitives::{hex, keccak256};
 use huff_neo_utils::bytecode::{BytecodeRes, Bytes, CircularCodeSizeIndices, Jump, Jumps};
@@ -8,6 +9,7 @@ use huff_neo_utils::opcodes::Opcode;
 use huff_neo_utils::prelude::{
     BuiltinFunctionArg, BuiltinFunctionCall, BuiltinFunctionKind, Contract, MacroDefinition, MacroInvocation, TableDefinition,
 };
+use std::fmt::Display;
 
 // TODO: First step to refactor and split the function into smaller functions
 #[allow(clippy::too_many_arguments)]
@@ -98,9 +100,16 @@ pub fn builtin_function_gen<'a>(
             bytes.push((starting_offset, Bytes(push_bytes)));
         }
         BuiltinFunctionKind::RightPad => {
-            let push_bytes = right_pad(evm_version, contract, bf)?;
+            let push_bytes = builtin_pad(evm_version, contract, bf, PadDirection::Right)?;
             *offset += push_bytes.len() / 2;
             bytes.push((starting_offset, Bytes(push_bytes)));
+        }
+        BuiltinFunctionKind::LeftPad => {
+            return Err(CodegenError {
+                kind: CodegenErrorKind::InvalidArguments(String::from("LeftPad is not supported in a function or macro")),
+                span: bf.span.clone(),
+                token: None,
+            });
         }
         BuiltinFunctionKind::DynConstructorArg => {
             if bf.args.len() != 2 {
@@ -475,19 +484,38 @@ pub fn function_signature(contract: &Contract, bf: &BuiltinFunctionCall) -> Resu
     Ok(push_bytes)
 }
 
-pub fn right_pad(evm_version: &EVMVersion, contract: &Contract, bf: &BuiltinFunctionCall) -> Result<String, CodegenError> {
+#[derive(Debug, Clone, PartialEq)]
+pub enum PadDirection {
+    Left,
+    Right,
+}
+impl Display for PadDirection {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PadDirection::Left => write!(f, "__LEFTPAD"),
+            PadDirection::Right => write!(f, "__RIGHTPAD"),
+        }
+    }
+}
+
+pub fn builtin_pad(
+    evm_version: &EVMVersion,
+    contract: &Contract,
+    bf: &BuiltinFunctionCall,
+    direction: PadDirection,
+) -> Result<String, CodegenError> {
     if bf.args.len() != 1 {
-        tracing::error!(target = "codegen", "Incorrect number of arguments passed to __RIGHTPAD, should be 1: {}", bf.args.len());
+        tracing::error!(target = "codegen", "Incorrect number of arguments passed to {direction}, should be 1: {}", bf.args.len());
         return Err(CodegenError {
             kind: CodegenErrorKind::InvalidArguments(format!(
-                "Incorrect number of arguments passed to __RIGHTPAD, should be 1: {}",
+                "Incorrect number of arguments passed to {direction}, should be 1: {}",
                 bf.args.len()
             )),
             span: bf.span.clone(),
             token: None,
         });
     }
-    let first_arg = match bf.args[0] {
+    let first_arg = match &bf.args[0] {
         BuiltinFunctionArg::Argument(ref arg) => arg.name.clone().unwrap_or_default(),
         BuiltinFunctionArg::BuiltinFunctionCall(ref inner_call) => {
             match inner_call.kind {
@@ -500,27 +528,33 @@ pub fn right_pad(evm_version: &EVMVersion, contract: &Contract, bf: &BuiltinFunc
                     push_bytes[2..].to_string() // remove opcode
                 }
                 _ => {
-                    tracing::error!(target: "codegen", "Invalid argument type passed to __RIGHTPAD");
+                    tracing::error!(target: "codegen", "Invalid function call argument type passed to {direction}");
                     return Err(CodegenError {
-                        kind: CodegenErrorKind::InvalidArguments(String::from("Invalid argument type passed to __RIGHTPAD")),
+                        kind: CodegenErrorKind::InvalidArguments(format!("Invalid argument type passed to {direction}")),
                         span: bf.span.clone(),
                         token: None,
                     });
                 }
             }
         }
+        BuiltinFunctionArg::Constant(name, span) => {
+            let push_bytes = constant_gen(evm_version, name, contract, span)?;
+            push_bytes[2..].to_string() // remove opcode
+        }
         _ => {
-            tracing::error!(target: "codegen", "Invalid argument type passed to __RIGHTPAD");
+            tracing::error!(target: "codegen", "Invalid argument type passed to {direction}");
             return Err(CodegenError {
-                kind: CodegenErrorKind::InvalidArguments(String::from("Invalid argument type passed to __RIGHTPAD")),
+                kind: CodegenErrorKind::InvalidArguments(format!("Invalid argument type passed to {direction}")),
                 span: bf.span.clone(),
                 token: None,
             });
         }
     };
     let hex = format_even_bytes(first_arg);
-    let push_bytes = format!("{}{hex}{}", Opcode::Push32, "0".repeat(64 - hex.len()));
-    Ok(push_bytes)
+    if direction == PadDirection::Left {
+        return Ok(format!("{}{}{hex}", Opcode::Push32, "0".repeat(64 - hex.len())));
+    }
+    Ok(format!("{}{hex}{}", Opcode::Push32, "0".repeat(64 - hex.len())))
 }
 
 pub fn builtin_bytes(evm_version: &EVMVersion, bf: &BuiltinFunctionCall) -> Result<String, CodegenError> {

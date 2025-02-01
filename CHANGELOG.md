@@ -12,6 +12,11 @@
 - Introduce new lexer token type `Bytes`, as not all hex should be parsed to bytes32.
   - For constants in code tables the bytes are copied as defined with e.g. leading zeros.
   - For all other cases leading zeros are removed and the smallest push operation is used.
+- New built-in function `__LEFTPAD` to a hex input or a function result in a code table.
+  - The function can only be used in a code table.
+  - Example: `__LEFTPAD(0x123)` -> `0000000000000000000000000000000000000000000000000000000000000123`
+- Allow to pass a constant as a parameter to `__RIGHTPAD` or `__LEFTPAD`.
+  - Example: `__RIGHTPAD([CONST])`
 
 ## [1.0.10] - 2025-01-31
 - Add windows binary to the release.
