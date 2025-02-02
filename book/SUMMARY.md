@@ -1,6 +1,7 @@
 # Summary
-- [Getting Started](get-started/overview.md)
-  - [Installation](get-started/installation.md)
+- [Getting Started](get-started/getting-started.md)
+  - [About Huff](get-started/about-huff.md)
+  - [Comparison to huffc](get-started/comparison-to-huffc.md)
   - [Compile a contract](get-started/compiling.md)
   - [Project Quickstart](get-started/project-quickstart.md)
 - [Huff Language](huff-language/overview.md)

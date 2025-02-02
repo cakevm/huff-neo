@@ -2,7 +2,7 @@
 
 ## Installation
 
-Before you get started writing Huff you will have to install the compiler. Head over to [Getting Started](../get-started/overview.md) and follow the steps to get it installed.
+Before you get started writing Huff you will have to install the compiler. Head over to [Getting Started](../get-started/getting-started.md) and follow the steps to get it installed.
 Once complete - come back here!!
 
 ## What you are going to learn?

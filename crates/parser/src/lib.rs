@@ -383,6 +383,12 @@ impl Parser {
                 self.consume();
                 ConstVal::Bytes(Bytes(l))
             }
+            TokenKind::BuiltinFunction(f) => {
+                let curr_spans = vec![self.current_token.span.clone()];
+                self.match_kind(TokenKind::BuiltinFunction(String::default()))?;
+                let args = self.parse_builtin_args()?;
+                ConstVal::BuiltinFunctionCall(BuiltinFunctionCall { kind: BuiltinFunctionKind::from(f), args, span: AstSpan(curr_spans) })
+            }
             kind => {
                 tracing::error!(target: "parser", "TOKEN MISMATCH - EXPECTED FreeStoragePointer OR Hex, GOT: {}", self.current_token.kind);
                 return Err(ParserError {

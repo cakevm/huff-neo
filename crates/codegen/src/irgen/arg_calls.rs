@@ -1,3 +1,4 @@
+use crate::Codegen;
 use huff_neo_utils::ast::span::AstSpan;
 use huff_neo_utils::prelude::*;
 use std::str::FromStr;
@@ -9,6 +10,7 @@ use std::str::FromStr;
 /// Arg Call Bubbling
 #[allow(clippy::too_many_arguments)]
 pub fn bubble_arg_call(
+    evm_version: &EVMVersion,
     arg_name: &str,
     bytes: &mut Vec<(usize, Bytes)>,
     macro_def: &MacroDefinition,
@@ -64,6 +66,7 @@ pub fn bubble_arg_call(
                         let ac_ = &ac.to_string();
                         return if last_mi.1.macro_name.eq(&macro_def.name) {
                             bubble_arg_call(
+                                evm_version,
                                 ac_,
                                 bytes,
                                 bubbled_macro_invocation,
@@ -74,7 +77,7 @@ pub fn bubble_arg_call(
                                 jump_table,
                             )
                         } else {
-                            bubble_arg_call(ac_, bytes, bubbled_macro_invocation, contract, new_scope, offset, mis, jump_table)
+                            bubble_arg_call(evm_version, ac_, bytes, bubbled_macro_invocation, contract, new_scope, offset, mis, jump_table)
                         };
                     }
                     MacroArg::Ident(iden) => {
@@ -97,6 +100,9 @@ pub fn bubble_arg_call(
                                 ConstVal::StoragePointer(sp) => {
                                     let hex_literal: String = bytes32_to_hex_string(sp, false);
                                     format!("{:02x}{hex_literal}", 95 + hex_literal.len() / 2)
+                                }
+                                ConstVal::BuiltinFunctionCall(bf) => {
+                                    Codegen::gen_builtin_bytecode(evm_version, contract, bf, macro_invoc.1.span.clone())?
                                 }
                                 ConstVal::FreeStoragePointer(fsp) => {
                                     // If this is reached in codegen stage,

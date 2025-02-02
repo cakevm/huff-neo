@@ -1,3 +1,4 @@
+use crate::Codegen;
 use huff_neo_utils::ast::span::AstSpan;
 use huff_neo_utils::prelude::{
     literal_gen, str_to_bytes32, CodegenError, CodegenErrorKind, ConstVal, ConstantDefinition, Contract, EVMVersion,
@@ -17,6 +18,7 @@ pub fn constant_gen(evm_version: &EVMVersion, name: &str, contract: &Contract, i
             literal_gen(evm_version, &hex_literal)
         }
         ConstVal::StoragePointer(sp) => literal_gen(evm_version, sp),
+        ConstVal::BuiltinFunctionCall(bf) => Codegen::gen_builtin_bytecode(evm_version, contract, bf, ir_byte_span.clone())?,
         ConstVal::FreeStoragePointer(fsp) => {
             // If this is reached in codegen stage, the `derive_storage_pointers`
             // method was not called on the AST.

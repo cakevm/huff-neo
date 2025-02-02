@@ -60,3 +60,20 @@ fn constant_leading_zeros_hex_literal() {
     assert_eq!(tokens[3].kind, TokenKind::Assign);
     assert_eq!(tokens[4].kind, TokenKind::Bytes("000000000000000000000000000000000000000000000000000000010203".to_string()));
 }
+
+#[test]
+fn constant_builtin() {
+    let source = "#define constant TEST = __FUNC_SIG('hello()')";
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).filter(|x| !matches!(x.kind, TokenKind::Whitespace)).collect::<Vec<Token>>();
+
+    assert_eq!(tokens[0].kind, TokenKind::Define);
+    assert_eq!(tokens[1].kind, TokenKind::Constant);
+    assert_eq!(tokens[2].kind, TokenKind::Ident("TEST".to_string()));
+    assert_eq!(tokens[3].kind, TokenKind::Assign);
+    assert_eq!(tokens[4].kind, TokenKind::BuiltinFunction("__FUNC_SIG".to_string()));
+    assert_eq!(tokens[5].kind, TokenKind::OpenParen);
+    assert_eq!(tokens[6].kind, TokenKind::Str("hello()".to_string()));
+    assert_eq!(tokens[7].kind, TokenKind::CloseParen);
+}

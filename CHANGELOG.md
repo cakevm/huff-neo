@@ -3,20 +3,25 @@
 # Huff Neo Compiler changelog
 
 ## [Unreleased]
+
+## [1.1.0] - 2025-02-02
 - Support for constants in code tables.
-- Use correct code line for error messages in code tables for builtins.
+- Use correct code line for error messages in code tables for built-ins.
 - Switch to Foundry's print function for trace logs.
-- Allow to use `--target-address` to specify the contract address during a test.
+- Allow using `--target-address` to specify the contract address during a test.
 - Disable base fee check for tests.
 - Allow uneven bytes for code tables e.g. `0x1` is valid and results in `0x01` bytecode.
 - Introduce new lexer token type `Bytes`, as not all hex should be parsed to bytes32.
-  - For constants in code tables the bytes are copied as defined with e.g. leading zeros.
-  - For all other cases leading zeros are removed and the smallest push operation is used.
-- New built-in function `__LEFTPAD` to a hex input or a function result in a code table.
+  - For constants in code tables, the bytes are copied as defined with e.g. leading zeros.
+  - For all other cases, leading zeros are removed and the smallest push operation is used.
+- New built-in function `__LEFTPAD` to a pad a hex input or a function result in a code table to the left in 32 bytes.
   - The function can only be used in a code table.
   - Example: `__LEFTPAD(0x123)` -> `0000000000000000000000000000000000000000000000000000000000000123`
 - Allow to pass a constant as a parameter to `__RIGHTPAD` or `__LEFTPAD`.
   - Example: `__RIGHTPAD([CONST])`
+- Allow to use built-in functions in constant assignment.
+  - Example: `#define constant FUNC_TEST = __FUNC_SIG("test(uint256)")`
+  - This solves the issue to define functions with the same name but different arguments.
 
 ## [1.0.10] - 2025-01-31
 - Add windows binary to the release.
