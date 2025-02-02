@@ -23,17 +23,17 @@ huff-neo-utils = { path = "crates/utils" }
 
 alloy-dyn-abi = "0.8.20"
 alloy-primitives = "0.8.20"
-anvil = { package = "anvil", git = "https://github.com/foundry-rs/foundry", rev = "79e3ee8" }
+anvil = { package = "anvil", git = "https://github.com/foundry-rs/foundry", rev = "aee9f47" }
 cfg-if = "1.0.0"
 clap = { version = "4.5.27", features = ["derive"] }
 comfy-table = "7.1.3"
 eyre = "0.6.12"
-foundry-cli = { package = "foundry-cli", git = "https://github.com/foundry-rs/foundry", rev = "79e3ee8" }
-foundry-common = { package = "foundry-common", git = "https://github.com/foundry-rs/foundry", rev = "79e3ee8" }
-foundry-config = { package = "foundry-config", git = "https://github.com/foundry-rs/foundry", rev = "79e3ee8" }
-foundry-debugger = { package = "foundry-debugger", git = "https://github.com/foundry-rs/foundry", rev = "79e3ee8" }
-foundry-evm = { package = "foundry-evm", git = "https://github.com/foundry-rs/foundry", rev = "79e3ee8" }
-foundry-evm-traces = { package = "foundry-evm-traces", git = "https://github.com/foundry-rs/foundry", rev = "79e3ee8" }
+foundry-cli = { package = "foundry-cli", git = "https://github.com/foundry-rs/foundry", rev = "aee9f47" }
+foundry-common = { package = "foundry-common", git = "https://github.com/foundry-rs/foundry", rev = "aee9f47" }
+foundry-config = { package = "foundry-config", git = "https://github.com/foundry-rs/foundry", rev = "aee9f47" }
+foundry-debugger = { package = "foundry-debugger", git = "https://github.com/foundry-rs/foundry", rev = "aee9f47" }
+foundry-evm = { package = "foundry-evm", git = "https://github.com/foundry-rs/foundry", rev = "aee9f47" }
+foundry-evm-traces = { package = "foundry-evm-traces", git = "https://github.com/foundry-rs/foundry", rev = "aee9f47" }
 hex = "0.4.3"
 itertools = "0.14.0"
 js-sys = { version = "0.3.77" }
@@ -42,7 +42,7 @@ phf = { version = "0.11.3", features = ["macros"] }
 rand = "0.9.0"
 regex = "1.11.1"
 revm = { version = "19.4.0", features = ["optional_no_base_fee"] }
-revm-inspectors = "0.14.1"
+revm-inspectors = "0.15.0"
 shadow-rs = "0.38.0"
 thiserror = "2.0.11"
 tokio = "1.43.0"
