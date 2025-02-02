@@ -145,6 +145,22 @@ impl Codegen {
         }
     }
 
+    /// Generates bytecode for a builtin function call used for constants, code tables, etc.
+    pub fn gen_builtin_bytecode(
+        evm_version: &EVMVersion,
+        contract: &Contract,
+        bf: &BuiltinFunctionCall,
+        span: AstSpan,
+    ) -> Result<String, CodegenError> {
+        match bf.kind {
+            BuiltinFunctionKind::FunctionSignature => Ok(function_signature(contract, bf)?),
+            BuiltinFunctionKind::RightPad => Ok(builtin_pad(evm_version, contract, bf, PadDirection::Right)?),
+            BuiltinFunctionKind::LeftPad => Ok(builtin_pad(evm_version, contract, bf, PadDirection::Left)?),
+            BuiltinFunctionKind::Bytes => Ok(builtin_bytes(evm_version, bf)?),
+            _ => Err(CodegenError { kind: CodegenErrorKind::UnsupportedBuiltinFunction(format!("{}", bf.kind)), span, token: None }),
+        }
+    }
+
     /// Generates bytecode for a code table with builtin functions
     pub fn gen_table_bytecode_builtin(
         evm_version: &EVMVersion,
@@ -153,37 +169,16 @@ impl Codegen {
     ) -> Result<String, CodegenError> {
         let mut byte_code = String::new();
         for statement in table_definition.statements.clone() {
-            match statement.ty {
+            match &statement.ty {
                 StatementType::Code(code) => {
                     byte_code = format!("{byte_code}{code}");
                 }
-                StatementType::BuiltinFunctionCall(bf) => match bf.kind {
-                    BuiltinFunctionKind::FunctionSignature => {
-                        let bytes = function_signature(contract, &bf)?;
-                        byte_code = format!("{byte_code}{}", &bytes[2..]);
-                    }
-                    BuiltinFunctionKind::RightPad => {
-                        let bytes = builtin_pad(evm_version, contract, &bf, PadDirection::Right)?;
-                        byte_code = format!("{byte_code}{}", &bytes[2..]);
-                    }
-                    BuiltinFunctionKind::LeftPad => {
-                        let bytes = builtin_pad(evm_version, contract, &bf, PadDirection::Left)?;
-                        byte_code = format!("{byte_code}{}", &bytes[2..]);
-                    }
-                    BuiltinFunctionKind::Bytes => {
-                        let bytes = builtin_bytes(evm_version, &bf)?;
-                        byte_code = format!("{byte_code}{}", &bytes[2..]);
-                    }
-                    _ => {
-                        return Err(CodegenError {
-                            kind: CodegenErrorKind::UnsupportedBuiltinFunction(format!("{}", bf.kind)),
-                            span: statement.span.clone(),
-                            token: None,
-                        });
-                    }
-                },
+                StatementType::BuiltinFunctionCall(bf) => {
+                    let hex_literal = Codegen::gen_builtin_bytecode(evm_version, contract, bf, statement.span.clone())?;
+                    byte_code = format!("{byte_code}{}", &hex_literal[2..])
+                }
                 StatementType::Constant(name) => {
-                    let constant = lookup_constant(&name, contract, &statement.span)?;
+                    let constant = lookup_constant(name, contract, &statement.span)?;
                     let bytes = match constant.value {
                         ConstVal::Bytes(bytes) => bytes,
                         _ => {
@@ -399,7 +394,7 @@ impl Codegen {
                 IRByteType::ArgCall(arg_name) => {
                     // Bubble up arg call by looking through the previous scopes.
                     // Once the arg value is found, add it to `bytes`
-                    bubble_arg_call(arg_name, &mut bytes, macro_def, contract, scope, &mut offset, mis, &mut jump_table)?
+                    bubble_arg_call(evm_version, arg_name, &mut bytes, macro_def, contract, scope, &mut offset, mis, &mut jump_table)?
                 }
             }
         }

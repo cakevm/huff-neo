@@ -12,8 +12,25 @@ At compile time, the invocation of `__EVENT_HASH` is substituted with `PUSH32 ev
 ### `__ERROR(<error definition>)`
 At compile time, the invocation of `__ERROR` is substituted with `PUSH32 error_selector`, where `error_selector` is the left-padded 4 byte error selector of the passed error definition.
 
+### `__LEFTPAD(<string>|<hex>|<builtin function>)`
+At compile time, the invocation of `__LEFTPAD` is substituted with `padded_literal`, where `padded_literal` is the left padded version of the passed input. This function is only available as constant assignment or in a code table.
+
+#### Example
+```plaintext
+__LEFTPAD(0x123)
+// will result in 32 bytes:
+0x0000000000000000000000000000000000000000000000000000000000000123
+```
+
 ### `__RIGHTPAD(<string>|<hex>|<builtin function>)`
 At compile time, the invocation of `__RIGHTPAD` is substituted with `PUSH32 padded_literal`, where `padded_literal` is the right padded version of the passed input.
+
+#### Example
+```plaintext
+__RIGHTPAD(0x123)
+// will result in 32 bytes:
+0x1230000000000000000000000000000000000000000000000000000000000000
+```
 
 ### `__codesize(<macro>|<function>)`
 Pushes the code size of the macro or function passed to the stack.
@@ -26,6 +43,13 @@ This function is used to insert raw hex data into the compiled bytecode. It is u
 
 ### `__BYTES(<string>)`
 This function allows to insert a string as UTF-8 encoded bytes into the compiled bytecode. The resulting bytecode is limited to 32 bytes.
+
+#### Example
+```javascript
+#define macro MAIN() = takes (0) returns (0) {
+    __BYTES("hello") // Will push UTF-8 encoded string (PUSH5 0x68656c6c6f)
+}
+```
 
 ## Combining Builtin Functions
 Some builtin functions can be combined with other functions. Possible combinations are:

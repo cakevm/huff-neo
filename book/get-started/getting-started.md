@@ -16,8 +16,9 @@ Now, with `hnc-up` installed and in your path, you can simply run `hnc-up` to in
 
 ### On Windows, build from the source
 
-If you use Windows, you need to build from the source to get huff.
+If you use Windows, you can build from the source or download the binary form the [releases](https://github.com/cakevm/huff-neo/releases) to get huff.
 
+#### Building from the source
 Download and run `rustup-init` from [rustup.rs](https://win.rustup.rs/x86_64). It will start the installation in a console.
 
 If you encounter an error, it is most likely the case that you do not have the VS Code Installer which you can [download here](https://visualstudio.microsoft.com/downloads/) and install.

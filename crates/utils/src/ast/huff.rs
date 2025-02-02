@@ -235,7 +235,7 @@ impl Contract {
                             let new_value = str_to_bytes32(&format!("{old_p}"));
                             storage_pointers.push((const_name.to_string(), new_value));
                         }
-                        ConstVal::Bytes(_) => {
+                        ConstVal::Bytes(_) | ConstVal::BuiltinFunctionCall(_) => {
                             // Skip constants that are not free storage pointers
                         }
                         // This should never be reached, as we only assign free storage pointers
@@ -487,6 +487,8 @@ pub enum ConstVal {
     FreeStoragePointer(FreeStoragePointer),
     /// A Storage Pointer assigned by the compiler
     StoragePointer(Literal),
+    /// Built-in function call
+    BuiltinFunctionCall(BuiltinFunctionCall),
 }
 
 /// A Constant Definition
@@ -531,6 +533,7 @@ pub enum BuiltinFunctionArg {
     Literal(Literal),
     /// Builtin Function Call
     BuiltinFunctionCall(BuiltinFunctionCall),
+    // TODO: Remove this and replace with a better type
     /// Abi Argument
     Argument(Argument),
     /// Constant Argument
