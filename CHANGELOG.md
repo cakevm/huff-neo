@@ -4,6 +4,9 @@
 
 ## [Unreleased]
 
+## [1.1.1] - 2025-02-02
+- Update dependencies to the latest version.
+
 ## [1.1.0] - 2025-02-02
 - Support for constants in code tables.
 - Use correct code line for error messages in code tables for built-ins.

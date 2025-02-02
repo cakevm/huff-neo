@@ -11,7 +11,7 @@ license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/cakevm/huff-neo"
 rust-version = "1.84"
-version = "1.0.10"
+version = "1.1.1"
 
 [workspace.dependencies]
 huff-neo-codegen = { path = "crates/codegen" }
@@ -21,34 +21,34 @@ huff-neo-parser = { path = "crates/parser" }
 huff-neo-test-runner = { path = "crates/test-runner" }
 huff-neo-utils = { path = "crates/utils" }
 
-alloy-dyn-abi = "0.8.18"
-alloy-primitives = "0.8.18"
-anvil = { package = "anvil", git = "https://github.com/foundry-rs/foundry", rev = "0821048" }
+alloy-dyn-abi = "0.8.20"
+alloy-primitives = "0.8.20"
+anvil = { package = "anvil", git = "https://github.com/foundry-rs/foundry", rev = "79e3ee8" }
 cfg-if = "1.0.0"
-clap = { version = "4.5.26", features = ["derive"] }
+clap = { version = "4.5.27", features = ["derive"] }
 comfy-table = "7.1.3"
 eyre = "0.6.12"
-foundry-cli = { package = "foundry-cli", git = "https://github.com/foundry-rs/foundry", rev = "0821048" }
-foundry-common = { package = "foundry-common", git = "https://github.com/foundry-rs/foundry", rev = "0821048" }
-foundry-config = { package = "foundry-config", git = "https://github.com/foundry-rs/foundry", rev = "0821048" }
-foundry-debugger = { package = "foundry-debugger", git = "https://github.com/foundry-rs/foundry", rev = "0821048" }
-foundry-evm = { package = "foundry-evm", git = "https://github.com/foundry-rs/foundry", rev = "0821048" }
-foundry-evm-traces = { package = "foundry-evm-traces", git = "https://github.com/foundry-rs/foundry", rev = "0821048" }
+foundry-cli = { package = "foundry-cli", git = "https://github.com/foundry-rs/foundry", rev = "79e3ee8" }
+foundry-common = { package = "foundry-common", git = "https://github.com/foundry-rs/foundry", rev = "79e3ee8" }
+foundry-config = { package = "foundry-config", git = "https://github.com/foundry-rs/foundry", rev = "79e3ee8" }
+foundry-debugger = { package = "foundry-debugger", git = "https://github.com/foundry-rs/foundry", rev = "79e3ee8" }
+foundry-evm = { package = "foundry-evm", git = "https://github.com/foundry-rs/foundry", rev = "79e3ee8" }
+foundry-evm-traces = { package = "foundry-evm-traces", git = "https://github.com/foundry-rs/foundry", rev = "79e3ee8" }
 hex = "0.4.3"
 itertools = "0.14.0"
-js-sys = { version = "0.3.76" }
+js-sys = { version = "0.3.77" }
 lazy_static = "1.5.0"
 phf = { version = "0.11.3", features = ["macros"] }
-rand = "0.8.5"
+rand = "0.9.0"
 regex = "1.11.1"
-revm = { version = "19.2.0", features = ["optional_no_base_fee"] }
+revm = { version = "19.4.0", features = ["optional_no_base_fee"] }
 revm-inspectors = "0.14.1"
 shadow-rs = "0.38.0"
 thiserror = "2.0.11"
 tokio = "1.43.0"
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", default-features = false, features = ["env-filter", "fmt"] }
-uuid = { version = "1.11.1", features = ["v4"] }
+uuid = { version = "1.12.1", features = ["v4"] }
 walkdir = "2.5.0"
 wasm-bindgen = "0.2"
 yansi = "1.0.1"
@@ -58,14 +58,14 @@ crunchy = "=0.2.2"
 # serde
 serde = { version = "1.0", features = ["derive", "rc"] }
 serde-wasm-bindgen = "0.6.5"
-serde_json = "1.0.135"
+serde_json = "1.0.138"
 strum = "0.26.3"
 strum_macros = "0.26.4"
 toml = "0.8.19"
 
 # dev
 criterion = "0.5.1"
-getrandom = { version = "0.3.0", features = ["wasm_js"] }
+getrandom = { version = "0.3.1", features = ["wasm_js"] }
 rayon = "1.10.0"
 
 [profile.test]
