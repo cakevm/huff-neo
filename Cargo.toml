@@ -11,7 +11,7 @@ license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/cakevm/huff-neo"
 rust-version = "1.84"
-version = "1.1.1"
+version = "1.1.2"
 
 [workspace.dependencies]
 huff-neo-codegen = { path = "crates/codegen" }
@@ -23,17 +23,17 @@ huff-neo-utils = { path = "crates/utils" }
 
 alloy-dyn-abi = "0.8.20"
 alloy-primitives = "0.8.20"
-anvil = { package = "anvil", git = "https://github.com/foundry-rs/foundry", rev = "aee9f47" }
+anvil = { package = "anvil", git = "https://github.com/foundry-rs/foundry", rev = "c4ae688" }
 cfg-if = "1.0.0"
-clap = { version = "4.5.27", features = ["derive"] }
+clap = { version = "4.5.28", features = ["derive"] }
 comfy-table = "7.1.3"
 eyre = "0.6.12"
-foundry-cli = { package = "foundry-cli", git = "https://github.com/foundry-rs/foundry", rev = "aee9f47" }
-foundry-common = { package = "foundry-common", git = "https://github.com/foundry-rs/foundry", rev = "aee9f47" }
-foundry-config = { package = "foundry-config", git = "https://github.com/foundry-rs/foundry", rev = "aee9f47" }
-foundry-debugger = { package = "foundry-debugger", git = "https://github.com/foundry-rs/foundry", rev = "aee9f47" }
-foundry-evm = { package = "foundry-evm", git = "https://github.com/foundry-rs/foundry", rev = "aee9f47" }
-foundry-evm-traces = { package = "foundry-evm-traces", git = "https://github.com/foundry-rs/foundry", rev = "aee9f47" }
+foundry-cli = { git = "https://github.com/foundry-rs/foundry", rev = "c4ae688" }
+foundry-common = { git = "https://github.com/foundry-rs/foundry", rev = "c4ae688" }
+foundry-config = { git = "https://github.com/foundry-rs/foundry", rev = "c4ae688" }
+foundry-debugger = { git = "https://github.com/foundry-rs/foundry", rev = "c4ae688" }
+foundry-evm = { git = "https://github.com/foundry-rs/foundry", rev = "c4ae688" }
+foundry-evm-traces = { git = "https://github.com/foundry-rs/foundry", rev = "c4ae688" }
 hex = "0.4.3"
 itertools = "0.14.0"
 js-sys = { version = "0.3.77" }
@@ -48,7 +48,7 @@ thiserror = "2.0.11"
 tokio = "1.43.0"
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", default-features = false, features = ["env-filter", "fmt"] }
-uuid = { version = "1.12.1", features = ["v4"] }
+uuid = { version = "1.13.1", features = ["v4"] }
 walkdir = "2.5.0"
 wasm-bindgen = "0.2"
 yansi = "1.0.1"
@@ -61,7 +61,7 @@ serde-wasm-bindgen = "0.6.5"
 serde_json = "1.0.138"
 strum = "0.26.3"
 strum_macros = "0.26.4"
-toml = "0.8.19"
+toml = "0.8.20"
 
 # dev
 criterion = "0.5.1"

@@ -3,7 +3,10 @@
 # Huff Neo Compiler changelog
 
 ## [Unreleased]
-- Update to latest `revm` and `foundry` version.
+
+## [1.1.2] - 2025-02-06
+- Update to the latest `revm` and `foundry` versions.
+- Remove parameters without effect from `test` that have been added by Foundry.
 
 ## [1.1.1] - 2025-02-02
 - Update dependencies to the latest version.
