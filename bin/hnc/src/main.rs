@@ -347,7 +347,6 @@ fn main() {
     if cli.bytecode {
         if cli.interactive {
             tracing::info!(target: "cli", "ENTERING INTERACTIVE MODE");
-            // let mut new_artifacts = vec![];
             for artifact in &mut artifacts {
                 let mut appended_args = String::default();
                 match artifact.abi {

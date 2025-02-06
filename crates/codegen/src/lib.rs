@@ -723,10 +723,11 @@ impl Codegen {
         // Constructor size optimizations
         let mut bootstrap_code_size = 9;
         let contract_size = if contract_length < 256 {
+            // 60 = PUSH1
             format!("60{}", pad_n_bytes(format!("{contract_length:x}").as_str(), 1))
         } else {
             bootstrap_code_size += 1;
-
+            // 61 = PUSH2
             format!("61{}", pad_n_bytes(format!("{contract_length:x}").as_str(), 2))
         };
         let contract_code_offset = if (bootstrap_code_size + constructor_length) < 256 {
@@ -737,6 +738,8 @@ impl Codegen {
             format!("61{}", pad_n_bytes(format!("{:x}", bootstrap_code_size + constructor_length).as_str(), 2))
         };
 
+        // 80 = DUP1
+        // 3d = RETURNDATASIZE, 39 = CODECOPY, 3d = RETURNDATASIZE, f3 = RETURN
         let bootstrap_code =
             if has_custom_bootstrap { String::default() } else { format!("{contract_size}80{contract_code_offset}3d393df3") };
 

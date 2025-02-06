@@ -13,6 +13,10 @@ pub enum SupportedEVMVersions {
     /// Introduced TLOAD, TSTORE, MCOPY, BLOBHASH, and BLOBBASEFEE
     #[default]
     Cancun,
+    /// Introduces EOA account code
+    Prague,
+    /// Introduces EOF
+    Osaka,
 }
 
 #[derive(Debug, Default)]
@@ -50,6 +54,8 @@ impl From<String> for EVMVersion {
             "shanghai" => Self::new(SupportedEVMVersions::Shanghai),
             "paris" => Self::new(SupportedEVMVersions::Paris),
             "cancun" => Self::new(SupportedEVMVersions::Cancun),
+            "prague" => Self::new(SupportedEVMVersions::Prague),
+            "osaka" => Self::new(SupportedEVMVersions::Osaka),
             _ => Self::default(),
         }
     }
