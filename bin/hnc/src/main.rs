@@ -8,7 +8,8 @@
 
 mod arguments;
 
-use crate::arguments::{get_input, HuffArgs, TestCommands};
+use crate::arguments::base::TestCommands;
+use crate::arguments::base::{get_input, HuffArgs};
 use alloy_primitives::hex;
 use clap::{CommandFactory, Parser};
 use comfy_table::{modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL, Cell, Color, Row, Table};
@@ -30,7 +31,7 @@ use huff_neo_utils::prelude::{
 };
 use shadow_rs::shadow;
 use std::process::exit;
-use std::{collections::BTreeMap, rc::Rc, sync::Arc, time::Instant};
+use std::{collections::BTreeMap, sync::Arc, time::Instant};
 use yansi::Paint;
 
 shadow!(build);
@@ -194,7 +195,6 @@ fn main() {
             }
         };
 
-        // Merge all configs.
         let (mut config, mut evm_opts) = test_args.load_config_and_evm_opts().unwrap();
 
         // Explicitly enable isolation for gas reports for more correct gas accounting.
@@ -206,7 +206,6 @@ fn main() {
             config.invariant.gas_report_samples = 0;
         }
 
-        let match_ = Rc::new(test_args.match_);
         let rt = tokio::runtime::Builder::new_multi_thread().enable_all().build().unwrap();
 
         for contract in &contracts {
@@ -244,15 +243,13 @@ fn main() {
             let tester_config = HuffTesterConfig::new()
                 .set_debug(test_args.debug)
                 .set_decode_internal(decode_internal)
-                .initial_balance(evm_opts.initial_balance)
                 .evm_spec(config.evm_spec_id())
                 .sender(evm_opts.sender)
                 .with_fork(evm_opts.get_fork(&config, env.clone()))
                 .enable_isolation(evm_opts.isolate)
-                .odyssey(evm_opts.odyssey)
                 .target_address(test_args.target_address);
 
-            let tester = HuffTester::new(contract, Rc::clone(&match_), inspectors, tester_config, env);
+            let tester = HuffTester::new(contract, test_args.match_.clone(), inspectors, tester_config, env);
 
             let _guard = rt.enter();
             let start = Instant::now();

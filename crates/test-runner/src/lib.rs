@@ -1,7 +1,6 @@
 use crate::{errors::RunnerError, runner::TestRunner, types::TestResult};
-use alloy_primitives::{Address, U256};
+use alloy_primitives::Address;
 use huff_neo_utils::prelude::{Contract, MacroDefinition};
-use std::{borrow::Borrow, rc::Rc};
 
 /// The runner module
 pub mod runner;
@@ -38,22 +37,16 @@ pub struct HuffTesterConfig {
     /// The address which will be used to deploy the initial contracts and send all
     /// transactions
     pub sender: Option<Address>,
-    /// The initial balance for each one of the deployed smart contracts
-    pub initial_balance: U256,
     /// The EVM spec to use
     pub evm_spec: Option<SpecId>,
     /// The fork to use at launch
     pub fork: Option<CreateFork>,
-    /// Whether or not to collect coverage info
-    pub coverage: bool,
-    /// Whether or not to collect debug info
+    /// Whether to collect debug info
     pub debug: bool,
     /// Whether to enable steps tracking in the tracer.
     pub decode_internal: InternalTraceMode,
     /// Whether to enable call isolation
     pub isolation: bool,
-    /// Whether to enable Odyssey features.
-    pub odyssey: bool,
     /// The target address for the contract
     pub target_address: Option<Address>,
 }
@@ -68,11 +61,6 @@ impl HuffTesterConfig {
         self
     }
 
-    pub fn initial_balance(mut self, initial_balance: U256) -> Self {
-        self.initial_balance = initial_balance;
-        self
-    }
-
     pub fn evm_spec(mut self, spec: SpecId) -> Self {
         self.evm_spec = Some(spec);
         self
@@ -80,11 +68,6 @@ impl HuffTesterConfig {
 
     pub fn with_fork(mut self, fork: Option<CreateFork>) -> Self {
         self.fork = fork;
-        self
-    }
-
-    pub fn set_coverage(mut self, enable: bool) -> Self {
-        self.coverage = enable;
         self
     }
 
@@ -100,11 +83,6 @@ impl HuffTesterConfig {
 
     pub fn enable_isolation(mut self, enable: bool) -> Self {
         self.isolation = enable;
-        self
-    }
-
-    pub fn odyssey(mut self, enable: bool) -> Self {
-        self.odyssey = enable;
         self
     }
 
@@ -136,7 +114,7 @@ pub struct HuffTester<'t> {
 /// HuffTester implementation
 impl<'t> HuffTester<'t> {
     /// Create a new instance of `HuffTester` from a contract's AST.
-    pub fn new(ast: &'t Contract, match_: Rc<Option<String>>, inspectors: Inspector, config: HuffTesterConfig, env: Env) -> Self {
+    pub fn new(ast: &'t Contract, match_test_name: Option<String>, inspectors: Inspector, config: HuffTesterConfig, env: Env) -> Self {
         Self {
             ast,
             macros: {
@@ -144,8 +122,8 @@ impl<'t> HuffTester<'t> {
                 let mut macros: TestMacros<'t> = ast.macros.iter().filter(|m| m.test).collect();
                 // If the match flag is present, only retain the test macro
                 // that was queried
-                if let Some(match_) = match_.borrow() {
-                    macros.retain(|m| m.name == *match_);
+                if let Some(match_test_name) = match_test_name {
+                    macros.retain(|m| m.name == *match_test_name);
                 }
                 macros
             },
