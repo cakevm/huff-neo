@@ -6,92 +6,91 @@ use strum_macros::EnumString;
 /// They are arranged in a particular order such that all the opcodes that have common
 /// prefixes are ordered by decreasing length to avoid mismatch when lexing.
 /// Example : [origin, or] or [push32, ..., push3]
-pub const OPCODES: [&str; 150] = [
-    "lt",
-    "gt",
-    "slt",
-    "sgt",
-    "eq",
-    "iszero",
-    "and",
-    "origin",
-    "or",
-    "xor",
-    "not",
-    "sha3",
-    "address",
-    "balance",
-    "caller",
-    "callvalue",
-    "calldataload",
-    "calldatasize",
-    "calldatacopy",
-    "codesize",
-    "codecopy",
-    "basefee",
-    "blobhash",
-    "blobbasefee",
-    "blockhash",
-    "coinbase",
-    "timestamp",
-    "number",
-    "difficulty",
-    "prevrandao",
-    "gaslimit",
-    "chainid",
-    "selfbalance",
-    "pop",
-    "mload",
-    "mstore8",
-    "mstore",
-    "sload",
-    "sstore",
-    "jumpdest",
-    "jumpi",
-    "jump",
-    "pc",
-    "msize",
-    "stop",
+pub const OPCODES: [&str; 161] = [
     "addmod",
     "add",
-    "mulmod",
-    "mul",
-    "sub",
-    "div",
-    "sdiv",
-    "mod",
-    "smod",
-    "exp",
-    "signextend",
+    "address",
+    "and",
+    "balance",
+    "basefee",
+    "blobbasefee",
+    "blobhash",
+    "blockhash",
     "byte",
-    "shl",
-    "shr",
-    "sar",
-    "gasprice",
-    "extcodesize",
-    "extcodecopy",
-    "returndatasize",
-    "returndatacopy",
-    "extcodehash",
-    "gas",
-    "log0",
-    "log1",
-    "log2",
-    "log3",
-    "log4",
-    "tload",
-    "tstore",
-    "mcopy",
+    "calldatacopy",
+    "calldataload",
+    "calldatasize",
+    "callcode",
+    "caller",
+    "callvalue",
+    "callf",
+    "call",
+    "chainid",
+    "coinbase",
+    "codecopy",
+    "codesize",
     "create2",
     "create",
-    "callcode",
-    "call",
-    "return",
+    "dataloadn",
     "delegatecall",
-    "staticcall",
-    "revert",
+    "difficulty",
+    "div",
+    "dup16",
+    "dup15",
+    "dup14",
+    "dup13",
+    "dup12",
+    "dup11",
+    "dup10",
+    "dup9",
+    "dup8",
+    "dup7",
+    "dup6",
+    "dup5",
+    "dup4",
+    "dup3",
+    "dup2",
+    "dup1",
+    "eofcreate",
+    "eq",
+    "exp",
+    "extcall",
+    "extcodecopy",
+    "extcodehash",
+    "extcodesize",
+    "extdelegatecall",
+    "extstaticcall",
+    "gaslimit",
+    "gasprice",
+    "gas",
+    "gt",
     "invalid",
-    "selfdestruct",
+    "iszero",
+    "jumpdest",
+    "jumpf",
+    "jumpi",
+    "jump",
+    "log4",
+    "log3",
+    "log2",
+    "log1",
+    "log0",
+    "lt",
+    "mcopy",
+    "mload",
+    "mod",
+    "msize",
+    "mstore8",
+    "mstore",
+    "mulmod",
+    "mul",
+    "number",
+    "not",
+    "or",
+    "origin",
+    "pc",
+    "pop",
+    "prevrandao",
     "push32",
     "push31",
     "push30",
@@ -125,6 +124,30 @@ pub const OPCODES: [&str; 150] = [
     "push2",
     "push1",
     "push0",
+    "revert",
+    "returncontract",
+    "returndatacopy",
+    "returndatasize",
+    "return",
+    "retf",
+    "rjumpi",
+    "rjump",
+    "sar",
+    "sdiv",
+    "selfbalance",
+    "selfdestruct",
+    "sgt",
+    "sha3",
+    "shl",
+    "shr",
+    "signextend",
+    "sload",
+    "slt",
+    "smod",
+    "sstore",
+    "staticcall",
+    "stop",
+    "sub",
     "swap16",
     "swap15",
     "swap14",
@@ -141,22 +164,10 @@ pub const OPCODES: [&str; 150] = [
     "swap3",
     "swap2",
     "swap1",
-    "dup16",
-    "dup15",
-    "dup14",
-    "dup13",
-    "dup12",
-    "dup11",
-    "dup10",
-    "dup9",
-    "dup8",
-    "dup7",
-    "dup6",
-    "dup5",
-    "dup4",
-    "dup3",
-    "dup2",
-    "dup1",
+    "timestamp",
+    "tload",
+    "tstore",
+    "xor",
 ];
 
 /// Hashmap of all the EVM opcodes
@@ -310,7 +321,19 @@ pub static OPCODES_MAP: phf::Map<&'static str, Opcode> = phf_map! {
     "create2" => Opcode::Create2,
     "revert" => Opcode::Revert,
     "invalid" => Opcode::Invalid,
-    "selfdestruct" => Opcode::Selfdestruct
+    "selfdestruct" => Opcode::Selfdestruct,
+    // EOF
+    "eofcreate" => Opcode::Eofcreate,
+    "returncontract" => Opcode::Returncontract,
+    "dataloadn" => Opcode::Dataloadn,
+    "rjump" => Opcode::Rjump,
+    "rjumpi" => Opcode::Rjumpi,
+    "callf" => Opcode::Callf,
+    "jumpf" => Opcode::Jumpf,
+    "retf" => Opcode::Retf,
+    "extcall" => Opcode::Extcall,
+    "extstaticcall" => Opcode::Extstaticcall,
+    "extdelegatecall" => Opcode::Extdelegatecall,
 };
 
 /// EVM Opcodes
@@ -619,6 +642,46 @@ pub enum Opcode {
     Selfdestruct,
     /// Get hash of an account’s code
     Extcodehash,
+
+    // EOF
+    /// Relative jump
+    Rjump,
+    /// Relative conditional jump
+    Rjumpi,
+    /// Relative jump table
+    Rjumpv,
+    /// EOF Subroutine Call
+    Callf,
+    /// EOF Subroutine return
+    Retf,
+    /// EOF Function Jump
+    Jumpf,
+    /// Create from EOF contained initcode
+    Eofcreate,
+    /// Contract to be created, references EOF data
+    Returncontract,
+    /// Loads data from EOF data section, via stack
+    Dataload,
+    /// Loads data from EOF data section, via immediate
+    Dataloadn,
+    /// Size of the EOF data section
+    Datasize,
+    /// Bulk EOF data copy
+    Datacopy,
+    /// Unlimited dup
+    Dupn,
+    /// Unlimited swap
+    Swapn,
+    /// Deep swap
+    Exchange,
+    /// Loads data returned from a call to the stack
+    Returndataload,
+    /// CALL without gas and output memory
+    Extcall,
+    /// STATICCALL without gas and output memory
+    Extstaticcall,
+    /// DELEGATECALL without gas and output memory
+    Extdelegatecall,
 }
 
 impl Opcode {
@@ -775,6 +838,26 @@ impl Opcode {
             Opcode::Revert => "fd",
             Opcode::Invalid => "fe",
             Opcode::Selfdestruct => "ff",
+            // EOF
+            Opcode::Rjump => "e0",
+            Opcode::Rjumpi => "e1",
+            Opcode::Rjumpv => "e2",
+            Opcode::Callf => "e3",
+            Opcode::Retf => "e4",
+            Opcode::Jumpf => "e5",
+            Opcode::Eofcreate => "ec",
+            Opcode::Returncontract => "ee",
+            Opcode::Dataload => "d0",
+            Opcode::Dataloadn => "d1",
+            Opcode::Datasize => "d2",
+            Opcode::Datacopy => "d3",
+            Opcode::Dupn => "e6",
+            Opcode::Swapn => "e7",
+            Opcode::Exchange => "e8",
+            Opcode::Returndataload => "f7",
+            Opcode::Extcall => "f8",
+            Opcode::Extdelegatecall => "f9",
+            Opcode::Extstaticcall => "fb",
         };
         opcode_str.to_string()
     }
@@ -862,5 +945,21 @@ impl fmt::Display for Opcode {
 impl From<Opcode> for String {
     fn from(o: Opcode) -> Self {
         o.string()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Test if the opcode array and map are in sync
+    #[test]
+    fn test_opcode_array_equal() {
+        for opcode in OPCODES {
+            assert!(OPCODES_MAP.contains_key(opcode), "{opcode}");
+        }
+        for opcode in OPCODES_MAP.keys() {
+            assert!(OPCODES.contains(opcode), "{opcode}");
+        }
     }
 }

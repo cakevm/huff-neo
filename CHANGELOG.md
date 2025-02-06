@@ -3,10 +3,12 @@
 # Huff Neo Compiler changelog
 
 ## [Unreleased]
+- Add EOF opcodes.
+- Add EVM version entry for `Prague` and `Osaka`.
 
 ## [1.1.2] - 2025-02-06
 - Update to the latest `revm` and `foundry` versions.
-- Remove parameters without effect from `test` that have been added by Foundry.
+- Remove parameters without effect from `test` that have been added from Foundry.
 
 ## [1.1.1] - 2025-02-02
 - Update dependencies to the latest version.
