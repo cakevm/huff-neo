@@ -16,7 +16,7 @@ Open up your editor and create a file called `addTwo.huff`. Lets jump in.
 
 First things first. If you're coming from a higher level language like Solidity or Vyper you will be familiar with defining "external" or "public" functions. These allow you to interact with a contract externally by generating an ABI (Application Binary Interface). This describes a contract's entry points to external tools (We will dive more into this later). In this aspect Huff is exactly the same, you can declare functions that will appear in the abi at the top of the file.
 
-```Huff
+```javascrpt
 #define function addTwo(uint256, uint256) view returns(uint256)
 ```
 
@@ -26,7 +26,7 @@ Go ahead and paste the above example at the top of `addTwo.huff`. This declares 
 
 The next thing we are going to create is the `MAIN macro`. This serves a single entry point for Huff contracts. All calls to a contract (regardless of what function they are calling) will start from `MAIN`! In this example we will define a `MAIN` function that will read two `uint256`'s from calldata and return their result.
 
-```Huff
+```javascrpt
 #define macro MAIN() = takes(0) returns(0) {
     0x00 calldataload     // [number1] // load first 32 bytes onto the stack - number 1
     0x20 calldataload     // [number2] // load second 32 bytes onto the stack - number 2
@@ -39,29 +39,29 @@ The next thing we are going to create is the `MAIN macro`. This serves a single 
 
 Looking at the above snippet may be intimidating at first, but bear with us.
 
-You'll notice that the MAIN directive is annotated with `takes(0) returns(0)`. As the EVM is a stack based virtual machine (see: [Understanding the EVM](https://docs.huff.sh/tutorial/evm-basics/)), all macro declarations are annotated with the number of items they will `take` from the stack and the amount they will `return` upon completion. When entering the contract the stack will be empty. Upon completion we will not be leaving anything on the stack; therefore, takes and returns will both be 0.
+You'll notice that the MAIN directive is annotated with `takes(0) returns(0)`. As the EVM is a stack based virtual machine (see: [Understanding the EVM](the-basics.md)), all macro declarations are annotated with the number of items they will `take` from the stack and the amount they will `return` upon completion. When entering the contract the stack will be empty. Upon completion we will not be leaving anything on the stack; therefore, takes and returns will both be 0.
 
 Go ahead and copy the above macro into your `addTwo.huff` file. Run `hnc addTwo.huff --bytecode`.
 
 Congratulations you've just compiled your first contract!
 
-The bytecode output of the compiler will echo the following into the console `600f8060093d393df36000356020350160005260206000f3`.
+The bytecode output of the compiler will echo the following into the console `600c8060093d393df35f35602035015f5260205ff3%`.
 
-When you deploy this contract code it will have the runtime bytecode of the main macro we just created! In the above snippet you will find it after the first `f3` (the preceding bytecode is boiler plate constructor logic.)
-That leaves us with this: `6000356020350160005260206000f3`
+When you deploy this contract code it will have the runtime bytecode of the main macro we just created! In the above snippet you will find it after the first `f3` (the preceding bytecode is boilerplate constructor logic.)
+That leaves us with this: `5f35602035015f5260205ff3`
 Below, this example dissembles what you have just created!
 
 ```plaintext
  BYTECODE          MNEMONIC         STACK                 ACTION
- 60 00          // PUSH1 0x00       // [0x00]
+ 5f             // PUSH0            // [0x00]
  35             // CALLDATALOAD     // [number1]          Store the first 32 bytes on the stack
  60 20          // PUSH1 0x20       // [0x20, number1]
  35             // CALLDATALOAD     // [number2, number1] Store the second 32 bytes on the stack
- 01             // ADD              // [number2+number1]  Take two stack inputs and add the result
- 60 00          // PUSH1 0x00       // [0x0, (n2+n1)]
+ 01             // ADD              // [number2 + number1]  Take two stack inputs and add the result
+ 5f             // PUSH0            // [0x0, (n2 + n1)]
  52             // MSTORE           // []                 Store (n2+n1) in the first 32 bytes of memory
  60 20          // PUSH1 0x20       // [0x20]
- 60 00          // PUSH1 0x00       // [0x00, 0x20]
+ f5             // PUSH0            // [0x00, 0x20]
  f3             // RETURN           // []                 Return the first 32 bytes of memory
 ```
 
@@ -70,10 +70,11 @@ If you want to step through the execution yourself you can check out this snippe
 In the next section we will walk through your contract's execution given that you provide the calldata for 2 + 3. Encoded into uint256's (32 bytes) the number 2 would become `0000000000000000000000000000000000000000000000000000000000000002` and the number 3 would become `0000000000000000000000000000000000000000000000000000000000000003`.
 
 This is illustrated in the table below:
-| Type | Value | As calldata |
-| ----------- | ----------- | ----------- |
-| uint256 | 2 | 0000000000000000000000000000000000000000000000000000000000000002 |
-| uint256 | 3 | 0000000000000000000000000000000000000000000000000000000000000003 |
+
+| Type    | Value | As calldata                                                      |
+|---------|-------|------------------------------------------------------------------|
+| uint256 | 2     | 0000000000000000000000000000000000000000000000000000000000000002 |
+| uint256 | 3     | 0000000000000000000000000000000000000000000000000000000000000003 |
 
 By putting the two together, we will send the following calldata to the contract.
 
@@ -127,32 +128,8 @@ Calculating the function selector each time can be tedious. To make life easy, h
 
 To accept external calls for multiple functions we will have to extract our `addTwo` logic into another macro. Then convert our `MAIN` macro into a function dispatcher.
 
-```Huff
-#define function addTwo(uint256,uint256) view returns(uint256)
-
-#define macro MAIN() = takes(0) returns(0) {
-
-    // Get the function selector
-    0x00
-    calldataload
-    0xE0
-    shr
-
-    // Jump to the implementation of the ADD_TWO function if the calldata matches the function selector
-    __FUNC_SIG(addTwo) eq addTwo jumpi
-
-    addTwo:
-        ADD_TWO()
-}
-
-#define macro ADD_TWO() = takes(0) returns(0) {
-    0x04 calldataload     // load first 32 bytes onto the stack - number 1
-    0x24 calldataload     // load second 32 bytes onto the stack - number 2
-    add                   // add number 1 and 2 and put the result onto the stack
-
-    0x00 mstore           // place the result in memory
-    0x20 0x00 return      // return the result
-}
+```javascript,norun,noplayground,ignore
+{{ #include examples/addTwo.huff }}
 ```
 
 The first modifications we make will be within the ADD_TWO macro. On lines 1 and 2 we will shift the calldata offset by 4 bytes for both numbers, this is due to the 4 byte function selector that will be prepended to the calldata value.
