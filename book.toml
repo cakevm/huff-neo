@@ -3,7 +3,7 @@ authors = ["Huff Contributors"]
 language = "en"
 multilingual = false
 src = "book"
-title = "Huff documentation"
+title = "Huff Langugage / huff-neo - Documentation"
 
 [build]
 build-dir = "target/book"

@@ -1,0 +1,6 @@
+User-agent: *
+Disallow: /css/
+Disallow: /FontAwesome/
+Disallow: /fonts/
+
+Sitemap: https://www.huff-neo.rs/sitemap.xml
