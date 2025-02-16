@@ -77,7 +77,7 @@ jobs:
         run: cargo install mdbook-mermaid
 
       - name: Build mdbook
-      - run: mdbook build
+        run: mdbook build
 
       - name: Generate sitemap
         run: |
@@ -86,7 +86,7 @@ jobs:
           npx sscli --no-clean --base https://www.huff-neo.rs
 
       - name: Build doc
-      - run: make doc
+        run: make doc
 
       - name: Move docs to book folder
         run: mv target/doc target/book/docs
