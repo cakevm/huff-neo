@@ -115,7 +115,10 @@ pub fn statement_gen<'a>(
                 }
                 table_instances.extend(res.table_instances);
                 label_indices.extend(res.label_indices);
-                utilized_tables.extend(res.utilized_tables);
+                // Only add tables that are not already in the utilized tables
+                let res_unique_tables =
+                    res.utilized_tables.iter().filter(|t| !utilized_tables.contains(t)).cloned().collect::<Vec<TableDefinition>>();
+                utilized_tables.extend(res_unique_tables);
 
                 // Increase offset by byte length of recursed macro
                 *offset += res.bytes.iter().map(|(_, b)| b.0.len()).sum::<usize>() / 2;
