@@ -3,8 +3,11 @@
 # Huff Neo Compiler changelog
 
 ## [Unreleased]
+
+## [1.1.3] - 2025-02-21
 - Add EOF opcodes.
 - Add EVM version entry for `Prague` and `Osaka`.
+- Fix duplicate code tables in bytecode #37.
 
 ## [1.1.2] - 2025-02-06
 - Update to the latest `revm` and `foundry` versions.
