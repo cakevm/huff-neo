@@ -286,3 +286,89 @@ fn test_code_table_all_features() {
             .replace(" ", "")
     );
 }
+
+#[test]
+fn test_reuse_code_table_multiple_times() {
+    let source: &str = r#"
+        #define table CODE_TABLE {
+            0x1234
+        }
+
+        #define macro MAIN() = takes(0) returns (0) {
+            __tablesize(CODE_TABLE)
+            __tablestart(CODE_TABLE)
+
+            __tablesize(CODE_TABLE)
+            __tablestart(CODE_TABLE)
+        }
+    "#;
+
+    // Parse tokens
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+
+    // Parse the AST
+    let mut contract = parser.parse().unwrap();
+
+    // Derive storage pointers
+    contract.derive_storage_pointers();
+
+    // Instantiate Codegen
+    let cg = Codegen::new();
+
+    // The codegen instance should have no artifact
+    assert!(cg.artifact.is_none());
+
+    // Have the Codegen create the constructor bytecode
+    let mbytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+
+    // Two times: 60 = PUSH1, 02 = 2 bytes table size, 61 = PUSH2, 000a = 10 bytes table start
+    // Plus the 0x1234
+    assert_eq!(mbytes, "600261000a 600261000a 1234".replace(" ", ""));
+}
+
+#[test]
+fn test_reuse_code_table_multiple_times_macro() {
+    let source: &str = r#"
+        #define table CODE_TABLE {
+            0x1234
+        }
+
+        #define macro MAIN() = takes(0) returns (0) {
+            TEST_TABLE()
+            TEST_TABLE()
+        }
+
+        #define macro TEST_TABLE() = takes(0) returns (0) {
+            __tablesize(CODE_TABLE)
+            __tablestart(CODE_TABLE)
+        }
+    "#;
+
+    // Parse tokens
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+
+    // Parse the AST
+    let mut contract = parser.parse().unwrap();
+
+    // Derive storage pointers
+    contract.derive_storage_pointers();
+
+    // Instantiate Codegen
+    let cg = Codegen::new();
+
+    // The codegen instance should have no artifact
+    assert!(cg.artifact.is_none());
+
+    // Have the Codegen create the constructor bytecode
+    let mbytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+
+    // Two times: 60 = PUSH1, 02 = 2 bytes table size, 61 = PUSH2, 000a = 10 bytes table start
+    // Plus the 0x1234
+    assert_eq!(mbytes, "600261000a 600261000a 1234".replace(" ", ""));
+}
