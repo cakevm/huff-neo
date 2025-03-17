@@ -11,7 +11,7 @@ license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/cakevm/huff-neo"
 rust-version = "1.84"
-version = "1.1.3"
+version = "1.1.4"
 
 [workspace.dependencies]
 huff-neo-codegen = { path = "crates/codegen" }
@@ -21,19 +21,19 @@ huff-neo-parser = { path = "crates/parser" }
 huff-neo-test-runner = { path = "crates/test-runner" }
 huff-neo-utils = { path = "crates/utils" }
 
-alloy-dyn-abi = "0.8.20"
-alloy-primitives = "0.8.20"
-anvil = { package = "anvil", git = "https://github.com/foundry-rs/foundry", rev = "c4ae688" }
+alloy-dyn-abi = "0.8.23"
+alloy-primitives = "0.8.23"
+anvil = { package = "anvil", git = "https://github.com/foundry-rs/foundry", rev = "a7e3421" }
 cfg-if = "1.0.0"
-clap = { version = "4.5.28", features = ["derive"] }
-comfy-table = "7.1.3"
+clap = { version = "4.5.32", features = ["derive"] }
+comfy-table = "7.1.4"
 eyre = "0.6.12"
-foundry-cli = { git = "https://github.com/foundry-rs/foundry", rev = "c4ae688" }
-foundry-common = { git = "https://github.com/foundry-rs/foundry", rev = "c4ae688" }
-foundry-config = { git = "https://github.com/foundry-rs/foundry", rev = "c4ae688" }
-foundry-debugger = { git = "https://github.com/foundry-rs/foundry", rev = "c4ae688" }
-foundry-evm = { git = "https://github.com/foundry-rs/foundry", rev = "c4ae688" }
-foundry-evm-traces = { git = "https://github.com/foundry-rs/foundry", rev = "c4ae688" }
+foundry-cli = { git = "https://github.com/foundry-rs/foundry", rev = "a7e3421" }
+foundry-common = { git = "https://github.com/foundry-rs/foundry", rev = "a7e3421" }
+foundry-config = { git = "https://github.com/foundry-rs/foundry", rev = "a7e3421" }
+foundry-debugger = { git = "https://github.com/foundry-rs/foundry", rev = "a7e3421" }
+foundry-evm = { git = "https://github.com/foundry-rs/foundry", rev = "a7e3421" }
+foundry-evm-traces = { git = "https://github.com/foundry-rs/foundry", rev = "a7e3421" }
 hex = "0.4.3"
 itertools = "0.14.0"
 js-sys = { version = "0.3.77" }
@@ -41,26 +41,26 @@ lazy_static = "1.5.0"
 phf = { version = "0.11.3", features = ["macros"] }
 rand = "0.9.0"
 regex = "1.11.1"
-revm = { version = "19.4.0", features = ["optional_no_base_fee"] }
-revm-inspectors = "0.15.0"
-shadow-rs = "0.38.0"
-thiserror = "2.0.11"
-tokio = "1.43.0"
+revm = { version = "19.6.0", features = ["optional_no_base_fee"] }
+revm-inspectors = "0.16.0"
+shadow-rs = "1.0.1"
+thiserror = "2.0.12"
+tokio = "1.44.1"
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", default-features = false, features = ["env-filter", "fmt"] }
-uuid = { version = "1.13.1", features = ["v4"] }
+uuid = { version = "1.16.0", features = ["v4"] }
 walkdir = "2.5.0"
-wasm-bindgen = "0.2"
+wasm-bindgen = "0.2.100"
 yansi = "1.0.1"
 # Pin version als workaround for: https://github.com/eira-fransham/crunchy/issues/13
 crunchy = "=0.2.2"
 
 # serde
-serde = { version = "1.0", features = ["derive", "rc"] }
+serde = { version = "1.0.219", features = ["derive", "rc"] }
 serde-wasm-bindgen = "0.6.5"
-serde_json = "1.0.138"
-strum = "0.26.3"
-strum_macros = "0.26.4"
+serde_json = "1.0.140"
+strum = "0.27.1"
+strum_macros = "0.27.1"
 toml = "0.8.20"
 
 # dev

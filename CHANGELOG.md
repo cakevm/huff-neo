@@ -4,6 +4,9 @@
 
 ## [Unreleased]
 
+## [1.1.4] - 2025-03-17
+- Update dependencies to the latest version.
+
 ## [1.1.3] - 2025-02-21
 - Add EOF opcodes.
 - Add EVM version entry for `Prague` and `Osaka`.
