@@ -114,7 +114,7 @@ main() {
     EXT="tar.gz"
     case $PLATFORM in
       linux)
-        PLATFORM="unknown-linux"
+        PLATFORM="unknown-linux-gnu"
         ;;
       darwin|mac*)
         PLATFORM="apple-darwin"
@@ -172,7 +172,7 @@ main() {
       # Print installed msg
       say "installed - $(ensure "$bin_path" --version)"
 
-      # Check if the default path of the binary is not in HUFF_NEO_BIN_DIR
+      # Check if multiple binaries with the same name are present in PATH
       which_path="$(command -v "$bin" || true)"
       if [ -n "$which_path" ] && [ "$which_path" != "$bin_path" ]; then
         warn ""
@@ -343,7 +343,7 @@ download() {
   fi
 }
 
-# Banner Function for Foundry
+# Print the huff-neo banner
 banner() {
   printf '
  _|    _|  _|    _|  _|_|_|_|  _|_|_|_|      _|      _|  _|_|_|_|    _|_|
