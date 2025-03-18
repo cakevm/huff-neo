@@ -2,7 +2,7 @@ use crate::Codegen;
 use huff_neo_utils::ast::span::AstSpan;
 use huff_neo_utils::prelude::*;
 use std::str::FromStr;
-// Arguments can be literals, labels, opcodes, or constants
+// Arguments can be literals, labels, opcodes, constants, or macro calls
 // !! IF THERE IS AMBIGUOUS NOMENCLATURE
 // !! (E.G. BOTH OPCODE AND LABEL ARE THE SAME STRING)
 // !! COMPILATION _WILL_ ERROR
@@ -134,6 +134,34 @@ pub fn bubble_arg_call(
                                 vec![Jump { label: iden.to_owned(), bytecode_index: 0, span: macro_invoc.1.span.clone() }],
                             );
                             *offset += 3;
+                        }
+                    }
+                    MacroArg::MacroCall(inner_mi) => {
+                        tracing::debug!(target: "codegen", "Found MacroArg::MacroCall IN \"{}\" Macro Invocation: \"{}\"!", macro_invoc.1.macro_name, inner_mi.macro_name);
+
+                        if let Some(called_macro) = contract.find_macro_by_name(&inner_mi.macro_name) {
+                            tracing::debug!(target: "codegen", "Found valid macro: {}", called_macro.name);
+                            let mut new_scope = scope.to_vec();
+                            new_scope.push(called_macro);
+                            let mut new_mis = mis.to_vec();
+                            new_mis.push((starting_offset, inner_mi.clone()));
+                            match Codegen::macro_to_bytecode(
+                                evm_version,
+                                called_macro,
+                                contract,
+                                &mut new_scope,
+                                starting_offset,
+                                &mut new_mis,
+                                false,
+                                None,
+                            ) {
+                                Ok(expanded_macro) => {
+                                    bytes.extend(expanded_macro.bytes);
+                                }
+                                Err(e) => {
+                                    return Err(e);
+                                }
+                            }
                         }
                     }
                 }
