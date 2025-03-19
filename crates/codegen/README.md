@@ -25,7 +25,7 @@ Below we showcase generating a compile artifact from compiled bytecode using `hu
 
 ```rust
 use huff_neo_codegen::*;
-use huff_neo_utils::files::FileSource;
+use huff_neo_utils::prelude::*;
 use std::sync::Arc;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -53,6 +53,7 @@ Let's say you have a [Contract](../utils/ast/struct.Contract.html) instance with
 ```rust
 use huff_neo_codegen::*;
 use huff_neo_utils::prelude::*;
+use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
 // Mock contract with a main macro
@@ -109,6 +110,7 @@ Similarly, once you have a [Contract](../utils/ast/struct.Contract.html) instanc
 ```rust
 use huff_neo_codegen::*;
 use huff_neo_utils::prelude::*;
+use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
 // Mock contract with a constructor macro

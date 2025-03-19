@@ -19,12 +19,13 @@ definition.
 use huff_neo_utils::prelude::*;
 use huff_neo_lexer::{Lexer};
 use huff_neo_parser::{Parser};
+use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
 // Create a Lexer from the source code
 let source = "#define macro HELLO_WORLD() = takes(0) returns(0) {}";
 let flattened_source = FullFileSource { source, file: None, spans: vec![] };
-let mut lexer = Lexer::new(flattened_source.source);
+let mut lexer = Lexer::new(flattened_source);
 
 // Grab the tokens from the lexer
 let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();

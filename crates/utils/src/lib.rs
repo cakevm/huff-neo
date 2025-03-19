@@ -56,9 +56,10 @@ pub mod shell;
 
 /// Prelude wraps common utilities.
 pub mod prelude {
-    pub use crate::ast::huff::*;
+    pub use crate::ast::{abi::*, huff::*, span::*};
     pub use crate::file::span::*;
     pub use crate::file::unpack_files::*;
+    pub use crate::file::{file_source::*, full_file_source::*};
     pub use crate::{
         abi::*, artifact::*, bytecode::*, bytes_util::*, error::*, evm_version::*, opcodes::*, report::*, sol_interface::*, token::*,
         types::*,
