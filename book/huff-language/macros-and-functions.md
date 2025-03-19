@@ -39,7 +39,7 @@ by the constructor.
 
 ### Macro Arguments
 
-Macros can accept arguments to be "called" inside the macro or passed as a reference. Macro arguments may be one of: label, opcode, literal, or a constant. Since macros are inlined at compile-time, the arguments are not evaluated at runtime and are instead inlined as well.
+Macros can accept arguments, which can be used within the macro itself or passed as reference. These arguments can be labels, opcodes, literals, constants, or other macro calls. Since macros are inlined at compile time, their arguments are also inlined and not evaluated at runtime.
 
 #### Example
 
@@ -137,7 +137,7 @@ your contract, and it is essentially a trade-off of decreasing contract size
 for a small extra runtime gas cost (`22 + n_inputs * 3 + n_outputs * 3` gas
 per invocation, to be exact).
 
-Functions are one of the only high-level abstractions
+Functions are one of the few high-level abstractions
 in Huff, so it is important to understand what the compiler adds to your code
 when they are utilized. It is not always beneficial to re-use code, especially
 if it is a small / inexpensive set of operations. However, for larger contracts
