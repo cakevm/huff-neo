@@ -3,6 +3,8 @@
 # Huff Neo Compiler changelog
 
 ## [Unreleased]
+- Add feature that allows to pass a macro call as a parameter to another macro.
+  - Example: `MACRO1(MACRO2(0x1, 0x2), 0x3)`.
 
 ## [1.1.4] - 2025-03-17
 - Update dependencies to the latest version.
