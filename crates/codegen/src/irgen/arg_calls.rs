@@ -162,6 +162,12 @@ pub fn bubble_arg_call(
                                     return Err(e);
                                 }
                             }
+                        } else {
+                            return Err(CodegenError {
+                                kind: CodegenErrorKind::MissingMacroDefinition(inner_mi.macro_name.clone()),
+                                span: inner_mi.span.clone(),
+                                token: None,
+                            });
                         }
                     }
                 }

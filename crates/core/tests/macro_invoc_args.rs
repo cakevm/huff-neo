@@ -434,3 +434,30 @@ fn test_very_nested_macro_calls() {
     // Check the bytecode
     assert_eq!(main_bytecode.to_lowercase(), expected_bytecode.to_lowercase());
 }
+
+#[test]
+fn test_nested_macro_call_missing_macro_definition() {
+    let source = r#"
+          #define macro MACRO1(a) = takes(0) returns(0) {
+            <a>
+          }
+
+          #define macro MAIN() = takes(0) returns(0) {
+            MACRO1(MISSING_MACRO())
+          }
+        "#;
+
+    // Lex + Parse
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    // Codegen should fail with an error
+    let codegen_result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None);
+
+    assert!(codegen_result.is_err());
+    assert_eq!(codegen_result.unwrap_err().kind, CodegenErrorKind::MissingMacroDefinition(String::from("MISSING_MACRO")));
+}
