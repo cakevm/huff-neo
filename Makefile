@@ -18,6 +18,10 @@ run:
 test:
 	cargo test --workspace --bins --lib --tests
 
+.PHONY: test-doc
+test-doc:
+	cargo test --doc --workspace
+
 .PHONY: clean
 clean:
 	cargo clean
@@ -58,5 +62,6 @@ pre-release:
 	make fmt
 	make clippy
 	make test
+	make test-doc
 	make taplo-check
 	make deny-check
