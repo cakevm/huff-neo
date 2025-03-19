@@ -309,3 +309,155 @@ fn test_bubbled_arg_with_different_name() {
     // Check the bytecode
     assert_eq!(main_bytecode, expected_bytecode);
 }
+
+#[test]
+fn test_nested_macro_call_no_args() {
+    let source = r#"
+          #define macro COMPUTE_FIXED(a) = takes(0) returns(0) {
+            0x01
+            0x01
+            <a>
+          }
+
+          #define macro ADD() = takes(0) returns(0) {
+            add
+          }
+
+          #define macro SUB() = takes(0) returns(0) {
+            sub
+          }
+
+          #define macro MAIN() = takes(0) returns(0) {
+            COMPUTE_FIXED(ADD())
+            COMPUTE_FIXED(SUB())
+          }
+        "#;
+
+    // Lex + Parse
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    let evm_version = EVMVersion::default();
+
+    // Create main and constructor bytecode
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
+
+    // Full expected bytecode output (generated from huff-neo) (placed here as a reference)
+    let expected_bytecode = "60016001016001600103";
+
+    // Check the bytecode
+    assert_eq!(main_bytecode.to_lowercase(), expected_bytecode.to_lowercase());
+}
+
+#[test]
+fn test_nested_macro_calls() {
+    let source = r#"
+            #define macro ADD(a, b) = takes(0) returns(1) {
+                <a> <b> add
+            }
+
+            #define macro SUB(a, b) = takes(0) returns(1) {
+                <a> <b> sub
+            }
+
+            #define macro COMPUTE_AND_STORE(operation, offset) = takes(0) returns(0) {
+                <operation>
+                <offset> mstore
+            }
+
+            #define macro MAIN() = takes(0) returns(0) {
+                COMPUTE_AND_STORE(ADD(0x05, 0x06), 0x00)
+                COMPUTE_AND_STORE(SUB(0x05, 0x06), 0x20)
+            }
+        "#;
+
+    // Lex + Parse
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    let evm_version = EVMVersion::default();
+
+    // Create main and constructor bytecode
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
+
+    // Full expected bytecode output (generated from huff-neo) (placed here as a reference)
+    let expected_bytecode = "60056006016000526005600603602052";
+
+    // Check the bytecode
+    assert_eq!(main_bytecode.to_lowercase(), expected_bytecode.to_lowercase());
+}
+
+#[test]
+fn test_very_nested_macro_calls() {
+    let source = r#"
+            #define macro ADD(a, b) = takes(0) returns(1) {
+                <a> <b> add
+            }
+
+            #define macro SUB(a, b) = takes(0) returns(1) {
+                <a> <b> sub
+            }
+
+            #define macro COMPUTE_AND_STORE(operation, offset) = takes(0) returns(0) {
+                <operation> <offset> mstore
+            }
+
+            #define macro MAIN() = takes(0) returns(0) {
+                COMPUTE_AND_STORE(ADD(0x05, SUB(0x05, ADD(ADD(0x0a, 0x16), 0x04))), 0x00)
+            }
+        "#;
+
+    // Lex + Parse
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    let evm_version = EVMVersion::default();
+
+    // Create main and constructor bytecode
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
+
+    // Full expected bytecode output (generated from huff-neo) (placed here as a reference)
+    let expected_bytecode = "60056005600a6016016004010301600052";
+
+    // Check the bytecode
+    assert_eq!(main_bytecode.to_lowercase(), expected_bytecode.to_lowercase());
+}
+
+#[test]
+fn test_nested_macro_call_missing_macro_definition() {
+    let source = r#"
+          #define macro MACRO1(a) = takes(0) returns(0) {
+            <a>
+          }
+
+          #define macro MAIN() = takes(0) returns(0) {
+            MACRO1(MISSING_MACRO())
+          }
+        "#;
+
+    // Lex + Parse
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    // Codegen should fail with an error
+    let codegen_result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None);
+
+    assert!(codegen_result.is_err());
+    assert_eq!(codegen_result.unwrap_err().kind, CodegenErrorKind::MissingMacroDefinition(String::from("MISSING_MACRO")));
+}

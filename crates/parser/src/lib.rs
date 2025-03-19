@@ -1033,8 +1033,25 @@ impl Parser {
                     self.consume();
                 }
                 TokenKind::Ident(ident) => {
-                    args.push(MacroArg::Ident(ident));
-                    self.consume();
+                    if self.peek().unwrap().kind == TokenKind::OpenParen {
+                        // It's a nested macro call
+                        let mut curr_spans = vec![self.current_token.span.clone()];
+                        self.match_kind(TokenKind::Ident("MACRO_NAME".to_string()))?;
+                        // Parse Macro Call
+                        let lit_args = self.parse_macro_call_args()?;
+                        // Grab all spans following our macro invocation spam
+                        if let Some(i) = self.spans.iter().position(|s| s.eq(&curr_spans[0])) {
+                            curr_spans.append(&mut self.spans[(i + 1)..].to_vec());
+                        }
+                        args.push(MacroArg::MacroCall(MacroInvocation {
+                            macro_name: ident,
+                            args: lit_args,
+                            span: AstSpan(curr_spans.clone()),
+                        }));
+                    } else {
+                        args.push(MacroArg::Ident(ident));
+                        self.consume();
+                    }
                 }
                 TokenKind::Calldata => {
                     args.push(MacroArg::Ident("calldata".to_string()));

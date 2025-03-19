@@ -472,6 +472,8 @@ pub enum MacroArg {
     Ident(String),
     /// An Arg Call
     ArgCall(String),
+    /// A Nested Macro Call
+    MacroCall(MacroInvocation),
 }
 
 /// Free Storage Pointer Unit Struct
