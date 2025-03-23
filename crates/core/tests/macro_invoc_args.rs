@@ -6,6 +6,33 @@ use huff_neo_utils::prelude::*;
 use std::str::FromStr;
 
 #[test]
+fn test_undefined_macro_arg() {
+    let source = r#"
+        #define macro MACRO1(arg) = takes(0) returns(0) {
+            <undefined>
+        }
+
+        #define macro MAIN() = takes(0) returns(0) {
+            MACRO1(0x01)
+        }
+    "#;
+
+    // Lex + Parse
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    // Codegen should fail with an error
+    let codegen_result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None);
+
+    assert!(codegen_result.is_err());
+    assert_eq!(codegen_result.unwrap_err().kind, CodegenErrorKind::MissingArgumentDefinition(String::from("undefined")));
+}
+
+#[test]
 fn test_opcode_macro_args() {
     let source = r#"
         #define macro RETURN1(zero) = takes(0) returns(0) {

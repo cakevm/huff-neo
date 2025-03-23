@@ -572,7 +572,7 @@ fn macro_invocation_with_arg_call() {
             Statement {
                 ty: StatementType::MacroInvocation(MacroInvocation {
                     macro_name: "TRANSFER_TAKE_FROM".to_string(),
-                    args: vec![MacroArg::ArgCall("error".to_string())],
+                    args: vec![MacroArg::ArgCall("error".to_string(), AstSpan(vec![Span { start: 92, end: 92, file: None }]))],
                     span: AstSpan(vec![
                         Span { start: 67, end: 84, file: None },
                         Span { start: 85, end: 85, file: None },
@@ -594,7 +594,7 @@ fn macro_invocation_with_arg_call() {
             Statement {
                 ty: StatementType::MacroInvocation(MacroInvocation {
                     macro_name: "TRANSFER_GIVE_TO".to_string(),
-                    args: vec![MacroArg::ArgCall("error".to_string())],
+                    args: vec![MacroArg::ArgCall("error".to_string(), AstSpan(vec![Span { start: 126, end: 126, file: None }]))],
                     span: AstSpan(vec![
                         Span { start: 103, end: 118, file: None },
                         Span { start: 119, end: 119, file: None },
