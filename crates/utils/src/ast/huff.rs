@@ -471,7 +471,7 @@ pub enum MacroArg {
     /// Macro Iden String Argument
     Ident(String),
     /// An Arg Call
-    ArgCall(String),
+    ArgCall(String, AstSpan),
     /// A Nested Macro Call
     MacroCall(MacroInvocation),
 }

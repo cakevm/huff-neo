@@ -20,6 +20,7 @@ pub fn bubble_arg_call(
     // mis: Parent macro invocations and their indices
     mis: &mut [(usize, MacroInvocation)],
     jump_table: &mut JumpTable,
+    span: &AstSpan,
 ) -> Result<(), CodegenError> {
     let starting_offset = *offset;
 
@@ -41,7 +42,7 @@ pub fn bubble_arg_call(
                         *offset += b.0.len() / 2;
                         bytes.push((starting_offset, b));
                     }
-                    MacroArg::ArgCall(ac) => {
+                    MacroArg::ArgCall(ac, arg_span) => {
                         tracing::info!(target: "codegen", "GOT ARG CALL \"{}\" ARG FROM MACRO INVOCATION", ac);
                         tracing::debug!(target: "codegen", "~~~ BUBBLING UP ARG CALL");
                         let scope_len = scope.len();
@@ -73,11 +74,23 @@ pub fn bubble_arg_call(
                                 contract,
                                 new_scope,
                                 offset,
-                                &mut mis[..mis_len.saturating_sub(1)],
+                                &mut mis[..mis_len.saturating_sub(1)].to_vec(),
                                 jump_table,
+                                arg_span,
                             )
                         } else {
-                            bubble_arg_call(evm_version, ac_, bytes, bubbled_macro_invocation, contract, new_scope, offset, mis, jump_table)
+                            bubble_arg_call(
+                                evm_version,
+                                ac_,
+                                bytes,
+                                bubbled_macro_invocation,
+                                contract,
+                                new_scope,
+                                offset,
+                                mis,
+                                jump_table,
+                                span,
+                            )
                         };
                     }
                     MacroArg::Ident(iden) => {
@@ -175,7 +188,11 @@ pub fn bubble_arg_call(
                 tracing::warn!(target: "codegen", "\"{}\" FOUND IN MACRO DEF BUT NOT IN MACRO INVOCATION!", arg_name);
             }
         } else {
-            tracing::warn!(target: "codegen", "\"{}\" NOT IN ARG LIST", arg_name);
+            return Err(CodegenError {
+                kind: CodegenErrorKind::MissingArgumentDefinition(arg_name.to_string()),
+                span: span.clone(),
+                token: None,
+            });
         }
     } else {
         // This is a label call

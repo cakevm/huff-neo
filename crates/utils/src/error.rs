@@ -162,6 +162,8 @@ pub enum CodegenErrorKind {
     StoragePointersNotDerived,
     /// Invalid Macro Body Statement
     InvalidMacroStatement,
+    /// The Argument Definition is Missing
+    MissingArgumentDefinition(String),
     /// The Macro Definition is Missing
     MissingMacroDefinition(String),
     /// The Function Interface is Missing
@@ -224,6 +226,9 @@ impl<W: Write> Report<W> for CodegenError {
             CodegenErrorKind::InvalidMacroStatement => write!(f.out, "Invalid Macro Statement!"),
             CodegenErrorKind::InvalidMacroInvocation(str) => {
                 write!(f.out, "Missing Macro Definition for Invocation: \"{str}\"!")
+            }
+            CodegenErrorKind::MissingArgumentDefinition(str) => {
+                write!(f.out, "Missing Argument \"{str}\" Definition!")
             }
             CodegenErrorKind::MissingMacroDefinition(str) => {
                 write!(f.out, "Missing Macro \"{str}\" Definition!")
@@ -473,6 +478,9 @@ impl fmt::Display for CompilerError {
                 }
                 CodegenErrorKind::InvalidMacroStatement => {
                     write!(f, "\nError: Invalid Macro Statement\n{}\n", ce.span.error(None))
+                }
+                CodegenErrorKind::MissingArgumentDefinition(ad) => {
+                    write!(f, "\nError: Missing Argument Definition For \"{}\"\n{}", ad, ce.span.error(None))
                 }
                 CodegenErrorKind::MissingMacroDefinition(md) => {
                     write!(f, "\nError: Missing Macro Definition For \"{}\"\n{}", md, ce.span.file())

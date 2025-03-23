@@ -1062,7 +1062,7 @@ impl Parser {
                     // GET_SLOT_FROM_KEY(<mem_ptr>)  // [slot]
                     self.consume();
                     let arg_name = self.match_kind(TokenKind::Ident("ARG_CALL".to_string()))?.to_string();
-                    args.push(MacroArg::ArgCall(arg_name));
+                    args.push(MacroArg::ArgCall(arg_name, AstSpan(vec![self.current_token.span.clone()])));
                     self.match_kind(TokenKind::RightAngle)?;
                 }
                 arg => {
