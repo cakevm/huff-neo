@@ -4,6 +4,7 @@
 
 ## [Unreleased]
 - Throw an error if an argument (e.g. `<arg>`) is used but not defined (Fixes: #46).
+- Disallow the use of the same name for a macro, test or fn (Fixes: #53).
 
 ## [1.1.5] - 2025-03-19
 - Support nesting of macro calls e.g. `MACRO1(MACRO2(0x1, 0x2), 0x3)`. (See: #40)

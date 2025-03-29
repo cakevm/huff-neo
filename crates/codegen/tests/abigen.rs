@@ -1,6 +1,7 @@
 use huff_neo_codegen::Codegen;
 use huff_neo_utils::ast::span::AstSpan;
 use huff_neo_utils::prelude::*;
+use indexmap::IndexMap;
 use std::collections::HashSet;
 use std::{
     collections::BTreeMap,
@@ -21,7 +22,7 @@ fn constructs_valid_abi() {
         test: false,
     };
     let contract = Contract {
-        macros: vec![constructor],
+        macros: IndexMap::from([("CONSTRUCTOR".to_string(), constructor)]),
         invocations: vec![],
         imports: vec![],
         constants: Arc::new(Mutex::new(vec![])),
@@ -62,7 +63,7 @@ fn missing_constructor_fails() {
         test: false,
     };
     let contract = Contract {
-        macros: vec![],
+        macros: IndexMap::new(),
         invocations: vec![],
         imports: vec![],
         constants: Arc::new(Mutex::new(vec![])),

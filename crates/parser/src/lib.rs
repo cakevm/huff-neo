@@ -73,7 +73,7 @@ impl Parser {
             else if self.check(TokenKind::Pound) {
                 let m = self.parse_macro(&mut contract)?;
                 tracing::info!(target: "parser", "SUCCESSFULLY PARSED MACRO {}", m.name);
-                contract.macros.push(m);
+                contract.macros.insert(m.name.clone(), m);
             }
             // Check for a definition with the "#define" keyword
             else if self.check(TokenKind::Define) {
@@ -106,12 +106,12 @@ impl Parser {
                         let m = self.parse_macro(&mut contract)?;
                         tracing::info!(target: "parser", "SUCCESSFULLY PARSED MACRO {}", m.name);
                         self.check_duplicate_macro(&contract, &m)?;
-                        contract.macros.push(m);
+                        contract.macros.insert(m.name.clone(), m);
                     }
                     TokenKind::Test => {
                         let m = self.parse_macro(&mut contract)?;
                         tracing::info!(target: "parser", "SUCCESSFULLY PARSED TEST {}", m.name);
-                        contract.macros.push(m);
+                        contract.macros.insert(m.name.clone(), m);
                     }
                     TokenKind::JumpTable | TokenKind::JumpTablePacked | TokenKind::CodeTable => {
                         contract.tables.push(self.parse_table()?);
@@ -215,7 +215,7 @@ impl Parser {
 
     /// Checks if there is a duplicate macro name
     pub fn check_duplicate_macro(&self, contract: &Contract, m: &MacroDefinition) -> Result<(), ParserError> {
-        if contract.macros.binary_search_by(|_macro| _macro.name.cmp(&m.name)).is_ok() {
+        if contract.macros.contains_key(&m.name) {
             tracing::error!(target: "parser", "DUPLICATE MACRO NAME FOUND: {}",  m.name);
             Err(ParserError {
                 kind: ParserErrorKind::DuplicateMacro(m.name.to_owned()),

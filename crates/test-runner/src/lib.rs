@@ -119,7 +119,7 @@ impl<'t> HuffTester<'t> {
             ast,
             macros: {
                 // Filter all macros within the AST for `test` macros only
-                let mut macros: TestMacros<'t> = ast.macros.iter().filter(|m| m.test).collect();
+                let mut macros: TestMacros<'t> = ast.macros.values().filter(|m| m.test).collect();
                 // If the match flag is present, only retain the test macro
                 // that was queried
                 if let Some(match_test_name) = match_test_name {
