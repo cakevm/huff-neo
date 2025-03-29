@@ -537,7 +537,7 @@ impl<'a, 'l> Compiler<'a, 'l> {
         let import_bufs: Vec<PathBuf> = reader.transform_paths(&localized_imports)?;
         let potentials: Result<Vec<Arc<FileSource>>, CompilerError> =
             Self::fetch_sources(import_bufs, reader.clone()).into_iter().collect();
-        let mut file_sources = match potentials {
+        let file_sources = match potentials {
             Ok(p) => p,
             Err(e) => return Err(Arc::new(e)),
         };
@@ -546,19 +546,27 @@ impl<'a, 'l> Compiler<'a, 'l> {
         }
 
         // Now that we have all the file sources, we have to recurse and get their source
-        file_sources = file_sources
+        let mut dependency_results = Vec::with_capacity(file_sources.len());
+
+        file_sources
             .into_par_iter()
-            .map(|inner_fs| match Self::recurse_deps(Arc::clone(&inner_fs), remapper, reader.clone(), walk_level.clone()) {
-                Ok(new_fs) => new_fs,
+            .map(|inner_fs| Self::recurse_deps(Arc::clone(&inner_fs), remapper, reader.clone(), walk_level.clone()))
+            .collect_into_vec(&mut dependency_results);
+
+        // Verify that all dependencies were successfully fetched
+        let mut dependencies = Vec::with_capacity(dependency_results.len());
+        for dependency in dependency_results {
+            match dependency {
+                Ok(dep) => dependencies.push(dep),
                 Err(e) => {
                     tracing::error!(target: "core", "NESTED DEPENDENCY RESOLUTION FAILED: \"{:?}\"", e);
-                    Arc::clone(&inner_fs)
+                    return Err(e);
                 }
-            })
-            .collect();
+            }
+        }
 
         // Finally set the parent deps
-        new_fs.dependencies = file_sources;
+        new_fs.dependencies = dependencies;
 
         Ok(Arc::new(new_fs))
     }
