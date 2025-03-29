@@ -8,6 +8,7 @@ use crate::{
     opcodes::Opcode,
     prelude::{MacroArg::Ident, Span, TokenKind},
 };
+use indexmap::IndexMap;
 use std::collections::HashSet;
 use std::{
     collections::BTreeMap,
@@ -32,8 +33,10 @@ pub type FilePath = PathBuf;
 /// For examples of Huff contracts, see the [huff-examples repository](https://github.com/huff-language/huff-examples).
 #[derive(Debug, Default, Clone)]
 pub struct Contract {
-    /// Macro definitions
-    pub macros: Vec<MacroDefinition>,
+    // A IndexMap is used to preserve the insertion order of macros.
+    // This helps to keep the resulting bytecode deterministic.
+    /// Macro definitions, indexed by name
+    pub macros: IndexMap<String, MacroDefinition>,
     /// Invocations of macros
     pub invocations: Vec<MacroInvocation>,
     /// File Imports
@@ -55,12 +58,10 @@ pub struct Contract {
 impl Contract {
     /// Returns the first macro that matches the provided name
     pub fn find_macro_by_name(&self, name: &str) -> Option<&MacroDefinition> {
-        if let Some(m) = self.macros.iter().find(|m| m.name == name) {
-            Some(m)
-        } else {
+        self.macros.get(name).or_else(|| {
             tracing::warn!("Failed to find macro \"{}\" in contract", name);
             None
-        }
+        })
     }
 
     /// Returns the first table that matches the provided name
@@ -161,8 +162,8 @@ impl Contract {
                         self.assign_free_storage_pointers(&constant_arg, &macro_def.name, storage_pointers, last_p);
                     }
 
-                    match self.macros.iter().filter(|md| md.name.eq(&mi.macro_name)).collect::<Vec<&MacroDefinition>>().first() {
-                        Some(&md) => {
+                    match self.macros.get(&mi.macro_name) {
+                        Some(md) => {
                             if md.name.eq("CONSTRUCTOR") {
                                 if !checking_constructor {
                                     self.recurse_ast_constants(md, storage_pointers, last_p, true);
@@ -181,8 +182,8 @@ impl Contract {
                     for builtin_fn_arg in &bfc.args {
                         let BuiltinFunctionArg::Argument(a) = builtin_fn_arg else { continue };
                         if let Some(name) = &a.name {
-                            match self.macros.iter().filter(|md| md.name.eq(name)).collect::<Vec<&MacroDefinition>>().first() {
-                                Some(&md) => {
+                            match self.macros.get(name) {
+                                Some(md) => {
                                     if md.name.eq("CONSTRUCTOR") {
                                         if !checking_constructor {
                                             self.recurse_ast_constants(md, storage_pointers, last_p, true);

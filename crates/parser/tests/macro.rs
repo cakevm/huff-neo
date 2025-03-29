@@ -13,8 +13,7 @@ fn empty_macro() {
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
     let mut parser = Parser::new(tokens, None);
 
-    // Grab the first macro
-    let macro_definition = parser.parse().unwrap().macros[0].clone();
+    let macro_definition = parser.parse().unwrap().macros.get("HELLO_WORLD").cloned().unwrap();
     let expected = MacroDefinition {
         name: "HELLO_WORLD".to_string(),
         decorator: None,
@@ -55,8 +54,7 @@ fn empty_macro_without_takes_returns() {
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
     let mut parser = Parser::new(tokens, None);
 
-    // Grab the first macro
-    let macro_definition = parser.parse().unwrap().macros[0].clone();
+    let macro_definition = parser.parse().unwrap().macros.get("HELLO_WORLD").cloned().unwrap();
     let expected = MacroDefinition {
         name: "HELLO_WORLD".to_string(),
         decorator: None,
@@ -89,8 +87,7 @@ fn empty_macro_only_takes() {
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
     let mut parser = Parser::new(tokens, None);
 
-    // Grab the first macro
-    let macro_definition = parser.parse().unwrap().macros[0].clone();
+    let macro_definition = parser.parse().unwrap().macros.get("HELLO_WORLD").cloned().unwrap();
     let expected = MacroDefinition {
         name: "HELLO_WORLD".to_string(),
         decorator: None,
@@ -127,8 +124,7 @@ fn empty_macro_only_returns() {
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
     let mut parser = Parser::new(tokens, None);
 
-    // Grab the first macro
-    let macro_definition = parser.parse().unwrap().macros[0].clone();
+    let macro_definition = parser.parse().unwrap().macros.get("HELLO_WORLD").cloned().unwrap();
     let expected = MacroDefinition {
         name: "HELLO_WORLD".to_string(),
         decorator: None,
@@ -165,8 +161,7 @@ fn macro_with_simple_body() {
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
     let mut parser = Parser::new(tokens, None);
 
-    // Grab the first macro
-    let macro_definition = parser.parse().unwrap().macros[0].clone();
+    let macro_definition = parser.parse().unwrap().macros.get("HELLO_WORLD").cloned().unwrap();
     let expected = MacroDefinition {
         name: "HELLO_WORLD".to_string(),
         decorator: None,
@@ -240,8 +235,7 @@ fn macro_with_arg_calls() {
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
     let mut parser = Parser::new(tokens, None);
 
-    // Grab the first macro
-    let macro_definition = parser.parse().unwrap().macros[0].clone();
+    let macro_definition = parser.parse().unwrap().macros.get("TRANSFER_TAKE_FROM").cloned().unwrap();
     let expected = MacroDefinition {
         name: "TRANSFER_TAKE_FROM".to_string(),
         parameters: vec![Argument {
@@ -381,8 +375,7 @@ fn macro_labels() {
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
     let mut parser = Parser::new(tokens, None);
 
-    // Grab the first macro
-    let macro_definition = parser.parse().unwrap().macros[0].clone();
+    let macro_definition = parser.parse().unwrap().macros.get("LABEL_FILLED").cloned().unwrap();
     let expected = MacroDefinition {
         name: "LABEL_FILLED".to_string(),
         decorator: None,
@@ -556,8 +549,7 @@ fn macro_invocation_with_arg_call() {
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
     let mut parser = Parser::new(tokens, None);
 
-    // Grab the first macro
-    let macro_definition = parser.parse().unwrap().macros[0].clone();
+    let macro_definition = parser.parse().unwrap().macros.get("ARG_CALL").cloned().unwrap();
     let expected = MacroDefinition {
         name: "ARG_CALL".to_string(),
         decorator: None,
@@ -680,8 +672,7 @@ fn test_macro_opcode_arguments() {
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
     let mut parser = Parser::new(tokens, None);
 
-    // Grab the first macro
-    let macro_definition = parser.parse().unwrap().macros[0].clone();
+    let macro_definition = parser.parse().unwrap().macros.get("MAIN").cloned().unwrap();
     let expected = MacroDefinition {
         name: "MAIN".to_string(),
         decorator: None,
@@ -751,8 +742,7 @@ fn macro_with_builtin_fn_call() {
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
     let mut parser = Parser::new(tokens, None);
 
-    // Grab the first macro
-    let macro_definition = parser.parse().unwrap().macros[0].clone();
+    let macro_definition = parser.parse().unwrap().macros.get("BUILTIN_TEST").cloned().unwrap();
     let expected = MacroDefinition {
         name: "BUILTIN_TEST".to_string(),
         decorator: None,
@@ -813,8 +803,7 @@ fn empty_outlined_macro() {
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
     let mut parser = Parser::new(tokens, None);
 
-    // Grab the first macro
-    let macro_definition = parser.parse().unwrap().macros[0].clone();
+    let macro_definition = parser.parse().unwrap().macros.get("HELLO_WORLD").cloned().unwrap();
     let expected = MacroDefinition {
         name: "HELLO_WORLD".to_string(),
         decorator: None,
@@ -855,8 +844,7 @@ fn outlined_macro_with_simple_body() {
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
     let mut parser = Parser::new(tokens, None);
 
-    // Grab the first macro
-    let macro_definition = parser.parse().unwrap().macros[0].clone();
+    let macro_definition = parser.parse().unwrap().macros.get("HELLO_WORLD").cloned().unwrap();
     let expected = MacroDefinition {
         name: "HELLO_WORLD".to_string(),
         decorator: None,
@@ -908,8 +896,7 @@ fn empty_test() {
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
     let mut parser = Parser::new(tokens, None);
 
-    // Grab the first macro
-    let macro_definition = parser.parse().unwrap().macros[0].clone();
+    let macro_definition = parser.parse().unwrap().macros.get("HELLO_WORLD").cloned().unwrap();
     let expected = MacroDefinition {
         name: "HELLO_WORLD".to_string(),
         decorator: None,
@@ -950,8 +937,7 @@ fn test_with_simple_body() {
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
     let mut parser = Parser::new(tokens, None);
 
-    // Grab the first macro
-    let macro_definition = parser.parse().unwrap().macros[0].clone();
+    let macro_definition = parser.parse().unwrap().macros.get("HELLO_WORLD").cloned().unwrap();
     let expected = MacroDefinition {
         name: "HELLO_WORLD".to_string(),
         decorator: None,
@@ -1028,8 +1014,7 @@ fn empty_test_with_decorator() {
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
     let mut parser = Parser::new(tokens, None);
 
-    // Grab the first macro
-    let macro_definition = parser.parse().unwrap().macros[0].clone();
+    let macro_definition = parser.parse().unwrap().macros.get("MY_TEST").cloned().unwrap();
     let expected = MacroDefinition {
         name: String::from("MY_TEST"),
         decorator: Some(Decorator {
@@ -1084,8 +1069,7 @@ fn empty_test_with_multi_flag_decorator() {
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
     let mut parser = Parser::new(tokens, None);
 
-    // Grab the first macro
-    let macro_definition = parser.parse().unwrap().macros[0].clone();
+    let macro_definition = parser.parse().unwrap().macros.get("MY_TEST").cloned().unwrap();
     let expected = MacroDefinition {
         name: String::from("MY_TEST"),
         decorator: Some(Decorator {

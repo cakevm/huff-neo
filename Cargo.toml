@@ -23,18 +23,19 @@ huff-neo-utils = { path = "crates/utils" }
 
 alloy-dyn-abi = "0.8.23"
 alloy-primitives = "0.8.23"
-anvil = { package = "anvil", git = "https://github.com/foundry-rs/foundry", rev = "a7e3421" }
+anvil = { package = "anvil", git = "https://github.com/foundry-rs/foundry", rev = "967a89e" }
 cfg-if = "1.0.0"
 clap = { version = "4.5.32", features = ["derive"] }
 comfy-table = "7.1.4"
 eyre = "0.6.12"
-foundry-cli = { git = "https://github.com/foundry-rs/foundry", rev = "a7e3421" }
-foundry-common = { git = "https://github.com/foundry-rs/foundry", rev = "a7e3421" }
-foundry-config = { git = "https://github.com/foundry-rs/foundry", rev = "a7e3421" }
-foundry-debugger = { git = "https://github.com/foundry-rs/foundry", rev = "a7e3421" }
-foundry-evm = { git = "https://github.com/foundry-rs/foundry", rev = "a7e3421" }
-foundry-evm-traces = { git = "https://github.com/foundry-rs/foundry", rev = "a7e3421" }
+foundry-cli = { git = "https://github.com/foundry-rs/foundry", rev = "967a89e" }
+foundry-common = { git = "https://github.com/foundry-rs/foundry", rev = "967a89e" }
+foundry-config = { git = "https://github.com/foundry-rs/foundry", rev = "967a89e" }
+foundry-debugger = { git = "https://github.com/foundry-rs/foundry", rev = "967a89e" }
+foundry-evm = { git = "https://github.com/foundry-rs/foundry", rev = "967a89e" }
+foundry-evm-traces = { git = "https://github.com/foundry-rs/foundry", rev = "967a89e" }
 hex = "0.4.3"
+indexmap = "2.8.0"
 itertools = "0.14.0"
 js-sys = { version = "0.3.77" }
 lazy_static = "1.5.0"

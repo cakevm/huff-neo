@@ -21,8 +21,7 @@ fn multiline_labels() {
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
     let mut parser = Parser::new(tokens, None);
 
-    // Grab the first macro
-    let macro_definition = parser.parse().unwrap().macros[0].clone();
+    let macro_definition = parser.parse().unwrap().macros.get("HELLO_WORLD").cloned().unwrap();
     let md_expected = MacroDefinition {
         name: "HELLO_WORLD".to_string(),
         decorator: None,
@@ -196,8 +195,7 @@ pub fn builtins_under_labels() {
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
     let mut parser = Parser::new(tokens, None);
 
-    // Grab the first macro
-    let macro_definition = parser.parse().unwrap().macros[1].clone();
+    let macro_definition = parser.parse().unwrap().macros.get("HELLO_WORLD").cloned().unwrap();
     let md_expected = MacroDefinition {
         name: "HELLO_WORLD".to_string(),
         parameters: vec![],

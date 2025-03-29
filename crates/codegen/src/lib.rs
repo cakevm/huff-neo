@@ -594,7 +594,7 @@ impl Codegen {
         table_instances: &mut Jumps,
         mut bytes: Vec<(usize, Bytes)>,
     ) -> Result<Vec<(usize, Bytes)>, CodegenError> {
-        for macro_def in contract.macros.iter().filter(|m| m.outlined) {
+        for macro_def in contract.macros.values().filter(|m| m.outlined) {
             // Push the function to the scope
             scope.push(macro_def);
 

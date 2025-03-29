@@ -10,6 +10,7 @@
 //!
 //! ```rust
 //! use std::sync::{Arc, Mutex};
+//! use indexmap::IndexMap;
 //! use huff_neo_utils::ast::abi::FunctionType;
 //! use huff_neo_utils::ast::span::AstSpan;
 //! use huff_neo_utils::prelude::*;
@@ -17,7 +18,7 @@
 //! // Generate a default contract for demonstrative purposes.
 //! // Realistically, contract generation would be done as shown in [huff_parser](./huff_parser)
 //! let contract = Contract {
-//!     macros: vec![],
+//!     macros: IndexMap::new(),
 //!     invocations: vec![],
 //!     imports: vec![],
 //!     constants: Arc::new(Mutex::new(vec![])),
@@ -95,19 +96,17 @@ impl From<huff::Contract> for Abi {
                     .collect(),
             })
             .or_else(|| {
-                contract.macros.iter().filter(|m| m.name == "CONSTRUCTOR").cloned().collect::<Vec<huff::MacroDefinition>>().first().map(
-                    |func| Constructor {
-                        inputs: func
-                            .parameters
-                            .iter()
-                            .map(|argument| FunctionParam {
-                                name: argument.name.clone().unwrap_or_default(),
-                                kind: argument.name.clone().unwrap_or_default().into(),
-                                internal_type: None,
-                            })
-                            .collect(),
-                    },
-                )
+                contract.macros.get("CONSTRUCTOR").map(|func| Constructor {
+                    inputs: func
+                        .parameters
+                        .iter()
+                        .map(|argument| FunctionParam {
+                            name: argument.name.clone().unwrap_or_default(),
+                            kind: argument.name.clone().unwrap_or_default().into(),
+                            internal_type: None,
+                        })
+                        .collect(),
+                })
             });
 
         // Instantiate functions and events
