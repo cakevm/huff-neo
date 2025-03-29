@@ -416,7 +416,7 @@ fn test_nested_macro_calls() {
     let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
 
     // Full expected bytecode output (generated from huff-neo) (placed here as a reference)
-    let expected_bytecode = "60056006016000526005600603602052";
+    let expected_bytecode = "60056006015f526005600603602052";
 
     // Check the bytecode
     assert_eq!(main_bytecode.to_lowercase(), expected_bytecode.to_lowercase());
@@ -456,7 +456,7 @@ fn test_very_nested_macro_calls() {
     let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
 
     // Full expected bytecode output (generated from huff-neo) (placed here as a reference)
-    let expected_bytecode = "60056005600a6016016004010301600052";
+    let expected_bytecode = "60056005600a60160160040103015f52";
 
     // Check the bytecode
     assert_eq!(main_bytecode.to_lowercase(), expected_bytecode.to_lowercase());
@@ -487,4 +487,41 @@ fn test_nested_macro_call_missing_macro_definition() {
 
     assert!(codegen_result.is_err());
     assert_eq!(codegen_result.unwrap_err().kind, CodegenErrorKind::MissingMacroDefinition(String::from("MISSING_MACRO")));
+}
+
+#[test]
+fn test_push0_arg() {
+    let source: &str = r#"
+        #define macro PUSH0(a) = {
+            <a>
+        }
+
+        #define macro MAIN() = {
+            0x00
+            PUSH0(0x00)
+        }
+    "#;
+
+    // Parse tokens
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+
+    // Parse the AST
+    let mut contract = parser.parse().unwrap();
+
+    // Derive storage pointers
+    contract.derive_storage_pointers();
+
+    // Instantiate Codegen
+    let cg = Codegen::new();
+
+    // The codegen instance should have no artifact
+    assert!(cg.artifact.is_none());
+
+    // Have Codegen create the runtime bytecode
+    let r_bytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+    // 2x 5f = PUSH0
+    assert_eq!(&r_bytes, "5f5f");
 }
