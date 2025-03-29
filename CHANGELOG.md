@@ -3,6 +3,8 @@
 # Huff Neo Compiler changelog
 
 ## [Unreleased]
+
+## [1.1.6] - 2025-03-29
 - Throw an error if an argument (e.g. `<arg>`) is used but not defined (Fixes: #46).
 - **Breaking**: Disallow the use of the same name for a macro, test, or fn (Fixes: #53).
 - Throw an error if an included file is not found in a nested include (Fixes: #51).
