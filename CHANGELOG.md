@@ -3,6 +3,7 @@
 # Huff Neo Compiler changelog
 
 ## [Unreleased]
+- Throw error if the argument count for a macro call is not equal to the macro definition (Fixes: #49).
 
 ## [1.1.6] - 2025-03-29
 - Throw an error if an argument (e.g. `<arg>`) is used but not defined (Fixes: #46).

@@ -186,6 +186,8 @@ pub enum CodegenErrorKind {
     MissingMacroInvocation(String),
     /// Missing Macro Definition for Invocation
     InvalidMacroInvocation(String),
+    /// Invalid Argument Count with macro name, expected and actual
+    InvalidArgumentCount(String, usize, usize),
     /// Conversion Error for usize
     UsizeConversion(String),
     /// Invalid Arguments
@@ -226,6 +228,9 @@ impl<W: Write> Report<W> for CodegenError {
             CodegenErrorKind::InvalidMacroStatement => write!(f.out, "Invalid Macro Statement!"),
             CodegenErrorKind::InvalidMacroInvocation(str) => {
                 write!(f.out, "Missing Macro Definition for Invocation: \"{str}\"!")
+            }
+            CodegenErrorKind::InvalidArgumentCount(str, expected, actual) => {
+                write!(f.out, "Invalid Argument Count for \"{str}\", expected {expected}, got {actual}!")
             }
             CodegenErrorKind::MissingArgumentDefinition(str) => {
                 write!(f.out, "Missing Argument \"{str}\" Definition!")
@@ -478,6 +483,16 @@ impl fmt::Display for CompilerError {
                 }
                 CodegenErrorKind::InvalidMacroStatement => {
                     write!(f, "\nError: Invalid Macro Statement\n{}\n", ce.span.error(None))
+                }
+                CodegenErrorKind::InvalidArgumentCount(mn, expected, actual) => {
+                    write!(
+                        f,
+                        "\nError: Invalid Argument Count for \"{}\", expected {}, got {}!\n{}",
+                        mn,
+                        expected,
+                        actual,
+                        ce.span.error(None)
+                    )
                 }
                 CodegenErrorKind::MissingArgumentDefinition(ad) => {
                     write!(f, "\nError: Missing Argument Definition For \"{}\"\n{}", ad, ce.span.error(None))
