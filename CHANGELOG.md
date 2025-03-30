@@ -3,8 +3,11 @@
 # Huff Neo Compiler changelog
 
 ## [Unreleased]
+
+## [1.1.7] - 2025-03-30
 - Throw error if the argument count for a macro call is not equal to the macro definition (Fixes: #49).
 - Fix error where an opcode could not be handled as second argument in a macro call (Fixes: #50).
+- Release `huff-neo-js` to npm.
 
 ## [1.1.6] - 2025-03-29
 - Throw an error if an argument (e.g. `<arg>`) is used but not defined (Fixes: #46).

@@ -546,12 +546,10 @@ impl<'a, 'l> Compiler<'a, 'l> {
         }
 
         // Now that we have all the file sources, we have to recurse and get their source
-        let mut dependency_results = Vec::with_capacity(file_sources.len());
-
-        file_sources
+        let dependency_results: Vec<_> = file_sources
             .into_par_iter()
             .map(|inner_fs| Self::recurse_deps(Arc::clone(&inner_fs), remapper, reader.clone(), walk_level.clone()))
-            .collect_into_vec(&mut dependency_results);
+            .collect();
 
         // Verify that all dependencies were successfully fetched
         let mut dependencies = Vec::with_capacity(dependency_results.len());

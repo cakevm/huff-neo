@@ -116,3 +116,23 @@ jobs:
           log-level: warn
           command: check
           arguments: --all-features
+
+  wasm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.ref }}
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          target: wasm32-wasip1
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+      - uses: dcarbone/install-jq-action@v3
+      - name: Run Wasm checks
+        run: |
+          sudo apt update && sudo apt install gcc-multilib
+          .github/scripts/check_wasm.sh
