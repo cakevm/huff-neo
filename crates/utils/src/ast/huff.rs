@@ -475,6 +475,8 @@ pub enum MacroArg {
     ArgCall(String, AstSpan),
     /// A Nested Macro Call
     MacroCall(MacroInvocation),
+    /// Opcode Argument
+    Opcode(Opcode),
 }
 
 /// Free Storage Pointer Unit Struct
