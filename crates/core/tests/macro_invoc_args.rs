@@ -525,3 +525,64 @@ fn test_push0_arg() {
     // 2x 5f = PUSH0
     assert_eq!(&r_bytes, "5f5f");
 }
+
+#[test]
+fn test_unexpected_argument_none_expected() {
+    let source: &str = r#"
+        #define macro TEST() = {
+        }
+
+        #define macro MAIN() = {
+            TEST(0x01)
+        }
+    "#;
+
+    // Parse tokens
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+
+    // Parse the AST
+    let mut contract = parser.parse().unwrap();
+
+    // Derive storage pointers
+    contract.derive_storage_pointers();
+
+    // Codegen should fail with an error
+    let codegen_result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None);
+
+    assert!(codegen_result.is_err());
+    assert_eq!(codegen_result.unwrap_err().kind, CodegenErrorKind::InvalidArgumentCount(String::from("TEST"), 0, 1));
+}
+
+#[test]
+fn test_unexpected_arguments() {
+    let source: &str = r#"
+        #define macro TEST(arg1) = {
+            <arg1>
+        }
+
+        #define macro MAIN() = {
+            TEST(0x01, 0x02)
+        }
+    "#;
+
+    // Parse tokens
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+
+    // Parse the AST
+    let mut contract = parser.parse().unwrap();
+
+    // Derive storage pointers
+    contract.derive_storage_pointers();
+
+    // Codegen should fail with an error
+    let codegen_result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None);
+
+    assert!(codegen_result.is_err());
+    assert_eq!(codegen_result.unwrap_err().kind, CodegenErrorKind::InvalidArgumentCount(String::from("TEST"), 1, 2));
+}

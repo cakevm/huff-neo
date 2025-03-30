@@ -44,6 +44,15 @@ pub fn statement_gen<'a>(
 
             tracing::info!(target: "codegen", "FOUND INNER MACRO: {}", ir_macro.name);
 
+            if ir_macro.parameters.len() != mi.args.len() {
+                tracing::error!(target: "codegen", "MISMATCHED ARGUMENT COUNT FOR {}: {} != {}", ir_macro.name, ir_macro.parameters.len(), mi.args.len());
+                return Err(CodegenError {
+                    kind: CodegenErrorKind::InvalidArgumentCount(ir_macro.name.clone(), ir_macro.parameters.len(), mi.args.len()),
+                    span: mi.span.clone(),
+                    token: None,
+                });
+            }
+
             // Tests may not be invoked
             if ir_macro.test {
                 tracing::error!(target: "codegen", "Tests may not be invoked: {}", ir_macro.name);
