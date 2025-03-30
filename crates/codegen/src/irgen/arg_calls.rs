@@ -39,6 +39,12 @@ pub fn bubble_arg_call(
                         *offset += push_bytes.len() / 2;
                         bytes.push((starting_offset, Bytes(push_bytes)));
                     }
+                    MacroArg::Opcode(o) => {
+                        tracing::info!(target: "codegen", "GOT \"{:?}\" OPCODE FROM MACRO INVOCATION", o);
+                        let b = Bytes(o.to_string());
+                        *offset += b.0.len() / 2;
+                        bytes.push((starting_offset, b));
+                    }
                     MacroArg::ArgCall(ac, arg_span) => {
                         tracing::info!(target: "codegen", "GOT ARG CALL \"{}\" ARG FROM MACRO INVOCATION", ac);
                         tracing::debug!(target: "codegen", "~~~ BUBBLING UP ARG CALL");

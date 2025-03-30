@@ -1032,6 +1032,10 @@ impl Parser {
                     args.push(MacroArg::Literal(lit));
                     self.consume();
                 }
+                TokenKind::Opcode(o) => {
+                    args.push(MacroArg::Opcode(o));
+                    self.consume();
+                }
                 TokenKind::Ident(ident) => {
                     if self.peek().unwrap().kind == TokenKind::OpenParen {
                         // It's a nested macro call

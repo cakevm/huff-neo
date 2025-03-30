@@ -586,3 +586,43 @@ fn test_unexpected_arguments() {
     assert!(codegen_result.is_err());
     assert_eq!(codegen_result.unwrap_err().kind, CodegenErrorKind::InvalidArgumentCount(String::from("TEST"), 1, 2));
 }
+
+#[test]
+fn test_second_opcode_parameter() {
+    let source: &str = r#"
+        #define macro DO_NOTHING() = {
+        }
+
+        #define macro ADD_OP(a, b) = {
+            <a>
+            <b>
+        }
+
+        #define macro MAIN() = {
+            ADD_OP(DO_NOTHING(), dup1)
+        }
+    "#;
+
+    // Parse tokens
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+
+    // Parse the AST
+    let mut contract = parser.parse().unwrap();
+
+    // Derive storage pointers
+    contract.derive_storage_pointers();
+
+    // Instantiate Codegen
+    let cg = Codegen::new();
+
+    // The codegen instance should have no artifact
+    assert!(cg.artifact.is_none());
+
+    // Have Codegen create the runtime bytecode
+    let r_bytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+    // 80 = DUP1
+    assert_eq!(&r_bytes, "80");
+}
