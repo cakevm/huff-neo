@@ -31,6 +31,9 @@ jobs:
           PACKAGE_VERSION: ${{ steps.vars.outputs.tag }}
         run: .github/scripts/make_package.sh
 
+      - name: Authenticate with NPM
+        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
+
       - name: Publish to NPM
         run: npm publish
         working-directory: ./crates/js/pkg
