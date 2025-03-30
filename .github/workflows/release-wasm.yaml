@@ -33,6 +33,6 @@ jobs:
 
       - name: Publish to NPM
         run: npm publish
-        working-directory: ./crates/js
+        working-directory: ./crates/js/pkg
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
