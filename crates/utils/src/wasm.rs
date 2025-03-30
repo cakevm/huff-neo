@@ -2,7 +2,9 @@ cfg_if::cfg_if! {
     if #[cfg(all(target_arch = "wasm32", target_os = "unknown"))] {
         /// Implements a shim for the `into_par_iter` which wasm32 does not support
         pub trait IntoParallelIterator {
+            /// The type of item yielded by the iterator
             type Item;
+            /// The type of the iterator
             type IntoIter: Iterator<Item = Self::Item>;
 
             /// Returns a non-parallel iterator

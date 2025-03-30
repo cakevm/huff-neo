@@ -34,6 +34,7 @@ rayon.workspace = true
 
 [target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
 getrandom.workspace = true
+uuid = { workspace = true, features = ["js"] }
 
 [[bench]]
 harness = false

@@ -78,3 +78,25 @@ jobs:
           #     - $tag    - Tag of this release.
           # When multiple binary names are specified, default archive name or $bin variable cannot be used.
           archive: $bin-$tag-$target
+
+
+  build-wasm:
+    needs: create-release
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: moonrepo/setup-rust@v1
+        with:
+          cache: false
+          targets: wasm32-wasi
+      - id: build
+        uses: moonrepo/build-wasm-plugin@v0
+      - if: ${{ github.event_name == 'push' && github.ref_type == 'tag' }}
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: builds/*
+          artifactErrorsFailBuild: true
+          body: ${{ steps.build.outputs.changelog-entry }}
+          prerelease: ${{ steps.build.outputs.prerelease == 'true' }}
+          skipIfReleaseExists: true
