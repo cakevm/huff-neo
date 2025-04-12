@@ -3,6 +3,7 @@
 # Huff Neo Compiler changelog
 
 ## [Unreleased]
+- Convert context to a list of contexts to allow for nested contexts in lexing.
 
 ## [1.1.7] - 2025-03-30
 - Throw error if the argument count for a macro call is not equal to the macro definition (Fixes: #49).

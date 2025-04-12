@@ -10,7 +10,7 @@ homepage = "https://github.com/cakevm/huff-neo"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/cakevm/huff-neo"
-rust-version = "1.85"
+rust-version = "1.86"
 version = "1.1.7"
 
 [workspace.dependencies]
@@ -46,7 +46,7 @@ revm = { version = "19.6.0", features = ["optional_no_base_fee"] }
 revm-inspectors = "0.16.0"
 shadow-rs = "1.0.1"
 thiserror = "2.0.12"
-tokio = "1.44.1"
+tokio = "1.44.2"
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", default-features = false, features = ["env-filter", "fmt"] }
 uuid = { version = "1.16.0", default-features = false, features = ["js", "v4"] }

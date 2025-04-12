@@ -67,7 +67,7 @@ pub fn gen_sol_interfaces(artifacts: &Vec<Arc<Artifact>>, interface: Option<Stri
 
             let interface_name = interface
                 .clone()
-                .unwrap_or_else(|| format!("I{}", artifact.file.path.split('/').last().unwrap().split('.').next().unwrap()));
+                .unwrap_or_else(|| format!("I{}", artifact.file.path.split('/').next_back().unwrap().split('.').next().unwrap()));
             let formatted_str = format!("interface {interface_name} {{\n{}\n}}", defs.join("\n"));
             interfaces.push((Path::new(&artifact.file.path).parent().unwrap().to_path_buf(), interface_name, formatted_str));
         }

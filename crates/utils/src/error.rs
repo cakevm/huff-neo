@@ -1,6 +1,7 @@
 use crate::ast::span::AstSpan;
 use crate::file::span::{Span, Spanned};
 use crate::file::unpack_files::UnpackError;
+use crate::lexer_context::Context;
 use crate::{
     prelude::{parse_extension, Opcode},
     report::{Report, Reporter},
@@ -106,6 +107,10 @@ pub enum LexicalErrorKind {
     InvalidArraySize(String),
     /// Invalid Primitive EVM Type
     InvalidPrimitiveType(String),
+    /// Stack Underflow
+    StackUnderflow,
+    /// Unexpected Context
+    UnexpectedContext(Context),
 }
 
 impl Spanned for LexicalError {
@@ -131,6 +136,8 @@ impl<W: Write> Report<W> for LexicalError {
             LexicalErrorKind::InvalidHexLiteral(str) => {
                 write!(f.out, "Invalid hex literal '{str}'")
             }
+            LexicalErrorKind::StackUnderflow => write!(f.out, "Stack underflow"),
+            LexicalErrorKind::UnexpectedContext(context) => write!(f.out, "Unexpected context: {:?}", context),
         }
     }
 }
@@ -331,6 +338,12 @@ impl fmt::Display for CompilerError {
                 }
                 LexicalErrorKind::InvalidHexLiteral(h) => {
                     write!(f, "\nError: Invalid Hex literal: \"{}\" {}{}\n", h, le.span.identifier(), le.span.source_seg())
+                }
+                LexicalErrorKind::StackUnderflow => {
+                    write!(f, "\nError: Stack Underflow {}{}\n", le.span.identifier(), le.span.source_seg())
+                }
+                LexicalErrorKind::UnexpectedContext(context) => {
+                    write!(f, "\nError: Unexpected Context: {:?} {}{}\n", context, le.span.identifier(), le.span.source_seg())
                 }
             },
             CompilerError::FileUnpackError(ue) => match ue {

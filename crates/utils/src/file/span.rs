@@ -51,7 +51,7 @@ impl Span {
                                 s.len()
                             );
                         }
-                        let line_num = &s[0..self.start].as_bytes().iter().filter(|&&c| c == b'\n').count() + 1;
+                        let line_num = &s.as_bytes()[0..self.start].iter().filter(|&&c| c == b'\n').count() + 1;
                         let line_start = &s[0..self.start].rfind('\n').unwrap_or(0);
                         let line_end = self.end + s[self.end..s.len()].find('\n').unwrap_or(s.len() - self.end).to_owned();
                         let padding = (0..line_num.to_string().len()).map(|_| " ").collect::<String>();
