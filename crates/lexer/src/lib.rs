@@ -1,4 +1,8 @@
+mod context_stack;
+
+use context_stack::ContextStack;
 use huff_neo_utils::file::full_file_source::FullFileSource;
+use huff_neo_utils::lexer_context::Context;
 use huff_neo_utils::prelude::*;
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -30,31 +34,6 @@ lazy_static! {
     ]);
 }
 
-/// Defines a context in which the lexing happens.
-/// Allows to differentiate between EVM types and opcodes that can either
-/// be identical or the latter being a substring of the former (example : bytes32 and byte)
-#[derive(Debug, PartialEq, Eq)]
-pub enum Context {
-    /// global context
-    Global,
-    /// Macro definition context
-    MacroDefinition,
-    /// Macro's body context
-    MacroBody,
-    /// Macro's argument context (definition or being called)
-    MacroArgs,
-    /// ABI context
-    Abi,
-    /// Lexing args of functions inputs/outputs and events
-    AbiArgs,
-    /// constant context
-    Constant,
-    /// Code table context
-    CodeTableBody,
-    // Built-in function context
-    BuiltinFunction,
-}
-
 /// ## Lexer
 ///
 /// The lexer encapsulated in a struct.
@@ -62,14 +41,15 @@ pub struct Lexer<'a> {
     /// The source code as peekable chars.
     /// WARN: SHOULD NEVER BE MODIFIED!
     pub chars: Peekable<Enumerate<Chars<'a>>>,
+    /// The current position in the source code.
     position: usize,
     /// The previous lexed Token.
     /// NOTE: Cannot be a whitespace.
     pub lookback: Option<Token>,
     /// Bool indicating if we have reached EOF
     pub eof: bool,
-    /// Current context.
-    pub context: Context,
+    /// Current context stack.
+    context_stack: ContextStack,
     /// The raw source code.
     pub source: FullFileSource<'a>,
 }
@@ -83,7 +63,7 @@ impl<'a> Lexer<'a> {
             position: 0,
             lookback: None,
             eof: false,
-            context: Context::Global,
+            context_stack: ContextStack::new(),
             source,
         }
     }
@@ -175,7 +155,7 @@ impl<'a> Lexer<'a> {
 
                     if let Some(kind) = found_kind {
                         Ok(kind.into_token_with_span(self.source.relative_span_by_pos(start, end)))
-                    } else if self.context == Context::Global && self.peek().unwrap() == '[' {
+                    } else if self.context_stack.top() == &Context::Global && self.peek().unwrap() == '[' {
                         Ok(TokenKind::Pound.into_token_with_span(self.source.relative_span_by_pos(self.position, self.position)))
                     } else {
                         // Otherwise we don't support # prefixed indentifiers
@@ -191,7 +171,7 @@ impl<'a> Lexer<'a> {
                     let (word, start, mut end) = self.eat_while(Some(ch), |c| c.is_alphanumeric() || c == '_');
 
                     let mut found_kind: Option<TokenKind> = None;
-                    if self.context != Context::MacroBody {
+                    if self.context_stack.top() != &Context::MacroBody {
                         if let Some(kind) = TOKEN.get(&word) {
                             found_kind = Some(kind.clone());
                         }
@@ -207,10 +187,10 @@ impl<'a> Lexer<'a> {
                     // Set the context based on the found token kind
                     if let Some(kind) = &found_kind {
                         match kind {
-                            TokenKind::Macro | TokenKind::Fn | TokenKind::Test => self.context = Context::MacroDefinition,
-                            TokenKind::Function | TokenKind::Event | TokenKind::Error => self.context = Context::Abi,
-                            TokenKind::Constant => self.context = Context::Constant,
-                            TokenKind::CodeTable => self.context = Context::CodeTableBody,
+                            TokenKind::Macro | TokenKind::Fn | TokenKind::Test => self.context_stack.push(Context::MacroDefinition),
+                            TokenKind::Function | TokenKind::Event | TokenKind::Error => self.context_stack.replace(Context::Abi),
+                            TokenKind::Constant => self.context_stack.replace(Context::Constant),
+                            TokenKind::CodeTable => self.context_stack.push(Context::CodeTableBody),
                             _ => (),
                         }
                     }
@@ -241,13 +221,13 @@ impl<'a> Lexer<'a> {
                         self.eat_while(None, |c| c.is_alphanumeric());
                     }
 
-                    if !(self.context != Context::MacroBody || found_kind.is_some()) {
+                    if !(self.context_stack.top() != &Context::MacroBody || found_kind.is_some()) {
                         if let Some(o) = OPCODES_MAP.get(&word) {
                             found_kind = Some(TokenKind::Opcode(o.to_owned()));
                         }
                     }
 
-                    if self.context == Context::AbiArgs {
+                    if self.context_stack.top() == &Context::AbiArgs {
                         let curr_char = self.peek().unwrap();
                         if !['(', ')'].contains(&curr_char) {
                             let (partial_raw_type, _, abi_args_end) =
@@ -317,11 +297,10 @@ impl<'a> Lexer<'a> {
 
                     let kind = if let Some(kind) = found_kind {
                         kind
-                    } else if (self.context == Context::MacroBody
-                        || self.context == Context::BuiltinFunction
-                        || self.context == Context::CodeTableBody
-                        || self.context == Context::Constant)
-                        && BuiltinFunctionKind::try_from(&word).is_ok()
+                    } else if (matches!(
+                        self.context_stack.top(),
+                        &Context::MacroBody | &Context::BuiltinFunction | &Context::CodeTableBody | &Context::Constant
+                    )) && BuiltinFunctionKind::try_from(&word).is_ok()
                     {
                         TokenKind::BuiltinFunction(word)
                     } else {
@@ -334,36 +313,44 @@ impl<'a> Lexer<'a> {
                 ch if ch == '0' && self.peek().unwrap() == 'x' => self.eat_hex_digit(ch),
                 '=' => self.single_char_token(TokenKind::Assign),
                 '(' => {
-                    match self.context {
-                        Context::Abi => self.context = Context::AbiArgs,
+                    match self.context_stack.top() {
+                        Context::Abi => self.context_stack.push(Context::AbiArgs),
                         Context::MacroBody => match self.lookback.as_ref().unwrap().kind {
-                            TokenKind::BuiltinFunction(_) => self.context = Context::BuiltinFunction,
-                            _ => self.context = Context::MacroArgs,
+                            TokenKind::BuiltinFunction(_) => self.context_stack.push(Context::BuiltinFunction),
+                            _ => self.context_stack.push(Context::MacroArgs),
                         },
                         _ => {}
                     }
                     self.single_char_token(TokenKind::OpenParen)
                 }
                 ')' => {
-                    match self.context {
-                        Context::AbiArgs => self.context = Context::Abi,
-                        Context::MacroArgs => self.context = Context::MacroBody,
-                        Context::BuiltinFunction => self.context = Context::MacroBody,
-                        _ => {}
+                    if matches!(self.context_stack.top(), Context::AbiArgs | Context::BuiltinFunction | Context::MacroArgs) {
+                        self.context_stack.pop().map_err(|_| {
+                            LexicalError::new(
+                                LexicalErrorKind::StackUnderflow,
+                                self.source.relative_span_by_pos(self.position, self.position),
+                            )
+                        })?
                     }
                     self.single_char_token(TokenKind::CloseParen)
                 }
                 '[' => self.single_char_token(TokenKind::OpenBracket),
                 ']' => self.single_char_token(TokenKind::CloseBracket),
                 '{' => {
-                    if self.context == Context::MacroDefinition {
-                        self.context = Context::MacroBody;
+                    if self.context_stack.top() == &Context::MacroDefinition {
+                        // New stack: Global -> MacroBody
+                        self.context_stack.replace(Context::MacroBody);
                     }
                     self.single_char_token(TokenKind::OpenBrace)
                 }
                 '}' => {
-                    if matches!(self.context, Context::MacroBody | Context::CodeTableBody) {
-                        self.context = Context::Global;
+                    if matches!(self.context_stack.top(), &Context::CodeTableBody | &Context::MacroBody) {
+                        self.context_stack.pop().map_err(|_| {
+                            LexicalError::new(
+                                LexicalErrorKind::StackUnderflow,
+                                self.source.relative_span_by_pos(self.position, self.position),
+                            )
+                        })?;
                     }
                     self.single_char_token(TokenKind::CloseBrace)
                 }
@@ -456,12 +443,12 @@ impl<'a> Lexer<'a> {
             ));
         }
 
-        let kind = if self.context == Context::CodeTableBody || self.context == Context::Constant {
+        let kind = if self.context_stack.top() == &Context::CodeTableBody || self.context_stack.top() == &Context::Constant {
             // In code tables, or constant values the bytecode provided is of arbitrary length. We pass
             // the code as an Ident, and parse it later.
 
             // For constants only max 32 Bytes is allowed for hex string 0x. 2 + 64 = 66 characters
-            if self.context == Context::Constant && integer_str.len() > 66 {
+            if self.context_stack.top() == &Context::Constant && integer_str.len() > 66 {
                 return Err(LexicalError::new(
                     LexicalErrorKind::HexLiteralTooLong(integer_str.clone()),
                     self.source.relative_span_by_pos(start, end),

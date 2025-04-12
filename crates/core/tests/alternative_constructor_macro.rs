@@ -30,6 +30,6 @@ fn test_alternative_constructor_macro_provided() {
     // Create constructor bytecode
     match Codegen::generate_constructor_bytecode(&EVMVersion::default(), &contract, alternative_constructor_label) {
         Ok((mb, _)) => assert_eq!(mb, "6004355f602435".to_string()),
-        Err(_) => panic!("moose"),
+        Err(e) => panic!("{:?}", e),
     }
 }

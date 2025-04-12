@@ -313,7 +313,7 @@ fn main() {
     if command.get_matches().contains_id("interface") {
         let mut interface: Option<String> = None;
         if artifacts.len() == 1 {
-            let gen_interface: Option<String> = match artifacts[0].file.path.split('/').last() {
+            let gen_interface: Option<String> = match artifacts[0].file.path.split('/').next_back() {
                 Some(p) => match p.split('.').next() {
                     Some(p) => Some(format!("I{p}")),
                     None => {

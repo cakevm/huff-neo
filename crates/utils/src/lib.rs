@@ -54,6 +54,9 @@ pub mod file;
 /// Shell attributes
 pub mod shell;
 
+/// Lexer Context
+pub mod lexer_context;
+
 /// Prelude wraps common utilities.
 pub mod prelude {
     pub use crate::ast::{abi::*, huff::*, span::*};
