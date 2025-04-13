@@ -34,6 +34,9 @@ lazy_static! {
     ]);
 }
 
+// For constants only max 32 Bytes is allowed for hex string starting with 0x. 2 + 64 = 66 characters
+const MAX_HEX_LITERAL_LENGTH: usize = 66;
+
 /// ## Lexer
 ///
 /// The lexer encapsulated in a struct.
@@ -196,8 +199,7 @@ impl<'a> Lexer<'a> {
                     }
 
                     // Check for free storage pointer builtin
-                    let fsp = "FREE_STORAGE_POINTER";
-                    if fsp == word {
+                    if word == "FREE_STORAGE_POINTER" {
                         // Consume the parenthesis following the FREE_STORAGE_POINTER
                         // Note: This will consume `FREE_STORAGE_POINTER)` or
                         // `FREE_STORAGE_POINTER(` as well
@@ -266,7 +268,7 @@ impl<'a> Lexer<'a> {
                                         }
                                     }
                                 }
-                                let primitive = PrimitiveEVMType::try_from(words[0].clone());
+                                let primitive = PrimitiveEVMType::try_from(&words[0]);
                                 if let Ok(primitive) = primitive {
                                     found_kind = Some(TokenKind::ArrayType(primitive, size_vec));
                                 } else {
@@ -279,7 +281,7 @@ impl<'a> Lexer<'a> {
                             } else {
                                 // We don't want to consider any argument names or the "indexed"
                                 // keyword here.
-                                let primitive = PrimitiveEVMType::try_from(word.clone());
+                                let primitive = PrimitiveEVMType::try_from(&word);
                                 if let Ok(primitive) = primitive {
                                     found_kind = Some(TokenKind::PrimitiveType(primitive));
                                 }
@@ -288,7 +290,7 @@ impl<'a> Lexer<'a> {
                         } else {
                             // We don't want to consider any argument names or the "indexed"
                             // keyword here.
-                            let primitive = PrimitiveEVMType::try_from(word.clone());
+                            let primitive = PrimitiveEVMType::try_from(&word);
                             if let Ok(primitive) = primitive {
                                 found_kind = Some(TokenKind::PrimitiveType(primitive));
                             }
@@ -297,10 +299,10 @@ impl<'a> Lexer<'a> {
 
                     let kind = if let Some(kind) = found_kind {
                         kind
-                    } else if (matches!(
+                    } else if matches!(
                         self.context_stack.top(),
                         &Context::MacroBody | &Context::BuiltinFunction | &Context::CodeTableBody | &Context::Constant
-                    )) && BuiltinFunctionKind::try_from(&word).is_ok()
+                    ) && BuiltinFunctionKind::try_from(&word).is_ok()
                     {
                         TokenKind::BuiltinFunction(word)
                     } else {
@@ -446,9 +448,7 @@ impl<'a> Lexer<'a> {
         let kind = if self.context_stack.top() == &Context::CodeTableBody || self.context_stack.top() == &Context::Constant {
             // In code tables, or constant values the bytecode provided is of arbitrary length. We pass
             // the code as an Ident, and parse it later.
-
-            // For constants only max 32 Bytes is allowed for hex string 0x. 2 + 64 = 66 characters
-            if self.context_stack.top() == &Context::Constant && integer_str.len() > 66 {
+            if self.context_stack.top() == &Context::Constant && integer_str.len() > MAX_HEX_LITERAL_LENGTH {
                 return Err(LexicalError::new(
                     LexicalErrorKind::HexLiteralTooLong(integer_str.clone()),
                     self.source.relative_span_by_pos(start, end),
@@ -457,8 +457,7 @@ impl<'a> Lexer<'a> {
             let hex_string = format_even_bytes(integer_str[2..].to_lowercase());
             TokenKind::Bytes(hex_string)
         } else {
-            // See above comment for the 66-character limit
-            if integer_str.len() > 66 {
+            if integer_str.len() > MAX_HEX_LITERAL_LENGTH {
                 return Err(LexicalError::new(
                     LexicalErrorKind::HexLiteralTooLong(integer_str.clone()),
                     self.source.relative_span_by_pos(start, end),

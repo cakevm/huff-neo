@@ -26,10 +26,10 @@ pub enum PrimitiveEVMType {
 
 /// Automatically converts an input string to a PrimitiveEVMType.
 /// Example : PrimitiveEVMType::from("uint256") => PrimitiveEVMType::Uint(256)
-impl TryFrom<String> for PrimitiveEVMType {
+impl TryFrom<&String> for PrimitiveEVMType {
     type Error = String;
 
-    fn try_from(input: String) -> Result<Self, Self::Error> {
+    fn try_from(input: &String) -> Result<Self, Self::Error> {
         if input.starts_with("uint") {
             // Default to 256 if no size
             let size = match input.get(4..input.len()) {

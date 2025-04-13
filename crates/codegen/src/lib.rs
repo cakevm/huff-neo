@@ -492,8 +492,8 @@ impl Codegen {
                         // Replace the "xxxx" placeholder with the jump value
                         formatted_bytes = Bytes(format!("{before}{jump_value}{after}"));
                     } else {
-                        // The jump did not have a corresponding label index. Add it to the
-                        // unmatched jumps vec.
+                        // The jump did not have a corresponding label index. Add it to the unmatched jumps vec.
+                        tracing::warn!(target: "codegen", "UNMATCHED JUMP LABEL \"{}\" AT BYTECODE INDEX {}", jump.label, code_index);
                         unmatched_jumps.push(Jump { label: jump.label.clone(), bytecode_index: code_index, span: jump.span.clone() });
                     }
                 }
@@ -623,8 +623,7 @@ impl Codegen {
             bytes = [bytes, res.bytes].concat();
             // Add the jumpdest to the beginning of the outlined macro.
             label_indices.insert(format!("goto_{}", macro_def.name.clone()), *offset);
-            *offset += macro_code_len + stack_swaps.len() + 2; // JUMPDEST + MACRO_CODE_LEN +
-                                                               // stack_swaps.len() + JUMP
+            *offset += macro_code_len + stack_swaps.len() + 2; // JUMPDEST + MACRO_CODE_LEN + stack_swaps.len() + JUMP
         }
         Ok(bytes)
     }

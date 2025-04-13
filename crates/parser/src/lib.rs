@@ -951,7 +951,7 @@ impl Parser {
                     // Check for reserved primitive type keyword use and throw an error if so
                     match self.current_token.kind.clone() {
                         TokenKind::Ident(arg_str) => {
-                            if PrimitiveEVMType::try_from(arg_str.clone()).is_ok() {
+                            if PrimitiveEVMType::try_from(&arg_str).is_ok() {
                                 return Err(ParserError {
                                     kind: ParserErrorKind::InvalidTypeAsArgumentName(self.current_token.kind.clone()),
                                     hint: Some(format!("Argument names cannot be EVM types: {arg_str}")),
