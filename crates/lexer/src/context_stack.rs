@@ -38,3 +38,55 @@ impl ContextStack {
         self.stack.last().unwrap()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use huff_neo_utils::lexer_context::Context;
+
+    #[test]
+    fn test_context_stack_new() {
+        let stack = ContextStack::new();
+        assert_eq!(stack.top(), &Context::Global);
+    }
+
+    #[test]
+    fn test_context_stack_replace() {
+        let mut stack = ContextStack::new();
+        stack.push(Context::MacroDefinition);
+        assert_eq!(stack.top(), &Context::MacroDefinition);
+
+        stack.replace(Context::MacroBody);
+        assert_eq!(stack.top(), &Context::MacroBody);
+    }
+
+    #[test]
+    fn test_context_stack_push_pop() {
+        let mut stack = ContextStack::new();
+        stack.push(Context::MacroDefinition);
+        assert_eq!(stack.top(), &Context::MacroDefinition);
+
+        stack.pop().unwrap();
+        assert_eq!(stack.top(), &Context::Global);
+    }
+
+    #[test]
+    fn test_context_stack_underflow() {
+        let mut stack = ContextStack::new();
+        stack.pop().unwrap_err();
+    }
+
+    #[test]
+    fn test_context_stack_push_pop_multiple() {
+        let mut stack = ContextStack::new();
+        stack.push(Context::Abi);
+        stack.push(Context::AbiArgs);
+        assert_eq!(stack.top(), &Context::AbiArgs);
+
+        stack.pop().unwrap();
+        assert_eq!(stack.top(), &Context::Abi);
+
+        stack.pop().unwrap();
+        assert_eq!(stack.top(), &Context::Global);
+    }
+}
