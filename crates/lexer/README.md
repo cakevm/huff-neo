@@ -18,43 +18,45 @@ definition.
 
 ```rust
 use huff_neo_utils::prelude::*;
-use huff_neo_lexer::{Lexer};
+use huff_neo_lexer::Lexer;
 use std::ops::Deref;
 
-// Instantiate a new lexer
-let source = "#define macro HELLO_WORLD()";
-let flattened_source = FullFileSource { source, file: None, spans: vec![] };
-let mut lexer = Lexer::new(flattened_source);
+fn lexer_example() {
+    // Instantiate a new lexer
+    let source = "#define macro HELLO_WORLD()";
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let mut lexer = Lexer::new(flattened_source);
 
-// This token should be a Define identifier
-let tok = lexer.next().unwrap().unwrap();
-assert_eq!(tok, Token::new(TokenKind::Define, Span::new(0..6, None)));
+    // This token should be a Define identifier
+    let tok = lexer.next().unwrap().unwrap();
+    assert_eq!(tok, Token::new(TokenKind::Define, Span::new(0..6, None)));
 
-// The next token should be the whitespace
-let tok = lexer.next().unwrap().unwrap();
-assert_eq!(tok, Token::new(TokenKind::Whitespace, Span::new(7..7, None)));
+    // The next token should be the whitespace
+    let tok = lexer.next().unwrap().unwrap();
+    assert_eq!(tok, Token::new(TokenKind::Whitespace, Span::new(7..7, None)));
 
-// Then we should parse the macro keyword
-let tok = lexer.next().unwrap().unwrap();
-assert_eq!(tok, Token::new(TokenKind::Macro, Span::new(8..12, None)));
+    // Then we should parse the macro keyword
+    let tok = lexer.next().unwrap().unwrap();
+    assert_eq!(tok, Token::new(TokenKind::Macro, Span::new(8..12, None)));
 
-// The next token should be another whitespace
-let tok = lexer.next().unwrap().unwrap();
-assert_eq!(tok, Token::new(TokenKind::Whitespace, Span::new(13..13, None)));
+    // The next token should be another whitespace
+    let tok = lexer.next().unwrap().unwrap();
+    assert_eq!(tok, Token::new(TokenKind::Whitespace, Span::new(13..13, None)));
 
-// Then we should get the function name
-let tok = lexer.next().unwrap().unwrap();
-assert_eq!(tok, Token::new(TokenKind::Ident("HELLO_WORLD".to_string()), Span::new(14..24, None)));
+    // Then we should get the function name
+    let tok = lexer.next().unwrap().unwrap();
+    assert_eq!(tok, Token::new(TokenKind::Ident("HELLO_WORLD".to_string()), Span::new(14..24, None)));
 
-// Then we should have an open paren
-let tok = lexer.next().unwrap().unwrap();
-assert_eq!(tok, Token::new(TokenKind::OpenParen, Span::new(25..25, None)));
+    // Then we should have an open paren
+    let tok = lexer.next().unwrap().unwrap();
+    assert_eq!(tok, Token::new(TokenKind::OpenParen, Span::new(25..25, None)));
 
-// Lastly, we should have a closing parenthesis
-let tok = lexer.next().unwrap().unwrap();
-assert_eq!(tok, Token::new(TokenKind::CloseParen, Span::new(26..26, None)));
+    // Lastly, we should have a closing parenthesis
+    let tok = lexer.next().unwrap().unwrap();
+    assert_eq!(tok, Token::new(TokenKind::CloseParen, Span::new(26..26, None)));
 
-lexer.next();
-// We covered the whole source
-assert!(lexer.eof);
+    lexer.next();
+    // We covered the whole source
+    assert!(lexer.eof);
+}
 ```

@@ -9,6 +9,7 @@ use regex::Regex;
 use std::collections::HashMap;
 use std::iter::Enumerate;
 use std::{iter::Peekable, str::Chars};
+use tracing::{debug, error};
 
 lazy_static! {
     static ref TOKEN: HashMap<String, TokenKind> = HashMap::from_iter(vec![
@@ -161,8 +162,8 @@ impl<'a> Lexer<'a> {
                     } else if self.context_stack.top() == &Context::Global && self.peek().unwrap() == '[' {
                         Ok(TokenKind::Pound.into_token_with_span(self.source.relative_span_by_pos(self.position, self.position)))
                     } else {
-                        // Otherwise we don't support # prefixed indentifiers
-                        tracing::error!(target: "lexer", "INVALID '#' CHARACTER USAGE");
+                        // Otherwise we don't support # prefixed identifiers
+                        error!(target: "lexer", "INVALID '#' CHARACTER USAGE in context {:?}", self.context_stack.top());
                         return Err(LexicalError::new(
                             LexicalErrorKind::InvalidCharacter('#'),
                             self.source.relative_span_by_pos(self.position, self.position),
@@ -176,6 +177,7 @@ impl<'a> Lexer<'a> {
                     let mut found_kind: Option<TokenKind> = None;
                     if self.context_stack.top() != &Context::MacroBody {
                         if let Some(kind) = TOKEN.get(&word) {
+                            debug!(target: "lexer", "FOUND KEYWORD OUTSIDE OF MacroBody '{:?}'", kind);
                             found_kind = Some(kind.clone());
                         }
                     }
@@ -184,17 +186,53 @@ impl<'a> Lexer<'a> {
                     // a function. If it is, set `found_kind` to `None` so that it is set to a
                     // `TokenKind::Ident` in the following control flow.
                     if !self.check_keyword_rules(&found_kind) {
+                        debug!(target: "lexer", "RESET KEYWORD TO NONE '{:?}'", found_kind);
                         found_kind = None;
                     }
 
                     // Set the context based on the found token kind
                     if let Some(kind) = &found_kind {
+                        let mut new_context = None;
                         match kind {
-                            TokenKind::Macro | TokenKind::Fn | TokenKind::Test => self.context_stack.push(Context::MacroDefinition),
-                            TokenKind::Function | TokenKind::Event | TokenKind::Error => self.context_stack.replace(Context::Abi),
-                            TokenKind::Constant => self.context_stack.replace(Context::Constant),
-                            TokenKind::CodeTable => self.context_stack.push(Context::CodeTableBody),
+                            TokenKind::Macro | TokenKind::Fn | TokenKind::Test => {
+                                debug!(target: "lexer", "PUSH CONTEXT MacroDefinition");
+                                new_context = Some(Context::MacroDefinition);
+                            }
+                            TokenKind::Function | TokenKind::Event | TokenKind::Error => {
+                                debug!(target: "lexer", "PUSH CONTEXT Abi");
+                                new_context = Some(Context::Abi);
+                            }
+                            TokenKind::Constant => {
+                                debug!(target: "lexer", "PUSH CONTEXT Constant");
+                                new_context = Some(Context::Constant);
+                            }
+                            TokenKind::CodeTable => {
+                                debug!(target: "lexer", "PUSH CONTEXT CodeTableBody");
+                                new_context = Some(Context::CodeTableBody);
+                            }
                             _ => (),
+                        }
+
+                        // For some contexts we have no terminal token, so we need to pop the top item
+                        if new_context.is_some() && self.context_stack.top() != &Context::Global {
+                            debug!(target: "lexer", "POP CONTEXT {:?}", self.context_stack.top());
+                            self.context_stack.pop(1).map_err(|_| {
+                                LexicalError::new(
+                                    LexicalErrorKind::StackUnderflow,
+                                    self.source.relative_span_by_pos(self.position, self.position),
+                                )
+                            })?;
+                        }
+                        // Verify that the context is correct
+                        if new_context.is_some() && self.context_stack.top() != &Context::Global {
+                            return Err(LexicalError::new(
+                                LexicalErrorKind::UnexpectedContext(self.context_stack.top().clone()),
+                                self.source.relative_span_by_pos(self.position, self.position),
+                            ));
+                        }
+                        // Push the new context
+                        if let Some(new_context) = new_context {
+                            self.context_stack.push(new_context);
                         }
                     }
 
@@ -210,91 +248,34 @@ impl<'a> Lexer<'a> {
                             self.consume();
                         }
                         end += 2;
+                        debug!(target: "lexer", "FOUND FREE_STORAGE_POINTER");
                         found_kind = Some(TokenKind::FreeStoragePointer);
                     }
 
                     if let Some(':') = self.peek() {
+                        debug!(target: "lexer", "FOUND LABEL '{:?}'", word);
                         found_kind = Some(TokenKind::Label(word.clone()));
                     }
 
                     // Syntax sugar: true evaluates to 0x01, false evaluates to 0x00
-                    if matches!(word.as_str(), "true" | "false") {
+                    if matches!(self.context_stack.top(), &Context::MacroBody | &Context::Constant)
+                        && !self.checked_lookback(TokenKind::Constant) // allow to use `true` and `false` as identifiers
+                        && matches!(word.as_str(), "true" | "false")
+                    {
+                        debug!(target: "lexer", "FOUND BOOL '{:?}'", word);
                         found_kind = Some(TokenKind::Literal(str_to_bytes32(if word.as_str() == "true" { "1" } else { "0" })));
                         self.eat_while(None, |c| c.is_alphanumeric());
                     }
 
-                    if !(self.context_stack.top() != &Context::MacroBody || found_kind.is_some()) {
+                    if self.context_stack.top() == &Context::MacroBody {
                         if let Some(o) = OPCODES_MAP.get(&word) {
+                            debug!(target: "lexer", "FOUND OPCODE '{:?}'", o);
                             found_kind = Some(TokenKind::Opcode(o.to_owned()));
                         }
                     }
 
                     if self.context_stack.top() == &Context::AbiArgs {
-                        let curr_char = self.peek().unwrap();
-                        if !['(', ')'].contains(&curr_char) {
-                            let (partial_raw_type, _, abi_args_end) =
-                                self.eat_while(Some(ch), |c| c.is_alphanumeric() || c == '[' || c == ']');
-                            let raw_type = word.clone() + &partial_raw_type[1..];
-
-                            if raw_type == TokenKind::Calldata.to_string() {
-                                found_kind = Some(TokenKind::Calldata);
-                            } else if raw_type == TokenKind::Memory.to_string() {
-                                found_kind = Some(TokenKind::Memory);
-                            } else if raw_type == TokenKind::Storage.to_string() {
-                                found_kind = Some(TokenKind::Storage);
-                            } else if EVM_TYPE_ARRAY_REGEX.is_match(&raw_type) {
-                                // split to get array size and type
-                                // TODO: support multi-dimensional arrays
-                                let words: Vec<String> = Regex::new(r"\[").unwrap().split(&raw_type).map(|x| x.replace(']', "")).collect();
-                                let mut size_vec: Vec<usize> = Vec::new();
-                                // go over all array sizes
-                                let sizes = words.get(1..words.len()).unwrap();
-                                for size in sizes.iter() {
-                                    match size.is_empty() {
-                                        true => size_vec.push(0),
-                                        false => {
-                                            let arr_size: usize = size
-                                                .parse::<usize>()
-                                                .map_err(|_| {
-                                                    let err = LexicalError {
-                                                        kind: LexicalErrorKind::InvalidArraySize(words[1].clone()),
-                                                        span: self.source.relative_span_by_pos(start, end),
-                                                    };
-                                                    tracing::error!(target: "lexer", "{}", format!("{err:?}"));
-                                                    err
-                                                })
-                                                .unwrap();
-                                            size_vec.push(arr_size);
-                                        }
-                                    }
-                                }
-                                let primitive = PrimitiveEVMType::try_from(&words[0]);
-                                if let Ok(primitive) = primitive {
-                                    found_kind = Some(TokenKind::ArrayType(primitive, size_vec));
-                                } else {
-                                    let err = LexicalError {
-                                        kind: LexicalErrorKind::InvalidPrimitiveType(words[0].clone()),
-                                        span: self.source.relative_span_by_pos(start, end),
-                                    };
-                                    tracing::error!(target: "lexer", "{}", format!("{err:?}"));
-                                }
-                            } else {
-                                // We don't want to consider any argument names or the "indexed"
-                                // keyword here.
-                                let primitive = PrimitiveEVMType::try_from(&word);
-                                if let Ok(primitive) = primitive {
-                                    found_kind = Some(TokenKind::PrimitiveType(primitive));
-                                }
-                            }
-                            end = abi_args_end;
-                        } else {
-                            // We don't want to consider any argument names or the "indexed"
-                            // keyword here.
-                            let primitive = PrimitiveEVMType::try_from(&word);
-                            if let Ok(primitive) = primitive {
-                                found_kind = Some(TokenKind::PrimitiveType(primitive));
-                            }
-                        }
+                        self.eat_abi_args(ch, &word, start, &mut end, &mut found_kind);
                     }
 
                     let kind = if let Some(kind) = found_kind {
@@ -316,18 +297,28 @@ impl<'a> Lexer<'a> {
                 '=' => self.single_char_token(TokenKind::Assign),
                 '(' => {
                     match self.context_stack.top() {
-                        Context::Abi => self.context_stack.push(Context::AbiArgs),
+                        Context::Abi => {
+                            debug!(target: "lexer", "PUSH CONTEXT AbiArgs");
+                            self.context_stack.push(Context::AbiArgs)
+                        }
                         Context::MacroBody => match self.lookback.as_ref().unwrap().kind {
-                            TokenKind::BuiltinFunction(_) => self.context_stack.push(Context::BuiltinFunction),
-                            _ => self.context_stack.push(Context::MacroArgs),
+                            TokenKind::BuiltinFunction(_) => {
+                                debug!(target: "lexer", "PUSH CONTEXT BuiltinFunction");
+                                self.context_stack.push(Context::BuiltinFunction)
+                            }
+                            _ => {
+                                debug!(target: "lexer", "PUSH CONTEXT MacroArgs");
+                                self.context_stack.push(Context::MacroArgs)
+                            }
                         },
                         _ => {}
                     }
                     self.single_char_token(TokenKind::OpenParen)
                 }
                 ')' => {
-                    if matches!(self.context_stack.top(), Context::AbiArgs | Context::BuiltinFunction | Context::MacroArgs) {
-                        self.context_stack.pop().map_err(|_| {
+                    if matches!(self.context_stack.top(), &Context::AbiArgs | &Context::BuiltinFunction | &Context::MacroArgs) {
+                        debug!(target: "lexer", "POP CONTEXT AbiArgs OR BuiltinFunction OR MacroArgs");
+                        self.context_stack.pop(1).map_err(|_| {
                             LexicalError::new(
                                 LexicalErrorKind::StackUnderflow,
                                 self.source.relative_span_by_pos(self.position, self.position),
@@ -341,13 +332,15 @@ impl<'a> Lexer<'a> {
                 '{' => {
                     if self.context_stack.top() == &Context::MacroDefinition {
                         // New stack: Global -> MacroBody
+                        debug!(target: "lexer", "REPLACE CONTEXT MacroDefinition to MacroBody");
                         self.context_stack.replace(Context::MacroBody);
                     }
                     self.single_char_token(TokenKind::OpenBrace)
                 }
                 '}' => {
                     if matches!(self.context_stack.top(), &Context::CodeTableBody | &Context::MacroBody) {
-                        self.context_stack.pop().map_err(|_| {
+                        debug!(target: "lexer", "POP CONTEXT MacroBody OR CodeTableBody");
+                        self.context_stack.pop(1).map_err(|_| {
                             LexicalError::new(
                                 LexicalErrorKind::StackUnderflow,
                                 self.source.relative_span_by_pos(self.position, self.position),
@@ -374,7 +367,7 @@ impl<'a> Lexer<'a> {
                 // String literals. String literals can also be wrapped by single quotes
                 '"' | '\'' => Ok(self.eat_string_literal()),
                 ch => {
-                    tracing::error!(target: "lexer", "UNSUPPORTED TOKEN '{}'", ch);
+                    error!(target: "lexer", "UNSUPPORTED TOKEN '{}'", ch);
                     return Err(LexicalError::new(
                         LexicalErrorKind::InvalidCharacter(ch),
                         self.source.relative_span_by_pos(self.position, self.position),
@@ -390,6 +383,79 @@ impl<'a> Lexer<'a> {
         } else {
             self.eof = true;
             Ok(Token { kind: TokenKind::Eof, span: self.source.relative_span_by_pos(self.position, self.position) })
+        }
+    }
+
+    fn eat_abi_args(&mut self, ch: char, word: &String, start: usize, end: &mut usize, found_kind: &mut Option<TokenKind>) {
+        let curr_char = self.peek().unwrap();
+        if !['(', ')'].contains(&curr_char) {
+            let (partial_raw_type, _, abi_args_end) = self.eat_while(Some(ch), |c| c.is_alphanumeric() || c == '[' || c == ']');
+            let raw_type = word.clone() + &partial_raw_type[1..];
+
+            if raw_type == TokenKind::Calldata.to_string() {
+                debug!(target: "lexer", "FOUND CALLED DATA '{:?}'", raw_type);
+                *found_kind = Some(TokenKind::Calldata);
+            } else if raw_type == TokenKind::Memory.to_string() {
+                debug!(target: "lexer", "FOUND MEMORY '{:?}'", raw_type);
+                *found_kind = Some(TokenKind::Memory);
+            } else if raw_type == TokenKind::Storage.to_string() {
+                debug!(target: "lexer", "FOUND STORAGE '{:?}'", raw_type);
+                *found_kind = Some(TokenKind::Storage);
+            } else if EVM_TYPE_ARRAY_REGEX.is_match(&raw_type) {
+                // split to get array size and type
+                // TODO: support multi-dimensional arrays
+                let words: Vec<String> = Regex::new(r"\[").unwrap().split(&raw_type).map(|x| x.replace(']', "")).collect();
+                let mut size_vec: Vec<usize> = Vec::new();
+                // go over all array sizes
+                let sizes = words.get(1..words.len()).unwrap();
+                for size in sizes.iter() {
+                    match size.is_empty() {
+                        true => size_vec.push(0),
+                        false => {
+                            let arr_size: usize = size
+                                .parse::<usize>()
+                                .map_err(|_| {
+                                    let err = LexicalError {
+                                        kind: LexicalErrorKind::InvalidArraySize(words[1].clone()),
+                                        span: self.source.relative_span_by_pos(start, *end),
+                                    };
+                                    error!(target: "lexer", "{}", format!("{err:?}"));
+                                    err
+                                })
+                                .unwrap();
+                            size_vec.push(arr_size);
+                        }
+                    }
+                }
+                let primitive = PrimitiveEVMType::try_from(&words[0]);
+                if let Ok(primitive) = primitive {
+                    debug!(target: "lexer", "FOUND ARRAY '{:?}'", raw_type);
+                    *found_kind = Some(TokenKind::ArrayType(primitive, size_vec));
+                } else {
+                    let err = LexicalError {
+                        kind: LexicalErrorKind::InvalidPrimitiveType(words[0].clone()),
+                        span: self.source.relative_span_by_pos(start, *end),
+                    };
+                    error!(target: "lexer", "{}", format!("{err:?}"));
+                }
+            } else {
+                // We don't want to consider any argument names or the "indexed"
+                // keyword here.
+                let primitive = PrimitiveEVMType::try_from(word);
+                if let Ok(primitive) = primitive {
+                    debug!(target: "lexer", "FOUND PRIMITIVE '{:?}'", raw_type);
+                    *found_kind = Some(TokenKind::PrimitiveType(primitive));
+                }
+            }
+            *end = abi_args_end;
+        } else {
+            // We don't want to consider any argument names or the "indexed"
+            // keyword here.
+            let primitive = PrimitiveEVMType::try_from(word);
+            if let Ok(primitive) = primitive {
+                debug!(target: "lexer", "FOUND PRIMITIVE '{:?}'", word);
+                *found_kind = Some(TokenKind::PrimitiveType(primitive));
+            }
         }
     }
 
@@ -445,7 +511,7 @@ impl<'a> Lexer<'a> {
             ));
         }
 
-        let kind = if self.context_stack.top() == &Context::CodeTableBody || self.context_stack.top() == &Context::Constant {
+        let kind = if matches!(self.context_stack.top(), &Context::CodeTableBody | &Context::Constant) {
             // In code tables, or constant values the bytecode provided is of arbitrary length. We pass
             // the code as an Ident, and parse it later.
             if self.context_stack.top() == &Context::Constant && integer_str.len() > MAX_HEX_LITERAL_LENGTH {

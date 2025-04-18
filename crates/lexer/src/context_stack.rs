@@ -1,6 +1,18 @@
 use huff_neo_utils::error::LexicalErrorKind;
 use huff_neo_utils::lexer_context::Context;
 
+// The context stack is used to keep track of the current context.
+//
+// Context::Global
+// ├─ Context::Constant
+// ├─ Context::Abi
+// │  └─ Context::AbiArgs
+// ├─ Context::MacroDefinition
+// │  └─ Context::MacroArgs
+// ├─ Context::MacroBody
+// │  └─ Context::BuiltinFunction
+// └─ Context::CodeTableBody
+
 /// The context stack is used to keep track of the current context
 pub struct ContextStack {
     /// The stack of contexts
@@ -25,11 +37,14 @@ impl ContextStack {
     }
 
     /// Pops the last context off the stack
-    pub fn pop(&mut self) -> Result<(), LexicalErrorKind> {
-        self.stack.pop();
-        if self.stack.is_empty() {
-            return Err(LexicalErrorKind::StackUnderflow);
+    pub fn pop(&mut self, count: u8) -> Result<(), LexicalErrorKind> {
+        for _ in 0..count {
+            self.stack.pop();
+            if self.stack.is_empty() {
+                return Err(LexicalErrorKind::StackUnderflow);
+            }
         }
+
         Ok(())
     }
 
@@ -66,14 +81,14 @@ mod tests {
         stack.push(Context::MacroDefinition);
         assert_eq!(stack.top(), &Context::MacroDefinition);
 
-        stack.pop().unwrap();
+        stack.pop(1).unwrap();
         assert_eq!(stack.top(), &Context::Global);
     }
 
     #[test]
     fn test_context_stack_underflow() {
         let mut stack = ContextStack::new();
-        stack.pop().unwrap_err();
+        stack.pop(1).unwrap_err();
     }
 
     #[test]
@@ -83,10 +98,10 @@ mod tests {
         stack.push(Context::AbiArgs);
         assert_eq!(stack.top(), &Context::AbiArgs);
 
-        stack.pop().unwrap();
+        stack.pop(1).unwrap();
         assert_eq!(stack.top(), &Context::Abi);
 
-        stack.pop().unwrap();
+        stack.pop(1).unwrap();
         assert_eq!(stack.top(), &Context::Global);
     }
 }
