@@ -27,7 +27,7 @@ fn test_erc20_compile() {
     let full_source = FullFileSource { source: &flattened.0, file: Some(Arc::clone(file_source)), spans: flattened.1 };
     let lexer = Lexer::new(full_source);
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
-    let mut parser = Parser::new(tokens, Some("../../resources/erc20/contracts".to_string()));
+    let mut parser = Parser::new(tokens, None);
     let mut contract = parser.parse().unwrap();
     contract.derive_storage_pointers();
 
