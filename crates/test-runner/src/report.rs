@@ -3,8 +3,8 @@ use comfy_table::{modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL, Attribute, 
 use foundry_cli::utils::{handle_traces, TraceResult};
 use foundry_config::Config;
 use foundry_evm::decode::decode_console_logs;
+use foundry_evm::inspectors::TracingInspector;
 use foundry_evm::traces::{SparsedTraceArena, TraceKind};
-use revm_inspectors::tracing::TracingInspector;
 use std::time::Instant;
 use yansi::Paint;
 

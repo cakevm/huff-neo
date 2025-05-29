@@ -21,29 +21,34 @@ huff-neo-parser = { path = "crates/parser" }
 huff-neo-test-runner = { path = "crates/test-runner" }
 huff-neo-utils = { path = "crates/utils" }
 
-alloy-dyn-abi = "0.8.23"
-alloy-primitives = "0.8.23"
-anvil = { package = "anvil", git = "https://github.com/foundry-rs/foundry", rev = "967a89e" }
+alloy-consensus = "1.0.7"
+alloy-dyn-abi = "1.1.2"
+alloy-evm = "0.10.0"
+alloy-primitives = "1.1.2"
+
+anvil = { git = "https://github.com/foundry-rs/foundry", rev = "7e68208" }
 cfg-if = "1.0.0"
 clap = { version = "4.5.32", features = ["derive"] }
 comfy-table = "7.1.4"
 eyre = "0.6.12"
-foundry-cli = { git = "https://github.com/foundry-rs/foundry", rev = "967a89e" }
-foundry-common = { git = "https://github.com/foundry-rs/foundry", rev = "967a89e" }
-foundry-config = { git = "https://github.com/foundry-rs/foundry", rev = "967a89e" }
-foundry-debugger = { git = "https://github.com/foundry-rs/foundry", rev = "967a89e" }
-foundry-evm = { git = "https://github.com/foundry-rs/foundry", rev = "967a89e" }
-foundry-evm-traces = { git = "https://github.com/foundry-rs/foundry", rev = "967a89e" }
+
+foundry-cli = { git = "https://github.com/foundry-rs/foundry", rev = "7e68208" }
+foundry-common = { git = "https://github.com/foundry-rs/foundry", rev = "7e68208" }
+foundry-config = { git = "https://github.com/foundry-rs/foundry", rev = "7e68208" }
+foundry-debugger = { git = "https://github.com/foundry-rs/foundry", rev = "7e68208" }
+foundry-evm = { git = "https://github.com/foundry-rs/foundry", rev = "7e68208" }
+foundry-evm-traces = { git = "https://github.com/foundry-rs/foundry", rev = "7e68208" }
 hex = "0.4.3"
 indexmap = "2.8.0"
 itertools = "0.14.0"
 js-sys = { version = "0.3.77" }
 lazy_static = "1.5.0"
+op-revm = { version = "5.0.0", default-features = false }
 phf = { version = "0.11.3", features = ["macros"] }
 rand = "0.9.0"
 regex = "1.11.1"
-revm = { version = "19.6.0", features = ["optional_no_base_fee"] }
-revm-inspectors = "0.16.0"
+revm = { version = "24.0.0", default-features = false, features = ["optional_no_base_fee"] }
+revm-inspectors = "0.23.0"
 shadow-rs = "1.0.1"
 thiserror = "2.0.12"
 tokio = "1.44.2"

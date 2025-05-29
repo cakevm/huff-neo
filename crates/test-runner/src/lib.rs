@@ -15,13 +15,14 @@ pub mod types;
 pub mod errors;
 
 /// Re-export the Inspector from anvil crate
-pub use anvil::eth::backend::mem::inspector::Inspector;
+pub use anvil::eth::backend::mem::inspector::AnvilInspector;
 use foundry_debugger::Debugger;
 use foundry_evm::backend::Backend;
 use foundry_evm::fork::CreateFork;
 use foundry_evm::traces::{InternalTraceMode, SparsedTraceArena, TraceKind};
-use revm::db::CacheDB;
-use revm::primitives::{Env, SpecId};
+use foundry_evm::Env;
+use revm::database::CacheDB;
+use revm::primitives::hardfork::SpecId;
 
 /// Prelude wraps all modules within the crate
 pub mod prelude {
@@ -114,7 +115,7 @@ pub struct HuffTester<'t> {
 /// HuffTester implementation
 impl<'t> HuffTester<'t> {
     /// Create a new instance of `HuffTester` from a contract's AST.
-    pub fn new(ast: &'t Contract, match_test_name: Option<String>, inspectors: Inspector, config: HuffTesterConfig, env: Env) -> Self {
+    pub fn new(ast: &'t Contract, match_test_name: Option<String>, inspector: AnvilInspector, config: HuffTesterConfig, env: Env) -> Self {
         Self {
             ast,
             macros: {
@@ -127,7 +128,7 @@ impl<'t> HuffTester<'t> {
                 }
                 macros
             },
-            runner: TestRunner::new(env, inspectors, config.target_address),
+            runner: TestRunner::new(env, inspector, config.target_address),
             config,
         }
     }
@@ -144,7 +145,8 @@ impl<'t> HuffTester<'t> {
             .macros
             .into_iter()
             .map(|macro_def| {
-                let db = Backend::spawn(self.config.fork.take());
+                let db = Backend::spawn(self.config.fork.take())
+                    .map_err(|_| RunnerError::GenericError("Failed to spawn backend".to_string()))?;
                 let mut cache_db = CacheDB::new(db);
                 self.runner.run_test(&mut cache_db, macro_def, self.ast)
             })
@@ -173,9 +175,8 @@ impl<'t> HuffTester<'t> {
 
         let traces = [(TraceKind::Execution, SparsedTraceArena { arena: trace_area.into_traces(), ignored: Default::default() })];
 
-        let builder = Debugger::builder().traces(traces.iter().filter(|(t, _)| t.is_execution()).cloned().collect());
+        let mut debugger = Debugger::builder().traces(traces.iter().filter(|(t, _)| t.is_execution()).cloned().collect()).build();
 
-        let mut debugger = builder.build();
         debugger.try_run_tui().map_err(|e| RunnerError::GenericError(format!("{:?}", e)))?;
 
         results

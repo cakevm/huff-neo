@@ -11,9 +11,9 @@ pub enum SupportedEVMVersions {
     /// Introduced Push0
     Shanghai,
     /// Introduced TLOAD, TSTORE, MCOPY, BLOBHASH, and BLOBBASEFEE
-    #[default]
     Cancun,
     /// Introduces EOA account code
+    #[default]
     Prague,
     /// Introduces EOF
     Osaka,

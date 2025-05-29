@@ -15,17 +15,19 @@ keywords = ["bytecode", "compiler", "evm", "huff", "rust"]
 huff-neo-codegen.workspace = true
 huff-neo-utils.workspace = true
 
+
+alloy-consensus.workspace = true
+alloy-evm.workspace = true
 alloy-primitives.workspace = true
 anvil.workspace = true
 comfy-table.workspace = true
 eyre.workspace = true
 foundry-cli.workspace = true
-foundry-common.workspace = true
 foundry-config.workspace = true
 foundry-debugger.workspace = true
 foundry-evm.workspace = true
+op-revm.workspace = true
 revm.workspace = true
-revm-inspectors.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true

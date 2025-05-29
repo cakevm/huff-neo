@@ -1,5 +1,5 @@
 use huff_neo_utils::error::CompilerError;
-use revm::primitives::EVMError;
+use revm::context::result::EVMError;
 use std::convert::Infallible;
 use thiserror::Error;
 

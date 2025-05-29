@@ -60,8 +60,8 @@ pre-release:
 	mdbook test
 	mdbook-linkcheck --standalone
 	make fmt
+	make taplo
 	make clippy
 	make test
 	make test-doc
-	make taplo-check
 	make deny-check
