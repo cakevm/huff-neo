@@ -1,4 +1,4 @@
-use anvil::eth::backend::mem::inspector::Inspector;
+use anvil::eth::backend::mem::inspector::AnvilInspector;
 use comfy_table::{Cell, Color};
 use serde::Serialize;
 use yansi::Paint;
@@ -12,7 +12,7 @@ pub struct TestResult {
     pub status: TestStatus,
     pub revert_reason: Option<String>,
     #[serde(skip)]
-    pub inspector: Inspector,
+    pub inspector: AnvilInspector,
 }
 
 /// A test status variant

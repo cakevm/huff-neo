@@ -327,7 +327,13 @@ impl FunctionParamType {
                 fpt,
                 sizes
                     .iter()
-                    .map(|s| (!s.eq(&0)).then(|| format!("[{s}]")).unwrap_or_else(|| "[]".to_string()))
+                    .map(|s| {
+                        if !s.eq(&0) {
+                            format!("[{s}]")
+                        } else {
+                            "[]".to_string()
+                        }
+                    })
                     .collect::<Vec<_>>()
                     .join("")
             ),

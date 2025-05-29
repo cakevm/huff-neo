@@ -1,10 +1,11 @@
 use alloy_primitives::U256;
+use foundry_evm::backend::DatabaseError;
 use huff_neo_test_runner::prelude::{TestRunner, TestStatus};
-use revm::db::{CacheDB, EmptyDB};
+use revm::database::{CacheDB, EmptyDBTyped};
 
 #[test]
 fn test_runner_return() {
-    let mut db = CacheDB::new(EmptyDB::new());
+    let mut db = CacheDB::<EmptyDBTyped<DatabaseError>>::default();
     let mut runner = TestRunner::default();
     let code = "602060005260206000F3";
     let deployed_addr = runner.deploy_code(&mut db, code.to_string()).unwrap();
@@ -18,7 +19,7 @@ fn test_runner_return() {
 
 #[test]
 fn test_runner_stop() {
-    let mut db = CacheDB::new(EmptyDB::new());
+    let mut db = CacheDB::<EmptyDBTyped<DatabaseError>>::default();
     let mut runner = TestRunner::default();
     let code = "00";
     let deployed_addr = runner.deploy_code(&mut db, code.to_string()).unwrap();
@@ -32,7 +33,7 @@ fn test_runner_stop() {
 
 #[test]
 fn test_runner_revert() {
-    let mut db = CacheDB::new(EmptyDB::new());
+    let mut db = CacheDB::<EmptyDBTyped<DatabaseError>>::default();
     let mut runner = TestRunner::default();
     let code = "60006000FD";
     let deployed_addr = runner.deploy_code(&mut db, code.to_string()).unwrap();

@@ -19,7 +19,7 @@ use huff_neo_codegen::Codegen;
 use huff_neo_core::Compiler;
 use huff_neo_test_runner::{
     prelude::{print_test_report, ReportKind},
-    HuffTester, HuffTesterConfig, Inspector,
+    AnvilInspector, HuffTester, HuffTesterConfig,
 };
 use huff_neo_utils::ast::span::AstSpan;
 use huff_neo_utils::bytecode::Bytes;
@@ -209,12 +209,12 @@ fn main() {
         let rt = tokio::runtime::Builder::new_multi_thread().enable_all().build().unwrap();
 
         for contract in &contracts {
-            let mut inspectors = Inspector::default();
+            let mut inspector = AnvilInspector::default().with_tracing();
             if test_args.verbosity > 2 {
-                inspectors = inspectors.with_log_collector();
+                inspector = inspector.with_log_collector();
             }
             if test_args.verbosity > 3 {
-                inspectors = inspectors.with_steps_tracing();
+                inspector = inspector.with_steps_tracing().with_trace_printer();
             }
 
             let mut env = rt.block_on(evm_opts.evm_env()).unwrap();
@@ -225,7 +225,7 @@ fn main() {
             }
 
             // Disable base fee because simulation would fail
-            env.cfg.disable_base_fee = true;
+            env.evm_env.cfg_env.disable_base_fee = true;
 
             // Choose the internal function tracing mode, if --decode-internal is provided.
             let decode_internal = if test_args.decode_internal {
@@ -249,7 +249,7 @@ fn main() {
                 .enable_isolation(evm_opts.isolate)
                 .target_address(test_args.target_address);
 
-            let tester = HuffTester::new(contract, test_args.match_.clone(), inspectors, tester_config, env);
+            let tester = HuffTester::new(contract, test_args.match_.clone(), inspector, tester_config, env);
 
             let _guard = rt.enter();
             let start = Instant::now();

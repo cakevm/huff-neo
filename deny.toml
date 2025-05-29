@@ -6,6 +6,7 @@ allow = [
   "BSD-2-Clause",
   "BSD-3-Clause",
   "BSL-1.0",
+  "CDLA-Permissive-2.0",
   "ISC",
   "MIT",
   "MIT-0",
@@ -16,6 +17,7 @@ allow = [
   "CC0-1.0",
   # weak/limited copyleft licenses
   "MPL-2.0",
+  "OpenSSL", # https://en.wikipedia.org/wiki/OpenSSL#Licensing
 ]
 
 # Clearify licence: https://github.com/briansmith/ring/issues/902
@@ -28,8 +30,6 @@ name = "ring"
 
 [advisories]
 ignore = [
-  # proc-macro-error is unmaintained - https://rustsec.org/advisories/RUSTSEC-2024-0370
-  "RUSTSEC-2024-0370",
   # protobuf may crash due to uncontrolled recursion - https://rustsec.org/advisories/RUSTSEC-2024-0437
   "RUSTSEC-2024-0437",
   # paste is unmaintained - hhttps://rustsec.org/advisories/RUSTSEC-2024-0436

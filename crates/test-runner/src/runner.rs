@@ -1,15 +1,18 @@
 use crate::prelude::{RunnerError, TestResult, TestStatus};
+use alloy_evm::Evm;
 use alloy_primitives::{hex, Address, Bytes, B256, U256};
-use anvil::eth::backend::mem::inspector::Inspector;
+use anvil::eth::backend::executor::new_evm_with_inspector;
+use anvil::eth::backend::mem::inspector::AnvilInspector;
+use foundry_evm::backend::DatabaseError;
+use foundry_evm::Env;
 use huff_neo_codegen::Codegen;
 use huff_neo_utils::ast::huff::{DecoratorFlag, MacroDefinition};
 use huff_neo_utils::prelude::{pad_n_bytes, CompilerError, Contract, EVMVersion};
-use revm::primitives::{Account, AccountInfo, AccountStatus, Bytecode};
-use revm::{
-    inspector_handle_register,
-    primitives::{Env, ExecutionResult, Output, TransactTo, CANCUN},
-    Database, DatabaseCommit, Evm,
-};
+use op_revm::OpTransaction;
+use revm::context::result::{ExecutionResult, Output};
+use revm::context::{TransactTo, TxEnv};
+use revm::state::{Account, AccountInfo, AccountStatus, Bytecode};
+use revm::{Context, Database, DatabaseCommit, ExecuteCommitEvm, MainBuilder, MainContext};
 use std::collections::HashMap;
 
 /// The test runner allows execution of test macros within an in-memory REVM
@@ -17,12 +20,12 @@ use std::collections::HashMap;
 #[derive(Debug, Default)]
 pub struct TestRunner {
     pub env: Env,
-    pub inspector: Inspector,
+    pub inspector: AnvilInspector,
     pub target_address: Option<Address>,
 }
 
 impl TestRunner {
-    pub fn new(env: Env, inspector: Inspector, target_address: Option<Address>) -> Self {
+    pub fn new(env: Env, inspector: AnvilInspector, target_address: Option<Address>) -> Self {
         Self { env, inspector, target_address }
     }
 
@@ -63,7 +66,7 @@ impl TestRunner {
         let mut changes = HashMap::default();
         let account = match basic_account {
             Some(mut account_info) => {
-                account_info.code = Some(Bytecode::LegacyRaw(Bytes::from(hex::decode(code).expect("Invalid code"))));
+                account_info.code = Some(Bytecode::new_raw(Bytes::from(hex::decode(code).expect("Invalid code"))));
                 Account { info: account_info, storage: Default::default(), status: AccountStatus::Touched }
             }
             None => Account {
@@ -71,7 +74,7 @@ impl TestRunner {
                     balance: U256::ZERO,
                     nonce: 0,
                     code_hash: B256::ZERO,
-                    code: Some(Bytecode::LegacyRaw(Bytes::from(hex::decode(code).expect("Invalid code")))),
+                    code: Some(Bytecode::new_raw(Bytes::from(hex::decode(code).expect("Invalid code")))),
                 },
                 storage: Default::default(),
                 status: AccountStatus::Created,
@@ -111,7 +114,7 @@ impl TestRunner {
         let bootstrap = format!("{contract_size}80{contract_code_offset}3d393df3{code}");
 
         let mut env = self.env.clone();
-        env.tx.transact_to = TransactTo::Create;
+        env.tx.kind = TransactTo::Create;
         // The following should never panic, as any potential compilation error
         // as well as an uneven number of hex nibbles should be caught in the
         // compilation process.
@@ -119,10 +122,10 @@ impl TestRunner {
 
         self.set_balance(db, self.env.tx.caller, U256::MAX)?;
         // TODO: Make spec_id configurable, allow to log during create with the inspector?
-        let mut evm = Evm::builder().with_spec_id(CANCUN).with_env(Box::new(env)).with_db(db).build();
+        let mut evm = Context::mainnet().with_block(env.evm_env.block_env).with_cfg(env.evm_env.cfg_env).with_db(db).build_mainnet();
 
         // Send our CREATE transaction
-        let er = evm.transact_commit().map_err(|e| RunnerError::TransactError(format!("{:?}", e)))?;
+        let er = evm.transact_commit(env.tx).map_err(|e| RunnerError::TransactError(format!("{:?}", e)))?;
 
         // Check if deployment was successful
         let address = match er {
@@ -152,35 +155,35 @@ impl TestRunner {
         data: String,
     ) -> Result<TestResult, RunnerError>
     where
-        DB: Database + DatabaseCommit,
+        DB: Database<Error = DatabaseError> + DatabaseCommit,
         <DB as Database>::Error: std::fmt::Debug,
     {
         let mut env = self.env.clone();
-        env.tx.transact_to = TransactTo::Call(transact_to);
+        env.tx.kind = TransactTo::Call(transact_to);
         env.tx.data = hex::decode(data).expect("Invalid calldata").into();
         env.tx.value = value;
+        env.tx.nonce = 1;
 
         self.set_balance(db, env.tx.caller, U256::MAX)?;
-        let mut evm = Evm::builder()
-            .with_spec_id(CANCUN)
-            .with_env(Box::new(env))
-            .with_db(db)
-            .with_external_context(self.inspector.clone())
-            .append_handler_register(inspector_handle_register)
-            .build();
+
+        let tx = OpTransaction::<TxEnv> { base: env.tx, enveloped_tx: None, deposit: Default::default() };
+        let foundry_env = anvil::eth::backend::env::Env { evm_env: env.evm_env.clone(), tx, is_optimism: false };
+
+        let mut inspector = self.inspector.clone();
+        let mut evm = new_evm_with_inspector(db, &foundry_env, &mut inspector);
 
         // Send our CALL transaction
-        let execution_result = evm.transact_commit().map_err(|e| RunnerError::TransactError(format!("{:?}", e)))?;
+        let execution_result = evm.transact_commit(foundry_env.tx).map_err(|e| RunnerError::TransactError(format!("{:?}", e)))?;
 
         // Extract execution params
-        let (gas_used, status) = match execution_result {
+        let (gas_used, status) = match &execution_result {
             ExecutionResult::Success { gas_used, .. } => (gas_used, TestStatus::Success),
             ExecutionResult::Revert { gas_used, .. } => (gas_used, TestStatus::Revert),
             ExecutionResult::Halt { gas_used, .. } => (gas_used, TestStatus::Revert),
         };
 
         // Check if the transaction was successful
-        let (return_data, revert_reason) = match execution_result {
+        let (return_data, revert_reason) = match &execution_result {
             ExecutionResult::Success { output, .. } => {
                 if let Output::Call(b) = output {
                     if b.is_empty() {
@@ -205,13 +208,13 @@ impl TestRunner {
         // Return our test result
         // NOTE: We subtract 21000 gas from the gas result to account for the
         // base cost of the CALL.
-        Ok(TestResult { name, return_data, gas: gas_used - 21000, status, revert_reason, inspector: evm.context.external })
+        Ok(TestResult { name, return_data, gas: gas_used - 21000, status, revert_reason, inspector })
     }
 
     /// Compile a test macro and run it in an in-memory REVM instance.
     pub fn run_test<DB>(&mut self, db: &mut DB, m: &MacroDefinition, contract: &Contract) -> Result<TestResult, RunnerError>
     where
-        DB: Database + DatabaseCommit,
+        DB: Database<Error = DatabaseError> + DatabaseCommit,
         <DB as Database>::Error: std::fmt::Debug,
     {
         // TODO: set to non default
