@@ -12,10 +12,10 @@ pub enum SupportedEVMVersions {
     Shanghai,
     /// Introduced TLOAD, TSTORE, MCOPY, BLOBHASH, and BLOBBASEFEE
     Cancun,
-    /// Introduces EOA account code
+    /// Introduced AUTH and AUTHCALL
     #[default]
     Prague,
-    /// Introduces EOF
+    /// No new opcodes
     Osaka,
 }
 
