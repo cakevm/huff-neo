@@ -101,9 +101,12 @@ jobs:
         with:
           cache-on-failure: true
       - uses: dcarbone/install-jq-action@v3
+        
       - name: Run Wasm checks
         run: |
           sudo apt update && sudo apt install gcc-multilib
           .github/scripts/check_wasm.sh
+      - name: Install Wasm Pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
       - name: Build wasm package
         run: .github/scripts/make_package.sh
