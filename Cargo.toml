@@ -11,7 +11,7 @@ license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/cakevm/huff-neo"
 rust-version = "1.86"
-version = "1.1.8"
+version = "1.1.9"
 
 [workspace.dependencies]
 huff-neo-codegen = { path = "crates/codegen" }
@@ -70,7 +70,7 @@ toml = { version = "0.8.20", default-features = false, features = ["parse"] }
 
 # dev
 criterion = "0.6.0"
-getrandom = { version = "0.3.2", features = ["wasm_js"] }
+getrandom = { version = "0.3.3", features = ["wasm_js"] }
 rayon = "1.10.0"
 
 [profile.test]
