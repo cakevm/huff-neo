@@ -21,3 +21,7 @@ huff-neo-utils.workspace = true
 serde.workspace = true
 serde-wasm-bindgen.workspace = true
 wasm-bindgen.workspace = true
+
+# HOTFIX: To get wasm compile. See: https://github.com/rustwasm/wasm-pack/issues/1501#issuecomment-2898697188
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["--enable-bulk-memory"]

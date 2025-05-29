@@ -4,6 +4,9 @@
 
 ## [Unreleased]
 
+## [1.1.9] - 2025-05-29
+- Hotfix to get `huff-js` wasm compiling.
+
 ## [1.1.8] - 2025-05-29
 - Convert context to a list of contexts to allow for nested contexts in lexing.
 - Make Prague the default EVM version.

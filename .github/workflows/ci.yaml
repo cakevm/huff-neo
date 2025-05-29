@@ -3,32 +3,24 @@ name: CI
 on:
   push:
     branches: [main]
-  pull_request_target:
+  pull_request:
     branches: [main]
 
 jobs:
   fmt:
-    if: github.repository == 'cakevm/huff-neo'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha || github.ref }}
       - uses: dtolnay/rust-toolchain@stable
 
       - run: make fmt-check
 
   taplo:
-    if: github.repository == 'cakevm/huff-neo'
     name: make taplo-check
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha || github.ref }}
       - uses: dtolnay/rust-toolchain@stable
       - name: Install taplo
         env:
@@ -41,30 +33,22 @@ jobs:
       - run: make taplo-check
 
   doc:
-    if: github.repository == 'cakevm/huff-neo'
     name: make doc
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha || github.ref }}
       - uses: dtolnay/rust-toolchain@nightly
       - uses: Swatinem/rust-cache@v2
 
       - run: make doc
 
   clippy:
-    if: github.repository == 'cakevm/huff-neo'
     name: make clippy
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha || github.ref }}
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
@@ -72,45 +56,33 @@ jobs:
       - run: make clippy
 
   test:
-    if: github.repository == 'cakevm/huff-neo'
     name: make test
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha || github.ref }}
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
 
       - run: make test
 
   test-doc:
-    if: github.repository == 'cakevm/huff-neo'
     name: make test-doc
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha || github.ref }}
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
 
       - run: make test-doc
 
   deny:
-    if: github.repository == 'cakevm/huff-neo'
     name: cargo deny check
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha || github.ref }}
       - uses: EmbarkStudios/cargo-deny-action@v2
         with:
           log-level: warn
@@ -122,9 +94,6 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha || github.ref }}
       - uses: dtolnay/rust-toolchain@stable
         with:
           target: wasm32-unknown-unknown
@@ -136,3 +105,5 @@ jobs:
         run: |
           sudo apt update && sudo apt install gcc-multilib
           .github/scripts/check_wasm.sh
+      - name: Build wasm package
+        run: .github/scripts/make_package.sh
