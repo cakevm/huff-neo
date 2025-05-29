@@ -23,6 +23,11 @@ fn opcodes() {
 
         let tokens = lexer.into_iter().map(|x| x.unwrap()).filter(|x| !matches!(x.kind, TokenKind::Whitespace)).collect::<Vec<Token>>();
 
-        assert_eq!(tokens.get(tokens.len() - 3).unwrap().kind, TokenKind::Opcode(OPCODES_MAP.get(&opcode).unwrap().to_owned()),);
+        assert!(OPCODES_MAP.get(&opcode).is_some(), "Opcode `{opcode}` is not defined in OPCODES_MAP");
+        assert_eq!(
+            tokens.get(tokens.len() - 3).unwrap().kind,
+            TokenKind::Opcode(OPCODES_MAP.get(&opcode).unwrap().to_owned()),
+            "Opcode `{opcode}` did not lex correctly"
+        );
     }
 }

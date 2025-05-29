@@ -21,10 +21,10 @@ huff-neo-parser = { path = "crates/parser" }
 huff-neo-test-runner = { path = "crates/test-runner" }
 huff-neo-utils = { path = "crates/utils" }
 
-alloy-consensus = "1.0.7"
-alloy-dyn-abi = "1.1.2"
-alloy-evm = "0.10.0"
-alloy-primitives = "1.1.2"
+alloy-consensus = { version = "1.0.7", default-features = false }
+alloy-dyn-abi = { version = "1.1.2", default-features = false }
+alloy-evm = { version = "0.10.0", default-features = false }
+alloy-primitives = { version = "1.1.2", default-features = false, features = ["std"] }
 
 anvil = { git = "https://github.com/foundry-rs/foundry", rev = "7e68208" }
 cfg-if = "1.0.0"
@@ -48,7 +48,6 @@ phf = { version = "0.11.3", features = ["macros"] }
 rand = "0.9.0"
 regex = "1.11.1"
 revm = { version = "24.0.0", default-features = false, features = ["optional_no_base_fee"] }
-revm-inspectors = "0.23.0"
 shadow-rs = "1.0.1"
 thiserror = "2.0.12"
 tokio = "1.44.2"
@@ -70,7 +69,7 @@ strum_macros = "0.27.1"
 toml = { version = "0.8.20", default-features = false, features = ["parse"] }
 
 # dev
-criterion = "0.5.1"
+criterion = "0.6.0"
 getrandom = { version = "0.3.2", features = ["wasm_js"] }
 rayon = "1.10.0"
 

@@ -4,62 +4,58 @@ use strum_macros::EnumString;
 
 /// All the EVM opcodes as a static array
 /// They are arranged in a particular order such that all the opcodes that have common
-/// prefixes are ordered by decreasing length to avoid mismatch when lexing.
+/// prefixes are ordered alphabetically by decreasing length to avoid mismatch when lexing.
 /// Example : [origin, or] or [push32, ..., push3]
-pub const OPCODES: [&str; 161] = [
+pub const OPCODES: [&str; 152] = [
     "addmod",
-    "add",
     "address",
+    "add",
     "and",
+    "authcall",
+    "auth",
     "balance",
     "basefee",
     "blobbasefee",
     "blobhash",
     "blockhash",
     "byte",
+    "callcode",
     "calldatacopy",
     "calldataload",
     "calldatasize",
-    "callcode",
     "caller",
     "callvalue",
-    "callf",
     "call",
     "chainid",
-    "coinbase",
     "codecopy",
     "codesize",
+    "coinbase",
     "create2",
     "create",
-    "dataloadn",
     "delegatecall",
     "difficulty",
     "div",
-    "dup16",
-    "dup15",
-    "dup14",
-    "dup13",
-    "dup12",
-    "dup11",
     "dup10",
-    "dup9",
-    "dup8",
-    "dup7",
-    "dup6",
-    "dup5",
-    "dup4",
-    "dup3",
-    "dup2",
+    "dup11",
+    "dup12",
+    "dup13",
+    "dup14",
+    "dup15",
+    "dup16",
     "dup1",
-    "eofcreate",
+    "dup2",
+    "dup3",
+    "dup4",
+    "dup5",
+    "dup6",
+    "dup7",
+    "dup8",
+    "dup9",
     "eq",
     "exp",
-    "extcall",
     "extcodecopy",
     "extcodehash",
     "extcodesize",
-    "extdelegatecall",
-    "extstaticcall",
     "gaslimit",
     "gasprice",
     "gas",
@@ -67,14 +63,13 @@ pub const OPCODES: [&str; 161] = [
     "invalid",
     "iszero",
     "jumpdest",
-    "jumpf",
     "jumpi",
     "jump",
-    "log4",
-    "log3",
-    "log2",
-    "log1",
     "log0",
+    "log1",
+    "log2",
+    "log3",
+    "log4",
     "lt",
     "mcopy",
     "mload",
@@ -84,54 +79,50 @@ pub const OPCODES: [&str; 161] = [
     "mstore",
     "mulmod",
     "mul",
-    "number",
     "not",
-    "or",
+    "number",
     "origin",
+    "or",
     "pc",
     "pop",
     "prevrandao",
-    "push32",
-    "push31",
-    "push30",
-    "push29",
-    "push28",
-    "push27",
-    "push26",
-    "push25",
-    "push24",
-    "push23",
-    "push22",
-    "push21",
-    "push20",
-    "push19",
-    "push18",
-    "push17",
-    "push16",
-    "push15",
-    "push14",
-    "push13",
-    "push12",
-    "push11",
-    "push10",
-    "push9",
-    "push8",
-    "push7",
-    "push6",
-    "push5",
-    "push4",
-    "push3",
-    "push2",
-    "push1",
     "push0",
-    "revert",
-    "returncontract",
+    "push10",
+    "push11",
+    "push12",
+    "push13",
+    "push14",
+    "push15",
+    "push16",
+    "push17",
+    "push18",
+    "push19",
+    "push1",
+    "push20",
+    "push21",
+    "push22",
+    "push23",
+    "push24",
+    "push25",
+    "push26",
+    "push27",
+    "push28",
+    "push29",
+    "push2",
+    "push30",
+    "push31",
+    "push32",
+    "push3",
+    "push4",
+    "push5",
+    "push6",
+    "push7",
+    "push8",
+    "push9",
     "returndatacopy",
     "returndatasize",
     "return",
-    "retf",
-    "rjumpi",
-    "rjump",
+    "revert",
     "sar",
     "sdiv",
     "selfbalance",
@@ -148,22 +139,22 @@ pub const OPCODES: [&str; 161] = [
     "staticcall",
     "stop",
     "sub",
-    "swap16",
-    "swap15",
-    "swap14",
-    "swap13",
-    "swap12",
-    "swap11",
     "swap10",
-    "swap9",
-    "swap8",
-    "swap7",
-    "swap6",
-    "swap5",
-    "swap4",
-    "swap3",
-    "swap2",
+    "swap11",
+    "swap12",
+    "swap13",
+    "swap14",
+    "swap15",
+    "swap16",
     "swap1",
+    "swap2",
+    "swap3",
+    "swap4",
+    "swap5",
+    "swap6",
+    "swap7",
+    "swap8",
+    "swap9",
     "timestamp",
     "tload",
     "tstore",
@@ -322,22 +313,12 @@ pub static OPCODES_MAP: phf::Map<&'static str, Opcode> = phf_map! {
     "revert" => Opcode::Revert,
     "invalid" => Opcode::Invalid,
     "selfdestruct" => Opcode::Selfdestruct,
-    // EOF
-    "eofcreate" => Opcode::Eofcreate,
-    "returncontract" => Opcode::Returncontract,
-    "dataloadn" => Opcode::Dataloadn,
-    "rjump" => Opcode::Rjump,
-    "rjumpi" => Opcode::Rjumpi,
-    "callf" => Opcode::Callf,
-    "jumpf" => Opcode::Jumpf,
-    "retf" => Opcode::Retf,
-    "extcall" => Opcode::Extcall,
-    "extstaticcall" => Opcode::Extstaticcall,
-    "extdelegatecall" => Opcode::Extdelegatecall,
+    "auth" => Opcode::Auth,
+    "authcall" => Opcode::Authcall,
 };
 
 /// EVM Opcodes
-/// References <https://evm.codes>
+/// References <https://evm.codes> and <https://github.com/ethereum/execution-specs/blob/master/lists/evm/proposed-opcodes.md>
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, EnumString)]
 #[strum(serialize_all = "lowercase")]
 pub enum Opcode {
@@ -642,46 +623,10 @@ pub enum Opcode {
     Selfdestruct,
     /// Get hash of an account’s code
     Extcodehash,
-
-    // EOF
-    /// Relative jump
-    Rjump,
-    /// Relative conditional jump
-    Rjumpi,
-    /// Relative jump table
-    Rjumpv,
-    /// EOF Subroutine Call
-    Callf,
-    /// EOF Subroutine return
-    Retf,
-    /// EOF Function Jump
-    Jumpf,
-    /// Create from EOF contained initcode
-    Eofcreate,
-    /// Contract to be created, references EOF data
-    Returncontract,
-    /// Loads data from EOF data section, via stack
-    Dataload,
-    /// Loads data from EOF data section, via immediate
-    Dataloadn,
-    /// Size of the EOF data section
-    Datasize,
-    /// Bulk EOF data copy
-    Datacopy,
-    /// Unlimited dup
-    Dupn,
-    /// Unlimited swap
-    Swapn,
-    /// Deep swap
-    Exchange,
-    /// Loads data returned from a call to the stack
-    Returndataload,
-    /// CALL without gas and output memory
-    Extcall,
-    /// STATICCALL without gas and output memory
-    Extstaticcall,
-    /// DELEGATECALL without gas and output memory
-    Extdelegatecall,
+    /// Preparatory operation for AUTHCALL
+    Auth,
+    /// Call with callee set to externally owned account
+    Authcall,
 }
 
 impl Opcode {
@@ -834,30 +779,12 @@ impl Opcode {
             Opcode::Return => "f3",
             Opcode::Delegatecall => "f4",
             Opcode::Create2 => "f5",
+            Opcode::Auth => "f6",
+            Opcode::Authcall => "f7",
             Opcode::Staticcall => "fa",
             Opcode::Revert => "fd",
             Opcode::Invalid => "fe",
             Opcode::Selfdestruct => "ff",
-            // EOF
-            Opcode::Rjump => "e0",
-            Opcode::Rjumpi => "e1",
-            Opcode::Rjumpv => "e2",
-            Opcode::Callf => "e3",
-            Opcode::Retf => "e4",
-            Opcode::Jumpf => "e5",
-            Opcode::Eofcreate => "ec",
-            Opcode::Returncontract => "ee",
-            Opcode::Dataload => "d0",
-            Opcode::Dataloadn => "d1",
-            Opcode::Datasize => "d2",
-            Opcode::Datacopy => "d3",
-            Opcode::Dupn => "e6",
-            Opcode::Swapn => "e7",
-            Opcode::Exchange => "e8",
-            Opcode::Returndataload => "f7",
-            Opcode::Extcall => "f8",
-            Opcode::Extdelegatecall => "f9",
-            Opcode::Extstaticcall => "fb",
         };
         opcode_str.to_string()
     }
@@ -961,5 +888,23 @@ mod tests {
         for opcode in OPCODES_MAP.keys() {
             assert!(OPCODES.contains(opcode), "{opcode}");
         }
+    }
+
+    /// Validate that opcodes are ordered alphabetically with same prefix and then decreasing length
+    #[test]
+    fn test_opcode_order() {
+        let mut sorted_opcodes = OPCODES.to_vec();
+        sorted_opcodes.sort_by(|a, b| {
+            // Find the common prefix length
+            let common_len = a.chars().zip(b.chars()).take_while(|(c1, c2)| c1 == c2).count();
+
+            // If one string is a prefix of another, group them together and sort by length (descending)
+            if common_len == a.len().min(b.len()) {
+                b.len().cmp(&a.len()) // Longer string first
+            } else {
+                a.cmp(b) // Regular alphabetical sort
+            }
+        });
+        assert_eq!(OPCODES.to_vec(), sorted_opcodes, "Opcodes are not ordered correctly");
     }
 }
