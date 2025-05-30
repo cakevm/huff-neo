@@ -4,6 +4,9 @@
 
 ## [Unreleased]
 
+## [1.1.11] - 2025-05-30
+- Update rust to 1.87.
+
 ## [1.1.10] - 2025-05-30
 - Remove `AUTH` and `AUTHCALL` opcodes since EIP-3074 was withdrawn from Pectra.
   - See: https://github.com/ethereum/EIPs/pull/9771
