@@ -12,7 +12,7 @@ pub enum SupportedEVMVersions {
     Shanghai,
     /// Introduced TLOAD, TSTORE, MCOPY, BLOBHASH, and BLOBBASEFEE
     Cancun,
-    /// Introduced AUTH and AUTHCALL
+    /// No new opcodes
     #[default]
     Prague,
     /// No new opcodes
