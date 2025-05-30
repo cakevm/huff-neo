@@ -4,6 +4,9 @@
 
 ## [Unreleased]
 
+## [1.1.12] - 2025-05-30
+- Clean release after CI fixes.
+
 ## [1.1.11] - 2025-05-30
 - Update rust to 1.87.
 
