@@ -1869,9 +1869,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.2.24"
+version = "1.2.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "16595d3be041c03b09d08d0858631facccee9221e579704070e6e9e4915d3bc7"
+checksum = "d0fc897dc1e865cc67c0e05a836d9d3f1df3cbe442aa4a9473b18e12624a4951"
 dependencies = [
  "jobserver",
  "libc",
@@ -3897,7 +3897,7 @@ dependencies = [
 
 [[package]]
 name = "hnc"
-version = "1.1.9"
+version = "1.1.10"
 dependencies = [
  "alloy-primitives",
  "clap",
@@ -3976,7 +3976,7 @@ checksum = "df3b46402a9d5adb4c86a0cf463f42e19994e3ee891101b1841f30a545cb49a9"
 
 [[package]]
 name = "huff-neo-codegen"
-version = "1.1.9"
+version = "1.1.10"
 dependencies = [
  "alloy-dyn-abi",
  "alloy-primitives",
@@ -3990,7 +3990,7 @@ dependencies = [
 
 [[package]]
 name = "huff-neo-core"
-version = "1.1.9"
+version = "1.1.10"
 dependencies = [
  "alloy-dyn-abi",
  "alloy-primitives",
@@ -4011,7 +4011,7 @@ dependencies = [
 
 [[package]]
 name = "huff-neo-js"
-version = "1.1.9"
+version = "1.1.10"
 dependencies = [
  "huff-neo-core",
  "huff-neo-utils",
@@ -4022,7 +4022,7 @@ dependencies = [
 
 [[package]]
 name = "huff-neo-lexer"
-version = "1.1.9"
+version = "1.1.10"
 dependencies = [
  "huff-neo-utils",
  "lazy_static",
@@ -4032,7 +4032,7 @@ dependencies = [
 
 [[package]]
 name = "huff-neo-parser"
-version = "1.1.9"
+version = "1.1.10"
 dependencies = [
  "alloy-primitives",
  "hex",
@@ -4045,7 +4045,7 @@ dependencies = [
 
 [[package]]
 name = "huff-neo-test-runner"
-version = "1.1.9"
+version = "1.1.10"
 dependencies = [
  "alloy-consensus",
  "alloy-evm",
@@ -4070,7 +4070,7 @@ dependencies = [
 
 [[package]]
 name = "huff-neo-utils"
-version = "1.1.9"
+version = "1.1.10"
 dependencies = [
  "alloy-dyn-abi",
  "alloy-primitives",
@@ -4824,9 +4824,9 @@ checksum = "241eaef5fd12c88705a01fc1066c48c4b36e0dd4377dcdc7ec3942cea7a69956"
 
 [[package]]
 name = "lock_api"
-version = "0.4.12"
+version = "0.4.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "07af8b9cdd281b7915f413fa73f29ebd5d55d0d3f0155584dade1ff18cea1b17"
+checksum = "96936507f153605bddfcda068dd804796c84324ed2510809e5b2a624c81da765"
 dependencies = [
  "autocfg",
  "scopeguard",
@@ -5311,9 +5311,9 @@ dependencies = [
 
 [[package]]
 name = "parking_lot"
-version = "0.12.3"
+version = "0.12.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f1bf18183cf54e8d6059647fc3063646a1801cf30896933ec2311622cc4b9a27"
+checksum = "70d58bf43669b5795d1576d0641cfb6fbb2057bf629506267a92807158584a13"
 dependencies = [
  "lock_api",
  "parking_lot_core",
@@ -5321,9 +5321,9 @@ dependencies = [
 
 [[package]]
 name = "parking_lot_core"
-version = "0.9.10"
+version = "0.9.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e401f977ab385c9e4e3ab30627d6f26d00e2c73eef317493c4ec6d468726cf8"
+checksum = "bc838d2a56b5b1a6c25f55575dfc605fabb63bb2365f6c2353ef9159aa69e4a5"
 dependencies = [
  "cfg-if",
  "libc",
@@ -6999,18 +6999,18 @@ dependencies = [
 
 [[package]]
 name = "solar-config"
-version = "0.1.3"
+version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "00ff62c74517305ddee6fdfa741bac8195826d2820586659341063c991fa4a9e"
+checksum = "908d455bb7c04acd783bd157b63791bf010cf6a495a845e48f7aee334aad319f"
 dependencies = [
  "strum 0.27.1",
 ]
 
 [[package]]
 name = "solar-data-structures"
-version = "0.1.3"
+version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c3c5934e613b60cfb0b2eadc035bac1fb57641026e4c2fb3683e9580391bd109"
+checksum = "a8b5a697cab81241c4623b4546c69e57182202847a75d7c0047c0dd10b923d8c"
 dependencies = [
  "bumpalo",
  "index_vec",
@@ -7051,9 +7051,9 @@ dependencies = [
 
 [[package]]
 name = "solar-macros"
-version = "0.1.3"
+version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ccbdb5d9ecd4127af47279f99475f9fbff6ad3d03afc98ba78e1998bc07c0d46"
+checksum = "e17f8b99f28f358b41acb6efe4d7b8f326541b3c58a15dd1931d6fe581feefef"
 dependencies = [
  "proc-macro2",
  "quote",
