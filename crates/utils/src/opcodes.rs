@@ -6,13 +6,11 @@ use strum_macros::EnumString;
 /// They are arranged in a particular order such that all the opcodes that have common
 /// prefixes are ordered alphabetically by decreasing length to avoid mismatch when lexing.
 /// Example : [origin, or] or [push32, ..., push3]
-pub const OPCODES: [&str; 152] = [
+pub const OPCODES: [&str; 150] = [
     "addmod",
     "address",
     "add",
     "and",
-    "authcall",
-    "auth",
     "balance",
     "basefee",
     "blobbasefee",
@@ -313,8 +311,6 @@ pub static OPCODES_MAP: phf::Map<&'static str, Opcode> = phf_map! {
     "revert" => Opcode::Revert,
     "invalid" => Opcode::Invalid,
     "selfdestruct" => Opcode::Selfdestruct,
-    "auth" => Opcode::Auth,
-    "authcall" => Opcode::Authcall,
 };
 
 /// EVM Opcodes
@@ -623,10 +619,6 @@ pub enum Opcode {
     Selfdestruct,
     /// Get hash of an account’s code
     Extcodehash,
-    /// Preparatory operation for AUTHCALL
-    Auth,
-    /// Call with callee set to externally owned account
-    Authcall,
 }
 
 impl Opcode {
@@ -779,8 +771,6 @@ impl Opcode {
             Opcode::Return => "f3",
             Opcode::Delegatecall => "f4",
             Opcode::Create2 => "f5",
-            Opcode::Auth => "f6",
-            Opcode::Authcall => "f7",
             Opcode::Staticcall => "fa",
             Opcode::Revert => "fd",
             Opcode::Invalid => "fe",
