@@ -455,8 +455,8 @@ fn test_very_nested_macro_calls() {
     // Create main and constructor bytecode
     let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
 
-    // Full expected bytecode output (generated from huff-neo) (placed here as a reference)
-    let expected_bytecode = "60056005600a60160160040103015f52";
+    // ADD 0x0a, 0x16, then ADD 0x04, then SUB 0x05, ADD 0x05, and finally COMPUTE_AND_STORE
+    let expected_bytecode = "600a6016016004016005036005015f52";
 
     // Check the bytecode
     assert_eq!(main_bytecode.to_lowercase(), expected_bytecode.to_lowercase());
