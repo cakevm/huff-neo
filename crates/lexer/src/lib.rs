@@ -675,10 +675,6 @@ impl Iterator for Lexer<'_> {
     type Item = TokenResult;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.eof {
-            None
-        } else {
-            Some(self.next_token())
-        }
+        if self.eof { None } else { Some(self.next_token()) }
     }
 }

@@ -1,5 +1,5 @@
-use crate::irgen::constants::constant_gen;
 use crate::Codegen;
+use crate::irgen::constants::constant_gen;
 use alloy_primitives::{hex, keccak256};
 use huff_neo_utils::bytecode::{BytecodeRes, Bytes, CircularCodeSizeIndices, Jump, Jumps};
 use huff_neo_utils::bytes_util::{bytes32_to_hex_string, format_even_bytes, literal_gen, pad_n_bytes};
@@ -516,8 +516,8 @@ pub fn builtin_pad(
         });
     }
     let first_arg = match &bf.args[0] {
-        BuiltinFunctionArg::Argument(ref arg) => arg.name.clone().unwrap_or_default(),
-        BuiltinFunctionArg::BuiltinFunctionCall(ref inner_call) => {
+        BuiltinFunctionArg::Argument(arg) => arg.name.clone().unwrap_or_default(),
+        BuiltinFunctionArg::BuiltinFunctionCall(inner_call) => {
             match inner_call.kind {
                 BuiltinFunctionKind::FunctionSignature => {
                     let push_bytes = function_signature(contract, inner_call)?;

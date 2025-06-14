@@ -1,7 +1,7 @@
 use huff_neo_utils::prelude::*;
 
-use crate::irgen::builtin_function;
 use crate::Codegen;
+use crate::irgen::builtin_function;
 
 /// Generates the respective Bytecode for a given Statement
 #[allow(clippy::too_many_arguments)]

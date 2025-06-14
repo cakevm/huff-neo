@@ -34,10 +34,6 @@ impl FullFileSource<'_> {
             .collect::<Vec<Span>>()
             .into_iter()
             .next();
-        if let Some(span) = span_opt {
-            span
-        } else {
-            Span { start, end, file: self.file.clone() }
-        }
+        if let Some(span) = span_opt { span } else { Span { start, end, file: self.file.clone() } }
     }
 }

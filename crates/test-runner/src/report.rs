@@ -1,6 +1,6 @@
 use crate::prelude::{ReportKind, TestResult, TestStatus};
-use comfy_table::{modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL, Attribute, Cell, Color, ContentArrangement, Row, Table};
-use foundry_cli::utils::{handle_traces, TraceResult};
+use comfy_table::{Attribute, Cell, Color, ContentArrangement, Row, Table, modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL};
+use foundry_cli::utils::{TraceResult, handle_traces};
 use foundry_config::Config;
 use foundry_evm::decode::decode_console_logs;
 use foundry_evm::inspectors::TracingInspector;

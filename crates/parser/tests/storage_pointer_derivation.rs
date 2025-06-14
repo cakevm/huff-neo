@@ -6,8 +6,7 @@ use huff_neo_utils::prelude::*;
 
 #[test]
 fn derives_storage_pointers() {
-    let source =
-        "#define constant FSP_LOCATION = FREE_STORAGE_POINTER()\n#define constant FSP_LOCATION_2 = FREE_STORAGE_POINTER()\n#define constant NUM = 0xa57B";
+    let source = "#define constant FSP_LOCATION = FREE_STORAGE_POINTER()\n#define constant FSP_LOCATION_2 = FREE_STORAGE_POINTER()\n#define constant NUM = 0xa57B";
 
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
     let lexer = Lexer::new(flattened_source);

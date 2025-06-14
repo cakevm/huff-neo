@@ -1,11 +1,11 @@
-use alloy_primitives::private::serde::Serialize;
 use alloy_primitives::Address;
+use alloy_primitives::private::serde::Serialize;
 use clap::Parser;
 use foundry_common::evm::EnvArgs;
 use foundry_config::figment::error::Kind::InvalidType;
 use foundry_config::figment::value::{Dict, Map, Value};
 use foundry_config::figment::{Figment, Metadata, Profile, Provider};
-use foundry_config::{figment, Config};
+use foundry_config::{Config, figment};
 
 // Adapted/Copy from https://github.com/foundry-rs/foundry/blob/1d5fa64/crates/common/src/evm.rs#L46
 

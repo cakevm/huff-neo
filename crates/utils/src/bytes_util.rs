@@ -46,11 +46,7 @@ pub fn pad_n_bytes(hex: &str, num_bytes: usize) -> String {
 
 /// Pad odd-length byte string with a leading 0
 pub fn format_even_bytes(hex: String) -> String {
-    if hex.len() % 2 == 1 {
-        format!("0{hex}")
-    } else {
-        hex
-    }
+    if hex.len() % 2 == 1 { format!("0{hex}") } else { hex }
 }
 
 /// Convert string slice to `Vec<u8>`, size not capped
@@ -69,11 +65,7 @@ pub fn literal_gen(evm_version: &EVMVersion, l: &[u8; 32]) -> String {
 }
 
 fn format_push0(evm_version: &EVMVersion, hex_literal: String) -> String {
-    if evm_version.has_push0() {
-        Opcode::Push0.to_string()
-    } else {
-        format_literal(hex_literal)
-    }
+    if evm_version.has_push0() { Opcode::Push0.to_string() } else { format_literal(hex_literal) }
 }
 
 /// Converts a literal into its bytecode string representation

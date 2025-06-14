@@ -9,17 +9,17 @@
 mod arguments;
 
 use crate::arguments::base::TestCommands;
-use crate::arguments::base::{get_input, HuffArgs};
+use crate::arguments::base::{HuffArgs, get_input};
 use alloy_primitives::hex;
 use clap::{CommandFactory, Parser};
-use comfy_table::{modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL, Cell, Color, Row, Table};
+use comfy_table::{Cell, Color, Row, Table, modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL};
 use foundry_cli::utils::LoadConfig;
 use foundry_evm_traces::InternalTraceMode;
 use huff_neo_codegen::Codegen;
 use huff_neo_core::Compiler;
 use huff_neo_test_runner::{
-    prelude::{print_test_report, ReportKind},
     AnvilInspector, HuffTester, HuffTesterConfig,
+    prelude::{ReportKind, print_test_report},
 };
 use huff_neo_utils::ast::span::AstSpan;
 use huff_neo_utils::bytecode::Bytes;
@@ -27,7 +27,7 @@ use huff_neo_utils::file::file_provider::FileSystemFileProvider;
 use huff_neo_utils::file::file_source::FileSource;
 use huff_neo_utils::file::full_file_source::OutputLocation;
 use huff_neo_utils::prelude::{
-    export_interfaces, gen_sol_interfaces, BytecodeRes, CodegenError, CodegenErrorKind, CompilerError, EVMVersion, Span,
+    BytecodeRes, CodegenError, CodegenErrorKind, CompilerError, EVMVersion, Span, export_interfaces, gen_sol_interfaces,
 };
 use shadow_rs::shadow;
 use std::process::exit;
@@ -231,11 +231,7 @@ fn main() {
             let decode_internal = if test_args.decode_internal {
                 // If more than one function matched, we enable simple tracing.
                 // If only one function matched, we enable full tracing. This is done in `run_tests`.
-                if contracts.len() == 1 {
-                    InternalTraceMode::Full
-                } else {
-                    InternalTraceMode::Simple
-                }
+                if contracts.len() == 1 { InternalTraceMode::Full } else { InternalTraceMode::Simple }
             } else {
                 InternalTraceMode::None
             };

@@ -1,13 +1,13 @@
 use crate::prelude::{RunnerError, TestResult, TestStatus};
 use alloy_evm::Evm;
-use alloy_primitives::{hex, Address, Bytes, B256, U256};
+use alloy_primitives::{Address, B256, Bytes, U256, hex};
 use anvil::eth::backend::executor::new_evm_with_inspector;
 use anvil::eth::backend::mem::inspector::AnvilInspector;
-use foundry_evm::backend::DatabaseError;
 use foundry_evm::Env;
+use foundry_evm::backend::DatabaseError;
 use huff_neo_codegen::Codegen;
 use huff_neo_utils::ast::huff::{DecoratorFlag, MacroDefinition};
-use huff_neo_utils::prelude::{pad_n_bytes, CompilerError, Contract, EVMVersion};
+use huff_neo_utils::prelude::{CompilerError, Contract, EVMVersion, pad_n_bytes};
 use op_revm::OpTransaction;
 use revm::context::result::{ExecutionResult, Output};
 use revm::context::{TransactTo, TxEnv};
@@ -186,11 +186,7 @@ impl TestRunner {
         let (return_data, revert_reason) = match &execution_result {
             ExecutionResult::Success { output, .. } => {
                 if let Output::Call(b) = output {
-                    if b.is_empty() {
-                        (None, None)
-                    } else {
-                        (Some(hex::encode(b)), None)
-                    }
+                    if b.is_empty() { (None, None) } else { (Some(hex::encode(b)), None) }
                 } else {
                     (None, Some("Unexpected transaction kind (CREATE)".to_string()))
                 }

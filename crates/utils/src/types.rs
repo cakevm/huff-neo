@@ -75,11 +75,7 @@ impl TryFrom<&String> for PrimitiveEVMType {
         if input.eq("string") {
             return Ok(PrimitiveEVMType::String);
         }
-        if input == "bytes" {
-            Ok(PrimitiveEVMType::DynBytes)
-        } else {
-            Err(format!("Invalid PrimitiveEVMType type: {input}"))
-        }
+        if input == "bytes" { Ok(PrimitiveEVMType::DynBytes) } else { Err(format!("Invalid PrimitiveEVMType type: {input}")) }
     }
 }
 

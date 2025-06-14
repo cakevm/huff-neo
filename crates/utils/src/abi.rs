@@ -325,17 +325,7 @@ impl FunctionParamType {
                 f,
                 "{}{}",
                 fpt,
-                sizes
-                    .iter()
-                    .map(|s| {
-                        if !s.eq(&0) {
-                            format!("[{s}]")
-                        } else {
-                            "[]".to_string()
-                        }
-                    })
-                    .collect::<Vec<_>>()
-                    .join("")
+                sizes.iter().map(|s| { if !s.eq(&0) { format!("[{s}]") } else { "[]".to_string() } }).collect::<Vec<_>>().join("")
             ),
             FunctionParamType::FixedBytes(size) => write!(f, "bytes{size}"),
             FunctionParamType::Tuple(inner) => write!(f, "({})", inner.iter().map(|fpt| fpt.to_string()).collect::<Vec<_>>().join(", ")),

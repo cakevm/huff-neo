@@ -4,7 +4,7 @@ use clap::ArgAction;
 use clap::Parser;
 use foundry_config::figment::value::{Dict, Map};
 use foundry_config::figment::{Metadata, Profile, Provider};
-use foundry_config::{figment, Config};
+use foundry_config::{Config, figment};
 use huff_neo_utils::shell::Verbosity;
 
 foundry_config::merge_impl_figment_convert!(TestArgs, evm);

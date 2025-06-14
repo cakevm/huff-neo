@@ -88,7 +88,7 @@ pub fn bubble_arg_call(
                                     kind: CodegenErrorKind::MissingMacroInvocation(macro_def.name.clone()),
                                     span: bubbled_macro_invocation.span.clone(),
                                     token: None,
-                                })
+                                });
                             }
                         };
                         let mis_len = mis.len();

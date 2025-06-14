@@ -1,7 +1,7 @@
 use crate::Codegen;
 use huff_neo_utils::ast::span::AstSpan;
 use huff_neo_utils::prelude::{
-    literal_gen, str_to_bytes32, CodegenError, CodegenErrorKind, ConstVal, ConstantDefinition, Contract, EVMVersion,
+    CodegenError, CodegenErrorKind, ConstVal, ConstantDefinition, Contract, EVMVersion, literal_gen, str_to_bytes32,
 };
 
 /// Transforms a constant definition into it's respective bytecode

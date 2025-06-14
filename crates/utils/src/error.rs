@@ -3,7 +3,7 @@ use crate::file::span::{Span, Spanned};
 use crate::file::unpack_files::UnpackError;
 use crate::lexer_context::Context;
 use crate::{
-    prelude::{parse_extension, Opcode},
+    prelude::{Opcode, parse_extension},
     report::{Report, Reporter},
     token::TokenKind,
 };

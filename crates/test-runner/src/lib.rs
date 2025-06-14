@@ -17,10 +17,10 @@ pub mod errors;
 /// Re-export the Inspector from anvil crate
 pub use anvil::eth::backend::mem::inspector::AnvilInspector;
 use foundry_debugger::Debugger;
+use foundry_evm::Env;
 use foundry_evm::backend::Backend;
 use foundry_evm::fork::CreateFork;
 use foundry_evm::traces::{InternalTraceMode, SparsedTraceArena, TraceKind};
-use foundry_evm::Env;
 use revm::database::CacheDB;
 use revm::primitives::hardfork::SpecId;
 

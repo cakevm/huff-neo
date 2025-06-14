@@ -1,4 +1,4 @@
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 use huff_neo_codegen::*;
 use huff_neo_core::Compiler;
 use huff_neo_lexer::*;

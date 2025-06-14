@@ -26,7 +26,7 @@ use std::{
     path::PathBuf,
     sync::Arc,
 };
-use tracing_subscriber::{filter::Directive, EnvFilter};
+use tracing_subscriber::{EnvFilter, filter::Directive};
 
 pub(crate) mod cache;
 

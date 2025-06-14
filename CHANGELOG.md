@@ -3,6 +3,8 @@
 # Huff Neo Compiler changelog
 
 ## [Unreleased]
+
+## [1.1.13] - 2025-06-14
 - Update dependencies to the latest version.
 - Fix nested macro argument resolution (fixes #60, #48).
 - Fix label resolution for macros passed as arguments (fixes #62).

@@ -169,7 +169,12 @@ fn test_tablesize_builtin() {
 
     // Have the Codegen create the constructor bytecode
     let mbytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
-    assert_eq!(mbytes, String::from("600860806100235f3960205b5f5ff35b5f5ff35b5f5ff35b5f5ff3000b000f00130017000000000000000000000000000000000000000000000000000000000000000b000000000000000000000000000000000000000000000000000000000000000f00000000000000000000000000000000000000000000000000000000000000130000000000000000000000000000000000000000000000000000000000000017deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"));
+    assert_eq!(
+        mbytes,
+        String::from(
+            "600860806100235f3960205b5f5ff35b5f5ff35b5f5ff35b5f5ff3000b000f00130017000000000000000000000000000000000000000000000000000000000000000b000000000000000000000000000000000000000000000000000000000000000f00000000000000000000000000000000000000000000000000000000000000130000000000000000000000000000000000000000000000000000000000000017deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+        )
+    );
 }
 
 #[test]
@@ -262,7 +267,9 @@ fn test_event_hash_builtin() {
     assert_eq!(&cbytes[134..198], "beabacc8ffedac16e9a60acdb2ca743d80c2ebb44977a93fa8e483c74d2b35a8");
     assert_eq!(
         cbytes,
-        String::from("7fbeabacc8ffedac16e9a60acdb2ca743d80c2ebb44977a93fa8e483c74d2b35a87fbeabacc8ffedac16e9a60acdb2ca743d80c2ebb44977a93fa8e483c74d2b35a87fbeabacc8ffedac16e9a60acdb2ca743d80c2ebb44977a93fa8e483c74d2b35a85f55")
+        String::from(
+            "7fbeabacc8ffedac16e9a60acdb2ca743d80c2ebb44977a93fa8e483c74d2b35a87fbeabacc8ffedac16e9a60acdb2ca743d80c2ebb44977a93fa8e483c74d2b35a87fbeabacc8ffedac16e9a60acdb2ca743d80c2ebb44977a93fa8e483c74d2b35a85f55"
+        )
     );
 }
 
@@ -469,9 +476,9 @@ fn test_bytes_builtin() {
     let r_bytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
     // 64 = PUSH5, "hello" = 0x68656c6c6f
     assert_eq!(&r_bytes[0..12], "6468656c6c6f"); // 2 + 2 * 5 chars
-                                                 // 69 = PUSH10, "hellohello" = 0x68656c6c6f68656c6c6f
+    // 69 = PUSH10, "hellohello" = 0x68656c6c6f68656c6c6f
     assert_eq!(&r_bytes[12..34], "6968656c6c6f68656c6c6f"); // 2 + 2 * 10 chars
-                                                            // 67 = PUSH8, "🙂🙂" = 0xf09f9982f09f9982
+    // 67 = PUSH8, "🙂🙂" = 0xf09f9982f09f9982
     assert_eq!(&r_bytes[34..52], "67f09f9982f09f9982"); // 2 + 8 * 2 chars
     assert_eq!(r_bytes.len(), (2 + 5 * 2) + (2 + 2 * 10) + (2 + 8 * 2));
 }

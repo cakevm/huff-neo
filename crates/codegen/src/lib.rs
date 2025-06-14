@@ -3,7 +3,7 @@
 #![warn(unused_extern_crates)]
 #![forbid(unsafe_code)]
 
-use crate::irgen::builtin_function::{builtin_bytes, builtin_pad, function_signature, PadDirection};
+use crate::irgen::builtin_function::{PadDirection, builtin_bytes, builtin_pad, function_signature};
 use alloy_primitives::hex;
 use huff_neo_utils::ast::huff::*;
 use huff_neo_utils::ast::span::AstSpan;
@@ -16,7 +16,7 @@ use huff_neo_utils::{
     bytes_util,
     error::CodegenError,
     opcodes::Opcode,
-    prelude::{format_even_bytes, pad_n_bytes, CodegenErrorKind, EVMVersion, Span},
+    prelude::{CodegenErrorKind, EVMVersion, Span, format_even_bytes, pad_n_bytes},
     types::EToken,
 };
 use regex::Regex;
@@ -101,7 +101,7 @@ impl Codegen {
             Codegen::macro_to_bytecode(evm_version, c_macro, &contract, &mut vec![c_macro], 0, &mut Vec::default(), false, None)?;
 
         // Check if the constructor performs its own code generation
-        let has_custom_bootstrap = bytecode_res.bytes.iter().any(|bytes| bytes.1 .0 == *"f3");
+        let has_custom_bootstrap = bytecode_res.bytes.iter().any(|bytes| bytes.1.0 == *"f3");
 
         tracing::info!(target: "codegen", "Constructor is self-generating: {}", has_custom_bootstrap);
 

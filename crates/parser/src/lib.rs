@@ -11,7 +11,7 @@ use huff_neo_utils::bytecode::Bytes;
 use huff_neo_utils::file::remapper;
 use huff_neo_utils::{
     error::*,
-    prelude::{bytes32_to_hex_string, str_to_bytes32, Span},
+    prelude::{Span, bytes32_to_hex_string, str_to_bytes32},
     token::{Token, TokenKind},
     types::*,
 };
@@ -249,20 +249,12 @@ impl Parser {
 
     /// Take a look at next token without consuming.
     pub fn peek(&mut self) -> Option<Token> {
-        if self.cursor >= self.tokens.len() {
-            None
-        } else {
-            Some(self.tokens.get(self.cursor + 1).unwrap().clone())
-        }
+        if self.cursor >= self.tokens.len() { None } else { Some(self.tokens.get(self.cursor + 1).unwrap().clone()) }
     }
 
     /// Take a look at the previous token.
     pub fn peek_behind(&self) -> Option<Token> {
-        if self.cursor == 0 || self.cursor > self.tokens.len() {
-            None
-        } else {
-            Some(self.tokens.get(self.cursor - 1).unwrap().clone())
-        }
+        if self.cursor == 0 || self.cursor > self.tokens.len() { None } else { Some(self.tokens.get(self.cursor - 1).unwrap().clone()) }
     }
 
     /// Parses a function.
@@ -300,7 +292,7 @@ impl Parser {
                     hint: Some("Expected one of: `view`, `pure`, `payable`, `nonpayable`.".to_string()),
                     spans: AstSpan(vec![self.current_token.span.clone()]),
                     cursor: self.cursor,
-                })
+                });
             }
         };
         // consume the function type
@@ -614,7 +606,7 @@ impl Parser {
                                     hint: Some(format!("Expected literal following \"{:?}\", found \"{:?}\"", o, self.current_token.kind)),
                                     spans: AstSpan(vec![self.current_token.span.clone()]),
                                     cursor: self.cursor,
-                                })
+                                });
                             }
                         }
                     }
@@ -968,7 +960,7 @@ impl Parser {
                                 hint: Some(format!("Argument names cannot be EVM types: {ty}")),
                                 spans: AstSpan(vec![self.current_token.span.clone()]),
                                 cursor: self.cursor,
-                            })
+                            });
                         }
                         _ => { /* continue, valid string */ }
                     }
@@ -1016,7 +1008,7 @@ impl Parser {
                     hint: Some("Expected number representing stack item count.".to_string()),
                     spans: AstSpan(single_arg_span),
                     cursor: self.cursor,
-                })
+                });
             }
         };
         self.match_kind(TokenKind::CloseParen)?;
@@ -1138,11 +1130,7 @@ impl Parser {
                         });
                     }
                 }
-                if unknown_size {
-                    None
-                } else {
-                    Some(table_size / 2)
-                }
+                if unknown_size { None } else { Some(table_size / 2) }
             }
         };
 

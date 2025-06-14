@@ -1,5 +1,5 @@
 use crate::file::file_source::FileSource;
-use crate::file::unpack_files::{unpack_files, UnpackError};
+use crate::file::unpack_files::{UnpackError, unpack_files};
 use crate::{error::CompilerError, time};
 use std::{
     collections::HashMap,
