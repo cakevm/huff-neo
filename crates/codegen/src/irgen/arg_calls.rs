@@ -153,14 +153,16 @@ pub fn bubble_arg_call(
                         }
                     }
                     MacroArg::MacroCall(inner_mi) => {
-                        tracing::debug!(target: "codegen", "Found MacroArg::MacroCall IN \"{}\" Macro Invocation: \"{}\"!", macro_invoc.1.macro_name, inner_mi.macro_name);
+                        tracing::debug!(target: "codegen", "Processing nested MacroCall: {}", inner_mi.macro_name);
 
                         if let Some(called_macro) = contract.find_macro_by_name(&inner_mi.macro_name) {
                             tracing::debug!(target: "codegen", "Found valid macro: {}", called_macro.name);
+
                             let mut new_scope = scope.to_vec();
                             new_scope.push(called_macro);
                             let mut new_mis = mis.to_vec();
                             new_mis.push((starting_offset, inner_mi.clone()));
+
                             match Codegen::macro_to_bytecode(
                                 evm_version,
                                 called_macro,
@@ -172,7 +174,9 @@ pub fn bubble_arg_call(
                                 None,
                             ) {
                                 Ok(expanded_macro) => {
+                                    let byte_len: usize = expanded_macro.bytes.iter().map(|(_, b)| b.0.len() / 2).sum();
                                     bytes.extend(expanded_macro.bytes);
+                                    *offset += byte_len;
                                 }
                                 Err(e) => {
                                     return Err(e);
@@ -191,11 +195,41 @@ pub fn bubble_arg_call(
                 tracing::warn!(target: "codegen", "\"{}\" FOUND IN MACRO DEF BUT NOT IN MACRO INVOCATION!", arg_name);
             }
         } else {
-            return Err(CodegenError {
-                kind: CodegenErrorKind::MissingArgumentDefinition(arg_name.to_string()),
-                span: span.clone(),
-                token: None,
-            });
+            // Argument not found in current macro parameters.
+            // Try to bubble up to parent scope to find it.
+            tracing::debug!(target: "codegen", "Argument \"{}\" not found in macro \"{}\", attempting to bubble up", arg_name, macro_def.name);
+
+            if scope.len() > 1 && mis.len() > 1 {
+                // We have a parent scope to bubble up to
+                let scope_len = scope.len();
+                let new_scope = &mut scope[..scope_len.saturating_sub(1)];
+                let bubbled_macro_invocation = new_scope.last().unwrap();
+                tracing::debug!(target: "codegen", "BUBBLING UP TO MACRO DEF: {}", &bubbled_macro_invocation.name);
+
+                let mis_len = mis.len();
+                // Remove the current mis entry since we're bubbling up
+                let new_mis = &mut mis[..mis_len.saturating_sub(1)].to_vec();
+
+                return bubble_arg_call(
+                    evm_version,
+                    arg_name,
+                    bytes,
+                    bubbled_macro_invocation,
+                    contract,
+                    new_scope,
+                    offset,
+                    new_mis,
+                    jump_table,
+                    span,
+                );
+            } else {
+                // No parent scope or at the top level - this is truly an undefined argument
+                return Err(CodegenError {
+                    kind: CodegenErrorKind::MissingArgumentDefinition(arg_name.to_string()),
+                    span: span.clone(),
+                    token: None,
+                });
+            }
         }
     } else {
         // This is a label call
