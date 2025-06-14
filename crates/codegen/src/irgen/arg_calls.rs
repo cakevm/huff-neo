@@ -177,6 +177,23 @@ pub fn bubble_arg_call(
                                     let byte_len: usize = expanded_macro.bytes.iter().map(|(_, b)| b.0.len() / 2).sum();
                                     bytes.extend(expanded_macro.bytes);
                                     *offset += byte_len;
+
+                                    // Bubble up unmatched jumps from the expanded macro to the parent scope
+                                    // This is crucial for label resolution across macro boundaries
+                                    for mut unmatched_jump in expanded_macro.unmatched_jumps {
+                                        // Adjust the bytecode index to account for the current offset
+                                        unmatched_jump.bytecode_index += starting_offset;
+
+                                        // Add the unmatched jump to the parent's jump table
+                                        let existing_jumps =
+                                            jump_table.get(&unmatched_jump.bytecode_index).cloned().unwrap_or_else(Vec::new);
+                                        let mut new_jumps = existing_jumps;
+                                        new_jumps.push(unmatched_jump.clone());
+                                        jump_table.insert(unmatched_jump.bytecode_index, new_jumps);
+
+                                        tracing::debug!(target: "codegen", "Bubbled up unmatched jump for label '{}' at index {} from MacroCall", 
+                                                       unmatched_jump.label, unmatched_jump.bytecode_index);
+                                    }
                                 }
                                 Err(e) => {
                                     return Err(e);
