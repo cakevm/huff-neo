@@ -34,8 +34,9 @@ pub enum IRByteType {
     Statement(Statement),
     /// A Constant to be referenced
     Constant(String),
-    /// An Arg Call needs to use the calling macro context
-    ArgCall(String),
+    /// An Arg Call needs to use the calling macro context.
+    /// Macro name and argument name
+    ArgCall(String, String),
 }
 
 /// Full Intermediate Bytecode Representation

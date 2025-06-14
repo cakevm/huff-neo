@@ -11,7 +11,8 @@ use std::str::FromStr;
 #[allow(clippy::too_many_arguments)]
 pub fn bubble_arg_call(
     evm_version: &EVMVersion,
-    arg_name: &str,
+    arg_parent_macro_name: String,
+    arg_name: String,
     bytes: &mut Vec<(usize, Bytes)>,
     macro_def: &MacroDefinition,
     contract: &Contract,
@@ -22,15 +23,39 @@ pub fn bubble_arg_call(
     jump_table: &mut JumpTable,
     span: &AstSpan,
 ) -> Result<(), CodegenError> {
+    tracing::debug!(
+        target: "codegen",
+        "bubble_arg_call: {} -> {}, [{:?}]",
+        arg_parent_macro_name,
+        arg_name,
+        scope.iter().map(|m| m.name.clone()).collect::<Vec<_>>()
+    );
+
     let starting_offset = *offset;
 
     if let Some(macro_invoc) = mis.last() {
         // Literal, Ident & Arg Call Check
-        // First get this arg_nam position in the macro definition params
-        if let Some(pos) = macro_def.parameters.iter().position(|r| r.name.as_ref().is_some_and(|s| s.eq(arg_name))) {
-            tracing::info!(target: "codegen", "GOT \"{}\" POS IN ARG LIST: {}", arg_name, pos);
+        // First get this arg_name position in the correct macro definition params
+        // We need to use the macro that corresponds to the arg_parent_macro_name, not the current macro_def
+        let target_macro = if arg_parent_macro_name == macro_def.name {
+            macro_def
+        } else {
+            // Find the macro that corresponds to the arg_parent_macro_name
+            scope.iter().find(|m| m.name == arg_parent_macro_name).map_or(macro_def, |v| v)
+        };
 
-            if let Some(arg) = macro_invoc.1.args.get(pos) {
+        // Find the macro invocation that corresponds to the target macro
+        let target_macro_invoc = if target_macro.name == macro_invoc.1.macro_name {
+            macro_invoc
+        } else {
+            // Find the invocation for the target macro in the mis stack
+            mis.iter().rev().find(|(_, mi)| mi.macro_name == target_macro.name).unwrap_or(macro_invoc)
+        };
+
+        if let Some(pos) = target_macro.parameters.iter().position(|r| r.name.as_ref().is_some_and(|s| s.eq(&arg_name))) {
+            tracing::info!(target: "codegen", "GOT \"{}\" POS IN ARG LIST: {} (from macro {} invocation {})", arg_name, pos, target_macro.name, target_macro_invoc.1.macro_name);
+
+            if let Some(arg) = target_macro_invoc.1.args.get(pos) {
                 tracing::info!(target: "codegen", "GOT \"{:?}\" ARG FROM MACRO INVOCATION", arg);
                 match arg {
                     MacroArg::Literal(l) => {
@@ -45,7 +70,7 @@ pub fn bubble_arg_call(
                         *offset += b.0.len() / 2;
                         bytes.push((starting_offset, b));
                     }
-                    MacroArg::ArgCall(ac, arg_span) => {
+                    MacroArg::ArgCall(ArgCall { macro_name: ac_parent_macro_name, name: ac, span: arg_span }) => {
                         tracing::info!(target: "codegen", "GOT ARG CALL \"{}\" ARG FROM MACRO INVOCATION", ac);
                         tracing::debug!(target: "codegen", "~~~ BUBBLING UP ARG CALL");
                         let scope_len = scope.len();
@@ -67,11 +92,11 @@ pub fn bubble_arg_call(
                             }
                         };
                         let mis_len = mis.len();
-                        let ac_ = &ac.to_string();
                         return if last_mi.1.macro_name.eq(&macro_def.name) {
                             bubble_arg_call(
                                 evm_version,
-                                ac_,
+                                ac_parent_macro_name.clone(),
+                                ac.clone(),
                                 bytes,
                                 bubbled_macro_invocation,
                                 contract,
@@ -84,7 +109,8 @@ pub fn bubble_arg_call(
                         } else {
                             bubble_arg_call(
                                 evm_version,
-                                ac_,
+                                ac_parent_macro_name.clone(),
+                                ac.clone(),
                                 bytes,
                                 bubbled_macro_invocation,
                                 contract,
@@ -97,7 +123,7 @@ pub fn bubble_arg_call(
                         };
                     }
                     MacroArg::Ident(iden) => {
-                        tracing::debug!(target: "codegen", "Found MacroArg::Ident IN \"{}\" Macro Invocation: \"{}\"!", macro_invoc.1.macro_name, iden);
+                        tracing::debug!(target: "codegen", "Found MacroArg::Ident IN \"{}\" Macro Invocation: \"{}\"!", target_macro_invoc.1.macro_name, iden);
 
                         // Check for a constant first
                         if let Some(constant) = contract
@@ -118,7 +144,7 @@ pub fn bubble_arg_call(
                                     format!("{:02x}{hex_literal}", 95 + hex_literal.len() / 2)
                                 }
                                 ConstVal::BuiltinFunctionCall(bf) => {
-                                    Codegen::gen_builtin_bytecode(evm_version, contract, bf, macro_invoc.1.span.clone())?
+                                    Codegen::gen_builtin_bytecode(evm_version, contract, bf, target_macro_invoc.1.span.clone())?
                                 }
                                 ConstVal::FreeStoragePointer(fsp) => {
                                     // If this is reached in codegen stage,
@@ -147,69 +173,77 @@ pub fn bubble_arg_call(
                             bytes.push((*offset, Bytes(format!("{}xxxx", Opcode::Push2))));
                             jump_table.insert(
                                 *offset,
-                                vec![Jump { label: iden.to_owned(), bytecode_index: 0, span: macro_invoc.1.span.clone() }],
+                                vec![Jump { label: iden.to_owned(), bytecode_index: 0, span: target_macro_invoc.1.span.clone() }],
                             );
                             *offset += 3;
                         }
                     }
                     MacroArg::MacroCall(inner_mi) => {
-                        tracing::debug!(target: "codegen", "Processing nested MacroCall: {}", inner_mi.macro_name);
+                        if !inner_mi.args.is_empty() {
+                            // This is an inline expansion case (macro with arguments)
+                            // It should have been pre-evaluated, so skip it here
+                            tracing::debug!(target: "codegen", "Inline MacroCall argument {} already pre-evaluated, skipping", inner_mi.macro_name);
+                        } else {
+                            // This is a parameter substitution case (macro without arguments)
+                            // Process it normally for substitution where <arg> appears
+                            tracing::debug!(target: "codegen", "Processing parameter substitution MacroCall: {}", inner_mi.macro_name);
 
-                        if let Some(called_macro) = contract.find_macro_by_name(&inner_mi.macro_name) {
-                            tracing::debug!(target: "codegen", "Found valid macro: {}", called_macro.name);
+                            if let Some(called_macro) = contract.find_macro_by_name(&inner_mi.macro_name) {
+                                tracing::debug!(target: "codegen", "Found valid macro: {}", called_macro.name);
 
-                            let mut new_scope = scope.to_vec();
-                            new_scope.push(called_macro);
-                            let mut new_mis = mis.to_vec();
-                            new_mis.push((starting_offset, inner_mi.clone()));
+                                let mut new_scope = scope.to_vec();
+                                new_scope.push(called_macro);
+                                let mut new_mis = mis.to_vec();
+                                new_mis.push((starting_offset, inner_mi.clone()));
 
-                            match Codegen::macro_to_bytecode(
-                                evm_version,
-                                called_macro,
-                                contract,
-                                &mut new_scope,
-                                starting_offset,
-                                &mut new_mis,
-                                false,
-                                None,
-                            ) {
-                                Ok(expanded_macro) => {
-                                    let byte_len: usize = expanded_macro.bytes.iter().map(|(_, b)| b.0.len() / 2).sum();
-                                    bytes.extend(expanded_macro.bytes);
-                                    *offset += byte_len;
+                                match Codegen::macro_to_bytecode(
+                                    evm_version,
+                                    called_macro,
+                                    contract,
+                                    &mut new_scope,
+                                    starting_offset,
+                                    &mut new_mis,
+                                    false,
+                                    None,
+                                ) {
+                                    Ok(expanded_macro) => {
+                                        let byte_len: usize = expanded_macro.bytes.iter().map(|(_, b)| b.0.len() / 2).sum();
+                                        bytes.extend(expanded_macro.bytes);
+                                        *offset += byte_len;
 
-                                    // Bubble up unmatched jumps from the expanded macro to the parent scope
-                                    // This is crucial for label resolution across macro boundaries
-                                    for mut unmatched_jump in expanded_macro.unmatched_jumps {
-                                        // Adjust the bytecode index to account for the current offset
-                                        unmatched_jump.bytecode_index += starting_offset;
+                                        // Bubble up unmatched jumps from the expanded macro to the parent scope
+                                        // This is crucial for label resolution across macro boundaries
+                                        for mut unmatched_jump in expanded_macro.unmatched_jumps {
+                                            // Adjust the bytecode index to account for the current offset
+                                            unmatched_jump.bytecode_index += starting_offset;
 
-                                        // Add the unmatched jump to the parent's jump table
-                                        let existing_jumps =
-                                            jump_table.get(&unmatched_jump.bytecode_index).cloned().unwrap_or_else(Vec::new);
-                                        let mut new_jumps = existing_jumps;
-                                        new_jumps.push(unmatched_jump.clone());
-                                        jump_table.insert(unmatched_jump.bytecode_index, new_jumps);
+                                            // Add the unmatched jump to the parent's jump table
+                                            let existing_jumps =
+                                                jump_table.get(&unmatched_jump.bytecode_index).cloned().unwrap_or_else(Vec::new);
+                                            let mut new_jumps = existing_jumps;
+                                            new_jumps.push(unmatched_jump.clone());
+                                            jump_table.insert(unmatched_jump.bytecode_index, new_jumps);
 
-                                        tracing::debug!(target: "codegen", "Bubbled up unmatched jump for label '{}' at index {} from MacroCall", 
-                                                       unmatched_jump.label, unmatched_jump.bytecode_index);
+                                            tracing::debug!(target: "codegen", "Bubbled up unmatched jump for label '{}' at index {} from MacroCall", 
+                                                           unmatched_jump.label, unmatched_jump.bytecode_index);
+                                        }
+                                    }
+                                    Err(e) => {
+                                        return Err(e);
                                     }
                                 }
-                                Err(e) => {
-                                    return Err(e);
-                                }
+                            } else {
+                                return Err(CodegenError {
+                                    kind: CodegenErrorKind::MissingMacroDefinition(inner_mi.macro_name.clone()),
+                                    span: inner_mi.span.clone(),
+                                    token: None,
+                                });
                             }
-                        } else {
-                            return Err(CodegenError {
-                                kind: CodegenErrorKind::MissingMacroDefinition(inner_mi.macro_name.clone()),
-                                span: inner_mi.span.clone(),
-                                token: None,
-                            });
                         }
                     }
                 }
             } else {
-                tracing::warn!(target: "codegen", "\"{}\" FOUND IN MACRO DEF BUT NOT IN MACRO INVOCATION!", arg_name);
+                tracing::warn!(target: "codegen", "\"{}\" FOUND IN MACRO DEF \"{}\" BUT NOT IN MACRO INVOCATION \"{}\"!", arg_name, target_macro.name, target_macro_invoc.1.macro_name);
             }
         } else {
             // Argument not found in current macro parameters.
@@ -229,6 +263,7 @@ pub fn bubble_arg_call(
 
                 return bubble_arg_call(
                     evm_version,
+                    arg_parent_macro_name,
                     arg_name,
                     bytes,
                     bubbled_macro_invocation,

@@ -413,9 +413,12 @@ impl MacroDefinition {
                     // Constant needs to be evaluated at the top-level
                     inner_irbytes.push(IRBytes { ty: IRByteType::Constant(name.to_owned()), span: &statement.span });
                 }
-                StatementType::ArgCall(arg_name) => {
+                StatementType::ArgCall(parent_macro_name, arg_name) => {
                     // Arg call needs to use a destination defined in the calling macro context
-                    inner_irbytes.push(IRBytes { ty: IRByteType::ArgCall(arg_name.to_owned()), span: &statement.span });
+                    inner_irbytes.push(IRBytes {
+                        ty: IRByteType::ArgCall(parent_macro_name.to_owned(), arg_name.to_owned()),
+                        span: &statement.span,
+                    });
                 }
                 StatementType::LabelCall(jump_to) => {
                     /* Jump To doesn't translate directly to bytecode */
@@ -464,7 +467,7 @@ pub struct MacroInvocation {
     pub span: AstSpan,
 }
 
-/// An argument passed when invoking a maco
+/// An argument passed when invoking a macro
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum MacroArg {
     /// Macro Literal Argument
@@ -472,11 +475,22 @@ pub enum MacroArg {
     /// Macro Iden String Argument
     Ident(String),
     /// An Arg Call
-    ArgCall(String, AstSpan),
+    ArgCall(ArgCall),
     /// A Nested Macro Call
     MacroCall(MacroInvocation),
     /// Opcode Argument
     Opcode(Opcode),
+}
+
+/// An argument call
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct ArgCall {
+    /// The Macro Name
+    pub macro_name: String,
+    /// The name of the argument
+    pub name: String,
+    /// The span of the argument call
+    pub span: AstSpan,
 }
 
 /// Free Storage Pointer Unit Struct
@@ -681,7 +695,8 @@ pub enum StatementType {
     /// A Constant Push
     Constant(String),
     /// An Arg Call
-    ArgCall(String),
+    /// Macro name and argument name
+    ArgCall(String, String),
     /// A Label
     Label(Label),
     /// A Label Reference/Call
@@ -700,7 +715,7 @@ impl Display for StatementType {
                 write!(f, "MACRO INVOCATION: {}", m.macro_name)
             }
             StatementType::Constant(c) => write!(f, "CONSTANT: {c}"),
-            StatementType::ArgCall(c) => write!(f, "ARG CALL: {c}"),
+            StatementType::ArgCall(m, c) => write!(f, "ARG CALL in {m}: {c}"),
             StatementType::Label(l) => write!(f, "LABEL: {}", l.name),
             StatementType::LabelCall(l) => write!(f, "LABEL CALL: {l}"),
             StatementType::BuiltinFunctionCall(b) => {

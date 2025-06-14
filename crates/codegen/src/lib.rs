@@ -354,6 +354,57 @@ impl Codegen {
         let mut ccsi = CircularCodeSizeIndices::new();
         let circular_codesize_invocations = circular_codesize_invocations.unwrap_or(&mut ccsi);
 
+        // Pre-evaluate MacroCall arguments that have arguments themselves (inline expansion)
+        // This ensures proper execution order for cases like MUL(ADD(<x>, <y>), 0x02)
+        if let Some(macro_invoc) = mis.last() {
+            for arg in &macro_invoc.1.args {
+                if let MacroArg::MacroCall(inner_mi) = arg {
+                    // Only pre-evaluate if this macro call has arguments (inline expansion case)
+                    if !inner_mi.args.is_empty() {
+                        tracing::debug!(target: "codegen", "Pre-evaluating inline MacroCall argument: {}", inner_mi.macro_name);
+
+                        if let Some(called_macro) = contract.find_macro_by_name(&inner_mi.macro_name) {
+                            let mut new_scope = scope.to_vec();
+                            new_scope.push(called_macro);
+                            let mut new_mis = mis.to_vec();
+                            new_mis.push((offset, inner_mi.clone()));
+
+                            match Codegen::macro_to_bytecode(
+                                evm_version,
+                                called_macro,
+                                contract,
+                                &mut new_scope,
+                                offset,
+                                &mut new_mis,
+                                false,
+                                None,
+                            ) {
+                                Ok(expanded_macro) => {
+                                    let byte_len: usize = expanded_macro.bytes.iter().map(|(_, b)| b.0.len() / 2).sum();
+                                    bytes.extend(expanded_macro.bytes);
+                                    offset += byte_len;
+
+                                    // Bubble up unmatched jumps
+                                    for mut unmatched_jump in expanded_macro.unmatched_jumps {
+                                        unmatched_jump.bytecode_index += offset - byte_len;
+                                        let existing_jumps = jump_table.get(&unmatched_jump.bytecode_index).cloned().unwrap_or_default();
+                                        let mut new_jumps = existing_jumps;
+                                        new_jumps.push(unmatched_jump.clone());
+                                        jump_table.insert(unmatched_jump.bytecode_index, new_jumps);
+                                    }
+
+                                    tracing::debug!(target: "codegen", "Pre-evaluated inline MacroCall {} produced {} bytes", inner_mi.macro_name, byte_len);
+                                }
+                                Err(e) => {
+                                    return Err(e);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // Loop through all intermediate bytecode representations generated from the AST
         for ir_byte in ir_bytes.iter() {
             let starting_offset = offset;
@@ -391,12 +442,13 @@ impl Codegen {
                     )?;
                     bytes.append(&mut push_bytes);
                 }
-                IRByteType::ArgCall(arg_name) => {
+                IRByteType::ArgCall(parent_macro_name, arg_name) => {
                     // Bubble up arg call by looking through the previous scopes.
                     // Once the arg value is found, add it to `bytes`
                     bubble_arg_call(
                         evm_version,
-                        arg_name,
+                        parent_macro_name.to_owned(),
+                        arg_name.to_owned(),
                         &mut bytes,
                         macro_def,
                         contract,
