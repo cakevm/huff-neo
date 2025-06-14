@@ -215,3 +215,37 @@ fn test_undefined_argcall_in_macrocall_errors() {
     assert!(result.is_err());
     assert_eq!(result.unwrap_err().kind, CodegenErrorKind::MissingArgumentDefinition(String::from("undefined_arg")));
 }
+
+#[test]
+fn test_nested_macro_call_with_argcall() {
+    // Pattern: RUN(arg1, arg2) -> MUL(ADD_TWO(<arg1>), <arg2>)
+    let source = r#"
+        #define macro ADD_TWO(val) = takes(0) returns(1) {
+            <val> 0x02 add
+        }
+
+        #define macro MUL(a, b) = takes(2) returns(1) {
+            <a> <b> mul
+        }
+
+        #define macro RUN(arg1, arg2) = takes(0) returns(1) {
+            MUL(ADD_TWO(<arg1>), <arg2>)
+        }
+
+        #define macro MAIN() = takes(0) returns(1) {
+            RUN(0x05, 0x03)
+        }
+    "#;
+
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    let main_bytecode = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+
+    // Expected: PUSH1 0x05, PUSH1 0x02, ADD, PUSH1 0x03, MUL
+    assert_eq!(main_bytecode.to_lowercase(), "6005600201600302");
+}
