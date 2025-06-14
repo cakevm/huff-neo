@@ -391,12 +391,14 @@ impl Codegen {
                     )?;
                     bytes.append(&mut push_bytes);
                 }
-                IRByteType::ArgCall(arg_name) => {
+                IRByteType::ArgCall(parent_macro_name, arg_name) => {
                     // Bubble up arg call by looking through the previous scopes.
                     // Once the arg value is found, add it to `bytes`
+                    println!("BUBBLE UP ARG CALL: {} {}", parent_macro_name, arg_name);
                     bubble_arg_call(
                         evm_version,
-                        arg_name,
+                        parent_macro_name.to_owned(),
+                        arg_name.to_owned(),
                         &mut bytes,
                         macro_def,
                         contract,

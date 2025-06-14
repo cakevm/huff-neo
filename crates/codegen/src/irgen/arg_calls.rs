@@ -11,7 +11,8 @@ use std::str::FromStr;
 #[allow(clippy::too_many_arguments)]
 pub fn bubble_arg_call(
     evm_version: &EVMVersion,
-    arg_name: &str,
+    arg_parent_macro_name: String,
+    arg_name: String,
     bytes: &mut Vec<(usize, Bytes)>,
     macro_def: &MacroDefinition,
     contract: &Contract,
@@ -22,12 +23,19 @@ pub fn bubble_arg_call(
     jump_table: &mut JumpTable,
     span: &AstSpan,
 ) -> Result<(), CodegenError> {
+    println!(
+        "bubble_arg_call: {} -> {}, [{:?}]",
+        arg_parent_macro_name,
+        arg_name,
+        scope.iter().map(|m| m.name.clone()).collect::<Vec<_>>()
+    );
+
     let starting_offset = *offset;
 
     if let Some(macro_invoc) = mis.last() {
         // Literal, Ident & Arg Call Check
         // First get this arg_nam position in the macro definition params
-        if let Some(pos) = macro_def.parameters.iter().position(|r| r.name.as_ref().is_some_and(|s| s.eq(arg_name))) {
+        if let Some(pos) = macro_def.parameters.iter().position(|r| r.name.as_ref().is_some_and(|s| s.eq(&arg_name))) {
             tracing::info!(target: "codegen", "GOT \"{}\" POS IN ARG LIST: {}", arg_name, pos);
 
             if let Some(arg) = macro_invoc.1.args.get(pos) {
@@ -45,7 +53,7 @@ pub fn bubble_arg_call(
                         *offset += b.0.len() / 2;
                         bytes.push((starting_offset, b));
                     }
-                    MacroArg::ArgCall(ac, arg_span) => {
+                    MacroArg::ArgCall(ArgCall { macro_name: ac_parent_macro_name, name: ac, span: arg_span }) => {
                         tracing::info!(target: "codegen", "GOT ARG CALL \"{}\" ARG FROM MACRO INVOCATION", ac);
                         tracing::debug!(target: "codegen", "~~~ BUBBLING UP ARG CALL");
                         let scope_len = scope.len();
@@ -67,11 +75,11 @@ pub fn bubble_arg_call(
                             }
                         };
                         let mis_len = mis.len();
-                        let ac_ = &ac.to_string();
                         return if last_mi.1.macro_name.eq(&macro_def.name) {
                             bubble_arg_call(
                                 evm_version,
-                                ac_,
+                                ac_parent_macro_name.clone(),
+                                ac.clone(),
                                 bytes,
                                 bubbled_macro_invocation,
                                 contract,
@@ -84,7 +92,8 @@ pub fn bubble_arg_call(
                         } else {
                             bubble_arg_call(
                                 evm_version,
-                                ac_,
+                                ac_parent_macro_name.clone(),
+                                ac.clone(),
                                 bytes,
                                 bubbled_macro_invocation,
                                 contract,
@@ -229,6 +238,7 @@ pub fn bubble_arg_call(
 
                 return bubble_arg_call(
                     evm_version,
+                    arg_parent_macro_name,
                     arg_name,
                     bytes,
                     bubbled_macro_invocation,

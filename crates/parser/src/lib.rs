@@ -627,7 +627,7 @@ impl Parser {
                     match self.current_token.kind {
                         TokenKind::OpenParen => {
                             // Parse Macro Call
-                            let lit_args = self.parse_macro_call_args()?;
+                            let lit_args = self.parse_macro_call_args(macro_name.to_owned())?;
                             // Grab all spans following our macro invocation spam
                             if let Some(i) = self.spans.iter().position(|s| s.eq(&curr_spans[0])) {
                                 curr_spans.append(&mut self.spans[(i + 1)..].to_vec());
@@ -651,7 +651,7 @@ impl Parser {
                     let mut curr_spans = vec![self.current_token.span.clone()];
                     self.consume();
                     self.check_duplicate_label(contract, macro_name, l.to_string(), self.current_token.span.clone())?;
-                    let inner_statements: Vec<Statement> = self.parse_label()?;
+                    let inner_statements: Vec<Statement> = self.parse_label(macro_name.to_owned())?;
                     inner_statements.iter().for_each(|a| curr_spans.extend_from_slice(a.span.inner_ref()));
                     tracing::info!(target: "parser", "PARSED LABEL \"{}\" INSIDE MACRO WITH {} STATEMENTS.", l, inner_statements.len());
                     statements.push(Statement {
@@ -667,7 +667,8 @@ impl Parser {
                 TokenKind::LeftAngle => {
                     let (arg_call, arg_span) = self.parse_arg_call()?;
                     tracing::info!(target: "parser", "PARSING MACRO BODY: [ARG CALL: {}]", arg_call);
-                    statements.push(Statement { ty: StatementType::ArgCall(arg_call), span: AstSpan(vec![arg_span]) });
+                    statements
+                        .push(Statement { ty: StatementType::ArgCall(macro_name.to_owned(), arg_call), span: AstSpan(vec![arg_span]) });
                 }
                 TokenKind::BuiltinFunction(f) => {
                     let mut curr_spans = vec![self.current_token.span.clone()];
@@ -711,7 +712,7 @@ impl Parser {
     ///     TRANSFER()
     ///     0x20 0x00 return
     /// ```
-    pub fn parse_label(&mut self) -> Result<Vec<Statement>, ParserError> {
+    pub fn parse_label(&mut self, parent_macro_name: String) -> Result<Vec<Statement>, ParserError> {
         let mut statements: Vec<Statement> = Vec::new();
         self.match_kind(TokenKind::Colon)?;
         while !self.check(TokenKind::Label("NEXT_LABEL".to_string())) && !self.check(TokenKind::CloseBrace) {
@@ -736,7 +737,7 @@ impl Parser {
                     match self.current_token.kind.clone() {
                         TokenKind::OpenParen => {
                             // Parse Macro Call
-                            let lit_args = self.parse_macro_call_args()?;
+                            let lit_args = self.parse_macro_call_args(ident_str.to_string())?;
                             // Grab all spans following our macro invocation spam
                             if let Some(i) = self.spans.iter().position(|s| s.eq(&curr_spans[0])) {
                                 curr_spans.append(&mut self.spans[(i + 1)..].to_vec());
@@ -764,7 +765,8 @@ impl Parser {
                 TokenKind::LeftAngle => {
                     let (arg_call, arg_span) = self.parse_arg_call()?;
                     tracing::info!(target: "parser", "PARSING LABEL BODY: [ARG CALL: {}]", arg_call);
-                    statements.push(Statement { ty: StatementType::ArgCall(arg_call), span: AstSpan(vec![arg_span]) });
+                    statements
+                        .push(Statement { ty: StatementType::ArgCall(parent_macro_name.clone(), arg_call), span: AstSpan(vec![arg_span]) });
                 }
                 TokenKind::BuiltinFunction(f) => {
                     let mut curr_spans = vec![self.current_token.span.clone()];
@@ -1022,7 +1024,7 @@ impl Parser {
     }
 
     /// Parse the arguments of a macro call.
-    pub fn parse_macro_call_args(&mut self) -> Result<Vec<MacroArg>, ParserError> {
+    pub fn parse_macro_call_args(&mut self, macro_name: String) -> Result<Vec<MacroArg>, ParserError> {
         let mut args = vec![];
         self.match_kind(TokenKind::OpenParen)?;
         while !self.check(TokenKind::CloseParen) {
@@ -1042,7 +1044,7 @@ impl Parser {
                         let mut curr_spans = vec![self.current_token.span.clone()];
                         self.match_kind(TokenKind::Ident("MACRO_NAME".to_string()))?;
                         // Parse Macro Call
-                        let lit_args = self.parse_macro_call_args()?;
+                        let lit_args = self.parse_macro_call_args(macro_name.clone())?;
                         // Grab all spans following our macro invocation spam
                         if let Some(i) = self.spans.iter().position(|s| s.eq(&curr_spans[0])) {
                             curr_spans.append(&mut self.spans[(i + 1)..].to_vec());
@@ -1066,7 +1068,11 @@ impl Parser {
                     // GET_SLOT_FROM_KEY(<mem_ptr>)  // [slot]
                     self.consume();
                     let arg_name = self.match_kind(TokenKind::Ident("ARG_CALL".to_string()))?.to_string();
-                    args.push(MacroArg::ArgCall(arg_name, AstSpan(vec![self.current_token.span.clone()])));
+                    args.push(MacroArg::ArgCall(ArgCall {
+                        macro_name: macro_name.clone(),
+                        name: arg_name,
+                        span: AstSpan(vec![self.current_token.span.clone()]),
+                    }));
                     self.match_kind(TokenKind::RightAngle)?;
                 }
                 arg => {
