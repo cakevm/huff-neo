@@ -16,7 +16,6 @@ huff-neo-codegen.workspace = true
 huff-neo-utils.workspace = true
 
 
-alloy-consensus.workspace = true
 alloy-evm.workspace = true
 alloy-primitives.workspace = true
 anvil.workspace = true
@@ -32,5 +31,5 @@ serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 yansi.workspace = true
-# Workaround to pin the version. See root Cargo.toml for more details.
-crunchy.workspace = true
+# Pin version, see root Cargo.toml for details
+foundry-compilers-artifacts-solc.workspace = true

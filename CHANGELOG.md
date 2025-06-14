@@ -3,6 +3,7 @@
 # Huff Neo Compiler changelog
 
 ## [Unreleased]
+- Update dependencies to the latest version.
 
 ## [1.1.12] - 2025-05-30
 - Clean release after CI fixes.

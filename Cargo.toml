@@ -21,44 +21,44 @@ huff-neo-parser = { path = "crates/parser" }
 huff-neo-test-runner = { path = "crates/test-runner" }
 huff-neo-utils = { path = "crates/utils" }
 
-alloy-consensus = { version = "1.0.7", default-features = false }
+alloy-consensus = { version = "1.0.9", default-features = false }
 alloy-dyn-abi = { version = "1.1.2", default-features = false }
 alloy-evm = { version = "0.10.0", default-features = false }
 alloy-primitives = { version = "1.1.2", default-features = false, features = ["std"] }
 
-anvil = { git = "https://github.com/foundry-rs/foundry", rev = "7e68208" }
+anvil = { git = "https://github.com/foundry-rs/foundry", rev = "d22e730" }
 cfg-if = "1.0.0"
 clap = { version = "4.5.32", features = ["derive"] }
 comfy-table = "7.1.4"
 eyre = "0.6.12"
 
-foundry-cli = { git = "https://github.com/foundry-rs/foundry", rev = "7e68208" }
-foundry-common = { git = "https://github.com/foundry-rs/foundry", rev = "7e68208" }
-foundry-config = { git = "https://github.com/foundry-rs/foundry", rev = "7e68208" }
-foundry-debugger = { git = "https://github.com/foundry-rs/foundry", rev = "7e68208" }
-foundry-evm = { git = "https://github.com/foundry-rs/foundry", rev = "7e68208" }
-foundry-evm-traces = { git = "https://github.com/foundry-rs/foundry", rev = "7e68208" }
+foundry-cli = { git = "https://github.com/foundry-rs/foundry", rev = "d22e730" }
+foundry-common = { git = "https://github.com/foundry-rs/foundry", rev = "d22e730" }
+foundry-config = { git = "https://github.com/foundry-rs/foundry", rev = "d22e730" }
+foundry-debugger = { git = "https://github.com/foundry-rs/foundry", rev = "d22e730" }
+foundry-evm = { git = "https://github.com/foundry-rs/foundry", rev = "d22e730" }
+foundry-evm-traces = { git = "https://github.com/foundry-rs/foundry", rev = "d22e730" }
+# Pin version because of breaking enum lowfidelity::NodeType::UserDefinedTypeName
+foundry-compilers-artifacts-solc = "=0.17.1"
 hex = "0.4.3"
-indexmap = "2.8.0"
+indexmap = "2.9.0"
 itertools = "0.14.0"
 js-sys = { version = "0.3.77" }
 lazy_static = "1.5.0"
-op-revm = { version = "5.0.0", default-features = false }
+op-revm = { version = "5.0.1", default-features = false }
 phf = { version = "0.11.3", features = ["macros"] }
 rand = "0.9.0"
 regex = "1.11.1"
-revm = { version = "24.0.0", default-features = false, features = ["optional_no_base_fee"] }
-shadow-rs = "1.0.1"
+revm = { version = "24.0.1", default-features = false, features = ["optional_no_base_fee"] }
+shadow-rs = "1.2.0"
 thiserror = "2.0.12"
-tokio = "1.44.2"
+tokio = "1.45.1"
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", default-features = false, features = ["env-filter", "fmt"] }
-uuid = { version = "1.16.0", default-features = false, features = ["js", "v4"] }
+uuid = { version = "1.17.0", default-features = false, features = ["js", "v4"] }
 walkdir = "2.5.0"
 wasm-bindgen = "0.2.100"
 yansi = "1.0.1"
-# Pin version als workaround for: https://github.com/eira-fransham/crunchy/issues/13
-crunchy = "=0.2.2"
 
 # serde
 serde = { version = "1.0.219", features = ["derive", "rc"] }
