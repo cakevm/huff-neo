@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 - Update dependencies to the latest version.
+- Fix nested macro argument resolution (fixes #60, #48).
+- Fix label resolution for macros passed as arguments (fixes #62).
 
 ## [1.1.12] - 2025-05-30
 - Clean release after CI fixes.
