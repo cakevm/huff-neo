@@ -4,6 +4,9 @@
 
 ## [Unreleased]
 
+## [1.1.14] - 2025-06-17
+- Fix using correct chain id for transactions in test runner.
+
 ## [1.1.13] - 2025-06-14
 - Update dependencies to the latest version.
 - Fix nested macro argument resolution (fixes #60, #48).

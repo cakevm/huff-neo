@@ -31,5 +31,3 @@ serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 yansi.workspace = true
-# Pin version, see root Cargo.toml for details
-foundry-compilers-artifacts-solc.workspace = true
