@@ -114,6 +114,7 @@ impl TestRunner {
         let bootstrap = format!("{contract_size}80{contract_code_offset}3d393df3{code}");
 
         let mut env = self.env.clone();
+        env.tx.chain_id = Some(env.evm_env.chainid());
         env.tx.kind = TransactTo::Create;
         // The following should never panic, as any potential compilation error
         // as well as an uneven number of hex nibbles should be caught in the
@@ -159,6 +160,7 @@ impl TestRunner {
         <DB as Database>::Error: std::fmt::Debug,
     {
         let mut env = self.env.clone();
+        env.tx.chain_id = Some(env.evm_env.chainid());
         env.tx.kind = TransactTo::Call(transact_to);
         env.tx.data = hex::decode(data).expect("Invalid calldata").into();
         env.tx.value = value;
