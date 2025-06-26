@@ -177,7 +177,7 @@ impl<'t> HuffTester<'t> {
 
         let mut debugger = Debugger::builder().traces(traces.iter().filter(|(t, _)| t.is_execution()).cloned().collect()).build();
 
-        debugger.try_run_tui().map_err(|e| RunnerError::GenericError(format!("{:?}", e)))?;
+        debugger.try_run_tui().map_err(|e| RunnerError::GenericError(format!("{e:?}")))?;
 
         results
     }

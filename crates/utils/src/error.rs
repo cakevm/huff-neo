@@ -137,7 +137,7 @@ impl<W: Write> Report<W> for LexicalError {
                 write!(f.out, "Invalid hex literal '{str}'")
             }
             LexicalErrorKind::StackUnderflow => write!(f.out, "Stack underflow"),
-            LexicalErrorKind::UnexpectedContext(context) => write!(f.out, "Unexpected context: {:?}", context),
+            LexicalErrorKind::UnexpectedContext(context) => write!(f.out, "Unexpected context: {context:?}"),
         }
     }
 }

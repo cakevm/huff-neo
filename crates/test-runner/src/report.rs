@@ -1,4 +1,5 @@
 use crate::prelude::{ReportKind, TestResult, TestStatus};
+use alloy_primitives::map::HashMap;
 use comfy_table::{Attribute, Cell, Color, ContentArrangement, Row, Table, modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL};
 use foundry_cli::utils::{TraceResult, handle_traces};
 use foundry_config::Config;
@@ -108,7 +109,7 @@ async fn print_call_trace(result: &TestResult, tracer: TracingInspector) -> eyre
     let traces = vec![(TraceKind::Execution, SparsedTraceArena { arena: tracer.into_traces(), ignored: Default::default() })];
     let trace_tesult = TraceResult { success: result.status == TestStatus::Success, traces: Some(traces), gas_used: result.gas };
 
-    handle_traces(trace_tesult, &config, None, vec![], false, false, false).await?;
+    handle_traces(trace_tesult, &config, None, &HashMap::default(), vec![], false, false, false).await?;
 
     Ok(())
 }

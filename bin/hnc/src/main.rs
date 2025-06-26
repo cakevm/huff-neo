@@ -174,7 +174,7 @@ fn main() {
                     bytecode_res
                         .label_indices
                         .iter()
-                        .map(|(label, index)| Row::from(vec![Cell::new(label), Cell::new(format!("{:#04x}", index))])),
+                        .map(|(label, index)| Row::from(vec![Cell::new(label), Cell::new(format!("{index:#04x}"))])),
                 );
             println!("{table}");
         } else {
@@ -357,7 +357,7 @@ fn main() {
                                 let arg_input = get_input(&format!(
                                     "Enter a {:?} for constructor param{}:",
                                     input.kind,
-                                    (!input.name.is_empty()).then(|| format!(" \"{}\"", input.name)).unwrap_or_default()
+                                    if !input.name.is_empty() { format!(" \"{}\"", input.name) } else { Default::default() }
                                 ));
                                 let encoded =
                                     Codegen::encode_constructor_args(vec![arg_input]).iter().fold(String::default(), |acc, str| {
