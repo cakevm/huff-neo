@@ -122,6 +122,7 @@ pub fn statement_gen<'a>(
                     new_jumps.push(j.clone());
                     jump_table.insert(new_index, new_jumps);
                 }
+                tracing::debug!(target: "codegen", "Extending table_instances with {} items from macro {}", res.table_instances.len(), ir_macro.name);
                 table_instances.extend(res.table_instances);
                 label_indices.extend(res.label_indices);
                 // Only add tables that are not already in the utilized tables
