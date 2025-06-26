@@ -393,6 +393,14 @@ impl Codegen {
                                         jump_table.insert(unmatched_jump.bytecode_index, new_jumps);
                                     }
 
+                                    // Bubble up table instances
+                                    tracing::info!(target: "codegen", "Found {} table instances to bubble up from {}", expanded_macro.table_instances.len(), inner_mi.macro_name);
+                                    for mut table_instance in expanded_macro.table_instances {
+                                        tracing::info!(target: "codegen", "Bubbling up table instance {} from offset {} to offset {}", table_instance.label, table_instance.bytecode_index, table_instance.bytecode_index + offset - byte_len);
+                                        table_instance.bytecode_index += offset - byte_len;
+                                        table_instances.push(table_instance);
+                                    }
+
                                     tracing::debug!(target: "codegen", "Pre-evaluated inline MacroCall {} produced {} bytes", inner_mi.macro_name, byte_len);
                                 }
                                 Err(e) => {
@@ -456,6 +464,8 @@ impl Codegen {
                         &mut offset,
                         mis,
                         &mut jump_table,
+                        &mut table_instances,
+                        &mut utilized_tables,
                         ir_byte.span,
                     )?
                 }

@@ -57,6 +57,7 @@ pub fn builtin_function_gen<'a>(
             };
             // Make sure the table exists
             if let Some(t) = contract.find_table_by_name(first_arg.name.as_ref().unwrap()) {
+                tracing::debug!(target: "codegen", "Creating table instance for {} at offset {}", first_arg.name.as_ref().unwrap(), *offset);
                 table_instances.push(Jump {
                     label: first_arg.name.as_ref().unwrap().to_owned(),
                     bytecode_index: *offset,

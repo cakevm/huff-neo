@@ -21,6 +21,8 @@ pub fn bubble_arg_call(
     // mis: Parent macro invocations and their indices
     mis: &mut [(usize, MacroInvocation)],
     jump_table: &mut JumpTable,
+    table_instances: &mut Jumps,
+    utilized_tables: &mut Vec<TableDefinition>,
     span: &AstSpan,
 ) -> Result<(), CodegenError> {
     tracing::debug!(
@@ -104,6 +106,8 @@ pub fn bubble_arg_call(
                                 offset,
                                 &mut mis[..mis_len.saturating_sub(1)].to_vec(),
                                 jump_table,
+                                table_instances,
+                                utilized_tables,
                                 arg_span,
                             )
                         } else {
@@ -118,6 +122,8 @@ pub fn bubble_arg_call(
                                 offset,
                                 mis,
                                 jump_table,
+                                table_instances,
+                                utilized_tables,
                                 span,
                             )
                         };
@@ -227,6 +233,22 @@ pub fn bubble_arg_call(
                                             tracing::debug!(target: "codegen", "Bubbled up unmatched jump for label '{}' at index {} from MacroCall", 
                                                            unmatched_jump.label, unmatched_jump.bytecode_index);
                                         }
+
+                                        // Bubble up table instances from the expanded macro to the parent scope
+                                        // This is crucial for table resolution across macro boundaries
+                                        for table_instance in expanded_macro.table_instances {
+                                            table_instances.push(table_instance.clone());
+
+                                            tracing::debug!(target: "codegen", "Bubbled up table instance for label '{}' at index {} from MacroCall", 
+                                                           table_instance.label, table_instance.bytecode_index);
+                                        }
+
+                                        // Bubble up utilized tables from the expanded macro to the parent scope
+                                        for table in expanded_macro.utilized_tables {
+                                            if !utilized_tables.contains(&table) {
+                                                utilized_tables.push(table);
+                                            }
+                                        }
                                     }
                                     Err(e) => {
                                         return Err(e);
@@ -272,6 +294,8 @@ pub fn bubble_arg_call(
                     offset,
                     new_mis,
                     jump_table,
+                    table_instances,
+                    utilized_tables,
                     span,
                 );
             } else {
