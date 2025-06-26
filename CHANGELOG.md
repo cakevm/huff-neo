@@ -3,6 +3,7 @@
 # Huff Neo Compiler changelog
 
 ## [Unreleased]
+- Fix table instance propagation in nested macro calls (fixes #76).
 
 ## [1.1.14] - 2025-06-17
 - Fix using correct chain id for transactions in test runner.
