@@ -1124,7 +1124,7 @@ impl Parser {
                     } else {
                         return Err(ParserError {
                             kind: ParserErrorKind::InvalidTableStatement(format!("{}", s.ty)),
-                            hint: Some(format!("Invalid table statement. Must be valid hex bytecode. Got: {:?}", s)),
+                            hint: Some(format!("Invalid table statement. Must be valid hex bytecode. Got: {s:?}")),
                             spans: AstSpan(s.span.inner_ref().to_vec()),
                             cursor: self.cursor,
                         });
@@ -1134,7 +1134,7 @@ impl Parser {
             }
         };
 
-        let table_size = size.map(|s| str_to_bytes32(format!("{:02x}", s).as_str()));
+        let table_size = size.map(|s| str_to_bytes32(format!("{s:02x}").as_str()));
         Ok(TableDefinition::new(table_name, kind, table_statements, table_size, AstSpan(self.spans.clone())))
     }
 

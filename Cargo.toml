@@ -10,7 +10,7 @@ homepage = "https://github.com/cakevm/huff-neo"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/cakevm/huff-neo"
-rust-version = "1.87"
+rust-version = "1.88"
 version = "1.1.14"
 
 [workspace.dependencies]
@@ -22,29 +22,29 @@ huff-neo-test-runner = { path = "crates/test-runner" }
 huff-neo-utils = { path = "crates/utils" }
 
 alloy-consensus = { version = "1.0.9", default-features = false }
-alloy-dyn-abi = { version = "1.1.2", default-features = false }
+alloy-dyn-abi = { version = "1.2.1", default-features = false }
 alloy-evm = { version = "0.10.0", default-features = false }
-alloy-primitives = { version = "1.1.2", default-features = false, features = ["std"] }
+alloy-primitives = { version = "1.2.1", default-features = false, features = ["std"] }
 
-anvil = { git = "https://github.com/foundry-rs/foundry", rev = "b515c90" }
+anvil = { git = "https://github.com/foundry-rs/foundry", rev = "8f02485" }
 cfg-if = "1.0.0"
 clap = { version = "4.5.32", features = ["derive"] }
 comfy-table = "7.1.4"
 eyre = "0.6.12"
 
-foundry-cli = { git = "https://github.com/foundry-rs/foundry", rev = "b515c90" }
-foundry-common = { git = "https://github.com/foundry-rs/foundry", rev = "b515c90" }
-foundry-config = { git = "https://github.com/foundry-rs/foundry", rev = "b515c90" }
-foundry-debugger = { git = "https://github.com/foundry-rs/foundry", rev = "b515c90" }
-foundry-evm = { git = "https://github.com/foundry-rs/foundry", rev = "b515c90" }
-foundry-evm-traces = { git = "https://github.com/foundry-rs/foundry", rev = "b515c90" }
+foundry-cli = { git = "https://github.com/foundry-rs/foundry", rev = "8f02485" }
+foundry-common = { git = "https://github.com/foundry-rs/foundry", rev = "8f02485" }
+foundry-config = { git = "https://github.com/foundry-rs/foundry", rev = "8f02485" }
+foundry-debugger = { git = "https://github.com/foundry-rs/foundry", rev = "8f02485" }
+foundry-evm = { git = "https://github.com/foundry-rs/foundry", rev = "8f02485" }
+foundry-evm-traces = { git = "https://github.com/foundry-rs/foundry", rev = "8f02485" }
 
 indexmap = "2.9.0"
 itertools = "0.14.0"
 js-sys = { version = "0.3.77" }
 lazy_static = "1.5.0"
 op-revm = { version = "5.0.1", default-features = false }
-phf = { version = "0.11.3", features = ["macros"] }
+phf = { version = "0.12.1", features = ["macros"] }
 rand = "0.9.0"
 regex = "1.11.1"
 revm = { version = "24.0.1", default-features = false, features = ["optional_no_base_fee"] }

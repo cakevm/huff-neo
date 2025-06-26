@@ -35,7 +35,7 @@ impl TestRunner {
         DB: Database + DatabaseCommit,
         <DB as Database>::Error: std::fmt::Debug,
     {
-        let basic_account = db.basic(address).map_err(|e| RunnerError::GenericError(format!("{:?}", e)))?;
+        let basic_account = db.basic(address).map_err(|e| RunnerError::GenericError(format!("{e:?}")))?;
 
         let mut changes = HashMap::default();
         let account = match basic_account {
@@ -61,7 +61,7 @@ impl TestRunner {
         DB: Database + DatabaseCommit,
         <DB as Database>::Error: std::fmt::Debug,
     {
-        let basic_account = db.basic(address).map_err(|e| RunnerError::GenericError(format!("{:?}", e)))?;
+        let basic_account = db.basic(address).map_err(|e| RunnerError::GenericError(format!("{e:?}")))?;
 
         let mut changes = HashMap::default();
         let account = match basic_account {
@@ -126,20 +126,20 @@ impl TestRunner {
         let mut evm = Context::mainnet().with_block(env.evm_env.block_env).with_cfg(env.evm_env.cfg_env).with_db(db).build_mainnet();
 
         // Send our CREATE transaction
-        let er = evm.transact_commit(env.tx).map_err(|e| RunnerError::TransactError(format!("{:?}", e)))?;
+        let er = evm.transact_commit(env.tx).map_err(|e| RunnerError::TransactError(format!("{e:?}")))?;
 
         // Check if deployment was successful
         let address = match er {
             ExecutionResult::Success { output: Output::Create(_, Some(addr)), .. } => addr,
 
             ExecutionResult::Revert { gas_used, output } => {
-                return Err(RunnerError::DeploymentError(format!("Deployment reverted gas_used={}, output={:?}", gas_used, output)));
+                return Err(RunnerError::DeploymentError(format!("Deployment reverted gas_used={gas_used}, output={output:?}")));
             }
             ExecutionResult::Halt { reason, gas_used } => {
-                return Err(RunnerError::DeploymentError(format!("Deployment halted gas_used={}, reason={:?}", gas_used, reason)));
+                return Err(RunnerError::DeploymentError(format!("Deployment halted gas_used={gas_used}, reason={reason:?}")));
             }
             ExecutionResult::Success { output, .. } => {
-                return Err(RunnerError::DeploymentError(format!("Deployment failed with unexpected output: {:?}", output)));
+                return Err(RunnerError::DeploymentError(format!("Deployment failed with unexpected output: {output:?}")));
             }
         };
 
@@ -175,7 +175,7 @@ impl TestRunner {
         let mut evm = new_evm_with_inspector(db, &foundry_env, &mut inspector);
 
         // Send our CALL transaction
-        let execution_result = evm.transact_commit(foundry_env.tx).map_err(|e| RunnerError::TransactError(format!("{:?}", e)))?;
+        let execution_result = evm.transact_commit(foundry_env.tx).map_err(|e| RunnerError::TransactError(format!("{e:?}")))?;
 
         // Extract execution params
         let (gas_used, status) = match &execution_result {
@@ -200,7 +200,7 @@ impl TestRunner {
                     (Some(hex::encode(output)), None)
                 }
             }
-            ExecutionResult::Halt { reason, .. } => (None, Some(format!("Transaction halted with reason: {:?}", reason))),
+            ExecutionResult::Halt { reason, .. } => (None, Some(format!("Transaction halted with reason: {reason:?}"))),
         };
 
         // Return our test result
