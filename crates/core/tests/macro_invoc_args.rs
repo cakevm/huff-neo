@@ -455,8 +455,32 @@ fn test_very_nested_macro_calls() {
     // Create main and constructor bytecode
     let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
 
-    // ADD 0x0a, 0x16, then ADD 0x04, then SUB 0x05, ADD 0x05, and finally COMPUTE_AND_STORE
-    let expected_bytecode = "600a6016016004016005036005015f52";
+    // COMPUTE_AND_STORE(ADD(0x05, SUB(0x05, ADD(ADD(0x0a, 0x16), 0x04))), 0x00)
+    // Results in: 0x05, 0x05, 0x0a, 0x16, add, 0x04, add, sub, add, 0x00, mstore
+
+    // COMPUTE_AND_STORE(
+    //   ADD(
+    //   - 6005 - PUSH1 0x05
+    //     SUB(
+    //       - 6005 - PUSH1 0x05
+    //       ADD(
+    //         ADD(
+    //         - 600a - PUSH1 0x0a
+    //         - 6016 - PUSH1 0x16
+    //         - 01 - ADD
+    //         )
+    //       - 6004 - PUSH1 0x04
+    //       - 01 - ADD
+    //       )
+    //       - 03 - SUB
+    //     )
+    //   - 01 - ADD
+    //   )
+    // - 5f - PUSH0 (0x00)
+    // - 52 - MSTORE
+    // )
+
+    let expected_bytecode = "6005 6005 600a 6016 01 6004 01 03 01 5f 52".replace(" ", "");
 
     // Check the bytecode
     assert_eq!(main_bytecode.to_lowercase(), expected_bytecode.to_lowercase());
@@ -625,4 +649,42 @@ fn test_second_opcode_parameter() {
     let r_bytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
     // 80 = DUP1
     assert_eq!(&r_bytes, "80");
+}
+
+#[test]
+fn test_verbatim_before_macro_expansion() {
+    let source = r#"
+        #define constant CONST = 0x5678
+
+        #define macro MAIN() = {
+            MACRO(IDENTITY(CONST))
+        }
+
+        #define macro MACRO(arg) = {
+            __VERBATIM(0x1234)
+            <arg>
+        }
+
+        #define macro IDENTITY(arg) = {
+            <arg>
+        }
+    "#;
+
+    // Lex + Parse
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    let evm_version = EVMVersion::default();
+
+    // Create main bytecode
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
+
+    // Expected bytecode:
+    // __VERBATIM(0x1234) produces: 1234
+    // IDENTITY(CONST) with CONST=0x5678 produces: 61 5678 (PUSH2 0x5678)
+    assert_eq!(main_bytecode, "1234 61 5678".replace(" ", ""));
 }
