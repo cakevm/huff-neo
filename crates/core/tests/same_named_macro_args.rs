@@ -39,9 +39,9 @@ fn test_same_named_args_simple() {
 
     let main_bytecode = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
 
-    // ADD is evaluated first (inline expansion), then MUL's second parameter, then MUL
-    // PUSH1 0x03, PUSH1 0x01, ADD, PUSH1 0x02, MUL
-    assert_eq!(main_bytecode.to_lowercase(), "6003600101600202");
+    // MUL processes <b> first (0x02), then <a> (which evaluates ADD)
+    // Result: PUSH1 0x02, PUSH1 0x03, PUSH1 0x01, ADD, MUL
+    assert_eq!(main_bytecode.to_lowercase(), "6002600360010102");
 }
 
 #[test]
@@ -77,9 +77,9 @@ fn test_same_named_args_complex_nesting() {
 
     let main_bytecode = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
 
-    // ADD is evaluated first (inline expansion), then EQUAL's second parameter, then EQ
-    // PUSH1 0x02, PUSH1 0x01, ADD, PUSH1 0x03, EQ
-    assert_eq!(main_bytecode.to_lowercase(), "6002600101600314");
+    // EQUAL processes <b> first (0x03), then <a> (which evaluates ADD)
+    // Result: PUSH1 0x03, PUSH1 0x02, PUSH1 0x01, ADD, EQ
+    assert_eq!(main_bytecode.to_lowercase(), "6003600260010114");
 }
 
 #[test]
@@ -117,7 +117,7 @@ fn test_different_named_args_equivalent() {
     let main_bytecode = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
 
     // Should produce the exact same bytecode as the same-named version
-    assert_eq!(main_bytecode.to_lowercase(), "6002600101600314");
+    assert_eq!(main_bytecode.to_lowercase(), "6003600260010114");
 }
 
 #[test]
@@ -154,10 +154,9 @@ fn test_mixed_same_and_different_names() {
 
     let main_bytecode = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
 
-    // MacroCalls evaluated in proper invocation order
-    // LOAD(0x10), LOAD(0x05), ADD, LOAD(0x02), SUB
-    // PUSH1 0x10, PUSH1 0x05, ADD, PUSH1 0x02, SUB
-    assert_eq!(main_bytecode.to_lowercase(), "6010600501600203");
+    // SUB(<a>, <b>) processes <a> first (ADD expression), then <b> (LOAD(0x02))
+    // Result: PUSH1 0x05, PUSH1 0x10, ADD, PUSH1 0x02, SUB
+    assert_eq!(main_bytecode.to_lowercase(), "6005601001600203");
 }
 
 #[test]

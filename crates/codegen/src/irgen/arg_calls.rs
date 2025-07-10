@@ -187,8 +187,62 @@ pub fn bubble_arg_call(
                     MacroArg::MacroCall(inner_mi) => {
                         if !inner_mi.args.is_empty() {
                             // This is an inline expansion case (macro with arguments)
-                            // It should have been pre-evaluated, so skip it here
-                            tracing::debug!(target: "codegen", "Inline MacroCall argument {} already pre-evaluated, skipping", inner_mi.macro_name);
+                            tracing::debug!(target: "codegen", "Processing inline MacroCall argument: {}", inner_mi.macro_name);
+
+                            if let Some(called_macro) = contract.find_macro_by_name(&inner_mi.macro_name) {
+                                let mut new_scope = scope.to_vec();
+                                new_scope.push(called_macro);
+                                let mut new_mis = mis.to_vec();
+                                new_mis.push((starting_offset, inner_mi.clone()));
+
+                                match Codegen::macro_to_bytecode(
+                                    evm_version,
+                                    called_macro,
+                                    contract,
+                                    &mut new_scope,
+                                    starting_offset,
+                                    &mut new_mis,
+                                    false,
+                                    None,
+                                ) {
+                                    Ok(expanded_macro) => {
+                                        let byte_len: usize = expanded_macro.bytes.iter().map(|(_, b)| b.0.len() / 2).sum();
+                                        bytes.extend(expanded_macro.bytes);
+                                        *offset += byte_len;
+
+                                        // Bubble up unmatched jumps
+                                        for mut unmatched_jump in expanded_macro.unmatched_jumps {
+                                            unmatched_jump.bytecode_index += starting_offset;
+                                            let existing_jumps =
+                                                jump_table.get(&unmatched_jump.bytecode_index).cloned().unwrap_or_else(Vec::new);
+                                            let mut new_jumps = existing_jumps;
+                                            new_jumps.push(unmatched_jump.clone());
+                                            jump_table.insert(unmatched_jump.bytecode_index, new_jumps);
+                                        }
+
+                                        // Bubble up table instances
+                                        for table_instance in expanded_macro.table_instances {
+                                            table_instances.push(table_instance.clone());
+                                        }
+
+                                        // Bubble up utilized tables
+                                        for table in expanded_macro.utilized_tables {
+                                            if !utilized_tables.contains(&table) {
+                                                utilized_tables.push(table);
+                                            }
+                                        }
+                                    }
+                                    Err(e) => {
+                                        return Err(e);
+                                    }
+                                }
+                            } else {
+                                return Err(CodegenError {
+                                    kind: CodegenErrorKind::MissingMacroDefinition(inner_mi.macro_name.clone()),
+                                    span: inner_mi.span.clone(),
+                                    token: None,
+                                });
+                            }
                         } else {
                             // This is a parameter substitution case (macro without arguments)
                             // Process it normally for substitution where <arg> appears
