@@ -11,7 +11,7 @@ license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/cakevm/huff-neo"
 rust-version = "1.88"
-version = "1.1.14"
+version = "1.2.0"
 
 [workspace.dependencies]
 huff-neo-codegen = { path = "crates/codegen" }
@@ -21,33 +21,18 @@ huff-neo-parser = { path = "crates/parser" }
 huff-neo-test-runner = { path = "crates/test-runner" }
 huff-neo-utils = { path = "crates/utils" }
 
-alloy-consensus = { version = "1.0.9", default-features = false }
-alloy-dyn-abi = { version = "1.2.1", default-features = false }
-alloy-evm = { version = "0.10.0", default-features = false }
-alloy-primitives = { version = "1.2.1", default-features = false, features = ["std"] }
-
-anvil = { git = "https://github.com/foundry-rs/foundry", rev = "8f02485" }
 cfg-if = "1.0.0"
 clap = { version = "4.5.32", features = ["derive"] }
 comfy-table = "7.1.4"
 eyre = "0.6.12"
-
-foundry-cli = { git = "https://github.com/foundry-rs/foundry", rev = "8f02485" }
-foundry-common = { git = "https://github.com/foundry-rs/foundry", rev = "8f02485" }
-foundry-config = { git = "https://github.com/foundry-rs/foundry", rev = "8f02485" }
-foundry-debugger = { git = "https://github.com/foundry-rs/foundry", rev = "8f02485" }
-foundry-evm = { git = "https://github.com/foundry-rs/foundry", rev = "8f02485" }
-foundry-evm-traces = { git = "https://github.com/foundry-rs/foundry", rev = "8f02485" }
-
 indexmap = "2.9.0"
 itertools = "0.14.0"
 js-sys = { version = "0.3.77" }
 lazy_static = "1.5.0"
-op-revm = { version = "5.0.1", default-features = false }
 phf = { version = "0.12.1", features = ["macros"] }
 rand = "0.9.0"
 regex = "1.11.1"
-revm = { version = "24.0.1", default-features = false, features = ["optional_no_base_fee"] }
+
 shadow-rs = "1.2.0"
 thiserror = "2.0.12"
 tokio = "1.45.1"
@@ -58,13 +43,32 @@ walkdir = "2.5.0"
 wasm-bindgen = "0.2.100"
 yansi = "1.0.1"
 
+
+# alloy
+alloy-dyn-abi = { version = "1.2.1", default-features = false }
+alloy-evm = { version = "0.14.0", default-features = false }
+alloy-primitives = { version = "1.2.1", default-features = false, features = ["std"] }
+
+# revm
+op-revm = { version = "8.0.3", default-features = false }
+revm = { version = "27.0.3", default-features = false, features = ["optional_no_base_fee"] }
+
+# foundry
+anvil = { git = "https://github.com/foundry-rs/foundry", rev = "03e3dbc" }
+foundry-cli = { git = "https://github.com/foundry-rs/foundry", rev = "03e3dbc" }
+foundry-common = { git = "https://github.com/foundry-rs/foundry", rev = "03e3dbc" }
+foundry-config = { git = "https://github.com/foundry-rs/foundry", rev = "03e3dbc" }
+foundry-debugger = { git = "https://github.com/foundry-rs/foundry", rev = "03e3dbc" }
+foundry-evm = { git = "https://github.com/foundry-rs/foundry", rev = "03e3dbc" }
+foundry-evm-traces = { git = "https://github.com/foundry-rs/foundry", rev = "03e3dbc" }
+
 # serde
 serde = { version = "1.0.219", features = ["derive", "rc"] }
 serde-wasm-bindgen = "0.6.5"
 serde_json = "1.0.140"
 strum = "0.27.1"
 strum_macros = "0.27.1"
-toml = { version = "0.8.20", default-features = false, features = ["parse"] }
+toml = { version = "0.8.23", default-features = false, features = ["parse"] }
 
 # dev
 criterion = "0.6.0"

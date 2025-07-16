@@ -3,7 +3,12 @@
 # Huff Neo Compiler changelog
 
 ## [Unreleased]
+
+# [1.2.0] - 2025-07-16
 - Fix table instance propagation in nested macro calls (fixes #76).
+- **Breaking**: Fix resolve nested macro argument evaluation order (fixes #80).
+  -	The evaluation order of macro arguments is now left-to-right and no longer evaluates the most deeply nested macro first.
+- Update dependencies to the latest version.
 
 ## [1.1.14] - 2025-06-17
 - Fix using correct chain id for transactions in test runner.

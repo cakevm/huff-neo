@@ -32,7 +32,7 @@ impl TestRunner {
     /// Set the balance of an account.
     pub fn set_balance<DB>(&self, db: &mut DB, address: Address, amount: U256) -> Result<(), RunnerError>
     where
-        DB: Database + DatabaseCommit,
+        DB: Database + DatabaseCommit + std::fmt::Debug,
         <DB as Database>::Error: std::fmt::Debug,
     {
         let basic_account = db.basic(address).map_err(|e| RunnerError::GenericError(format!("{e:?}")))?;
@@ -41,10 +41,11 @@ impl TestRunner {
         let account = match basic_account {
             Some(mut account_info) => {
                 account_info.balance = amount;
-                Account { info: account_info, storage: Default::default(), status: AccountStatus::Touched }
+                Account { info: account_info, transaction_id: 0, storage: Default::default(), status: AccountStatus::Touched }
             }
             None => Account {
                 info: AccountInfo { balance: amount, nonce: 0, code_hash: B256::ZERO, code: None },
+                transaction_id: 0,
                 storage: Default::default(),
                 status: AccountStatus::Created,
             },
@@ -58,7 +59,7 @@ impl TestRunner {
 
     pub fn set_code<DB>(&self, db: &mut DB, address: Address, code: String) -> Result<(), RunnerError>
     where
-        DB: Database + DatabaseCommit,
+        DB: Database + DatabaseCommit + std::fmt::Debug,
         <DB as Database>::Error: std::fmt::Debug,
     {
         let basic_account = db.basic(address).map_err(|e| RunnerError::GenericError(format!("{e:?}")))?;
@@ -67,7 +68,7 @@ impl TestRunner {
         let account = match basic_account {
             Some(mut account_info) => {
                 account_info.code = Some(Bytecode::new_raw(Bytes::from(hex::decode(code).expect("Invalid code"))));
-                Account { info: account_info, storage: Default::default(), status: AccountStatus::Touched }
+                Account { info: account_info, transaction_id: 0, storage: Default::default(), status: AccountStatus::Touched }
             }
             None => Account {
                 info: AccountInfo {
@@ -76,6 +77,7 @@ impl TestRunner {
                     code_hash: B256::ZERO,
                     code: Some(Bytecode::new_raw(Bytes::from(hex::decode(code).expect("Invalid code")))),
                 },
+                transaction_id: 0,
                 storage: Default::default(),
                 status: AccountStatus::Created,
             },
@@ -90,7 +92,7 @@ impl TestRunner {
     /// Deploy arbitrary bytecode to our REVM instance and return the contract address.
     pub fn deploy_code<DB>(&mut self, db: &mut DB, code: String) -> Result<Address, RunnerError>
     where
-        DB: Database + DatabaseCommit,
+        DB: Database + DatabaseCommit + std::fmt::Debug,
         <DB as Database>::Error: std::fmt::Debug,
     {
         // Wrap code in a bootstrap constructor
@@ -156,7 +158,7 @@ impl TestRunner {
         data: String,
     ) -> Result<TestResult, RunnerError>
     where
-        DB: Database<Error = DatabaseError> + DatabaseCommit,
+        DB: Database<Error = DatabaseError> + DatabaseCommit + std::fmt::Debug,
         <DB as Database>::Error: std::fmt::Debug,
     {
         let mut env = self.env.clone();
@@ -212,7 +214,7 @@ impl TestRunner {
     /// Compile a test macro and run it in an in-memory REVM instance.
     pub fn run_test<DB>(&mut self, db: &mut DB, m: &MacroDefinition, contract: &Contract) -> Result<TestResult, RunnerError>
     where
-        DB: Database<Error = DatabaseError> + DatabaseCommit,
+        DB: Database<Error = DatabaseError> + DatabaseCommit + std::fmt::Debug,
         <DB as Database>::Error: std::fmt::Debug,
     {
         // TODO: set to non default

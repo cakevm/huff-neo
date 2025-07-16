@@ -13,6 +13,7 @@ allow = [
   "Unicode-3.0",
   "Unlicense",
   "Zlib",
+  "bzip2-1.0.6",
   # permissive license with unclear patent grant
   "CC0-1.0",
   # weak/limited copyleft licenses
