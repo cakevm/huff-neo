@@ -4,7 +4,7 @@
 
 ## [Unreleased]
 
-# [1.2.0] - 2025-07-16
+## [1.2.0] - 2025-07-16
 - Fix table instance propagation in nested macro calls (fixes #76).
 - **Breaking**: Fix resolve nested macro argument evaluation order (fixes #80).
   -	The evaluation order of macro arguments is now left-to-right and no longer evaluates the most deeply nested macro first.
