@@ -2,9 +2,15 @@
 
 # Huff Neo Compiler changelog
 
-## [Unreleased]
+## [1.3.0] - 2025-08-12
 - Update rust to 1.89.
 - Update dependencies to the latest version.
+- **Breaking**: Implement proper label scoping to prevent label overwriting in macro invocations. (fixes #82)
+  - Each macro invocation now has its own label scope.
+  - Duplicate labels within the same scope are now properly detected and reported as errors.
+  - Label shadowing across different scopes is supported.
+  - Sibling macro invocations can reference each other's labels when invoked from the same parent.
+  - Fixes issue where multiple invocations of macros defining the same label would cause all jumps to target the last definition.
 
 ## [1.2.0] - 2025-07-16
 - Fix table instance propagation in nested macro calls (fixes #76).

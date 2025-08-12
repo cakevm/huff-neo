@@ -215,6 +215,11 @@ pub enum CodegenErrorKind {
     UnsupportedBuiltinFunction(String),
     /// Unsupported Statement Type
     UnsupportedStatementType(String),
+    /// Duplicate Label in Same Scope
+    DuplicateLabelInScope(String),
+    /// Duplicate label defined in multiple sibling scopes
+    /// When a label is not found in current scope, fallback searches siblings - but will always find the first definition, making subsequent ones unreachable
+    DuplicateLabelAcrossSiblings(String),
 }
 
 impl Spanned for CodegenError {
@@ -293,6 +298,12 @@ impl<W: Write> Report<W> for CodegenError {
             }
             CodegenErrorKind::UnsupportedStatementType(st) => {
                 write!(f.out, "Unsupported Statement Type: \"{st}\"")
+            }
+            CodegenErrorKind::DuplicateLabelInScope(label) => {
+                write!(f.out, "Duplicate label '{}' defined in the same scope", label)
+            }
+            CodegenErrorKind::DuplicateLabelAcrossSiblings(label) => {
+                write!(f.out, "Duplicate label '{}' defined across siblings in same scope", label)
             }
         }
     }
@@ -572,6 +583,12 @@ impl fmt::Display for CompilerError {
                 }
                 CodegenErrorKind::UnsupportedStatementType(st) => {
                     write!(f, "\nError: Unsupported Statement Type: \"{st}\"\n{}\n", ce.span.error(None))
+                }
+                CodegenErrorKind::DuplicateLabelInScope(label) => {
+                    write!(f, "\nError: Duplicate label '{}' defined in the same scope\n{}\n", label, ce.span.error(None))
+                }
+                CodegenErrorKind::DuplicateLabelAcrossSiblings(label) => {
+                    write!(f, "\nError: Duplicate label '{}' defined across siblings in same scope\n{}\n", label, ce.span.error(None))
                 }
             },
             CompilerError::FailedCompiles(v) => {

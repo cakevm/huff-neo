@@ -261,7 +261,9 @@ impl Codegen {
             jt.statements.iter().try_for_each(|s| {
                 match &s.ty {
                     StatementType::LabelCall(label) => {
-                        let offset = match res.label_indices.get(label) {
+                        // For jump table label lookups, try to find the label in any scope
+                        // Jump tables are generated at the top level but may reference labels in inner scopes
+                        let offset = match res.label_indices.get_any(label) {
                             Some(l) => l,
                             None => {
                                 tracing::error!(
@@ -467,7 +469,9 @@ impl Codegen {
         label_indices: &LabelIndices,
     ) -> Result<(Vec<(usize, Bytes)>, Vec<Jump>), CodegenError> {
         let mut unmatched_jumps = Jumps::default();
-        let bytes = bytes.into_iter().fold(Vec::default(), |mut acc, (code_index, mut formatted_bytes)| {
+        let mut result_bytes = Vec::new();
+
+        for (code_index, mut formatted_bytes) in bytes {
             // Check if a jump table exists at `code_index` (starting offset of `b`)
             if let Some(jt) = jump_table.get(&code_index) {
                 // Loop through jumps inside the found JumpTable
@@ -475,38 +479,64 @@ impl Codegen {
                     // Check if the jump label has been defined. If not, add `jump` to the
                     // unmatched jumps and define its `bytecode_index`
                     // at `code_index`
-                    if let Some(jump_index) = label_indices.get(jump.label.as_str()) {
-                        // Format the jump index as a 2 byte hex number
-                        let jump_value = format!("{jump_index:04x}");
+                    match label_indices.get(jump.label.as_str(), jump.scope_depth, &jump.scope_path) {
+                        Ok(Some(jump_index)) => {
+                            // Format the jump index as a 2 byte hex number
+                            let jump_value = format!("{jump_index:04x}");
 
-                        // Get the bytes before & after the placeholder
-                        let before = &formatted_bytes.0[0..jump.bytecode_index + 2];
-                        let after = &formatted_bytes.0[jump.bytecode_index + 6..];
+                            // Get the bytes before & after the placeholder
+                            let before = &formatted_bytes.0[0..jump.bytecode_index + 2];
+                            let after = &formatted_bytes.0[jump.bytecode_index + 6..];
 
-                        // Check if a jump dest placeholder is present
-                        if !&formatted_bytes.0[jump.bytecode_index + 2..jump.bytecode_index + 6].eq("xxxx") {
-                            tracing::error!(
-                                target: "codegen",
-                                "JUMP DESTINATION PLACEHOLDER NOT FOUND FOR JUMPLABEL {}",
-                                jump.label
-                            );
+                            // Check if a jump dest placeholder is present
+                            if !&formatted_bytes.0[jump.bytecode_index + 2..jump.bytecode_index + 6].eq("xxxx") {
+                                tracing::error!(
+                                    target: "codegen",
+                                    "JUMP DESTINATION PLACEHOLDER NOT FOUND FOR JUMPLABEL {}",
+                                    jump.label
+                                );
+                            }
+
+                            // Replace the "xxxx" placeholder with the jump value
+                            formatted_bytes = Bytes(format!("{before}{jump_value}{after}"));
                         }
-
-                        // Replace the "xxxx" placeholder with the jump value
-                        formatted_bytes = Bytes(format!("{before}{jump_value}{after}"));
-                    } else {
-                        // The jump did not have a corresponding label index. Add it to the unmatched jumps vec.
-                        tracing::warn!(target: "codegen", "UNMATCHED JUMP LABEL \"{}\" AT BYTECODE INDEX {}", jump.label, code_index);
-                        unmatched_jumps.push(Jump { label: jump.label.clone(), bytecode_index: code_index, span: jump.span.clone() });
+                        Ok(None) => {
+                            // The jump did not have a corresponding label index. Add it to the unmatched jumps vec.
+                            tracing::warn!(target: "codegen", "UNMATCHED JUMP LABEL \"{}\" AT BYTECODE INDEX {}", jump.label, code_index);
+                            unmatched_jumps.push(Jump {
+                                label: jump.label.clone(),
+                                bytecode_index: code_index,
+                                span: jump.span.clone(),
+                                scope_depth: jump.scope_depth,
+                                scope_path: jump.scope_path.clone(),
+                            });
+                        }
+                        Err(err_msg) => {
+                            // Check if this is a duplicate label across siblings error
+                            if err_msg.starts_with("DuplicateLabelAcrossSiblings:") {
+                                let label_name = err_msg.strip_prefix("DuplicateLabelAcrossSiblings:").unwrap_or(&jump.label);
+                                return Err(CodegenError {
+                                    kind: CodegenErrorKind::DuplicateLabelAcrossSiblings(label_name.to_string()),
+                                    span: jump.span.clone(),
+                                    token: None,
+                                });
+                            } else {
+                                // Other error
+                                return Err(CodegenError {
+                                    kind: CodegenErrorKind::InvalidMacroInvocation(err_msg),
+                                    span: jump.span.clone(),
+                                    token: None,
+                                });
+                            }
+                        }
                     }
                 }
             }
 
-            acc.push((code_index, formatted_bytes));
-            acc
-        });
+            result_bytes.push((code_index, formatted_bytes));
+        }
 
-        Ok((bytes, unmatched_jumps))
+        Ok((result_bytes, unmatched_jumps))
     }
 
     /// Helper associated function to fill circular codesize invocations.
@@ -625,7 +655,18 @@ impl Codegen {
             res.bytes.push((*offset + macro_code_len + 1, Bytes(format!("{}{}", stack_swaps.join(""), Opcode::Jump))));
             bytes = [bytes, res.bytes].concat();
             // Add the jumpdest to the beginning of the outlined macro.
-            label_indices.insert(format!("goto_{}", macro_def.name.clone()), *offset);
+            // Outlined macros are at the top-level scope
+            let scope_path: Vec<String> = vec![];
+            let scope_depth = 0;
+            if let Err(err_msg) = label_indices.insert(format!("goto_{}", macro_def.name.clone()), *offset, scope_depth, scope_path) {
+                // This shouldn't happen for auto-generated goto_ labels - indicates a compiler bug
+                tracing::error!(target: "codegen", "INTERNAL ERROR: Duplicate goto_ label for function '{}': {}", macro_def.name, err_msg);
+                return Err(CodegenError {
+                    kind: CodegenErrorKind::DuplicateLabelInScope(format!("goto_{}", macro_def.name)),
+                    span: macro_def.span.clone(),
+                    token: None,
+                });
+            }
             *offset += macro_code_len + stack_swaps.len() + 2; // JUMPDEST + MACRO_CODE_LEN + stack_swaps.len() + JUMP
         }
         Ok(bytes)
