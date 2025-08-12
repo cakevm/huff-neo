@@ -18,6 +18,10 @@
   - Add detection for circular macro invocations during storage pointer derivation.
   - Add detection for circular macro invocations during bytecode generation.
   - Provide clear error messages instead of crashing with stack overflow.
+- Implement first-class macro arguments. (fixes #41)
+  - Macros can now be passed as arguments to other macros.
+  - New syntax: `<arg>()` to invoke a macro passed as an argument.
+  - Supports nested passing of macro arguments through multiple levels.
 
 ## [1.2.0] - 2025-07-16
 - Fix table instance propagation in nested macro calls (fixes #76).

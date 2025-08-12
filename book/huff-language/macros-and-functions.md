@@ -45,6 +45,38 @@ by the constructor.
 
 Macros can accept arguments, which can be used within the macro itself or passed as reference. These arguments can be labels, opcodes, literals, constants, or other macro calls. Since macros are inlined at compile time, their arguments are also inlined and not evaluated at runtime.
 
+#### First-Class Macro Arguments
+
+Starting from version 1.3.0, Huff supports passing macros as arguments to other macros, enabling powerful composition patterns. When a macro is passed as an argument, it can be invoked within the receiving macro using the `<arg>()` syntax.
+
+##### Example: Passing Macros as Arguments
+
+```javascript
+// Define operations as macros
+#define macro ADD() = takes(2) returns(1) {
+    add
+}
+
+#define macro MUL() = takes(2) returns(1) {
+    mul
+}
+
+// Define a macro that accepts an operation as an argument
+#define macro APPLY_OP(op) = takes(0) returns(1) {
+    0x10
+    0x20
+    <op>()  // Invoke the macro passed as argument
+}
+
+// Use the macro with different operations
+#define macro MAIN() = takes(0) returns(0) {
+    APPLY_OP(ADD)  // Results in: 0x10 + 0x20 = 0x30
+    APPLY_OP(MUL)  // Results in: 0x10 * 0x20 = 0x200
+}
+```
+
+This feature allows for greater code reusability and abstraction, enabling you to write more flexible and composable Huff code. Macro arguments can be passed through multiple levels of macro invocations, allowing for complex composition patterns.
+
 #### Example
 
 ```javascript
