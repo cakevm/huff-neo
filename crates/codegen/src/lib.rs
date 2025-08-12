@@ -261,7 +261,9 @@ impl Codegen {
             jt.statements.iter().try_for_each(|s| {
                 match &s.ty {
                     StatementType::LabelCall(label) => {
-                        let offset = match res.label_indices.get(label) {
+                        // For jump table label lookups, try to find the label in any scope
+                        // Jump tables are generated at the top level but may reference labels in inner scopes
+                        let offset = match res.label_indices.get_any(label) {
                             Some(l) => l,
                             None => {
                                 tracing::error!(
@@ -475,7 +477,7 @@ impl Codegen {
                     // Check if the jump label has been defined. If not, add `jump` to the
                     // unmatched jumps and define its `bytecode_index`
                     // at `code_index`
-                    if let Some(jump_index) = label_indices.get(jump.label.as_str()) {
+                    if let Some(jump_index) = label_indices.get(jump.label.as_str(), jump.scope_depth, &jump.scope_path) {
                         // Format the jump index as a 2 byte hex number
                         let jump_value = format!("{jump_index:04x}");
 
@@ -497,7 +499,13 @@ impl Codegen {
                     } else {
                         // The jump did not have a corresponding label index. Add it to the unmatched jumps vec.
                         tracing::warn!(target: "codegen", "UNMATCHED JUMP LABEL \"{}\" AT BYTECODE INDEX {}", jump.label, code_index);
-                        unmatched_jumps.push(Jump { label: jump.label.clone(), bytecode_index: code_index, span: jump.span.clone() });
+                        unmatched_jumps.push(Jump {
+                            label: jump.label.clone(),
+                            bytecode_index: code_index,
+                            span: jump.span.clone(),
+                            scope_depth: jump.scope_depth,
+                            scope_path: jump.scope_path.clone(),
+                        });
                     }
                 }
             }
@@ -625,7 +633,18 @@ impl Codegen {
             res.bytes.push((*offset + macro_code_len + 1, Bytes(format!("{}{}", stack_swaps.join(""), Opcode::Jump))));
             bytes = [bytes, res.bytes].concat();
             // Add the jumpdest to the beginning of the outlined macro.
-            label_indices.insert(format!("goto_{}", macro_def.name.clone()), *offset);
+            // Outlined macros are at the top-level scope
+            let scope_path: Vec<String> = vec![];
+            let scope_depth = 0;
+            if let Err(err_msg) = label_indices.insert(format!("goto_{}", macro_def.name.clone()), *offset, scope_depth, scope_path) {
+                // This shouldn't happen for auto-generated goto_ labels - indicates a compiler bug
+                tracing::error!(target: "codegen", "INTERNAL ERROR: Duplicate goto_ label for function '{}': {}", macro_def.name, err_msg);
+                return Err(CodegenError {
+                    kind: CodegenErrorKind::DuplicateLabelInScope(format!("goto_{}", macro_def.name)),
+                    span: macro_def.span.clone(),
+                    token: None,
+                });
+            }
             *offset += macro_code_len + stack_swaps.len() + 2; // JUMPDEST + MACRO_CODE_LEN + stack_swaps.len() + JUMP
         }
         Ok(bytes)

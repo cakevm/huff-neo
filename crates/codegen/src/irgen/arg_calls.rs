@@ -177,9 +177,17 @@ pub fn bubble_arg_call(
 
                             // This should be equivalent to a label call.
                             bytes.push((*offset, Bytes(format!("{}xxxx", Opcode::Push2))));
+                            let scope_path: Vec<String> = scope.iter().map(|m| m.name.clone()).collect();
+                            let scope_depth = scope.len().saturating_sub(1);
                             jump_table.insert(
                                 *offset,
-                                vec![Jump { label: iden.to_owned(), bytecode_index: 0, span: target_macro_invoc.1.span.clone() }],
+                                vec![Jump {
+                                    label: iden.to_owned(),
+                                    bytecode_index: 0,
+                                    span: target_macro_invoc.1.span.clone(),
+                                    scope_depth,
+                                    scope_path,
+                                }],
                             );
                             *offset += 3;
                         }
@@ -368,9 +376,11 @@ pub fn bubble_arg_call(
             Some(mi) => mi.1.span.clone(),
             None => AstSpan(vec![]),
         };
+        let scope_path: Vec<String> = scope.iter().map(|m| m.name.clone()).collect();
+        let scope_depth = scope.len().saturating_sub(1);
         jump_table.insert(
             mis.last().map(|mi| mi.0).unwrap_or_else(|| 0),
-            vec![Jump { label: arg_name.to_owned(), bytecode_index: 0, span: new_span }],
+            vec![Jump { label: arg_name.to_owned(), bytecode_index: 0, span: new_span, scope_depth, scope_path }],
         );
         bytes.push((*offset, Bytes(format!("{}xxxx", Opcode::Push2))));
         *offset += 3;

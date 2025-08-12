@@ -170,12 +170,18 @@ fn main() {
             table.load_preset(UTF8_FULL).apply_modifier(UTF8_ROUND_CORNERS);
             table
                 .set_header(vec![Cell::new("Jump Label").fg(Color::Cyan), Cell::new("Program counter offset (in hex)").fg(Color::Cyan)])
-                .add_rows(
-                    bytecode_res
-                        .label_indices
-                        .iter()
-                        .map(|(label, index)| Row::from(vec![Cell::new(label), Cell::new(format!("{index:#04x}"))])),
-                );
+                .add_rows(bytecode_res.label_indices.iter().flat_map(|(label, scoped_labels)| {
+                    scoped_labels.iter().map(move |sl| {
+                        Row::from(vec![
+                            Cell::new(format!(
+                                "{}{}",
+                                label,
+                                if sl.scope_depth > 0 { format!(" (scope {})", sl.scope_depth) } else { String::new() }
+                            )),
+                            Cell::new(format!("{:#04x}", sl.offset)),
+                        ])
+                    })
+                }));
             println!("{table}");
         } else {
             eprintln!("{}", Paint::red("No contract found. Please specify a contract and try again."));

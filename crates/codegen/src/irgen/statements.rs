@@ -72,9 +72,17 @@ pub fn statement_gen<'a>(
                 let stack_swaps = (0..ir_macro.takes).rev().map(|i| format!("{:02x}", 0x90 + i)).collect::<Vec<_>>();
 
                 // Insert a jump to the outlined macro's code
+                let scope_path: Vec<String> = scope.iter().map(|m| m.name.clone()).collect();
+                let scope_depth = scope.len() - 1;
                 jump_table.insert(
                     *offset + stack_swaps.len() + 3, // PUSH2 + 2 bytes + stack_swaps.len()
-                    vec![Jump { label: format!("goto_{}", &ir_macro.name), bytecode_index: 0, span: s.span.clone() }],
+                    vec![Jump {
+                        label: format!("goto_{}", &ir_macro.name),
+                        bytecode_index: 0,
+                        span: s.span.clone(),
+                        scope_depth,
+                        scope_path,
+                    }],
                 );
 
                 // Store return JUMPDEST PC on the stack and re-order the stack so that
@@ -139,7 +147,21 @@ pub fn statement_gen<'a>(
         StatementType::Label(label) => {
             // Add JUMPDEST opcode to final result and add to label_indices
             tracing::info!(target: "codegen", "RECURSE BYTECODE GOT LABEL: {:?}", label.name);
-            label_indices.insert(label.name.clone(), *offset);
+
+            // Build the scope path from the current macro invocation stack
+            let scope_path: Vec<String> = scope.iter().map(|m| m.name.clone()).collect();
+            let scope_depth = scope.len() - 1; // -1 because scope includes the current macro
+
+            // Try to insert the label with scope information
+            if let Err(err_msg) = label_indices.insert(label.name.clone(), *offset, scope_depth, scope_path) {
+                tracing::error!(target: "codegen", "DUPLICATE LABEL: {}", err_msg);
+                return Err(CodegenError {
+                    kind: CodegenErrorKind::DuplicateLabelInScope(label.name.clone()),
+                    span: s.span.clone(),
+                    token: None,
+                });
+            }
+
             bytes.push((*offset, Bytes(Opcode::Jumpdest.to_string())));
             *offset += 1;
         }
@@ -147,7 +169,13 @@ pub fn statement_gen<'a>(
             // Generate code for a `LabelCall`
             // PUSH2 + 2 byte destination (placeholder for now, filled in `Codegen::fill_unmatched`
             tracing::info!(target: "codegen", "RECURSE BYTECODE GOT LABEL CALL: {}", label);
-            jump_table.insert(*offset, vec![Jump { label: label.to_string(), bytecode_index: 0, span: s.span.clone() }]);
+
+            // Build the scope information for this jump
+            let scope_path: Vec<String> = scope.iter().map(|m| m.name.clone()).collect();
+            let scope_depth = scope.len() - 1; // -1 because scope includes the current macro
+
+            jump_table
+                .insert(*offset, vec![Jump { label: label.to_string(), bytecode_index: 0, span: s.span.clone(), scope_depth, scope_path }]);
             bytes.push((*offset, Bytes(format!("{}xxxx", Opcode::Push2))));
             *offset += 3;
         }

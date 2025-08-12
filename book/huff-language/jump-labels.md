@@ -29,3 +29,74 @@ and referring to `JUMPDEST`s more simple for the developer.
         0x20 0x00 return
 }
 ```
+
+## Label Scoping
+
+Huff-Neo implements scoped label resolution to prevent situations where multiple macro invocations defining the same label would cause all jumps to incorrectly target the last definition.
+
+### Scoping Rules
+
+#### Label Definition
+- Each label is associated with the scope where it's defined
+- A scope is determined by the macro invocation chain
+- Labels defined directly in a macro belong to that macro's scope
+- Labels defined in invoked macros belong to the invoked macro's scope
+
+#### Duplicate Detection
+- **Within Same Scope**: Duplicate labels in the same scope will cause a compilation error
+- **Across Different Scopes**: Labels with the same name in different scopes are allowed (shadowing)
+
+#### Label Resolution
+- When a jump references a label, it resolves to the nearest matching label in the scope hierarchy
+- Resolution searches from the current scope upward to parent scopes
+- Inner scope labels shadow outer scope labels with the same name
+
+### Examples
+
+#### Duplicate Labels (Error)
+```huff
+#define macro MAIN() = takes(0) returns(0) {
+    my_label:       // First definition
+    0x01
+    my_label:       // ERROR: Duplicate label in same scope
+    0x02
+}
+```
+
+#### Label Shadowing (Allowed)
+```huff
+#define macro INNER() = takes(0) returns(0) {
+    my_label:       // Label in INNER scope
+    0x01
+    my_label        // Jumps to INNER's my_label
+}
+
+#define macro MAIN() = takes(0) returns(0) {
+    my_label:       // Label in MAIN scope
+    0x00
+    INNER()         // INNER has its own my_label
+    my_label        // Jumps to MAIN's my_label
+}
+```
+
+#### Multiple Macro Invocations
+```huff
+#define macro DEF_LBL() = takes(0) returns(0) {
+    my_label:
+    0x42
+    my_label        // Jumps to THIS invocation's my_label
+}
+
+#define macro MAIN() = takes(0) returns(0) {
+    DEF_LBL()       // First invocation - creates my_label in its scope
+    DEF_LBL()       // Second invocation - creates my_label in its own scope
+    // Both invocations work correctly with their own labels
+}
+```
+
+### Best Practices
+
+1. Use unique label names within a macro to avoid confusion
+2. Be aware that macro invocations create new scopes
+3. Use label shadowing intentionally and document it when used
+4. Consider prefixing labels with macro names for clarity in complex contracts

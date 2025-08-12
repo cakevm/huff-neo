@@ -112,13 +112,101 @@ pub struct Jump {
     pub bytecode_index: usize,
     /// The Jump Span
     pub span: AstSpan,
+    /// The scope depth where the jump was made
+    pub scope_depth: usize,
+    /// The scope path where the jump was made
+    pub scope_path: Vec<String>,
 }
 
 /// Type for a vec of `Jump`s
 pub type Jumps = Vec<Jump>;
 
-/// Type to map `Jump` labels to their bytecode indices
-pub type LabelIndices = BTreeMap<String, usize>;
+/// Scoped label information
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct ScopedLabel {
+    /// The bytecode offset of the label
+    pub offset: usize,
+    /// The scope depth where the label was defined (0 = top level)
+    pub scope_depth: usize,
+    /// The macro invocation chain that led to this label
+    pub scope_path: Vec<String>,
+}
+
+/// Scoped label indices that track labels with their scope information
+#[derive(Debug, Default, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct ScopedLabelIndices {
+    /// Map of label name to all its definitions with scope info
+    labels: BTreeMap<String, Vec<ScopedLabel>>,
+}
+
+impl ScopedLabelIndices {
+    /// Create a new empty scoped label indices
+    pub fn new() -> Self {
+        Self { labels: BTreeMap::new() }
+    }
+
+    /// Insert a label with scope information
+    /// Returns an error if the label already exists in the same scope
+    pub fn insert(&mut self, name: String, offset: usize, scope_depth: usize, scope_path: Vec<String>) -> Result<(), String> {
+        let entry = self.labels.entry(name.clone()).or_default();
+
+        // Check if label already exists at the same scope depth
+        for existing in entry.iter() {
+            if existing.scope_depth == scope_depth && existing.scope_path == scope_path {
+                return Err(format!("Duplicate label '{}' in the same scope", name));
+            }
+        }
+
+        entry.push(ScopedLabel { offset, scope_depth, scope_path });
+        Ok(())
+    }
+
+    /// Get the label offset for a given name, considering scope
+    /// Returns the label from the deepest matching scope
+    pub fn get(&self, name: &str, current_scope_depth: usize, current_scope_path: &[String]) -> Option<usize> {
+        self.labels.get(name).and_then(|labels| {
+            // Find the label with the deepest scope that is still accessible
+            labels
+                .iter()
+                .filter(|label| {
+                    // Label is accessible if it's at the same depth or shallower
+                    // and the scope path matches up to the label's depth
+                    label.scope_depth <= current_scope_depth
+                        && label.scope_path.len() <= current_scope_path.len()
+                        && label.scope_path.iter().zip(current_scope_path.iter()).all(|(a, b)| a == b)
+                })
+                .max_by_key(|label| label.scope_depth)
+                .map(|label| label.offset)
+        })
+    }
+
+    /// Get any label offset for a given name, regardless of scope
+    /// Used for jump tables which may reference labels in any scope
+    /// Returns the first matching label if there are multiple
+    pub fn get_any(&self, name: &str) -> Option<usize> {
+        self.labels.get(name).and_then(|labels| labels.first().map(|label| label.offset))
+    }
+
+    /// Extend this indices with another set of indices
+    pub fn extend(&mut self, other: ScopedLabelIndices) {
+        for (name, labels) in other.labels {
+            self.labels.entry(name).or_default().extend(labels);
+        }
+    }
+
+    /// Check if the indices are empty
+    pub fn is_empty(&self) -> bool {
+        self.labels.is_empty()
+    }
+
+    /// Iterate over all labels
+    pub fn iter(&self) -> impl Iterator<Item = (&String, &Vec<ScopedLabel>)> {
+        self.labels.iter()
+    }
+}
+
+/// Type to map `Jump` labels to their bytecode indices (for backward compatibility)
+pub type LabelIndices = ScopedLabelIndices;
 
 /// Typw to map circular_codesize labels to their bytecode indices
 pub type CircularCodeSizeIndices = BTreeSet<(String, usize)>;
