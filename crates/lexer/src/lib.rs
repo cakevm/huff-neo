@@ -175,11 +175,11 @@ impl<'a> Lexer<'a> {
                     let (word, start, mut end) = self.eat_while(Some(ch), |c| c.is_alphanumeric() || c == '_');
 
                     let mut found_kind: Option<TokenKind> = None;
-                    if self.context_stack.top() != &Context::MacroBody {
-                        if let Some(kind) = TOKEN.get(&word) {
-                            debug!(target: "lexer", "FOUND KEYWORD OUTSIDE OF MacroBody '{:?}'", kind);
-                            found_kind = Some(kind.clone());
-                        }
+                    if self.context_stack.top() != &Context::MacroBody
+                        && let Some(kind) = TOKEN.get(&word)
+                    {
+                        debug!(target: "lexer", "FOUND KEYWORD OUTSIDE OF MacroBody '{:?}'", kind);
+                        found_kind = Some(kind.clone());
                     }
 
                     // Check to see if the found kind is, in fact, a keyword and not the name of
@@ -267,11 +267,11 @@ impl<'a> Lexer<'a> {
                         self.eat_while(None, |c| c.is_alphanumeric());
                     }
 
-                    if self.context_stack.top() == &Context::MacroBody {
-                        if let Some(o) = OPCODES_MAP.get(&word) {
-                            debug!(target: "lexer", "FOUND OPCODE '{:?}'", o);
-                            found_kind = Some(TokenKind::Opcode(o.to_owned()));
-                        }
+                    if self.context_stack.top() == &Context::MacroBody
+                        && let Some(o) = OPCODES_MAP.get(&word)
+                    {
+                        debug!(target: "lexer", "FOUND OPCODE '{:?}'", o);
+                        found_kind = Some(TokenKind::Opcode(o.to_owned()));
                     }
 
                     if self.context_stack.top() == &Context::AbiArgs {
@@ -604,25 +604,24 @@ impl<'a> Lexer<'a> {
         let mut include_chars_iterator = "#include".chars().peekable();
         while peekable_source.peek().is_some() {
             while let Some(nc) = peekable_source.next() {
-                if nc.eq(&'/') {
-                    if let Some(nnc) = peekable_source.peek() {
-                        if nnc.eq(&'/') {
-                            // Iterate until newline
-                            while let Some(lc) = &peekable_source.next() {
-                                if lc.eq(&'\n') {
-                                    break;
-                                }
+                if nc.eq(&'/')
+                    && let Some(nnc) = peekable_source.peek()
+                {
+                    if nnc.eq(&'/') {
+                        // Iterate until newline
+                        while let Some(lc) = &peekable_source.next() {
+                            if lc.eq(&'\n') {
+                                break;
                             }
-                        } else if nnc.eq(&'*') {
-                            // Iterate until '*/'
-                            while let Some(lc) = peekable_source.next() {
-                                if lc.eq(&'*') {
-                                    if let Some(llc) = peekable_source.peek() {
-                                        if *llc == '/' {
-                                            break;
-                                        }
-                                    }
-                                }
+                        }
+                    } else if nnc.eq(&'*') {
+                        // Iterate until '*/'
+                        while let Some(lc) = peekable_source.next() {
+                            if lc.eq(&'*')
+                                && let Some(llc) = peekable_source.peek()
+                                && *llc == '/'
+                            {
+                                break;
                             }
                         }
                     }

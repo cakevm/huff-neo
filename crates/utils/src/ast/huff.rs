@@ -343,7 +343,7 @@ pub struct MacroDefinition {
 }
 
 impl ToIRBytecode<CodegenError> for MacroDefinition {
-    fn to_irbytecode(&self, evm_version: &EVMVersion) -> Result<IRBytecode, CodegenError> {
+    fn to_irbytecode(&self, evm_version: &EVMVersion) -> Result<IRBytecode<'_>, CodegenError> {
         let inner_irbytes: Vec<IRBytes> = MacroDefinition::to_irbytes(evm_version, &self.statements);
         Ok(IRBytecode(inner_irbytes))
     }

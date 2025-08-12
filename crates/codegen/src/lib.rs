@@ -781,24 +781,24 @@ impl Codegen {
         let serialized_artifact = serde_json::to_string_pretty(art).unwrap();
         // Try to create the parent directory
         let file_path = Path::new(&output);
-        if let Some(p) = file_path.parent() {
-            if let Err(e) = fs::create_dir_all(p) {
-                return Err(CodegenError {
-                    kind: CodegenErrorKind::IOError(e.to_string()),
-                    span: AstSpan(vec![Span {
-                        start: 0,
-                        end: 0,
-                        file: Some(Arc::new(FileSource {
-                            id: uuid::Uuid::new_v4(),
-                            path: output,
-                            source: None,
-                            access: None,
-                            dependencies: vec![],
-                        })),
-                    }]),
-                    token: None,
-                });
-            }
+        if let Some(p) = file_path.parent()
+            && let Err(e) = fs::create_dir_all(p)
+        {
+            return Err(CodegenError {
+                kind: CodegenErrorKind::IOError(e.to_string()),
+                span: AstSpan(vec![Span {
+                    start: 0,
+                    end: 0,
+                    file: Some(Arc::new(FileSource {
+                        id: uuid::Uuid::new_v4(),
+                        path: output,
+                        source: None,
+                        access: None,
+                        dependencies: vec![],
+                    })),
+                }]),
+                token: None,
+            });
         }
         if let Err(e) = fs::write(file_path, serialized_artifact) {
             return Err(CodegenError {
