@@ -80,7 +80,7 @@ pub fn statement_gen<'a>(
                 } else {
                     scope.iter().map(|m| m.name.clone()).collect()
                 };
-                let scope_depth = scope.len() - 1;
+                let scope_depth = scope.len().saturating_sub(1);
                 jump_table.insert(
                     *offset + stack_swaps.len() + 3, // PUSH2 + 2 bytes + stack_swaps.len()
                     vec![Jump {
@@ -165,7 +165,7 @@ pub fn statement_gen<'a>(
             } else {
                 scope.iter().map(|m| m.name.clone()).collect()
             };
-            let scope_depth = scope.len() - 1; // -1 because scope includes the current macro
+            let scope_depth = scope.len().saturating_sub(1); // -1 because scope includes the current macro
 
             // Try to insert the label with scope information
             if let Err(err_msg) = label_indices.insert(label.name.clone(), *offset, scope_depth, scope_path) {
@@ -195,7 +195,7 @@ pub fn statement_gen<'a>(
             } else {
                 scope.iter().map(|m| m.name.clone()).collect()
             };
-            let scope_depth = scope.len() - 1; // -1 because scope includes the current macro
+            let scope_depth = scope.len().saturating_sub(1); // -1 because scope includes the current macro
 
             jump_table
                 .insert(*offset, vec![Jump { label: label.to_string(), bytecode_index: 0, span: s.span.clone(), scope_depth, scope_path }]);

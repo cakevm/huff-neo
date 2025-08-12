@@ -214,14 +214,14 @@ pub fn bubble_arg_call(
                                 let mut new_scope = scope.to_vec();
                                 new_scope.push(called_macro);
                                 let mut new_mis = mis.to_vec();
-                                new_mis.push((starting_offset, inner_mi.clone()));
+                                new_mis.push((*offset, inner_mi.clone()));
 
                                 match Codegen::macro_to_bytecode(
                                     evm_version,
                                     called_macro,
                                     contract,
                                     &mut new_scope,
-                                    starting_offset,
+                                    *offset,
                                     &mut new_mis,
                                     false,
                                     None,
@@ -232,8 +232,7 @@ pub fn bubble_arg_call(
                                         *offset += byte_len;
 
                                         // Bubble up unmatched jumps
-                                        for mut unmatched_jump in expanded_macro.unmatched_jumps {
-                                            unmatched_jump.bytecode_index += starting_offset;
+                                        for unmatched_jump in expanded_macro.unmatched_jumps {
                                             let existing_jumps =
                                                 jump_table.get(&unmatched_jump.bytecode_index).cloned().unwrap_or_else(Vec::new);
                                             let mut new_jumps = existing_jumps;
@@ -275,14 +274,14 @@ pub fn bubble_arg_call(
                                 let mut new_scope = scope.to_vec();
                                 new_scope.push(called_macro);
                                 let mut new_mis = mis.to_vec();
-                                new_mis.push((starting_offset, inner_mi.clone()));
+                                new_mis.push((*offset, inner_mi.clone()));
 
                                 match Codegen::macro_to_bytecode(
                                     evm_version,
                                     called_macro,
                                     contract,
                                     &mut new_scope,
-                                    starting_offset,
+                                    *offset,
                                     &mut new_mis,
                                     false,
                                     None,
@@ -294,10 +293,7 @@ pub fn bubble_arg_call(
 
                                         // Bubble up unmatched jumps from the expanded macro to the parent scope
                                         // This is crucial for label resolution across macro boundaries
-                                        for mut unmatched_jump in expanded_macro.unmatched_jumps {
-                                            // Adjust the bytecode index to account for the current offset
-                                            unmatched_jump.bytecode_index += starting_offset;
-
+                                        for unmatched_jump in expanded_macro.unmatched_jumps {
                                             // Add the unmatched jump to the parent's jump table
                                             let existing_jumps =
                                                 jump_table.get(&unmatched_jump.bytecode_index).cloned().unwrap_or_else(Vec::new);

@@ -249,3 +249,106 @@ fn test_nested_macro_call_with_argcall() {
     // Expected: PUSH1 0x05, PUSH1 0x02, ADD, PUSH1 0x03, MUL
     assert_eq!(main_bytecode.to_lowercase(), "6005600201600302");
 }
+
+#[test]
+fn test_nested_macro_with_label_argument() {
+    // Nested macro invocation with label argument
+    // Pattern: WRAPPER(JUMPER(label)) where label is defined in parent
+    let source = r#"
+        #define macro JUMP_TO(lbl) = takes(0) returns(1) {
+            <lbl> jump
+        }
+
+        #define macro MACRO(inner) = takes(0) returns(0) {
+            <inner>
+        }
+
+        #define macro MAIN() = takes(0) returns(0) {
+            jmp:
+            MACRO(JUMP_TO(jmp))
+            0x00 0x00 revert
+        }
+    "#;
+
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    let main_bytecode = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+
+    // Expected: JUMPDEST, PUSH2 0x0000, JUMP, PUSH0, PUSH0, REVERT
+    assert_eq!(main_bytecode.to_lowercase(), "5b610000565f5ffd");
+}
+
+#[test]
+fn test_label_before_nested_macro_invocation() {
+    // Label defined before nested macro invocation
+    // Pattern: label defined, then WRAPPER(JUMPER(label))
+    let source = r#"
+        #define macro JUMP_TO(lbl) = takes(0) returns(0) {
+            <lbl> jump
+        }
+
+        #define macro WRAPPER(inner) = takes(0) returns(0) {
+            <inner>
+        }
+
+        #define macro MAIN() = takes(0) returns(0) {
+            target:
+            0x01
+            WRAPPER(JUMP_TO(target))
+        }
+    "#;
+
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    let main_bytecode = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+
+    // Expected: JUMPDEST, PUSH1 0x01, PUSH2 0x0000, JUMP
+    assert_eq!(main_bytecode.to_lowercase(), "5b600161000056");
+}
+
+#[test]
+fn test_deeply_nested_macro_with_label_argument() {
+    // Deeply nested macro invocations with labels
+    // Pattern: LEVEL2(LEVEL1(JUMPER(label)))
+    let source = r#"
+        #define macro JUMP(lbl) = takes(0) returns(0) {
+            <lbl> jump
+        }
+
+        #define macro LEVEL1(arg1) = takes(0) returns(0) {
+            <arg1>
+        }
+
+        #define macro LEVEL2(arg2) = takes(0) returns(0) {
+            <arg2>
+        }
+
+        #define macro MAIN() = takes(0) returns(0) {
+            dest:
+            LEVEL2(LEVEL1(JUMP(dest)))
+            0x00 0x00 revert
+        }
+    "#;
+
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    let main_bytecode = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+
+    // Expected: JUMPDEST, PUSH2 0x0000, JUMP, PUSH0, PUSH0, REVERT
+    assert_eq!(main_bytecode.to_lowercase(), "5b610000565f5ffd");
+}
