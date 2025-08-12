@@ -11,6 +11,9 @@
   - Label shadowing across different scopes is supported.
   - Sibling macro invocations can reference each other's labels when invoked from the same parent.
   - Fixes issue where multiple invocations of macros defining the same label would cause all jumps to target the last definition.
+- Fix nested macro invocation with labels causing panic. (fixes #77)
+  - Correctly handle bytecode offset tracking when macros are expanded as arguments.
+  - Fix underflow issues in scope depth calculation.
 
 ## [1.2.0] - 2025-07-16
 - Fix table instance propagation in nested macro calls (fixes #76).
