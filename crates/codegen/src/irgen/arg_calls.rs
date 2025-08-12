@@ -177,8 +177,21 @@ pub fn bubble_arg_call(
 
                             // This should be equivalent to a label call.
                             bytes.push((*offset, Bytes(format!("{}xxxx", Opcode::Push2))));
-                            let scope_path: Vec<String> = scope.iter().map(|m| m.name.clone()).collect();
-                            let scope_depth = scope.len().saturating_sub(1);
+                            // For arg calls that are labels, search from parent's scope
+                            let scope_path: Vec<String> = if scope.len() > 2 {
+                                // Remove the current macro from the path and use parent's invocation offset
+                                let parent_invocation_offset = if mis.len() > 1 { mis[mis.len() - 2].0 } else { 0 };
+                                let mut path: Vec<String> = scope[..scope.len() - 2].iter().map(|m| m.name.clone()).collect();
+                                path.push(format!("{}_{}", scope[scope.len() - 2].name, parent_invocation_offset));
+                                path
+                            } else if scope.len() > 1 {
+                                // Just use the parent without suffix if we're at depth 1
+                                scope[..scope.len() - 1].iter().map(|m| m.name.clone()).collect()
+                            } else {
+                                vec![]
+                            };
+                            // Reduce depth by 1 since we're searching from parent's perspective
+                            let scope_depth = scope.len().saturating_sub(2);
                             jump_table.insert(
                                 *offset,
                                 vec![Jump {
@@ -376,8 +389,22 @@ pub fn bubble_arg_call(
             Some(mi) => mi.1.span.clone(),
             None => AstSpan(vec![]),
         };
-        let scope_path: Vec<String> = scope.iter().map(|m| m.name.clone()).collect();
-        let scope_depth = scope.len().saturating_sub(1);
+        // For arg calls that are labels, we need to search from the parent's scope
+        // because the label was likely defined in the parent or a sibling of the parent
+        let scope_path: Vec<String> = if scope.len() > 2 {
+            // Remove the current macro from the path and use parent's invocation offset
+            let parent_invocation_offset = if mis.len() > 1 { mis[mis.len() - 2].0 } else { 0 };
+            let mut path: Vec<String> = scope[..scope.len() - 2].iter().map(|m| m.name.clone()).collect();
+            path.push(format!("{}_{}", scope[scope.len() - 2].name, parent_invocation_offset));
+            path
+        } else if scope.len() > 1 {
+            // Just use the parent without suffix if we're at depth 1
+            scope[..scope.len() - 1].iter().map(|m| m.name.clone()).collect()
+        } else {
+            vec![]
+        };
+        // Reduce depth by 1 since we're searching from parent's perspective
+        let scope_depth = scope.len().saturating_sub(2);
         jump_table.insert(
             mis.last().map(|mi| mi.0).unwrap_or_else(|| 0),
             vec![Jump { label: arg_name.to_owned(), bytecode_index: 0, span: new_span, scope_depth, scope_path }],

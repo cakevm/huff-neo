@@ -72,7 +72,14 @@ pub fn statement_gen<'a>(
                 let stack_swaps = (0..ir_macro.takes).rev().map(|i| format!("{:02x}", 0x90 + i)).collect::<Vec<_>>();
 
                 // Insert a jump to the outlined macro's code
-                let scope_path: Vec<String> = scope.iter().map(|m| m.name.clone()).collect();
+                // Use offset to make each invocation unique
+                let scope_path: Vec<String> = if scope.len() > 1 {
+                    let mut path: Vec<String> = scope[..scope.len() - 1].iter().map(|m| m.name.clone()).collect();
+                    path.push(format!("{}_{}", scope.last().unwrap().name, *offset));
+                    path
+                } else {
+                    scope.iter().map(|m| m.name.clone()).collect()
+                };
                 let scope_depth = scope.len() - 1;
                 jump_table.insert(
                     *offset + stack_swaps.len() + 3, // PUSH2 + 2 bytes + stack_swaps.len()
@@ -149,7 +156,15 @@ pub fn statement_gen<'a>(
             tracing::info!(target: "codegen", "RECURSE BYTECODE GOT LABEL: {:?}", label.name);
 
             // Build the scope path from the current macro invocation stack
-            let scope_path: Vec<String> = scope.iter().map(|m| m.name.clone()).collect();
+            // Use offset to make each invocation unique
+            let scope_path: Vec<String> = if scope.len() > 1 {
+                let mut path: Vec<String> = scope[..scope.len() - 1].iter().map(|m| m.name.clone()).collect();
+                // Add the current macro with its invocation offset to make it unique
+                path.push(format!("{}_{}", scope.last().unwrap().name, *offset));
+                path
+            } else {
+                scope.iter().map(|m| m.name.clone()).collect()
+            };
             let scope_depth = scope.len() - 1; // -1 because scope includes the current macro
 
             // Try to insert the label with scope information
@@ -171,7 +186,15 @@ pub fn statement_gen<'a>(
             tracing::info!(target: "codegen", "RECURSE BYTECODE GOT LABEL CALL: {}", label);
 
             // Build the scope information for this jump
-            let scope_path: Vec<String> = scope.iter().map(|m| m.name.clone()).collect();
+            // Use offset to make each invocation unique (matching the label definition logic)
+            let scope_path: Vec<String> = if scope.len() > 1 {
+                let mut path: Vec<String> = scope[..scope.len() - 1].iter().map(|m| m.name.clone()).collect();
+                // Add the current macro with its invocation offset to make it unique
+                path.push(format!("{}_{}", scope.last().unwrap().name, *offset));
+                path
+            } else {
+                scope.iter().map(|m| m.name.clone()).collect()
+            };
             let scope_depth = scope.len() - 1; // -1 because scope includes the current macro
 
             jump_table

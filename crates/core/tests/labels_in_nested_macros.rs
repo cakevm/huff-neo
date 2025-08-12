@@ -1,6 +1,7 @@
 use huff_neo_codegen::Codegen;
 use huff_neo_lexer::*;
 use huff_neo_parser::Parser;
+use huff_neo_utils::error::CodegenErrorKind;
 use huff_neo_utils::file::full_file_source::FullFileSource;
 use huff_neo_utils::prelude::*;
 
@@ -320,4 +321,143 @@ fn test_nested_label_shadowing_three_levels() {
     let bytecode = result.unwrap();
     // Expected: JUMPDEST, PUSH1 0x01, JUMPDEST, PUSH1 0x02, JUMPDEST, PUSH1 0x03, PUSH2 0x0003, JUMP, PUSH2 0x0000, JUMP
     assert_eq!(bytecode, "5b60015b60025b60036100035661000056");
+}
+
+#[test]
+fn test_sibling_macro_label_visibility() {
+    // Test that sibling macros can see each other's labels when invoked from same parent
+    let source = r#"
+        #define macro DEFINE_LABEL() = takes(0) returns(0) {
+            shared_label:
+            0x42
+        }
+
+        #define macro JUMP_TO_LABEL() = takes(0) returns(0) {
+            shared_label jump
+        }
+
+        #define macro MAIN() = takes(0) returns(0) {
+            DEFINE_LABEL()    // First macro defines the label
+            JUMP_TO_LABEL()   // Second macro should be able to jump to it
+        }
+    "#;
+
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None);
+    assert!(result.is_ok());
+
+    let bytecode = result.unwrap();
+    // Expected: JUMPDEST, PUSH1 0x42, PUSH2 0x0000, JUMP
+    assert_eq!(bytecode, "5b604261000056");
+}
+
+#[test]
+fn test_multiple_macro_invocations_with_cross_references() {
+    // Test valid cross-references between sibling macro invocations
+    let source = r#"
+        #define macro DEF_LBL() = takes(0) returns(0) {
+            lbl:
+            0x42
+        }
+
+        #define macro JUMP_TO_LBL() = takes(0) returns(0) {
+            lbl jump
+        }
+
+        #define macro MAIN() = takes(0) returns(0) {
+            DEF_LBL()        // Defines lbl
+            JUMP_TO_LBL()    // Can jump to lbl from sibling
+            JUMP_TO_LBL()    // Can also jump to lbl from another sibling
+        }
+    "#;
+
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None);
+    assert!(result.is_ok());
+
+    let bytecode = result.unwrap();
+    // Expected: JUMPDEST, PUSH1 0x42, PUSH2 0x0000, JUMP, PUSH2 0x0000, JUMP
+    assert_eq!(bytecode, "5b60426100005661000056");
+}
+
+#[test]
+fn test_duplicate_labels_in_sibling_scopes_error() {
+    // Test that duplicate labels in sibling scopes cause an error when cross-referenced
+    let source = r#"
+        #define macro DEF_LBL() = takes(0) returns(0) {
+            lbl:
+            0x42
+        }
+
+        #define macro JUMP_TO_LBL() = takes(0) returns(0) {
+            lbl jump    // Trying to reference lbl - ambiguous if multiple siblings define it
+        }
+
+        #define macro MAIN() = takes(0) returns(0) {
+            DEF_LBL()       // First invocation defines lbl
+            DEF_LBL()       // Second invocation also defines lbl
+            JUMP_TO_LBL()   // This tries to reference lbl - should error due to ambiguity
+        }
+    "#;
+
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None);
+
+    // Should fail with duplicate label error when there's cross-referencing
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert_eq!(err.kind, CodegenErrorKind::DuplicateLabelAcrossSiblings("lbl".to_string()));
+}
+
+#[test]
+fn test_parent_uses_deeply_nested_label() {
+    // Test that a parent macro can use a label defined in a deeply nested macro
+    let source = r#"
+        #define macro INNER() = takes(0) returns(0) {
+            inner_label:
+            0x42
+        }
+
+        #define macro OUTER() = takes(0) returns(0) {
+            INNER()
+        }
+
+        #define macro MAIN() = takes(0) returns(0) {
+            OUTER()
+            inner_label jump  // Jump to label defined in nested INNER macro
+        }
+    "#;
+
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None);
+    assert!(result.is_ok());
+
+    let bytecode = result.unwrap();
+    // Expected: JUMPDEST (inner_label at offset 0), PUSH1 0x42, PUSH2 0x0000, JUMP
+    // The jump should target offset 0 where inner_label is defined in the nested INNER macro
+    assert_eq!(bytecode, "5b604261000056");
 }

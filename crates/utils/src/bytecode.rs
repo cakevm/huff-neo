@@ -163,10 +163,11 @@ impl ScopedLabelIndices {
 
     /// Get the label offset for a given name, considering scope
     /// Returns the label from the deepest matching scope
-    pub fn get(&self, name: &str, current_scope_depth: usize, current_scope_path: &[String]) -> Option<usize> {
-        self.labels.get(name).and_then(|labels| {
-            // Find the label with the deepest scope that is still accessible
-            labels
+    /// Returns an error if duplicate labels are found in sibling scopes when cross-referencing
+    pub fn get(&self, name: &str, current_scope_depth: usize, current_scope_path: &[String]) -> Result<Option<usize>, String> {
+        self.labels.get(name).map_or(Ok(None), |labels| {
+            // First, try to find a label in the current scope or parent scopes
+            let in_scope = labels
                 .iter()
                 .filter(|label| {
                     // Label is accessible if it's at the same depth or shallower
@@ -176,7 +177,67 @@ impl ScopedLabelIndices {
                         && label.scope_path.iter().zip(current_scope_path.iter()).all(|(a, b)| a == b)
                 })
                 .max_by_key(|label| label.scope_depth)
-                .map(|label| label.offset)
+                .map(|label| label.offset);
+
+            if in_scope.is_some() {
+                return Ok(in_scope);
+            }
+
+            // If not found in current/parent scopes, search in child scopes
+            // This allows accessing labels defined in macros invoked from the current scope
+            let child_labels: Vec<&ScopedLabel> = labels
+                .iter()
+                .filter(|label| {
+                    // Check if this label is in a child scope (starts with our scope path)
+                    label.scope_path.len() > current_scope_path.len()
+                        && current_scope_path.iter().zip(label.scope_path.iter()).all(|(a, b)| a == b)
+                })
+                .collect();
+
+            if !child_labels.is_empty() {
+                // Check for duplicates in child scopes
+                if child_labels.len() > 1 {
+                    // Multiple children define this label - use the first one (depth-first order)
+                    // This matches the order of macro expansion
+                }
+                return Ok(child_labels.first().map(|label| label.offset));
+            }
+
+            // If not found in current/parent/child scopes, search in sibling scopes
+            // This allows accessing labels defined in sibling macros invoked from the same parent
+            if !current_scope_path.is_empty() {
+                // Get the parent scope path (all but the last element)
+                let parent_scope = &current_scope_path[..current_scope_path.len() - 1];
+
+                // Find all labels in sibling scopes (but not our own scope)
+                let sibling_labels: Vec<&ScopedLabel> = labels
+                    .iter()
+                    .filter(|label| {
+                        // Check if this label is in a sibling scope (same parent, different last element)
+                        // Exclude our own scope from the sibling check
+                        label.scope_path.len() == current_scope_path.len()
+                            && label.scope_path.len() > parent_scope.len()
+                            && label.scope_path[..parent_scope.len()] == *parent_scope
+                            && label.scope_path != current_scope_path // Not our own scope
+                    })
+                    .collect();
+
+                // Check for duplicates across siblings only when we're doing cross-sibling reference
+                if sibling_labels.len() > 1 {
+                    // Multiple siblings define this label - this is an error when cross-referencing
+                    // Get unique scope paths to check if they're actually different siblings
+                    let unique_scopes: std::collections::HashSet<_> = sibling_labels.iter().map(|label| &label.scope_path).collect();
+
+                    if unique_scopes.len() > 1 {
+                        // Labels are in different sibling scopes - ambiguous reference
+                        return Err(format!("DuplicateLabelAcrossSiblings:{}", name));
+                    }
+                }
+
+                Ok(sibling_labels.first().map(|label| label.offset))
+            } else {
+                Ok(None)
+            }
         })
     }
 
@@ -189,8 +250,8 @@ impl ScopedLabelIndices {
 
     /// Extend this indices with another set of indices
     pub fn extend(&mut self, other: ScopedLabelIndices) {
-        for (name, labels) in other.labels {
-            self.labels.entry(name).or_default().extend(labels);
+        for (name, new_labels) in other.labels {
+            self.labels.entry(name).or_default().extend(new_labels);
         }
     }
 

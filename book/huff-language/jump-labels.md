@@ -47,9 +47,15 @@ Huff-Neo implements scoped label resolution to prevent situations where multiple
 - **Across Different Scopes**: Labels with the same name in different scopes are allowed (shadowing)
 
 #### Label Resolution
-- When a jump references a label, it resolves to the nearest matching label in the scope hierarchy
-- Resolution searches from the current scope upward to parent scopes
-- Inner scope labels shadow outer scope labels with the same name
+Labels are resolved in the following order:
+1. **Current and Parent Scopes**: Searches from the current scope upward through parent scopes
+2. **Child Scopes**: If not found, searches in child scopes (macros invoked from current scope)
+3. **Sibling Scopes**: As a fallback, searches in sibling scopes (macros invoked from the same parent)
+
+This resolution order allows:
+- Inner scope labels to shadow outer scope labels
+- Parent macros to reference labels defined in nested child macros
+- Sibling macros to cross-reference each other's labels when needed
 
 ### Examples
 
@@ -91,6 +97,40 @@ Huff-Neo implements scoped label resolution to prevent situations where multiple
     DEF_LBL()       // First invocation - creates my_label in its scope
     DEF_LBL()       // Second invocation - creates my_label in its own scope
     // Both invocations work correctly with their own labels
+}
+```
+
+#### Parent Accessing Child Labels
+```huff
+#define macro INNER() = takes(0) returns(0) {
+    inner_label:    // Label defined in nested macro
+    0x42
+}
+
+#define macro OUTER() = takes(0) returns(0) {
+    INNER()         // Invoke macro that defines inner_label
+}
+
+#define macro MAIN() = takes(0) returns(0) {
+    OUTER()
+    inner_label jump // Parent can jump to label in nested child
+}
+```
+
+#### Sibling Cross-References
+```huff
+#define macro FIRST() = takes(0) returns(0) {
+    first_label:
+    0x01
+}
+
+#define macro SECOND() = takes(0) returns(0) {
+    first_label jump // Can reference sibling's label
+}
+
+#define macro MAIN() = takes(0) returns(0) {
+    FIRST()         // Defines first_label
+    SECOND()        // References first_label from FIRST
 }
 ```
 

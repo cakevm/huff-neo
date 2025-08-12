@@ -9,6 +9,7 @@
   - Each macro invocation now has its own label scope.
   - Duplicate labels within the same scope are now properly detected and reported as errors.
   - Label shadowing across different scopes is supported.
+  - Sibling macro invocations can reference each other's labels when invoked from the same parent.
   - Fixes issue where multiple invocations of macros defining the same label would cause all jumps to target the last definition.
 
 ## [1.2.0] - 2025-07-16
