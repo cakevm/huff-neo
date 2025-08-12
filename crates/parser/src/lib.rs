@@ -658,9 +658,52 @@ impl Parser {
                 }
                 TokenKind::LeftAngle => {
                     let (arg_call, arg_span) = self.parse_arg_call()?;
-                    tracing::info!(target: "parser", "PARSING MACRO BODY: [ARG CALL: {}]", arg_call);
-                    statements
-                        .push(Statement { ty: StatementType::ArgCall(macro_name.to_owned(), arg_call), span: AstSpan(vec![arg_span]) });
+
+                    // Check if this is a macro invocation through argument: <arg>()
+                    if self.current_token.kind == TokenKind::OpenParen {
+                        tracing::info!(target: "parser", "PARSING MACRO BODY: [ARG MACRO INVOCATION: {}()]", arg_call);
+                        self.consume(); // consume '('
+
+                        // Parse arguments for the macro invocation
+                        let mut args = Vec::new();
+                        while self.current_token.kind != TokenKind::CloseParen {
+                            // Parse each argument similar to regular macro invocation
+                            let arg = self.parse_single_macro_argument()?;
+                            // Fix up ArgCall macro_name if needed
+                            let arg = if let MacroArg::ArgCall(mut ac) = arg {
+                                ac.macro_name = macro_name.to_string();
+                                MacroArg::ArgCall(ac)
+                            } else {
+                                arg
+                            };
+                            args.push(arg);
+
+                            // Handle comma separation
+                            if self.current_token.kind == TokenKind::Comma {
+                                self.consume();
+                            } else if self.current_token.kind != TokenKind::CloseParen {
+                                return Err(ParserError {
+                                    kind: ParserErrorKind::InvalidTokenInMacroBody(self.current_token.kind.clone()),
+                                    hint: Some("Expected ',' or ')' in macro argument list".to_string()),
+                                    spans: AstSpan(vec![self.current_token.span.clone()]),
+                                    cursor: self.cursor,
+                                });
+                            }
+                        }
+
+                        self.match_kind(TokenKind::CloseParen)?; // consume ')'
+
+                        statements.push(Statement {
+                            ty: StatementType::ArgMacroInvocation(macro_name.to_string(), arg_call, args),
+                            span: AstSpan(vec![arg_span]),
+                        });
+                    } else {
+                        tracing::info!(target: "parser", "PARSING MACRO BODY: [ARG CALL: {}]", arg_call);
+                        statements.push(Statement {
+                            ty: StatementType::ArgCall(macro_name.to_string(), arg_call),
+                            span: AstSpan(vec![arg_span]),
+                        });
+                    }
                 }
                 TokenKind::BuiltinFunction(f) => {
                     let mut curr_spans = vec![self.current_token.span.clone()];
@@ -1015,12 +1058,64 @@ impl Parser {
         Ok(value)
     }
 
+    /// Parse a single macro argument
+    fn parse_single_macro_argument(&mut self) -> Result<MacroArg, ParserError> {
+        match self.current_token.kind.clone() {
+            TokenKind::Literal(lit) => {
+                self.consume();
+                Ok(MacroArg::Literal(lit))
+            }
+            TokenKind::Opcode(o) => {
+                self.consume();
+                Ok(MacroArg::Opcode(o))
+            }
+            TokenKind::Ident(ident) => {
+                if self.peek().is_some() && self.peek().unwrap().kind == TokenKind::OpenParen {
+                    // It's a nested macro call
+                    let mut curr_spans = vec![self.current_token.span.clone()];
+                    self.match_kind(TokenKind::Ident("MACRO_NAME".to_string()))?;
+                    // Parse Macro Call - use empty string as we don't have the parent macro name here
+                    let lit_args = self.parse_macro_call_args(String::new())?;
+                    // Grab all spans following our macro invocation
+                    if let Some(i) = self.spans.iter().position(|s| s.eq(&curr_spans[0])) {
+                        curr_spans.append(&mut self.spans[(i + 1)..].to_vec());
+                    }
+                    Ok(MacroArg::MacroCall(MacroInvocation { macro_name: ident, args: lit_args, span: AstSpan(curr_spans.clone()) }))
+                } else {
+                    self.consume();
+                    Ok(MacroArg::Ident(ident))
+                }
+            }
+            TokenKind::Calldata => {
+                self.consume();
+                Ok(MacroArg::Ident("calldata".to_string()))
+            }
+            TokenKind::LeftAngle => {
+                // ArgCall: <arg>
+                self.consume();
+                let arg_name = self.match_kind(TokenKind::Ident("ARG_CALL".to_string()))?.to_string();
+                let span = AstSpan(vec![self.current_token.span.clone()]);
+                self.match_kind(TokenKind::RightAngle)?;
+                Ok(MacroArg::ArgCall(ArgCall {
+                    macro_name: String::new(), // Will be filled in by caller
+                    name: arg_name,
+                    span,
+                }))
+            }
+            arg => Err(ParserError {
+                kind: ParserErrorKind::InvalidMacroArgs(arg),
+                hint: Some("Expected literal, identifier, opcode, or argument call".to_string()),
+                spans: AstSpan(vec![self.current_token.span.clone()]),
+                cursor: self.cursor,
+            }),
+        }
+    }
+
     /// Parse the arguments of a macro call.
     pub fn parse_macro_call_args(&mut self, macro_name: String) -> Result<Vec<MacroArg>, ParserError> {
         let mut args = vec![];
         self.match_kind(TokenKind::OpenParen)?;
         while !self.check(TokenKind::CloseParen) {
-            // We can pass either directly hex values or labels (without the ":")
             match self.current_token.kind.clone() {
                 TokenKind::Literal(lit) => {
                     args.push(MacroArg::Literal(lit));

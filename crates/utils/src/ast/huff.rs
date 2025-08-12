@@ -443,6 +443,16 @@ impl MacroDefinition {
                         span: &statement.span,
                     });
                 }
+                StatementType::ArgMacroInvocation(parent_macro_name, arg_name, args) => {
+                    // Arg macro invocation - will be resolved to actual macro invocation during codegen
+                    inner_irbytes.push(IRBytes {
+                        ty: IRByteType::Statement(Statement {
+                            ty: StatementType::ArgMacroInvocation(parent_macro_name.clone(), arg_name.clone(), args.clone()),
+                            span: statement.span.clone(),
+                        }),
+                        span: &statement.span,
+                    });
+                }
                 StatementType::LabelCall(jump_to) => {
                     /* Jump To doesn't translate directly to bytecode */
                     inner_irbytes.push(IRBytes {
@@ -720,6 +730,9 @@ pub enum StatementType {
     /// An Arg Call
     /// Macro name and argument name
     ArgCall(String, String),
+    /// A Macro Invocation through Argument
+    /// Parent macro name, argument name, and arguments for the invoked macro
+    ArgMacroInvocation(String, String, Vec<MacroArg>),
     /// A Label
     Label(Label),
     /// A Label Reference/Call
@@ -739,6 +752,9 @@ impl Display for StatementType {
             }
             StatementType::Constant(c) => write!(f, "CONSTANT: {c}"),
             StatementType::ArgCall(m, c) => write!(f, "ARG CALL in {m}: {c}"),
+            StatementType::ArgMacroInvocation(parent_macro, arg_name, args) => {
+                write!(f, "ARG MACRO INVOCATION: <{}>({:?}) in {}", arg_name, args, parent_macro)
+            }
             StatementType::Label(l) => write!(f, "LABEL: {}", l.name),
             StatementType::LabelCall(l) => write!(f, "LABEL CALL: {l}"),
             StatementType::BuiltinFunctionCall(b) => {

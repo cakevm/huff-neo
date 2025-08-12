@@ -85,7 +85,7 @@ pub struct LexicalError {
 }
 
 impl LexicalError {
-    /// Public associated function to instatiate a new LexicalError.
+    /// Public associated function to instantiate a new LexicalError.
     pub fn new(kind: LexicalErrorKind, span: Span) -> Self {
         Self { kind, span }
     }
