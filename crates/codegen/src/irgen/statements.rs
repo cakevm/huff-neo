@@ -103,6 +103,35 @@ pub fn statement_gen<'a>(
                 // PUSH2 + 2 bytes + stack_swaps.len() + PUSH2 + 2 bytes + JUMP + JUMPDEST
                 *offset += stack_swaps.len() + 8;
             } else {
+                // Check for circular recursion - if this macro is already in the scope, it's recursive
+                if scope.iter().any(|m| m.name == ir_macro.name) {
+                    tracing::error!(
+                        target: "codegen",
+                        "CIRCULAR RECURSION DETECTED: Macro \"{}\" is already in the call stack",
+                        ir_macro.name
+                    );
+                    return Err(CodegenError {
+                        kind: CodegenErrorKind::CircularMacroInvocation(ir_macro.name.clone()),
+                        span: mi.span.clone(),
+                        token: None,
+                    });
+                }
+
+                // Check recursion depth limit to prevent stack overflow
+                const MAX_RECURSION_DEPTH: usize = 100;
+                if scope.len() >= MAX_RECURSION_DEPTH {
+                    tracing::error!(
+                        target: "codegen",
+                        "RECURSION DEPTH LIMIT EXCEEDED: Maximum depth of {} reached",
+                        MAX_RECURSION_DEPTH
+                    );
+                    return Err(CodegenError {
+                        kind: CodegenErrorKind::RecursionDepthExceeded(MAX_RECURSION_DEPTH),
+                        span: mi.span.clone(),
+                        token: None,
+                    });
+                }
+
                 // Recurse into macro invocation
                 scope.push(ir_macro);
                 mis.push((*offset, mi.clone()));

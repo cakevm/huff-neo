@@ -130,6 +130,26 @@ impl Contract {
         last_p: &mut i32,
         checking_constructor: bool,
     ) {
+        let mut visited = std::collections::HashSet::new();
+        self.recurse_ast_constants_inner(macro_def, storage_pointers, last_p, checking_constructor, &mut visited)
+    }
+
+    fn recurse_ast_constants_inner(
+        &self,
+        macro_def: &MacroDefinition,
+        storage_pointers: &mut Vec<(String, [u8; 32])>,
+        last_p: &mut i32,
+        checking_constructor: bool,
+        visited: &mut std::collections::HashSet<String>,
+    ) {
+        // Check for circular recursion
+        if visited.contains(&macro_def.name) {
+            tracing::warn!(target: "ast", "Circular macro invocation detected: '{}' is already being processed. Skipping to prevent infinite recursion.", macro_def.name);
+            return;
+        }
+
+        // Mark this macro as being processed
+        visited.insert(macro_def.name.clone());
         let mut statements = macro_def.statements.clone();
 
         let mut i = 0;
@@ -166,10 +186,10 @@ impl Contract {
                         Some(md) => {
                             if md.name.eq("CONSTRUCTOR") {
                                 if !checking_constructor {
-                                    self.recurse_ast_constants(md, storage_pointers, last_p, true);
+                                    self.recurse_ast_constants_inner(md, storage_pointers, last_p, true, visited);
                                 }
                             } else {
-                                self.recurse_ast_constants(md, storage_pointers, last_p, checking_constructor);
+                                self.recurse_ast_constants_inner(md, storage_pointers, last_p, checking_constructor, visited);
                             }
                         }
                         None => {
@@ -186,10 +206,10 @@ impl Contract {
                                 Some(md) => {
                                     if md.name.eq("CONSTRUCTOR") {
                                         if !checking_constructor {
-                                            self.recurse_ast_constants(md, storage_pointers, last_p, true);
+                                            self.recurse_ast_constants_inner(md, storage_pointers, last_p, true, visited);
                                         }
                                     } else {
-                                        self.recurse_ast_constants(md, storage_pointers, last_p, checking_constructor);
+                                        self.recurse_ast_constants_inner(md, storage_pointers, last_p, checking_constructor, visited);
                                     }
                                 }
                                 None => {
@@ -208,6 +228,9 @@ impl Contract {
             }
             i += 1;
         }
+
+        // Remove this macro from visited set when done processing it
+        visited.remove(&macro_def.name);
 
         // Breadth-first
         // if !macros_to_recurse.is_empty() {
