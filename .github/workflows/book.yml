@@ -40,12 +40,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install mdbook-linkcheck
-        run: |
-          mkdir mdbook-linkcheck
-          curl -sSL -o mdbook-linkcheck.zip https://github.com/Michael-F-Bryan/mdbook-linkcheck/releases/latest/download/mdbook-linkcheck.x86_64-unknown-linux-gnu.zip
-          unzip mdbook-linkcheck.zip -d ./mdbook-linkcheck
-          chmod +x $(pwd)/mdbook-linkcheck/mdbook-linkcheck
-          echo $(pwd)/mdbook-linkcheck >> $GITHUB_PATH
+        run: cargo binstall --no-confirm mdbook-linkcheck
 
       - name: Run linkcheck
         run: mdbook-linkcheck --standalone
