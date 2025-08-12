@@ -3,6 +3,8 @@
 # Huff Neo Compiler changelog
 
 ## [Unreleased]
+- Update rust to 1.89.
+- Update dependencies to the latest version.
 
 ## [1.2.0] - 2025-07-16
 - Fix table instance propagation in nested macro calls (fixes #76).

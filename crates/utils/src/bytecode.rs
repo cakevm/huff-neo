@@ -48,7 +48,7 @@ pub struct IRBytecode<'a>(pub Vec<IRBytes<'a>>);
 /// Converts a stateful object to intermediate bytecode
 pub trait ToIRBytecode<E> {
     /// Translates `self` to intermediate bytecode representation
-    fn to_irbytecode(&self, evm_version: &EVMVersion) -> Result<IRBytecode, E>;
+    fn to_irbytecode(&self, evm_version: &EVMVersion) -> Result<IRBytecode<'_>, E>;
 }
 
 /// Full Bytecode
