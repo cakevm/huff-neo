@@ -14,6 +14,10 @@
 - Fix nested macro invocation with labels causing panic. (fixes #77)
   - Correctly handle bytecode offset tracking when macros are expanded as arguments.
   - Fix underflow issues in scope depth calculation.
+- Handle circular macro recursion and prevent stack overflow. (fixes #75)
+  - Add detection for circular macro invocations during storage pointer derivation.
+  - Add detection for circular macro invocations during bytecode generation.
+  - Provide clear error messages instead of crashing with stack overflow.
 
 ## [1.2.0] - 2025-07-16
 - Fix table instance propagation in nested macro calls (fixes #76).
