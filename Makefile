@@ -55,6 +55,10 @@ doc:
 	RUSTDOCFLAGS="--show-type-layout --generate-link-to-definition --enable-index-page -D warnings -Z unstable-options" \
 	cargo +nightly doc --workspace --all-features --no-deps --document-private-items
 
+.PHONY: udeps
+udeps:
+	cargo install cargo-machete --locked && cargo-machete --with-metadata
+
 .PHONY: pre-release
 pre-release:
 	mdbook test

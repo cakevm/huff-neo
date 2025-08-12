@@ -27,7 +27,7 @@ fn test_invalid_macro_statement() {
     "#;
 
     let const_start = source.find("FREE_STORAGE_POINTER()").unwrap_or(0);
-    let const_end = const_start + "FREE_STORAGE_POINTER()".len() - 1;
+    let const_end = const_start + "FREE_STORAGE_POINTER()".len();
 
     let full_source = FullFileSource { source, file: None, spans: vec![] };
     let lexer = Lexer::new(full_source);
@@ -70,7 +70,7 @@ fn test_unexpected_type() {
                     hint: Some("Expected one of: `view`, `pure`, `payable`, `nonpayable`.".to_string(),),
                     spans: AstSpan(vec![Span {
                         start: source.find("internal").unwrap_or(0),
-                        end: source.find("internal").unwrap_or(0) + "internal".len() - 1,
+                        end: source.find("internal").unwrap_or(0) + "internal".len(),
                         file: None
                     }]),
                     cursor: 5,
@@ -101,7 +101,7 @@ fn test_invalid_definition() {
                     ),
                     spans: AstSpan(vec![Span {
                         start: source.find("invalid").unwrap_or(0),
-                        end: source.find("invalid").unwrap_or(0) + "invalid".len() - 1,
+                        end: source.find("invalid").unwrap_or(0) + "invalid".len(),
                         file: None
                     }]),
                     cursor: 1,
@@ -143,7 +143,7 @@ fn test_invalid_constant_value() {
                         hint: Some("Expected constant value to be Hex or `FREE_STORAGE_POINTER()`".to_string()),
                         spans: AstSpan(vec![Span {
                             start: source.find(value).unwrap_or(0),
-                            end: source.find(value).unwrap_or(0) + value.len() - 1,
+                            end: source.find(value).unwrap_or(0) + value.len(),
                             file: None
                         }]),
                         cursor: 4
@@ -188,7 +188,7 @@ fn test_invalid_token_in_macro_body() {
                         hint: None,
                         spans: AstSpan(vec![Span {
                             start: source.rfind(value).unwrap_or(0),
-                            end: source.rfind(value).unwrap_or(0) + value.len() - 1,
+                            end: source.rfind(value).unwrap_or(0) + value.len(),
                             file: None
                         }]),
                         cursor: 15,
@@ -234,7 +234,7 @@ fn test_invalid_token_in_label_definition() {
                         hint: None,
                         spans: AstSpan(vec![Span {
                             start: source.rfind(value).unwrap_or(0),
-                            end: source.rfind(value).unwrap_or(0) + value.len() - 1,
+                            end: source.rfind(value).unwrap_or(0) + value.len(),
                             file: None
                         }]),
                         cursor: 17,
@@ -273,7 +273,7 @@ fn test_invalid_single_arg() {
                     ParserError {
                         kind: ParserErrorKind::InvalidSingleArg(TokenKind::Ident(format!("{random_char}"))),
                         hint: Some("Expected number representing stack item count.".to_string()),
-                        spans: AstSpan(vec![Span { start: 34, end: 34, file: None }]),
+                        spans: AstSpan(vec![Span { start: 34, end: 35, file: None }]),
                         cursor: 8,
                     }
                 )

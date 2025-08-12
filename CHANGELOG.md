@@ -2,6 +2,13 @@
 
 # Huff Neo Compiler changelog
 
+## Unreleased
+
+## [1.3.1] - 2025-08-14
+- Add constructor and runtime source maps in Artifact structure.
+- Remove UUID field from FileSource struct for better WASM compatibility.
+- Fix span end to be inclusive at the end.
+
 ## [1.3.0] - 2025-08-12
 - Update rust to 1.89 and dependencies to the latest version.
 - **Breaking**: Implement proper label scoping to prevent label overwriting in macro invocations. (fixes #82)

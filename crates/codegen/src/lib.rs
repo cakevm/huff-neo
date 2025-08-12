@@ -64,6 +64,16 @@ impl Codegen {
         contract: &Contract,
         alternative_main: Option<String>,
     ) -> Result<String, CodegenError> {
+        let (bytecode, _source_map) = Self::generate_main_bytecode_with_sourcemap(evm_version, contract, alternative_main)?;
+        Ok(bytecode)
+    }
+
+    /// Generates main bytecode with source map from a Contract AST
+    pub fn generate_main_bytecode_with_sourcemap(
+        evm_version: &EVMVersion,
+        contract: &Contract,
+        alternative_main: Option<String>,
+    ) -> Result<(String, Vec<SourceMapEntry>), CodegenError> {
         let contract = Self::update_table_size(evm_version, contract)?;
 
         // If an alternative main is provided, then use it as the compilation target
@@ -88,6 +98,17 @@ impl Codegen {
         contract: &Contract,
         alternative_constructor: Option<String>,
     ) -> Result<(String, bool), CodegenError> {
+        let ((bytecode, _source_map), has_custom) =
+            Self::generate_constructor_bytecode_with_sourcemap(evm_version, contract, alternative_constructor)?;
+        Ok((bytecode, has_custom))
+    }
+
+    /// Generates constructor bytecode with source map from a Contract AST
+    pub fn generate_constructor_bytecode_with_sourcemap(
+        evm_version: &EVMVersion,
+        contract: &Contract,
+        alternative_constructor: Option<String>,
+    ) -> Result<((String, Vec<SourceMapEntry>), bool), CodegenError> {
         let contract = Self::update_table_size(evm_version, contract)?;
 
         // If an alternative constructor macro is provided, then use it as the compilation target
@@ -105,9 +126,9 @@ impl Codegen {
 
         tracing::info!(target: "codegen", "Constructor is self-generating: {}", has_custom_bootstrap);
 
-        let bytecode = Codegen::gen_table_bytecode(evm_version, &contract, bytecode_res)?;
+        let (bytecode, source_map) = Codegen::gen_table_bytecode(evm_version, &contract, bytecode_res)?;
 
-        Ok((bytecode, has_custom_bootstrap))
+        Ok(((bytecode, source_map), has_custom_bootstrap))
     }
 
     /// Update the table size in the contract that was not know at the time of parsing
@@ -205,7 +226,12 @@ impl Codegen {
 
     /// Appends table bytecode to the end of the BytecodeRes output.
     /// Fills table JUMPDEST placeholders.
-    pub fn gen_table_bytecode(evm_version: &EVMVersion, contract: &Contract, res: BytecodeRes) -> Result<String, CodegenError> {
+    /// Returns both the bytecode string and the source map
+    pub fn gen_table_bytecode(
+        evm_version: &EVMVersion,
+        contract: &Contract,
+        res: BytecodeRes,
+    ) -> Result<(String, Vec<SourceMapEntry>), CodegenError> {
         if !res.unmatched_jumps.is_empty() {
             let labels = res.unmatched_jumps.iter().map(|uj| uj.label.to_string()).collect::<Vec<String>>();
             tracing::error!(
@@ -222,6 +248,21 @@ impl Codegen {
         }
 
         tracing::info!(target: "codegen", "GENERATING JUMPTABLE BYTECODE");
+
+        // Generate source map from bytecode segments and spans
+        let mut source_map = Vec::new();
+        let mut byte_offset = 0;
+
+        for (i, (_, bytes)) in res.bytes.iter().enumerate() {
+            let length = bytes.0.len(); // Length in hex string (2 chars per byte)
+
+            // Add source map entry if we have span information
+            if let Some(Some((start, end))) = res.spans.get(i) {
+                source_map.push(SourceMapEntry { byte_offset, length, source_start: *start, source_end: *end });
+            }
+
+            byte_offset += length;
+        }
 
         let mut bytecode = res.bytes.into_iter().map(|(_, b)| b.0).collect::<String>();
         let mut table_offsets: HashMap<String, usize> = HashMap::new(); // table name -> bytecode offset
@@ -310,7 +351,7 @@ impl Codegen {
             }
         });
 
-        Ok(bytecode)
+        Ok((bytecode, source_map))
     }
 
     /// Recurses a MacroDefinition to generate Bytecode
@@ -346,6 +387,7 @@ impl Codegen {
     ) -> Result<BytecodeRes, CodegenError> {
         // Get intermediate bytecode representation of the macro definition
         let mut bytes: Vec<(usize, Bytes)> = Vec::default();
+        let mut spans: Vec<Option<(usize, usize)>> = Vec::default();
         let ir_bytes = macro_def.to_irbytecode(evm_version)?.0;
 
         // Define outer loop variables
@@ -359,16 +401,26 @@ impl Codegen {
         // Loop through all intermediate bytecode representations generated from the AST
         for ir_byte in ir_bytes.iter() {
             let starting_offset = offset;
+
+            // Extract span information if available
+            let span_info = if !ir_byte.span.0.is_empty() {
+                ir_byte.span.0.first().and_then(|s| if s.start != 0 || s.end != 0 { Some((s.start, s.end)) } else { None })
+            } else {
+                None
+            };
+
             match &ir_byte.ty {
                 IRByteType::Bytes(b) => {
                     offset += b.0.len() / 2;
                     bytes.push((starting_offset, b.to_owned()));
+                    spans.push(span_info);
                 }
                 IRByteType::Constant(name) => {
                     let push_bytes = constant_gen(evm_version, name, contract, ir_byte.span)?;
                     offset += push_bytes.len() / 2;
                     tracing::debug!(target: "codegen", "OFFSET: {}, PUSH BYTES: {:?}", offset, push_bytes);
                     bytes.push((starting_offset, Bytes(push_bytes)));
+                    spans.push(span_info);
                 }
                 IRByteType::Statement(s) => {
                     // if we have a codesize call for the constructor here, from within the
@@ -391,9 +443,14 @@ impl Codegen {
                         circular_codesize_invocations,
                         starting_offset,
                     )?;
+                    // Add span for each byte segment added by statement_gen
+                    for _ in 0..push_bytes.len() {
+                        spans.push(span_info);
+                    }
                     bytes.append(&mut push_bytes);
                 }
                 IRByteType::ArgCall(parent_macro_name, arg_name) => {
+                    let bytes_before = bytes.len();
                     // Bubble up arg call by looking through the previous scopes.
                     // Once the arg value is found, add it to `bytes`
                     bubble_arg_call(
@@ -410,7 +467,12 @@ impl Codegen {
                         &mut table_instances,
                         &mut utilized_tables,
                         ir_byte.span,
-                    )?
+                    )?;
+                    // Add span for each byte segment added by bubble_arg_call
+                    let bytes_added = bytes.len() - bytes_before;
+                    for _ in 0..bytes_added {
+                        spans.push(span_info);
+                    }
                 }
             }
         }
@@ -423,6 +485,7 @@ impl Codegen {
         // Add functions (outlined macros) to the end of the bytecode if the scope length == 1
         // (i.e., we're at the top level of recursion)
         if scope.len() == 1 {
+            let bytes_before = bytes.len();
             bytes = Codegen::append_functions(
                 evm_version,
                 contract,
@@ -434,6 +497,11 @@ impl Codegen {
                 &mut table_instances,
                 bytes,
             )?;
+            // Add empty spans for appended functions (these don't have direct source mapping)
+            let bytes_added = bytes.len() - bytes_before;
+            for _ in 0..bytes_added {
+                spans.push(None);
+            }
         } else {
             // If the scope length is > 1, we're processing a child macro. Since we're done
             // with it, it can be popped.
@@ -441,14 +509,33 @@ impl Codegen {
         }
 
         // Fill JUMPDEST placeholders
-        let (bytes, unmatched_jumps) = Codegen::fill_unmatched(bytes, &jump_table, &label_indices)?;
+        let (new_bytes, unmatched_jumps) = Codegen::fill_unmatched(bytes.clone(), &jump_table, &label_indices)?;
+
+        // Adjust spans if bytes changed
+        if new_bytes.len() != bytes.len() {
+            // If the byte count changed, we need to rebuild the spans vector
+            // For now, just ensure it has the same length
+            while spans.len() < new_bytes.len() {
+                spans.push(None);
+            }
+        }
+        let bytes = new_bytes;
 
         // Fill in circular codesize invocations
         // Workout how to increase the offset the correct amount within here if it is longer than 2
         // bytes
-        let bytes = Codegen::fill_circular_codesize_invocations(bytes, circular_codesize_invocations, &macro_def.name)?;
+        let new_bytes = Codegen::fill_circular_codesize_invocations(bytes.clone(), circular_codesize_invocations, &macro_def.name)?;
 
-        Ok(BytecodeRes { bytes, label_indices, unmatched_jumps, table_instances, utilized_tables })
+        // Adjust spans if bytes changed
+        if new_bytes.len() != bytes.len() {
+            while spans.len() < new_bytes.len() {
+                spans.push(None);
+            }
+        }
+        let bytes = new_bytes;
+
+        tracing::info!(target: "codegen", "BytecodeRes created with {} bytes and {} spans", bytes.len(), spans.len());
+        Ok(BytecodeRes { bytes, spans, label_indices, unmatched_jumps, table_instances, utilized_tables })
     }
 
     /// Helper associated function to fill unmatched jump dests.
@@ -679,6 +766,7 @@ impl Codegen {
     /// * `args` - A vector of Tokens representing constructor arguments
     /// * `main_bytecode` - The compiled MAIN Macro bytecode
     /// * `constructor_bytecode` - The compiled `CONSTRUCTOR` Macro bytecode
+    #[allow(clippy::too_many_arguments)]
     pub fn churn(
         &mut self,
         file: Arc<FileSource>,
@@ -686,6 +774,8 @@ impl Codegen {
         main_bytecode: &str,
         constructor_bytecode: &str,
         has_custom_bootstrap: bool,
+        main_source_map: Option<Vec<SourceMapEntry>>,
+        constructor_source_map: Option<Vec<SourceMapEntry>>,
     ) -> Result<Artifact, CodegenError> {
         let artifact: &mut Artifact = if let Some(art) = &mut self.artifact {
             art
@@ -802,6 +892,11 @@ impl Codegen {
         artifact.bytecode = format!("{constructor_code}{main_bytecode}{constructor_args}").to_lowercase();
         artifact.runtime = main_bytecode.to_lowercase();
         artifact.file = file;
+
+        // Set source maps if provided
+        artifact.runtime_map = main_source_map;
+        artifact.constructor_map = constructor_source_map;
+
         Ok(artifact.clone())
     }
 
@@ -830,13 +925,7 @@ impl Codegen {
                 span: AstSpan(vec![Span {
                     start: 0,
                     end: 0,
-                    file: Some(Arc::new(FileSource {
-                        id: uuid::Uuid::new_v4(),
-                        path: output,
-                        source: None,
-                        access: None,
-                        dependencies: vec![],
-                    })),
+                    file: Some(Arc::new(FileSource { path: output, source: None, access: None, dependencies: vec![] })),
                 }]),
                 token: None,
             });
@@ -847,13 +936,7 @@ impl Codegen {
                 span: AstSpan(vec![Span {
                     start: 0,
                     end: 0,
-                    file: Some(Arc::new(FileSource {
-                        id: uuid::Uuid::new_v4(),
-                        path: output,
-                        source: None,
-                        access: None,
-                        dependencies: vec![],
-                    })),
+                    file: Some(Arc::new(FileSource { path: output, source: None, access: None, dependencies: vec![] })),
                 }]),
                 token: None,
             });

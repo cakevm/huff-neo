@@ -46,7 +46,7 @@ fn parses_builtin_function_in_macro_body() {
         // The builtin fn should be parsed as a `TokenKind::BuiltinFunction` here.
         let tok = lexer.next();
         let unwrapped = tok.unwrap().unwrap();
-        let builtin_span = Span::new(74..74 + builtin.len() - 1, None);
+        let builtin_span = Span::new(74..74 + builtin.len(), None);
         assert_eq!(unwrapped, Token::new(TokenKind::BuiltinFunction(builtin.to_string()), builtin_span.clone()));
 
         let _ = lexer.next(); // open parenthesis
@@ -75,7 +75,7 @@ fn fails_to_parse_builtin_outside_macro_body() {
 
         let tok = lexer.next();
         let unwrapped = tok.unwrap().unwrap();
-        let fn_name_span = Span::new(0..builtin.len() - 1, None);
+        let fn_name_span = Span::new(0..builtin.len(), None);
         assert_eq!(unwrapped, Token::new(TokenKind::BuiltinFunction(builtin.to_string()), fn_name_span.clone()));
 
         let _ = lexer.next(); // open parenthesis
@@ -131,7 +131,7 @@ fn fails_to_parse_invalid_builtin() {
         // The builtin fn should be parsed as a `TokenKind::BuiltinFunction` here.
         let tok = lexer.next();
         let unwrapped = tok.unwrap().unwrap();
-        let builtin_span = Span::new(74..74 + builtin.len() - 1, None);
+        let builtin_span = Span::new(74..74 + builtin.len(), None);
         assert_eq!(unwrapped, Token::new(TokenKind::BuiltinFunction(builtin.to_string()), builtin_span.clone()));
 
         let _ = lexer.next(); // open parenthesis

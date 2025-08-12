@@ -22,11 +22,11 @@ fn test_parses_free_storage_pointer_constant() {
             name: "FSP_LOCATION".to_string(),
             value: ConstVal::FreeStoragePointer(FreeStoragePointer {}),
             span: AstSpan(vec![
-                Span { start: 0, end: 6, file: None },
-                Span { start: 8, end: 15, file: None },
-                Span { start: 17, end: 28, file: None },
-                Span { start: 30, end: 30, file: None },
-                Span { start: 32, end: 53, file: None }
+                Span { start: 0, end: 7, file: None },
+                Span { start: 8, end: 16, file: None },
+                Span { start: 17, end: 29, file: None },
+                Span { start: 30, end: 31, file: None },
+                Span { start: 32, end: 54, file: None }
             ])
         }
     );
@@ -50,11 +50,11 @@ fn test_parses_literal_constant() {
             name: "LITERAL".to_string(),
             value: ConstVal::Bytes(Bytes("0000e1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925".to_string())),
             span: AstSpan(vec![
-                Span { start: 0, end: 6, file: None },
-                Span { start: 8, end: 15, file: None },
-                Span { start: 17, end: 23, file: None },
-                Span { start: 25, end: 25, file: None },
-                Span { start: 29, end: 92, file: None }
+                Span { start: 0, end: 7, file: None },
+                Span { start: 8, end: 16, file: None },
+                Span { start: 17, end: 24, file: None },
+                Span { start: 25, end: 26, file: None },
+                Span { start: 27, end: 93, file: None }
             ])
         }
     );
@@ -83,19 +83,19 @@ fn test_parses_func_sign_constant() {
                     arg_location: None,
                     name: Some("hello()".to_string()),
                     indexed: false,
-                    span: AstSpan(vec![Span { start: 35, end: 43, file: None }])
+                    span: AstSpan(vec![Span { start: 35, end: 44, file: None }])
                 })],
-                span: AstSpan(vec![Span { start: 24, end: 33, file: None }]),
+                span: AstSpan(vec![Span { start: 24, end: 34, file: None }]),
             }),
             span: AstSpan(vec![
-                Span { start: 0, end: 6, file: None },
-                Span { start: 8, end: 15, file: None },
-                Span { start: 17, end: 20, file: None },
-                Span { start: 22, end: 22, file: None },
-                Span { start: 24, end: 33, file: None },
-                Span { start: 34, end: 34, file: None },
-                Span { start: 35, end: 43, file: None },
-                Span { start: 44, end: 44, file: None }
+                Span { start: 0, end: 7, file: None },
+                Span { start: 8, end: 16, file: None },
+                Span { start: 17, end: 21, file: None },
+                Span { start: 22, end: 23, file: None },
+                Span { start: 24, end: 34, file: None },
+                Span { start: 34, end: 35, file: None },
+                Span { start: 35, end: 44, file: None },
+                Span { start: 44, end: 45, file: None }
             ])
         }
     );

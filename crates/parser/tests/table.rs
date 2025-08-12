@@ -29,14 +29,14 @@ fn table_with_no_body() {
                 statements: vec![],
                 size: Some(Literal::default()),
                 span: AstSpan(vec![
-                    Span { start: 0, end: 6, file: None },
-                    Span { start: 8, end: kind_offset - 1, file: None },
-                    Span { start: kind_offset + 1, end: kind_offset + 10, file: None },
-                    Span { start: kind_offset + 11, end: kind_offset + 11, file: None },
-                    Span { start: kind_offset + 12, end: kind_offset + 12, file: None },
-                    Span { start: kind_offset + 14, end: kind_offset + 14, file: None },
-                    Span { start: kind_offset + 16, end: kind_offset + 16, file: None },
-                    Span { start: kind_offset + 17, end: kind_offset + 17, file: None }
+                    Span { start: 0, end: 7, file: None },
+                    Span { start: 8, end: kind_offset, file: None },
+                    Span { start: kind_offset + 1, end: kind_offset + 11, file: None },
+                    Span { start: kind_offset + 11, end: kind_offset + 12, file: None },
+                    Span { start: kind_offset + 12, end: kind_offset + 13, file: None },
+                    Span { start: kind_offset + 14, end: kind_offset + 15, file: None },
+                    Span { start: kind_offset + 16, end: kind_offset + 17, file: None },
+                    Span { start: kind_offset + 17, end: kind_offset + 18, file: None }
                 ]),
             }
         );
@@ -71,30 +71,30 @@ fn jump_table_with_body() {
                 statements: vec![
                     Statement {
                         ty: StatementType::LabelCall("label_call_1".to_string()),
-                        span: AstSpan(vec![Span { start: lb1_start, end: lb1_start + "label_call_1".len() - 1, file: None }]),
+                        span: AstSpan(vec![Span { start: lb1_start, end: lb1_start + "label_call_1".len(), file: None }]),
                     },
                     Statement {
                         ty: StatementType::LabelCall("label_call_2".to_string()),
-                        span: AstSpan(vec![Span { start: lb2_start, end: lb2_start + "label_call_2".len() - 1, file: None }]),
+                        span: AstSpan(vec![Span { start: lb2_start, end: lb2_start + "label_call_2".len(), file: None }]),
                     },
                     Statement {
                         ty: StatementType::LabelCall("label_call_3".to_string()),
-                        span: AstSpan(vec![Span { start: lb3_start, end: lb3_start + "label_call_3".len() - 1, file: None }]),
+                        span: AstSpan(vec![Span { start: lb3_start, end: lb3_start + "label_call_3".len(), file: None }]),
                     },
                 ],
                 size: Some(str_to_bytes32(expected_size)),
                 span: AstSpan(vec![
-                    Span { start: 0, end: 6, file: None },
-                    Span { start: 8, end: kind_offset - 1, file: None },
-                    Span { start: kind_offset + 1, end: kind_offset + 10, file: None },
-                    Span { start: kind_offset + 11, end: kind_offset + 11, file: None },
-                    Span { start: kind_offset + 12, end: kind_offset + 12, file: None },
-                    Span { start: kind_offset + 14, end: kind_offset + 14, file: None },
-                    Span { start: kind_offset + 16, end: kind_offset + 16, file: None },
-                    Span { start: kind_offset + 18, end: kind_offset + 29, file: None },
-                    Span { start: kind_offset + 31, end: kind_offset + 42, file: None },
-                    Span { start: kind_offset + 44, end: kind_offset + 55, file: None },
-                    Span { start: kind_offset + 57, end: kind_offset + 57, file: None }
+                    Span { start: 0, end: 7, file: None },
+                    Span { start: 8, end: kind_offset, file: None },
+                    Span { start: kind_offset + 1, end: kind_offset + 11, file: None },
+                    Span { start: kind_offset + 11, end: kind_offset + 12, file: None },
+                    Span { start: kind_offset + 12, end: kind_offset + 13, file: None },
+                    Span { start: kind_offset + 14, end: kind_offset + 15, file: None },
+                    Span { start: kind_offset + 16, end: kind_offset + 17, file: None },
+                    Span { start: kind_offset + 18, end: kind_offset + 30, file: None },
+                    Span { start: kind_offset + 31, end: kind_offset + 43, file: None },
+                    Span { start: kind_offset + 44, end: kind_offset + 56, file: None },
+                    Span { start: kind_offset + 57, end: kind_offset + 58, file: None }
                 ]),
             }
         );
@@ -149,9 +149,9 @@ fn code_table_builtin_func_sign() {
                 arg_location: None,
                 name: Some("hello()".to_string()),
                 indexed: false,
-                span: AstSpan(vec![Span { start: 50, end: 58, file: None }])
+                span: AstSpan(vec![Span { start: 50, end: 59, file: None }])
             })],
-            span: AstSpan(vec![Span { start: 39, end: 48, file: None }, Span { start: 50, end: 58, file: None }])
+            span: AstSpan(vec![Span { start: 39, end: 49, file: None }, Span { start: 50, end: 59, file: None }])
         })
     );
     assert_eq!(table_definition.statements[1].ty, StatementType::Code("1234".to_string()));

@@ -25,43 +25,43 @@ fn parses_decorator() {
         // #
         let tok = lexer.next();
         let unwrapped = tok.unwrap().unwrap();
-        let returns_span = Span::new(13..13, None);
+        let returns_span = Span::new(13..14, None);
         assert_eq!(unwrapped, Token::new(TokenKind::Pound, returns_span.clone()));
 
         // [
         let tok = lexer.next();
         let unwrapped = tok.unwrap().unwrap();
-        let returns_span = Span::new(14..14, None);
+        let returns_span = Span::new(14..15, None);
         assert_eq!(unwrapped, Token::new(TokenKind::OpenBracket, returns_span.clone()));
 
         // calldata
         let tok = lexer.next();
         let unwrapped = tok.unwrap().unwrap();
-        let returns_span = Span::new(15..22, None);
+        let returns_span = Span::new(15..23, None);
         assert_eq!(unwrapped, Token::new(TokenKind::Ident(String::from("calldata")), returns_span.clone()));
 
         // (
         let tok = lexer.next();
         let unwrapped = tok.unwrap().unwrap();
-        let returns_span = Span::new(23..23, None);
+        let returns_span = Span::new(23..24, None);
         assert_eq!(unwrapped, Token::new(TokenKind::OpenParen, returns_span.clone()));
 
         // 0x01
         let tok = lexer.next();
         let unwrapped = tok.unwrap().unwrap();
-        let returns_span = Span::new(26..27, None);
+        let returns_span = Span::new(24..28, None);
         assert_eq!(unwrapped, Token::new(TokenKind::Literal(str_to_bytes32("01")), returns_span.clone()));
 
         // )
         let tok = lexer.next();
         let unwrapped = tok.unwrap().unwrap();
-        let returns_span = Span::new(28..28, None);
+        let returns_span = Span::new(28..29, None);
         assert_eq!(unwrapped, Token::new(TokenKind::CloseParen, returns_span.clone()));
 
         // ]
         let tok = lexer.next();
         let unwrapped = tok.unwrap().unwrap();
-        let returns_span = Span::new(29..29, None);
+        let returns_span = Span::new(29..30, None);
         assert_eq!(unwrapped, Token::new(TokenKind::CloseBracket, returns_span.clone()));
 
         let _ = lexer.next(); // whitespace'

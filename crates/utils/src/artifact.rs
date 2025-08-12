@@ -8,6 +8,19 @@ use std::{fs, path::Path, sync::Arc};
 pub use crate::abi::Abi;
 use crate::file::file_source::FileSource;
 
+/// A bytecode source mapping entry
+#[derive(Default, Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+pub struct SourceMapEntry {
+    /// Byte offset in the bytecode (1 = 1 byte e.g. "00")
+    pub byte_offset: usize,
+    /// Length of the bytecode segment (1 = 1 byte e.g. "00")
+    pub length: usize,
+    /// Source file start position
+    pub source_start: usize,
+    /// Source file end position
+    pub source_end: usize,
+}
+
 /// A Codegen Artifact
 #[derive(Default, Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct Artifact {
@@ -19,6 +32,10 @@ pub struct Artifact {
     pub runtime: String,
     /// The abi
     pub abi: Option<Abi>,
+    /// Source map for constructor
+    pub constructor_map: Option<Vec<SourceMapEntry>>,
+    /// Source map for runtime
+    pub runtime_map: Option<Vec<SourceMapEntry>>,
 }
 
 impl Artifact {

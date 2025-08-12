@@ -133,7 +133,7 @@ impl<'a> Lexer<'a> {
                                 }
 
                                 Ok(TokenKind::Comment(comment_string)
-                                    .into_token_with_span(self.source.relative_span_by_pos(start, self.position)))
+                                    .into_token_with_span(self.source.relative_span_by_pos(start, self.position + 1)))
                             }
                             _ => self.single_char_token(TokenKind::Div),
                         }
@@ -160,13 +160,13 @@ impl<'a> Lexer<'a> {
                     if let Some(kind) = found_kind {
                         Ok(kind.into_token_with_span(self.source.relative_span_by_pos(start, end)))
                     } else if self.context_stack.top() == &Context::Global && self.peek().unwrap() == '[' {
-                        Ok(TokenKind::Pound.into_token_with_span(self.source.relative_span_by_pos(self.position, self.position)))
+                        Ok(TokenKind::Pound.into_token_with_span(self.source.relative_span_by_pos(self.position, self.position + 1)))
                     } else {
                         // Otherwise we don't support # prefixed identifiers
                         error!(target: "lexer", "INVALID '#' CHARACTER USAGE in context {:?}", self.context_stack.top());
                         return Err(LexicalError::new(
                             LexicalErrorKind::InvalidCharacter('#'),
-                            self.source.relative_span_by_pos(self.position, self.position),
+                            self.source.relative_span_by_pos(self.position, self.position + 1),
                         ));
                     }
                 }
@@ -219,7 +219,7 @@ impl<'a> Lexer<'a> {
                             self.context_stack.pop(1).map_err(|_| {
                                 LexicalError::new(
                                     LexicalErrorKind::StackUnderflow,
-                                    self.source.relative_span_by_pos(self.position, self.position),
+                                    self.source.relative_span_by_pos(self.position, self.position + 1),
                                 )
                             })?;
                         }
@@ -227,7 +227,7 @@ impl<'a> Lexer<'a> {
                         if new_context.is_some() && self.context_stack.top() != &Context::Global {
                             return Err(LexicalError::new(
                                 LexicalErrorKind::UnexpectedContext(self.context_stack.top().clone()),
-                                self.source.relative_span_by_pos(self.position, self.position),
+                                self.source.relative_span_by_pos(self.position, self.position + 1),
                             ));
                         }
                         // Push the new context
@@ -321,7 +321,7 @@ impl<'a> Lexer<'a> {
                         self.context_stack.pop(1).map_err(|_| {
                             LexicalError::new(
                                 LexicalErrorKind::StackUnderflow,
-                                self.source.relative_span_by_pos(self.position, self.position),
+                                self.source.relative_span_by_pos(self.position, self.position + 1),
                             )
                         })?
                     }
@@ -343,7 +343,7 @@ impl<'a> Lexer<'a> {
                         self.context_stack.pop(1).map_err(|_| {
                             LexicalError::new(
                                 LexicalErrorKind::StackUnderflow,
-                                self.source.relative_span_by_pos(self.position, self.position),
+                                self.source.relative_span_by_pos(self.position, self.position + 1),
                             )
                         })?;
                     }
@@ -361,7 +361,7 @@ impl<'a> Lexer<'a> {
                 '0'..='9' => self.eat_digit(ch),
                 // Lexes Spaces and Newlines as Whitespace
                 ch if ch.is_ascii_whitespace() => {
-                    let (_, start, end) = self.eat_whitespace();
+                    let (_, start, end) = self.eat_while(Some(ch), |c| c.is_whitespace());
                     Ok(TokenKind::Whitespace.into_token_with_span(self.source.relative_span_by_pos(start, end)))
                 }
                 // String literals. String literals can also be wrapped by single quotes
@@ -382,7 +382,8 @@ impl<'a> Lexer<'a> {
             Ok(token)
         } else {
             self.eof = true;
-            Ok(Token { kind: TokenKind::Eof, span: self.source.relative_span_by_pos(self.position, self.position) })
+            let eof_pos = self.source.source.len();
+            Ok(Token { kind: TokenKind::Eof, span: self.source.relative_span_by_pos(eof_pos, eof_pos) })
         }
     }
 
@@ -460,7 +461,7 @@ impl<'a> Lexer<'a> {
     }
 
     fn single_char_token(&self, token_kind: TokenKind) -> TokenResult {
-        Ok(token_kind.into_token_with_span(self.source.relative_span_by_pos(self.position, self.position)))
+        Ok(token_kind.into_token_with_span(self.source.relative_span_by_pos(self.position, self.position + 1)))
     }
 
     /// Keeps consuming tokens as long as the predicate is satisfied
@@ -481,7 +482,10 @@ impl<'a> Lexer<'a> {
             // cursor If not, return word. The next character will be analyzed on the
             // next iteration of next_token, Which will increment the cursor
             if !predicate(peek_char) {
-                return (word, start, self.position);
+                // Position currently points to the last consumed character
+                // We need to add its byte length to get the end position
+                let end_position = if word.is_empty() { self.position } else { self.position + word.chars().last().unwrap().len_utf8() };
+                return (word, start, end_position);
             }
             word.push(peek_char);
 
@@ -490,7 +494,16 @@ impl<'a> Lexer<'a> {
             self.consume();
         }
 
-        (word, start, self.position)
+        // After consuming all characters, position points to the last consumed character
+        // We need to add the length of that last character to get the end position
+        let end_position = if word.is_empty() {
+            self.position
+        } else {
+            // Get the byte length of the last character and add it to position
+            self.position + word.chars().last().unwrap().len_utf8()
+        };
+
+        (word, start, end_position)
     }
 
     fn eat_digit(&mut self, initial_char: char) -> TokenResult {
@@ -503,7 +516,7 @@ impl<'a> Lexer<'a> {
     }
 
     fn eat_hex_digit(&mut self, initial_char: char) -> TokenResult {
-        let (integer_str, mut start, end) = self.eat_while(Some(initial_char), |ch| ch.is_ascii_hexdigit() | (ch == 'x'));
+        let (integer_str, start, end) = self.eat_while(Some(initial_char), |ch| ch.is_ascii_hexdigit() | (ch == 'x'));
         if integer_str.matches('x').count() != 1 {
             return Err(LexicalError::new(
                 LexicalErrorKind::InvalidHexLiteral(integer_str.clone()),
@@ -531,8 +544,6 @@ impl<'a> Lexer<'a> {
             }
             TokenKind::Literal(str_to_bytes32(integer_str[2..].as_ref()))
         };
-
-        start += 2;
 
         Ok(Token { kind, span: self.source.relative_span_by_pos(start, end) })
     }
