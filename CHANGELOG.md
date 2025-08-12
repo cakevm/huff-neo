@@ -3,25 +3,19 @@
 # Huff Neo Compiler changelog
 
 ## [1.3.0] - 2025-08-12
-- Update rust to 1.89.
-- Update dependencies to the latest version.
+- Update rust to 1.89 and dependencies to the latest version.
 - **Breaking**: Implement proper label scoping to prevent label overwriting in macro invocations. (fixes #82)
   - Each macro invocation now has its own label scope.
-  - Duplicate labels within the same scope are now properly detected and reported as errors.
+  - Duplicate labels within the same scope are properly detected and reported.
   - Label shadowing across different scopes is supported.
-  - Sibling macro invocations can reference each other's labels when invoked from the same parent.
-  - Fixes issue where multiple invocations of macros defining the same label would cause all jumps to target the last definition.
+  - Fixes issue where multiple invocations of the same macro would cause all jumps to target the last label definition.
 - Fix nested macro invocation with labels causing panic. (fixes #77)
   - Correctly handle bytecode offset tracking when macros are expanded as arguments.
-  - Fix underflow issues in scope depth calculation.
 - Handle circular macro recursion and prevent stack overflow. (fixes #75)
-  - Add detection for circular macro invocations during storage pointer derivation.
-  - Add detection for circular macro invocations during bytecode generation.
-  - Provide clear error messages instead of crashing with stack overflow.
+  - Add detection for circular macro invocations with clear error messages.
 - Implement first-class macro arguments. (fixes #41)
   - Macros can now be passed as arguments to other macros.
   - New syntax: `<arg>()` to invoke a macro passed as an argument.
-  - Supports nested passing of macro arguments through multiple levels.
 
 ## [1.2.0] - 2025-07-16
 - Fix table instance propagation in nested macro calls (fixes #76).
