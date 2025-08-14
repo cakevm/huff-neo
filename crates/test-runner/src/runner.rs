@@ -231,7 +231,7 @@ impl TestRunner {
             .map_err(|e| RunnerError::CompilerError(CompilerError::CodegenError(e)))?;
 
         // Generate table bytecode for compiled test macro
-        let bytecode = Codegen::gen_table_bytecode(&evm_version, &contract, res)
+        let (bytecode, _source_map) = Codegen::gen_table_bytecode(&evm_version, &contract, res)
             .map_err(|e| RunnerError::CompilerError(CompilerError::CodegenError(e)))?;
 
         // Deploy compiled test macro

@@ -22,7 +22,6 @@ alloy-primitives.workspace = true
 serde_json.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
-uuid.workspace = true
 walkdir.workspace = true
 
 [dev-dependencies]
@@ -31,10 +30,6 @@ rand.workspace = true
 
 [target.'cfg(not(all(target_arch = "wasm32", target_os = "unknown")))'.dependencies]
 rayon.workspace = true
-
-[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
-getrandom.workspace = true
-uuid = { workspace = true, features = ["js"] }
 
 [[bench]]
 harness = false

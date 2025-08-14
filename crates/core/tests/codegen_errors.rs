@@ -49,11 +49,11 @@ fn test_storage_pointers_not_derived() {
                 CodegenError {
                     kind: CodegenErrorKind::StoragePointersNotDerived,
                     span: AstSpan(vec![
-                        Span { start: 5, end: 11, file: None },
-                        Span { start: 13, end: 20, file: None },
-                        Span { start: 22, end: 42, file: None },
-                        Span { start: 44, end: 44, file: None },
-                        Span { start: 46, end: 67, file: None }
+                        Span { start: 5, end: 12, file: None },
+                        Span { start: 13, end: 21, file: None },
+                        Span { start: 22, end: 43, file: None },
+                        Span { start: 44, end: 45, file: None },
+                        Span { start: 46, end: 68, file: None }
                     ]),
                     token: None
                 }
@@ -91,7 +91,7 @@ fn test_invalid_constant_definition() {
   "#;
 
     let const_start = source.find("UNKNOWN_CONSTANT_DEFINITION").unwrap_or(0);
-    let const_end = const_start + "UNKNOWN_CONSTANT_DEFINITION".len() - 1;
+    let const_end = const_start + "UNKNOWN_CONSTANT_DEFINITION".len();
 
     let full_source = FullFileSource { source, file: None, spans: vec![] };
     let lexer = Lexer::new(full_source);
@@ -259,9 +259,9 @@ fn test_unknown_macro_definition() {
                 CodegenError {
                     kind: CodegenErrorKind::InvalidMacroInvocation("UNKNOWN".to_string()),
                     span: AstSpan(vec![
-                        Span { start: 344, end: 350, file: None },
-                        Span { start: 351, end: 351, file: None },
-                        Span { start: 352, end: 352, file: None }
+                        Span { start: 344, end: 351, file: None },
+                        Span { start: 351, end: 352, file: None },
+                        Span { start: 352, end: 353, file: None }
                     ]),
                     token: None
                 }
@@ -306,10 +306,10 @@ fn test_unmatched_jump_label() {
                 CodegenError {
                     kind: CodegenErrorKind::UnmatchedJumpLabels(vec!["err".to_string()]),
                     span: AstSpan(vec![
-                        Span { start: 372, end: 375, file: None },
-                        Span { start: 376, end: 376, file: None },
-                        Span { start: 377, end: 379, file: None },
-                        Span { start: 380, end: 380, file: None }
+                        Span { start: 372, end: 376, file: None },
+                        Span { start: 376, end: 377, file: None },
+                        Span { start: 377, end: 380, file: None },
+                        Span { start: 380, end: 381, file: None }
                     ]),
                     token: None
                 }

@@ -100,7 +100,7 @@ fn include_no_quotes() {
     // The first token should be a single line comment
     let tok = lexer.next();
     let unwrapped = tok.unwrap().unwrap();
-    assert_eq!(unwrapped, Token::new(TokenKind::Include, Span::new(0..7, None)));
+    assert_eq!(unwrapped, Token::new(TokenKind::Include, Span::new(0..8, None)));
     lexer.next();
     assert!(lexer.eof);
 }
@@ -114,18 +114,18 @@ fn include_with_string() {
     // The first token should be a single line comment
     let tok = lexer.next();
     let unwrapped = tok.unwrap().unwrap();
-    assert_eq!(unwrapped, Token::new(TokenKind::Include, Span::new(0..7, None)));
+    assert_eq!(unwrapped, Token::new(TokenKind::Include, Span::new(0..8, None)));
 
     // Lex the whitespace char
     let tok = lexer.next();
     let unwrapped = tok.unwrap().unwrap();
-    let literal_span = Span::new(8..8, None);
+    let literal_span = Span::new(8..9, None);
     assert_eq!(unwrapped, Token::new(TokenKind::Whitespace, literal_span));
 
     // Then we should parse the string literal
     let tok = lexer.next();
     let unwrapped = tok.unwrap().unwrap();
-    let literal_span = Span::new(9..50, None);
+    let literal_span = Span::new(9..51, None);
     assert_eq!(unwrapped, Token::new(TokenKind::Str("../../resources/erc20/utils/Ownable.huff".to_string()), literal_span));
 
     lexer.next();
@@ -143,18 +143,18 @@ fn include_with_string_single_quote() {
     // The first token should be a single line comment
     let tok = lexer.next();
     let unwrapped = tok.unwrap().unwrap();
-    assert_eq!(unwrapped, Token::new(TokenKind::Include, Span::new(0..7, None)));
+    assert_eq!(unwrapped, Token::new(TokenKind::Include, Span::new(0..8, None)));
 
     // Lex the whitespace char
     let tok = lexer.next();
     let unwrapped = tok.unwrap().unwrap();
-    let literal_span = Span::new(8..8, None);
+    let literal_span = Span::new(8..9, None);
     assert_eq!(unwrapped, Token::new(TokenKind::Whitespace, literal_span));
 
     // Then we should parse the string literal
     let tok = lexer.next();
     let unwrapped = tok.unwrap().unwrap();
-    let literal_span = Span::new(9..50, None);
+    let literal_span = Span::new(9..51, None);
     assert_eq!(unwrapped, Token::new(TokenKind::Str("../../resources/erc20/utils/Ownable.huff".to_string()), literal_span));
 
     lexer.next();

@@ -64,21 +64,21 @@ fn lexes_arg_calls() {
 
     // We should find a left angle
     let tok = lexer.next().unwrap().unwrap();
-    assert_eq!(tok, Token::new(TokenKind::LeftAngle, Span::new(184..184, None)));
+    assert_eq!(tok, Token::new(TokenKind::LeftAngle, Span::new(184..185, None)));
 
     // The we should have an Ident
     let tok = lexer.next().unwrap().unwrap();
-    assert_eq!(tok, Token::new(TokenKind::Ident("error".to_string()), Span::new(185..189, None)));
+    assert_eq!(tok, Token::new(TokenKind::Ident("error".to_string()), Span::new(185..190, None)));
 
     // Then should find a right angle
     let tok = lexer.next().unwrap().unwrap();
-    assert_eq!(tok, Token::new(TokenKind::RightAngle, Span::new(190..190, None)));
+    assert_eq!(tok, Token::new(TokenKind::RightAngle, Span::new(190..191, None)));
 
     let _ = lexer.next(); // Whitespace
 
     // Jumpi Opcode
     let tok = lexer.next().unwrap().unwrap();
-    assert_eq!(tok, Token::new(TokenKind::Opcode(Opcode::Jumpi), Span::new(192..196, None)));
+    assert_eq!(tok, Token::new(TokenKind::Opcode(Opcode::Jumpi), Span::new(192..197, None)));
 
     // Eat the rest of the tokens
     let _ = lexer.next(); // Whitespace
@@ -87,7 +87,7 @@ fn lexes_arg_calls() {
 
     // Get an EOF token
     let tok = lexer.next().unwrap().unwrap();
-    assert_eq!(tok, Token::new(TokenKind::Eof, Span::new(source.len() - 1..source.len() - 1, None)));
+    assert_eq!(tok, Token::new(TokenKind::Eof, Span::new(source.len()..source.len(), None)));
 
     // We should have reached EOF now
     assert!(lexer.eof);

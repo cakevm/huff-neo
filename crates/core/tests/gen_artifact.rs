@@ -24,8 +24,7 @@ fn test_missing_constructor() {
     "#;
 
     // Full source
-    let full_source =
-        FileSource { source: Some(source.to_string()), id: uuid::Uuid::new_v4(), path: "".to_string(), access: None, dependencies: vec![] };
+    let full_source = FileSource { source: Some(source.to_string()), path: "".to_string(), access: None, dependencies: vec![] };
 
     let evm_version = EVMVersion::default();
 
@@ -62,8 +61,7 @@ fn test_missing_constructor_with_inputs() {
     "#;
 
     // Full source
-    let full_source =
-        FileSource { source: Some(source.to_string()), id: uuid::Uuid::new_v4(), path: "".to_string(), access: None, dependencies: vec![] };
+    let full_source = FileSource { source: Some(source.to_string()), path: "".to_string(), access: None, dependencies: vec![] };
 
     let evm_version = EVMVersion::default();
 

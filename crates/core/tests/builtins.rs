@@ -85,7 +85,7 @@ fn test_dyn_constructor_arg_builtin() {
 
     let args = Codegen::encode_constructor_args(vec![String::from("testing")]);
     let final_bytecode =
-        cg.churn(Arc::new(FileSource::default()), args, main_code.as_str(), constructor_code.as_str(), has_custom_bootstrap);
+        cg.churn(Arc::new(FileSource::default()), args, main_code.as_str(), constructor_code.as_str(), has_custom_bootstrap, None, None);
 
     assert_eq!(
         final_bytecode.unwrap().bytecode,

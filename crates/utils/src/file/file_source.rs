@@ -5,14 +5,10 @@ use std::collections::HashSet;
 use std::fmt;
 use std::path::PathBuf;
 use std::sync::Arc;
-use uuid::Uuid;
 
 /// File Encapsulation
 #[derive(Default, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub struct FileSource {
-    /// File ID
-    #[serde(skip)]
-    pub id: Uuid,
     /// File Path
     pub path: String,
     /// File Source
@@ -27,7 +23,6 @@ pub struct FileSource {
 impl fmt::Debug for FileSource {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("FileSource")
-            .field("id", &self.id)
             .field("path", &self.path)
             .field("source", &"...")
             .field("access", &self.access)

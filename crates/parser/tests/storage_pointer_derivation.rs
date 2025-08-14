@@ -23,11 +23,11 @@ fn derives_storage_pointers() {
             name: "FSP_LOCATION".to_string(),
             value: ConstVal::FreeStoragePointer(FreeStoragePointer {}),
             span: AstSpan(vec![
-                Span { start: 0, end: 6, file: None },
-                Span { start: 8, end: 15, file: None },
-                Span { start: 17, end: 28, file: None },
-                Span { start: 30, end: 30, file: None },
-                Span { start: 32, end: 53, file: None }
+                Span { start: 0, end: 7, file: None },
+                Span { start: 8, end: 16, file: None },
+                Span { start: 17, end: 29, file: None },
+                Span { start: 30, end: 31, file: None },
+                Span { start: 32, end: 54, file: None }
             ])
         }
     );
@@ -39,11 +39,11 @@ fn derives_storage_pointers() {
             name: "FSP_LOCATION_2".to_string(),
             value: ConstVal::FreeStoragePointer(FreeStoragePointer {}),
             span: AstSpan(vec![
-                Span { start: 55, end: 61, file: None },
-                Span { start: 63, end: 70, file: None },
-                Span { start: 72, end: 85, file: None },
-                Span { start: 87, end: 87, file: None },
-                Span { start: 89, end: 110, file: None }
+                Span { start: 55, end: 62, file: None },
+                Span { start: 63, end: 71, file: None },
+                Span { start: 72, end: 86, file: None },
+                Span { start: 87, end: 88, file: None },
+                Span { start: 89, end: 111, file: None }
             ])
         }
     );
@@ -55,11 +55,11 @@ fn derives_storage_pointers() {
             name: "NUM".to_string(),
             value: ConstVal::Bytes(Bytes("a57b".to_string())),
             span: AstSpan(vec![
-                Span { start: 112, end: 118, file: None },
-                Span { start: 120, end: 127, file: None },
-                Span { start: 129, end: 131, file: None },
-                Span { start: 133, end: 133, file: None },
-                Span { start: 137, end: 140, file: None }
+                Span { start: 112, end: 119, file: None },
+                Span { start: 120, end: 128, file: None },
+                Span { start: 129, end: 132, file: None },
+                Span { start: 133, end: 134, file: None },
+                Span { start: 135, end: 141, file: None }
             ])
         }
     );

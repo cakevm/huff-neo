@@ -14,7 +14,7 @@ fn end_of_file() {
     // Get an EOF token
     let tok = lexer.next();
     let tok = tok.unwrap().unwrap();
-    assert_eq!(tok, Token::new(TokenKind::Eof, Span::new(0..0, None)));
+    assert_eq!(tok, Token::new(TokenKind::Eof, Span::new(1..1, None)));
 
     // We should have reached EOF now
     assert!(lexer.eof);

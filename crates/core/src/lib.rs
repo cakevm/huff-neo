@@ -382,34 +382,35 @@ impl<'a, 'l> Compiler<'a, 'l> {
 
         // Primary Bytecode Generation
         let mut cg = Codegen::new();
-        let main_bytecode = match Codegen::generate_main_bytecode(self.evm_version, &contract, self.alternative_main.clone()) {
-            Ok(mb) => mb,
-            Err(mut e) => {
-                tracing::error!(target: "core", "FAILED TO GENERATE MAIN BYTECODE FOR CONTRACT");
-                // Add File Source to Span
-                e.span = AstSpan(
-                    e.span
-                        .0
-                        .into_iter()
-                        .map(|mut s| {
-                            if s.file.is_none() {
-                                s.file = Some(Arc::clone(&file));
-                            }
-                            s
-                        })
-                        .collect::<Vec<Span>>(),
-                );
-                tracing::error!(target: "core", "Roll Failed with CodegenError: {:?}", e.kind);
-                return Err(CompilerError::CodegenError(e));
-            }
-        };
+        let (main_bytecode, main_source_map) =
+            match Codegen::generate_main_bytecode_with_sourcemap(self.evm_version, &contract, self.alternative_main.clone()) {
+                Ok(result) => result,
+                Err(mut e) => {
+                    tracing::error!(target: "core", "FAILED TO GENERATE MAIN BYTECODE FOR CONTRACT");
+                    // Add File Source to Span
+                    e.span = AstSpan(
+                        e.span
+                            .0
+                            .into_iter()
+                            .map(|mut s| {
+                                if s.file.is_none() {
+                                    s.file = Some(Arc::clone(&file));
+                                }
+                                s
+                            })
+                            .collect::<Vec<Span>>(),
+                    );
+                    tracing::error!(target: "core", "Roll Failed with CodegenError: {:?}", e.kind);
+                    return Err(CompilerError::CodegenError(e));
+                }
+            };
         tracing::info!(target: "core", "MAIN BYTECODE GENERATED [{}]", main_bytecode);
 
         // Generate Constructor Bytecode
         let inputs = self.get_constructor_args();
-        let (constructor_bytecode, has_custom_bootstrap) =
-            match Codegen::generate_constructor_bytecode(self.evm_version, &contract, self.alternative_constructor.clone()) {
-                Ok(mb) => mb,
+        let ((constructor_bytecode, constructor_source_map), has_custom_bootstrap) =
+            match Codegen::generate_constructor_bytecode_with_sourcemap(self.evm_version, &contract, self.alternative_constructor.clone()) {
+                Ok(result) => result,
                 Err(mut e) => {
                     // Return any errors except if the inputs is empty and the constructor
                     // definition is missing
@@ -434,7 +435,7 @@ impl<'a, 'l> Compiler<'a, 'l> {
 
                     // If the kind is a missing constructor we can ignore it
                     tracing::warn!(target: "codegen", "Contract has no \"CONSTRUCTOR\" macro definition!");
-                    (String::default(), false)
+                    ((String::default(), Vec::new()), false)
                 }
             };
         tracing::info!(target: "core", "CONSTRUCTOR BYTECODE GENERATED [{}]", constructor_bytecode);
@@ -444,7 +445,15 @@ impl<'a, 'l> Compiler<'a, 'l> {
         tracing::info!(target: "core", "ENCODED {} INPUTS", encoded_inputs.len());
 
         // Generate Artifact with ABI
-        let churn_res = cg.churn(file, encoded_inputs, &main_bytecode, &constructor_bytecode, has_custom_bootstrap);
+        let churn_res = cg.churn(
+            file,
+            encoded_inputs,
+            &main_bytecode,
+            &constructor_bytecode,
+            has_custom_bootstrap,
+            Some(main_source_map),
+            Some(constructor_source_map),
+        );
         match churn_res {
             Ok(mut artifact) => {
                 // Then we can have the code gen output the artifact

@@ -10,7 +10,7 @@ fn lexes_zero_prefixed_numbers() {
 
     // The first and only token should be lexed as 0
     let tok = lexer.next().unwrap().unwrap();
-    assert_eq!(tok, Token::new(TokenKind::Num(0), Span::new(0..1, None)));
+    assert_eq!(tok, Token::new(TokenKind::Num(0), Span::new(0..2, None)));
 
     lexer.next();
 
@@ -26,7 +26,7 @@ fn lexes_large_numbers() {
 
     // The first and only token should be lexed
     let tok = lexer.next().unwrap().unwrap();
-    assert_eq!(tok, Token::new(TokenKind::Num(usize::MAX), Span::new(0..source.len() - 1, None)));
+    assert_eq!(tok, Token::new(TokenKind::Num(usize::MAX), Span::new(0..source.len(), None)));
 
     lexer.next();
 

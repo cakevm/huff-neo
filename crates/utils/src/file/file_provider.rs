@@ -7,7 +7,6 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
-use uuid::Uuid;
 
 /// Provides functions to supply file contents by paths.
 pub trait FileProvider: Send + Sync + Debug {
@@ -40,7 +39,6 @@ impl FileProvider for FileSystemFileProvider {
         let file_loc = String::from(pb.to_string_lossy());
         match std::fs::read_to_string(&file_loc) {
             Ok(source) => Ok(Arc::new(FileSource {
-                id: Uuid::new_v4(),
                 path: file_loc,
                 source: Some(source),
                 access: Some(time::get_current_time()),
@@ -100,7 +98,6 @@ impl FileProvider for InMemoryFileProvider {
         let localized = strip_path_prefix(path);
         match self.sources.get(localized) {
             Some(source) => Ok(Arc::new(FileSource {
-                id: Uuid::new_v4(),
                 path: path.to_string(),
                 source: Some(source.to_string()),
                 access: Some(time::get_current_time()),
@@ -115,14 +112,28 @@ impl FileProvider for InMemoryFileProvider {
 
     fn transform_paths(&self, sources: &[String]) -> Result<Vec<PathBuf>, CompilerError> {
         let mut paths = vec![];
+
+        tracing::debug!(target: "core", "InMemoryFileProvider::transform_paths - sources: {:?}", sources);
+
         for f in sources {
-            // If the file is huff, use the path, otherwise ignore
-            let ext = Path::new(&f).extension().unwrap_or_default();
-            if ext.eq("huff") {
+            // If the file has .huff extension, use the path
+            // Use to_str() for proper string comparison
+            let path = Path::new(f);
+            let has_huff_ext = path.extension().and_then(|ext| ext.to_str()).map(|ext| ext == "huff").unwrap_or(false);
+
+            eprintln!("Checking file: '{}', extension: {:?}, has_huff_ext: {}", f, path.extension(), has_huff_ext);
+            tracing::debug!(target: "core", "Checking file: {}, has_huff_ext: {}", f, has_huff_ext);
+
+            if has_huff_ext {
                 let localized = strip_path_prefix(f);
+                eprintln!("Adding path: '{}'", localized);
+                tracing::debug!(target: "core", "Adding path: {}", localized);
                 paths.push(Path::new(&localized).to_path_buf())
             }
         }
+
+        tracing::debug!(target: "core", "InMemoryFileProvider::transform_paths - result: {:?}", paths);
+
         Ok(paths)
     }
 }

@@ -3,12 +3,10 @@ use huff_neo_utils::file::file_source::FileSource;
 use huff_neo_utils::prelude::Span;
 use huff_neo_utils::time::Time;
 use std::sync::Arc;
-use uuid::Uuid;
 
 #[test]
 fn test_fully_flatten() {
     let file_d = Arc::new(FileSource {
-        id: Uuid::new_v4(),
         path: "d.txt".to_string(),
         source: Some("content of d ".to_string()),
         access: Some(Time::now()),
@@ -16,7 +14,6 @@ fn test_fully_flatten() {
     });
 
     let file_b = Arc::new(FileSource {
-        id: Uuid::new_v4(),
         path: "b.txt".to_string(),
         source: Some("content of b ".to_string()),
         access: Some(Time::now()),
@@ -24,7 +21,6 @@ fn test_fully_flatten() {
     });
 
     let file_c = Arc::new(FileSource {
-        id: Uuid::new_v4(),
         path: "c.txt".to_string(),
         source: Some("content of c ".to_string()),
         access: Some(Time::now()),
@@ -32,7 +28,6 @@ fn test_fully_flatten() {
     });
 
     let file_a_with_deps = Arc::new(FileSource {
-        id: Uuid::new_v4(),
         path: "a.txt".to_string(),
         source: Some("content of a ".to_string()),
         access: Some(Time::now()),
@@ -64,13 +59,11 @@ fn test_source_seg() {
         end: 67,
         file: Some(Arc::new(
             file_source::FileSource {
-                id: uuid::Uuid::nil(),
                 path: "./huff-examples/errors/error.huff".to_string(),
                 source: Some("#include \"./import.huff\"\n\n#define function addressGetter() internal returns (address)".to_string()),
                 access: None,
                 dependencies: vec![
                     Arc::new(file_source::FileSource {
-                        id: uuid::Uuid::nil(),
                         path: "./huff-examples/errors/import.huff".to_string(),
                         source: Some("#define macro SOME_RANDOM_MACRO() = takes(2) returns (1) {\n    // Store the keys in memory\n    dup1 0x00 mstore\n    swap1 dup1 0x00 mstore\n\n    // Hash the data, generating a key.\n    0x40 sha3\n}\n".to_string()),
                         access: None,

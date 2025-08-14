@@ -75,6 +75,8 @@ impl From<Vec<Bytes>> for Bytecode {
 pub struct BytecodeRes {
     /// Resulting bytes
     pub bytes: Vec<(usize, Bytes)>,
+    /// Source spans for each bytecode segment (parallel to bytes vec)
+    pub spans: Vec<Option<(usize, usize)>>,
     /// Jump Indices
     pub label_indices: LabelIndices,
     /// Unmatched Jumps

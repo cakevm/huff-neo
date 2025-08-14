@@ -295,13 +295,7 @@ fn main() {
                     .map(|s| Span {
                         start: 0,
                         end: 0,
-                        file: Some(Arc::new(FileSource {
-                            id: uuid::Uuid::new_v4(),
-                            path: s.clone(),
-                            source: None,
-                            access: None,
-                            dependencies: vec![],
-                        })),
+                        file: Some(Arc::new(FileSource { path: s.clone(), source: None, access: None, dependencies: vec![] })),
                     })
                     .collect::<Vec<Span>>(),
             ),
