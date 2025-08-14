@@ -90,8 +90,8 @@ fn test_invalid_constant_definition() {
     }
   "#;
 
-    let const_start = source.find("UNKNOWN_CONSTANT_DEFINITION").unwrap_or(0);
-    let const_end = const_start + "UNKNOWN_CONSTANT_DEFINITION".len();
+    let const_start = source.find("[UNKNOWN_CONSTANT_DEFINITION").unwrap_or(0);
+    let const_end = const_start + "[UNKNOWN_CONSTANT_DEFINITION]".len();
 
     let full_source = FullFileSource { source, file: None, spans: vec![] };
     let lexer = Lexer::new(full_source);

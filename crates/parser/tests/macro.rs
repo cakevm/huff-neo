@@ -250,7 +250,7 @@ fn macro_with_arg_calls() {
             Statement { ty: StatementType::Opcode(Opcode::Dup2), span: AstSpan(vec![Span { start: 209, end: 213, file: None }]) },
             Statement {
                 ty: StatementType::Constant("BALANCE_LOCATION".to_string()),
-                span: AstSpan(vec![Span { start: 265, end: 281, file: None }]),
+                span: AstSpan(vec![Span { start: 264, end: 282, file: None }]),
             },
             Statement {
                 ty: StatementType::MacroInvocation(MacroInvocation {
@@ -275,7 +275,7 @@ fn macro_with_arg_calls() {
             Statement { ty: StatementType::Opcode(Opcode::Gt), span: AstSpan(vec![Span { start: 492, end: 494, file: None }]) },
             Statement {
                 ty: StatementType::ArgCall("TRANSFER_TAKE_FROM".to_string(), "error".to_string()),
-                span: AstSpan(vec![Span { start: 566, end: 571, file: None }]),
+                span: AstSpan(vec![Span { start: 565, end: 572, file: None }]),
             },
             Statement { ty: StatementType::Opcode(Opcode::Jumpi), span: AstSpan(vec![Span { start: 573, end: 578, file: None }]) },
             Statement { ty: StatementType::Opcode(Opcode::Dup2), span: AstSpan(vec![Span { start: 715, end: 719, file: None }]) },
@@ -284,7 +284,7 @@ fn macro_with_arg_calls() {
             Statement { ty: StatementType::Opcode(Opcode::Dup3), span: AstSpan(vec![Span { start: 911, end: 915, file: None }]) },
             Statement {
                 ty: StatementType::Constant("BALANCE_LOCATION".to_string()),
-                span: AstSpan(vec![Span { start: 982, end: 998, file: None }]),
+                span: AstSpan(vec![Span { start: 981, end: 999, file: None }]),
             },
             Statement {
                 ty: StatementType::MacroInvocation(MacroInvocation {

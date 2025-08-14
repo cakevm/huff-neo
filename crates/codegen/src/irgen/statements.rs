@@ -3,7 +3,11 @@ use huff_neo_utils::prelude::*;
 use crate::Codegen;
 use crate::irgen::builtin_function;
 
+/// Type alias for statement generation result: (bytes, spans)
+type StatementGenResult = (Vec<(usize, Bytes)>, Vec<Option<(usize, usize)>>);
+
 /// Generates the respective Bytecode for a given Statement
+/// Returns a tuple of (bytes, spans) where spans are optional source positions
 #[allow(clippy::too_many_arguments)]
 pub fn statement_gen<'a>(
     evm_version: &EVMVersion,
@@ -19,8 +23,9 @@ pub fn statement_gen<'a>(
     utilized_tables: &mut Vec<TableDefinition>,
     circular_codesize_invocations: &mut CircularCodeSizeIndices,
     starting_offset: usize,
-) -> Result<Vec<(usize, Bytes)>, CodegenError> {
+) -> Result<StatementGenResult, CodegenError> {
     let mut bytes = vec![];
+    let mut spans = vec![];
 
     tracing::debug!(target: "codegen", "Got Statement: {}", s.ty);
 
@@ -92,14 +97,23 @@ pub fn statement_gen<'a>(
                     }],
                 );
 
+                // Get span info for this statement
+                let span_info = if !s.span.0.is_empty() {
+                    s.span.0.first().and_then(|sp| if sp.start != 0 || sp.end != 0 { Some((sp.start, sp.end)) } else { None })
+                } else {
+                    None
+                };
+
                 // Store return JUMPDEST PC on the stack and re-order the stack so that
                 // the return JUMPDEST PC is below the function's stack inputs
                 bytes.push((*offset, Bytes(format!("{}{:04x}{}", Opcode::Push2, *offset + stack_swaps.len() + 7, stack_swaps.join("")))));
+                spans.push(span_info);
                 // Insert jump to outlined macro + jumpdest to return to
                 bytes.push((
                     *offset + stack_swaps.len() + 3, // PUSH2 + 2 bytes + stack_swaps.len()
                     Bytes(format!("{}xxxx{}{}", Opcode::Push2, Opcode::Jump, Opcode::Jumpdest)),
                 ));
+                spans.push(span_info);
                 // PUSH2 + 2 bytes + stack_swaps.len() + PUSH2 + 2 bytes + JUMP + JUMPDEST
                 *offset += stack_swaps.len() + 8;
             } else {
@@ -176,8 +190,10 @@ pub fn statement_gen<'a>(
 
                 // Increase offset by byte length of recursed macro
                 *offset += res.bytes.iter().map(|(_, b)| b.0.len()).sum::<usize>() / 2;
-                // Add the macro's bytecode to the final result
-                bytes = [bytes, res.bytes].concat()
+                // Add the macro's bytecode and spans to the final result
+                bytes = [bytes, res.bytes].concat();
+                // Preserve the spans from the nested macro expansion
+                spans.extend(res.spans)
             }
         }
         StatementType::Label(label) => {
@@ -207,6 +223,13 @@ pub fn statement_gen<'a>(
             }
 
             bytes.push((*offset, Bytes(Opcode::Jumpdest.to_string())));
+            // Add span for the JUMPDEST
+            let span_info = if !s.span.0.is_empty() {
+                s.span.0.first().and_then(|sp| if sp.start != 0 || sp.end != 0 { Some((sp.start, sp.end)) } else { None })
+            } else {
+                None
+            };
+            spans.push(span_info);
             *offset += 1;
         }
         StatementType::LabelCall(label) => {
@@ -229,9 +252,17 @@ pub fn statement_gen<'a>(
             jump_table
                 .insert(*offset, vec![Jump { label: label.to_string(), bytecode_index: 0, span: s.span.clone(), scope_depth, scope_path }]);
             bytes.push((*offset, Bytes(format!("{}xxxx", Opcode::Push2))));
+            // Add span for the PUSH2
+            let span_info = if !s.span.0.is_empty() {
+                s.span.0.first().and_then(|sp| if sp.start != 0 || sp.end != 0 { Some((sp.start, sp.end)) } else { None })
+            } else {
+                None
+            };
+            spans.push(span_info);
             *offset += 3;
         }
         StatementType::BuiltinFunctionCall(bf) => {
+            let bytes_before = bytes.len();
             builtin_function::builtin_function_gen(
                 evm_version,
                 contract,
@@ -246,6 +277,16 @@ pub fn statement_gen<'a>(
                 &mut bytes,
                 bf,
             )?;
+            // Add spans for the bytes added by builtin function
+            let bytes_added = bytes.len() - bytes_before;
+            let span_info = if !s.span.0.is_empty() {
+                s.span.0.first().and_then(|sp| if sp.start != 0 || sp.end != 0 { Some((sp.start, sp.end)) } else { None })
+            } else {
+                None
+            };
+            for _ in 0..bytes_added {
+                spans.push(span_info);
+            }
         }
         StatementType::ArgMacroInvocation(_parent_macro_name, arg_name, args) => {
             // Handle macro invocation through argument
@@ -328,5 +369,5 @@ pub fn statement_gen<'a>(
         }
     }
 
-    Ok(bytes)
+    Ok((bytes, spans))
 }
