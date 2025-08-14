@@ -24,4 +24,6 @@
 - [CLI](cli.md)
 - [Style Guide](style-guide.md)
 - [Resources](resources.md)
+- [Developer Guide](developers/overview.md)
+  - [Understanding Spans](developers/spans.md)
 - [Contribute](contribute.md)

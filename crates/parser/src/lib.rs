@@ -1318,14 +1318,18 @@ impl Parser {
 
     /// Parses a constant push.
     pub fn parse_constant_push(&mut self) -> Result<(String, Span), ParserError> {
+        // Save the opening bracket span to include it in the constant reference span
+        let start_span = self.current_token.span.clone();
         self.match_kind(TokenKind::OpenBracket)?;
         match self.current_token.kind.clone() {
             TokenKind::Ident(const_str) => {
                 // Consume the Ident and Validate Close Bracket
-                let iden_span = self.current_token.span.clone();
                 self.consume();
+                let end_span = self.current_token.span.clone();
                 self.match_kind(TokenKind::CloseBracket)?;
-                Ok((const_str, iden_span))
+                // Create a span that includes [VAL] from opening bracket to closing bracket
+                let full_span = Span { start: start_span.start, end: end_span.end, file: start_span.file };
+                Ok((const_str, full_span))
             }
             kind => {
                 let new_spans = self.spans.clone();
@@ -1352,13 +1356,17 @@ impl Parser {
     /// }
     /// ```
     pub fn parse_arg_call(&mut self) -> Result<(String, Span), ParserError> {
+        // Save the opening angle bracket span to include it in the arg call span
+        let start_span = self.current_token.span.clone();
         self.match_kind(TokenKind::LeftAngle)?;
         match self.current_token.kind.clone() {
             TokenKind::Ident(arg_str) => {
-                let arg_call_span = self.current_token.span.clone();
                 self.consume();
+                let end_span = self.current_token.span.clone();
                 self.match_kind(TokenKind::RightAngle)?;
-                Ok((arg_str, arg_call_span))
+                // Create a span that includes <arg> from opening angle to closing angle
+                let full_span = Span { start: start_span.start, end: end_span.end, file: start_span.file };
+                Ok((arg_str, full_span))
             }
             kind => {
                 let new_spans = self.spans.clone();

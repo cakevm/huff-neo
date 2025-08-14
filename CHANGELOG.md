@@ -4,6 +4,12 @@
 
 ## Unreleased
 
+## [1.3.2] - 2025-08-14
+- Standardize span convention to use exclusive end positions (following Rust Range convention).
+  - All spans now use `start..end` where `end` is exclusive (points after the last character).
+- Fix source mapping to correctly handle nested macro expansions.
+  - Spans now point to actual opcodes in macro definitions, not invocations.
+
 ## [1.3.1] - 2025-08-14
 - Add constructor and runtime source maps in Artifact structure.
 - Remove UUID field from FileSource struct for better WASM compatibility.

@@ -428,7 +428,7 @@ impl Codegen {
                     if recursing_constructor {
                         continue;
                     }
-                    let mut push_bytes = statement_gen(
+                    let (mut push_bytes, mut push_spans) = statement_gen(
                         evm_version,
                         s,
                         contract,
@@ -443,10 +443,9 @@ impl Codegen {
                         circular_codesize_invocations,
                         starting_offset,
                     )?;
-                    // Add span for each byte segment added by statement_gen
-                    for _ in 0..push_bytes.len() {
-                        spans.push(span_info);
-                    }
+                    // Use the spans from statement_gen (which preserves nested macro spans)
+                    // instead of duplicating the parent's span
+                    spans.append(&mut push_spans);
                     bytes.append(&mut push_bytes);
                 }
                 IRByteType::ArgCall(parent_macro_name, arg_name) => {
