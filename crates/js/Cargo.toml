@@ -16,10 +16,12 @@ crate-type = ["cdylib"]
 
 [dependencies]
 huff-neo-core.workspace = true
-huff-neo-utils.workspace = true
+huff-neo-utils = { workspace = true, features = ["wasm"] }
 
 serde.workspace = true
+serde_json.workspace = true
 serde-wasm-bindgen.workspace = true
+tsify.workspace = true
 wasm-bindgen.workspace = true
 
 [dev-dependencies]

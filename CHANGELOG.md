@@ -5,6 +5,7 @@
 ## Unreleased
 - Add `--flattened-source` CLI flag to output the flattened source code (with all includes resolved).
 - Add source code display in debugger with proper multi-file support.
+- Improve TypeScript definitions for WASM/JS package with proper types instead of `any`.
 
 ## [1.3.2] - 2025-08-14
 - Standardize span convention to use exclusive end positions (following Rust Range convention).

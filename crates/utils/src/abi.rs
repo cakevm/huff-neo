@@ -53,14 +53,19 @@ use std::{collections::BTreeMap, fmt};
 ///
 /// The ABI of the generated code.
 #[derive(Default, Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+#[cfg_attr(feature = "wasm", derive(tsify::Tsify))]
+#[cfg_attr(feature = "wasm", tsify(into_wasm_abi, from_wasm_abi))]
 pub struct Abi {
     /// The constructor
     pub constructor: Option<Constructor>,
     /// A list of functions and their definitions
+    #[cfg_attr(feature = "wasm", tsify(type = "Record<string, Function>"))]
     pub functions: BTreeMap<String, Function>,
     /// A list of events and their definitions
+    #[cfg_attr(feature = "wasm", tsify(type = "Record<string, Event>"))]
     pub events: BTreeMap<String, Event>,
     /// A list of errors and their definitions
+    #[cfg_attr(feature = "wasm", tsify(type = "Record<string, Error>"))]
     pub errors: BTreeMap<String, Error>,
     /// If the contract defines receive logic
     pub receive: bool,
@@ -69,7 +74,7 @@ pub struct Abi {
 }
 
 impl Abi {
-    /// Public associated function to instatiate a new Abi.
+    /// Public associated function to instantiate a new Abi.
     pub fn new() -> Self {
         Self::default()
     }
@@ -78,7 +83,7 @@ impl Abi {
 // Allows for simple ABI Generation by directly translating the AST
 impl From<huff::Contract> for Abi {
     fn from(contract: huff::Contract) -> Self {
-        // Try to get the constructor inputs from an overriden function
+        // Try to get the constructor inputs from an overridden function
         // Otherwise, use the CONSTRUCTOR macro if one exists
         let constructor = contract
             .functions
@@ -197,6 +202,8 @@ impl From<huff::Contract> for Abi {
 ///
 /// A function definition.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
+#[cfg_attr(feature = "wasm", derive(tsify::Tsify))]
+#[cfg_attr(feature = "wasm", tsify(into_wasm_abi, from_wasm_abi))]
 pub struct Function {
     /// The function name
     pub name: String,
@@ -214,6 +221,8 @@ pub struct Function {
 ///
 /// An Event definition.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
+#[cfg_attr(feature = "wasm", derive(tsify::Tsify))]
+#[cfg_attr(feature = "wasm", tsify(into_wasm_abi, from_wasm_abi))]
 pub struct Event {
     /// The event name
     pub name: String,
@@ -227,6 +236,8 @@ pub struct Event {
 ///
 /// Event parameters.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
+#[cfg_attr(feature = "wasm", derive(tsify::Tsify))]
+#[cfg_attr(feature = "wasm", tsify(into_wasm_abi, from_wasm_abi))]
 pub struct EventParam {
     /// The parameter name
     pub name: String,
@@ -240,6 +251,8 @@ pub struct EventParam {
 ///
 /// An Error definition.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
+#[cfg_attr(feature = "wasm", derive(tsify::Tsify))]
+#[cfg_attr(feature = "wasm", tsify(into_wasm_abi, from_wasm_abi))]
 pub struct Error {
     /// The error name
     pub name: String,
@@ -251,8 +264,10 @@ pub struct Error {
 ///
 /// The contract constructor
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
+#[cfg_attr(feature = "wasm", derive(tsify::Tsify))]
+#[cfg_attr(feature = "wasm", tsify(into_wasm_abi, from_wasm_abi))]
 pub struct Constructor {
-    /// Contstructor inputs
+    /// Constructor inputs
     pub inputs: Vec<FunctionParam>,
 }
 
@@ -260,6 +275,8 @@ pub struct Constructor {
 ///
 /// A generic function parameter
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
+#[cfg_attr(feature = "wasm", derive(tsify::Tsify))]
+#[cfg_attr(feature = "wasm", tsify(into_wasm_abi, from_wasm_abi))]
 pub struct FunctionParam {
     /// The function parameter name
     pub name: String,
@@ -271,8 +288,10 @@ pub struct FunctionParam {
 
 /// #### FunctionParamType
 ///
-/// The type of a function parameter
+/// The type of function parameter
 #[derive(Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Clone)]
+#[cfg_attr(feature = "wasm", derive(tsify::Tsify))]
+#[cfg_attr(feature = "wasm", tsify(into_wasm_abi, from_wasm_abi))]
 pub enum FunctionParamType {
     /// An address
     Address,

@@ -14,19 +14,25 @@ use huff_neo_utils::{
     prelude::EVMVersion,
 };
 use serde::{Deserialize, Serialize};
+use tsify::Tsify;
 
-#[derive(Serialize, Deserialize)]
-struct CompilerInput {
+/// Input configuration for the Huff compiler
+#[derive(Serialize, Deserialize, Tsify)]
+#[tsify(into_wasm_abi, from_wasm_abi)]
+pub struct CompilerInput {
     evm_version: Option<String>,
     sources: Vec<String>,
+    #[tsify(type = "Record<string, string>")]
     files: HashMap<String, String>,
     construct_args: Option<Vec<String>>,
     alternative_main: Option<String>,
     alternative_constructor: Option<String>,
 }
 
-#[derive(Serialize, Deserialize)]
-struct CompilerArtifact {
+/// Compiled artifact for a Huff contract
+#[derive(Serialize, Deserialize, Tsify)]
+#[tsify(into_wasm_abi, from_wasm_abi)]
+pub struct CompilerArtifact {
     bytecode: String,
     runtime: String,
     abi: Option<Abi>,
@@ -34,33 +40,27 @@ struct CompilerArtifact {
     runtime_map: Option<Vec<artifact::SourceMapEntry>>,
 }
 
-#[derive(Serialize, Deserialize)]
-struct CompilerOutput {
+/// Output from the Huff compiler
+#[derive(Serialize, Deserialize, Tsify)]
+#[tsify(into_wasm_abi, from_wasm_abi)]
+pub struct CompilerOutput {
     errors: Option<Vec<String>>,
+    #[tsify(type = "Record<string, CompilerArtifact>")]
     contracts: Option<HashMap<String, CompilerArtifact>>,
 }
 
-/// Compiles contracts based on supplied JSON input
+/// Compiles contracts with typed input and output
 #[wasm_bindgen]
-pub fn compile(input: JsValue) -> Result<JsValue, JsValue> {
-    let input: CompilerInput = match serde_wasm_bindgen::from_value(input) {
-        Ok(inp) => inp,
-        Err(err) => {
-            // Return deserialization error as part of the output
-            let output = CompilerOutput { errors: Some(vec![format!("Failed to parse input: {}", err)]), contracts: None };
-            return serde_wasm_bindgen::to_value(&output).map_err(|_| JsValue::NULL);
-        }
-    };
-
+pub fn compile(input: CompilerInput) -> CompilerOutput {
     let evm_version = EVMVersion::from(input.evm_version);
 
     let compiler = Compiler::new_in_memory(
         &evm_version,
         Arc::new(input.sources.clone()),
-        input.files.clone(),
-        input.alternative_main.clone(),
-        input.alternative_constructor.clone(),
-        input.construct_args.clone(),
+        input.files,
+        input.alternative_main,
+        input.alternative_constructor,
+        input.construct_args,
         None,
         false,
     );
@@ -69,19 +69,17 @@ pub fn compile(input: JsValue) -> Result<JsValue, JsValue> {
     let res: Vec<Arc<Artifact>> = match compiler.execute() {
         Ok(artifacts) => artifacts,
         Err(err) => {
-            // Return compilation errors as part of the output, not as a JS error
-            let output = CompilerOutput { errors: Some(vec![format!("{}", *err)]), contracts: None };
-            return serde_wasm_bindgen::to_value(&output).map_err(|_| JsValue::NULL);
+            // Return compilation errors as part of the output
+            return CompilerOutput { errors: Some(vec![format!("{}", *err)]), contracts: None };
         }
     };
 
     // If no artifacts generated, return a debug error
     if res.is_empty() {
-        let output = CompilerOutput {
+        return CompilerOutput {
             errors: Some(vec!["No artifacts generated. Check that files are accessible and contain valid Huff code.".to_string()]),
             contracts: None,
         };
-        return serde_wasm_bindgen::to_value(&output).map_err(|_| JsValue::NULL);
     }
 
     let mut contracts: HashMap<String, CompilerArtifact> = HashMap::new();
@@ -99,7 +97,5 @@ pub fn compile(input: JsValue) -> Result<JsValue, JsValue> {
         );
     });
 
-    let output = CompilerOutput { errors: None, contracts: Some(contracts) };
-
-    serde_wasm_bindgen::to_value(&output).map_err(|_| JsValue::NULL)
+    CompilerOutput { errors: None, contracts: Some(contracts) }
 }
