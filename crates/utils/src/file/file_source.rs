@@ -65,10 +65,17 @@ impl FileSource {
         let mut shift_pos = 0;
 
         // Append all child elements
-        for child_file_source in all_file_sources {
+        for (i, child_file_source) in all_file_sources.into_iter().enumerate() {
             let Some(source) = child_file_source.source.clone() else {
                 continue;
             };
+
+            // Add a newline before each file after the first to ensure proper separation
+            if i > 0 && !full_source.ends_with('\n') {
+                full_source.push('\n');
+                shift_pos += 1;
+            }
+
             let span = Span::new(shift_pos..(shift_pos + source.len() - 1), Some(child_file_source.clone()));
             relative_positions.push((child_file_source, span));
             shift_pos += source.len();

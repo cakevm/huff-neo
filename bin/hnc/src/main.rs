@@ -23,7 +23,7 @@ use huff_neo_test_runner::{
 };
 use huff_neo_utils::ast::span::AstSpan;
 use huff_neo_utils::bytecode::Bytes;
-use huff_neo_utils::file::file_provider::FileSystemFileProvider;
+use huff_neo_utils::file::file_provider::{FileProvider, FileSystemFileProvider};
 use huff_neo_utils::file::file_source::FileSource;
 use huff_neo_utils::file::full_file_source::OutputLocation;
 use huff_neo_utils::prelude::{
@@ -128,6 +128,36 @@ fn main() {
         cached: use_cache,
         file_provider: Arc::new(FileSystemFileProvider {}),
     };
+
+    // Handle flattened source output
+    if cli.flattened_source {
+        let file_provider = Arc::new(FileSystemFileProvider {});
+        let file_paths: Vec<std::path::PathBuf> = file_provider.transform_paths(&sources).unwrap_or_else(|e| {
+            eprintln!("{}", Paint::red(&format!("Failed to get file paths: {e}")));
+            exit(1);
+        });
+
+        let files_fetched = Compiler::fetch_sources(file_paths, file_provider.clone());
+
+        for file_result in files_fetched {
+            match file_result {
+                Ok(file) => match Compiler::get_flattened_source(file, file_provider.clone()) {
+                    Ok(flattened_source) => {
+                        println!("{}", flattened_source);
+                    }
+                    Err(e) => {
+                        eprintln!("{}", Paint::red(&format!("Failed to get flattened source: {}", e)));
+                        exit(1);
+                    }
+                },
+                Err(e) => {
+                    eprintln!("{}", Paint::red(&format!("Failed to fetch file: {}", e)));
+                    exit(1);
+                }
+            }
+        }
+        return;
+    }
 
     if cli.label_indices {
         let contracts = match compiler.grab_contracts() {

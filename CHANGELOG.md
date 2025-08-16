@@ -3,6 +3,7 @@
 # Huff Neo Compiler changelog
 
 ## Unreleased
+- Add `--flattened-source` CLI flag to output the flattened source code (with all includes resolved).
 
 ## [1.3.2] - 2025-08-14
 - Standardize span convention to use exclusive end positions (following Rust Range convention).
