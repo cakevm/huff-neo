@@ -249,8 +249,11 @@ fn main() {
             if test_args.verbosity > 2 {
                 inspector = inspector.with_log_collector();
             }
-            if test_args.verbosity > 3 {
-                inspector = inspector.with_steps_tracing().with_trace_printer();
+            if test_args.verbosity > 3 || test_args.debug {
+                inspector = inspector.with_steps_tracing();
+                if test_args.verbosity > 3 {
+                    inspector = inspector.with_trace_printer();
+                }
             }
 
             let mut env = rt.block_on(evm_opts.evm_env()).unwrap();

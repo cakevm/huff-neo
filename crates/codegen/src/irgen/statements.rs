@@ -98,8 +98,16 @@ pub fn statement_gen<'a>(
                 );
 
                 // Get span info for this statement
+                // Convert from original file coordinates to flattened coordinates
                 let span_info = if !s.span.0.is_empty() {
-                    s.span.0.first().and_then(|sp| if sp.start != 0 || sp.end != 0 { Some((sp.start, sp.end)) } else { None })
+                    s.span.0.first().and_then(|sp| {
+                        if sp.start != 0 || sp.end != 0 {
+                            // Convert original span to flattened coordinates
+                            contract.map_original_span_to_flattened(sp)
+                        } else {
+                            None
+                        }
+                    })
                 } else {
                     None
                 };
@@ -225,7 +233,14 @@ pub fn statement_gen<'a>(
             bytes.push((*offset, Bytes(Opcode::Jumpdest.to_string())));
             // Add span for the JUMPDEST
             let span_info = if !s.span.0.is_empty() {
-                s.span.0.first().and_then(|sp| if sp.start != 0 || sp.end != 0 { Some((sp.start, sp.end)) } else { None })
+                s.span.0.first().and_then(|sp| {
+                    if sp.start != 0 || sp.end != 0 {
+                        // Convert original span to flattened coordinates
+                        contract.map_original_span_to_flattened(sp)
+                    } else {
+                        None
+                    }
+                })
             } else {
                 None
             };
@@ -254,7 +269,14 @@ pub fn statement_gen<'a>(
             bytes.push((*offset, Bytes(format!("{}xxxx", Opcode::Push2))));
             // Add span for the PUSH2
             let span_info = if !s.span.0.is_empty() {
-                s.span.0.first().and_then(|sp| if sp.start != 0 || sp.end != 0 { Some((sp.start, sp.end)) } else { None })
+                s.span.0.first().and_then(|sp| {
+                    if sp.start != 0 || sp.end != 0 {
+                        // Convert original span to flattened coordinates
+                        contract.map_original_span_to_flattened(sp)
+                    } else {
+                        None
+                    }
+                })
             } else {
                 None
             };
@@ -280,7 +302,14 @@ pub fn statement_gen<'a>(
             // Add spans for the bytes added by builtin function
             let bytes_added = bytes.len() - bytes_before;
             let span_info = if !s.span.0.is_empty() {
-                s.span.0.first().and_then(|sp| if sp.start != 0 || sp.end != 0 { Some((sp.start, sp.end)) } else { None })
+                s.span.0.first().and_then(|sp| {
+                    if sp.start != 0 || sp.end != 0 {
+                        // Convert original span to flattened coordinates
+                        contract.map_original_span_to_flattened(sp)
+                    } else {
+                        None
+                    }
+                })
             } else {
                 None
             };

@@ -1,5 +1,6 @@
 use anvil::eth::backend::mem::inspector::AnvilInspector;
 use comfy_table::{Cell, Color};
+use huff_neo_utils::artifact::SourceMapEntry;
 use serde::Serialize;
 use yansi::Paint;
 
@@ -13,6 +14,22 @@ pub struct TestResult {
     pub revert_reason: Option<String>,
     #[serde(skip)]
     pub inspector: AnvilInspector,
+    /// Source map for the test bytecode (for debugging)
+    #[serde(skip)]
+    pub source_map: Option<Vec<SourceMapEntry>>,
+    /// Deployed contract address
+    #[serde(skip)]
+    pub address: Option<alloy_primitives::Address>,
+    /// Source code for debugging
+    #[serde(skip)]
+    pub source_code: Option<String>,
+    /// Bytecode for debugging
+    #[serde(skip)]
+    pub bytecode: Option<String>,
+    /// Multiple source files for multi-file debugging
+    /// Vec of (file_path, source_content)
+    #[serde(skip)]
+    pub source_files: Vec<(String, String)>,
 }
 
 /// A test status variant

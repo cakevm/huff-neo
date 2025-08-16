@@ -208,7 +208,19 @@ impl TestRunner {
         // Return our test result
         // NOTE: We subtract 21000 gas from the gas result to account for the
         // base cost of the CALL.
-        Ok(TestResult { name, return_data, gas: gas_used - 21000, status, revert_reason, inspector })
+        Ok(TestResult {
+            name,
+            return_data,
+            gas: gas_used - 21000,
+            status,
+            revert_reason,
+            inspector,
+            source_map: None,
+            address: None,
+            source_code: None,
+            bytecode: None,
+            source_files: Vec::new(),
+        })
     }
 
     /// Compile a test macro and run it in an in-memory REVM instance.
@@ -231,7 +243,7 @@ impl TestRunner {
             .map_err(|e| RunnerError::CompilerError(CompilerError::CodegenError(e)))?;
 
         // Generate table bytecode for compiled test macro
-        let (bytecode, _source_map) = Codegen::gen_table_bytecode(&evm_version, &contract, res)
+        let (bytecode, source_map) = Codegen::gen_table_bytecode(&evm_version, &contract, res)
             .map_err(|e| RunnerError::CompilerError(CompilerError::CodegenError(e)))?;
 
         // Deploy compiled test macro
@@ -259,7 +271,18 @@ impl TestRunner {
         }
 
         // Call the deployed test
-        let res = self.call(name, db, address, value, data)?;
+        let mut res = self.call(name, db, address, value, data)?;
+
+        // Add source map and address for debugging
+        res.source_map = Some(source_map);
+        res.address = Some(address);
+
+        // Get the full source code for debugging
+        // Use the flattened source from the contract if available
+        res.source_code = contract.flattened_source.clone();
+        res.bytecode = Some(bytecode.clone());
+        res.source_files = contract.source_files.clone();
+
         Ok(res)
     }
 }

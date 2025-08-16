@@ -62,6 +62,9 @@ use indexmap::IndexMap;
 fn example() {
     // Mock contract with a main macro
     let contract = Contract {
+      flattened_source: Some(String::new()),
+      source_files: vec![],
+      source_map: vec![],
       macros: IndexMap::from([("MAIN".to_string(),
         MacroDefinition {
           name: "MAIN".to_string(),
@@ -122,6 +125,9 @@ use indexmap::IndexMap;
 fn example() {
     // Mock contract with a constructor macro
     let contract = Contract {
+        flattened_source: Some(String::new()),
+        source_files: vec![],
+        source_map: vec![],
         macros: IndexMap::from([("CONSTRUCTOR".to_string(),
             MacroDefinition {
                 name: "CONSTRUCTOR".to_string(),
