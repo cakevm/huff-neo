@@ -4,8 +4,7 @@ The [Huff Neo](https://github.com/cakevm/huff-neo) compiler compiled to WebAssem
 
 - **Complete Huff compiler** - Full lexing, parsing, and bytecode generation
 - **Zero dependencies** - Self-contained WASM module with no external requirements
-- **Cross-platform** - Works in browsers, Node.js, and other JavaScript environments  
-- **Production ready** - Same compiler used in the Huff Neo CLI tool
+- **Cross-platform** - Works in browsers, Node.js, and other JavaScript environments
 - **TypeScript support** - Fully typed API with proper interface definitions
 
 ## Requirements
@@ -31,21 +30,6 @@ If using TypeScript, ensure your configuration targets ES2015 or later:
 
 ```bash
 npm install huff-neo-js
-```
-
-## Building from Source
-
-[wasm-pack](https://github.com/rustwasm/wasm-pack) is used to generate the JavaScript module from Rust source:
-
-```bash
-# Build for browser
-wasm-pack build --target browser
-
-# Build for Node.js  
-wasm-pack build --target nodejs
-
-# Build for bundlers (webpack, etc.)
-wasm-pack build --target bundler
 ```
 
 ## Usage
@@ -129,7 +113,7 @@ if (result.errors) {
 
 Outputs:
 
-```json
+```text
 {
   errors: undefined,
   contracts: Map(1) {
