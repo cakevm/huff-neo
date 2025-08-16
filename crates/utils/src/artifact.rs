@@ -10,6 +10,8 @@ use crate::file::file_source::FileSource;
 
 /// A bytecode source mapping entry
 #[derive(Default, Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+#[cfg_attr(feature = "wasm", derive(tsify::Tsify))]
+#[cfg_attr(feature = "wasm", tsify(into_wasm_abi, from_wasm_abi))]
 pub struct SourceMapEntry {
     /// Instruction Counter (IC) - the instruction index (0, 1, 2, ...)
     /// This is used to index into the source map array

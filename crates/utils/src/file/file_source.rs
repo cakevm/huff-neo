@@ -8,12 +8,15 @@ use std::sync::Arc;
 
 /// File Encapsulation
 #[derive(Default, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Clone)]
+#[cfg_attr(feature = "wasm", derive(tsify::Tsify))]
+#[cfg_attr(feature = "wasm", tsify(into_wasm_abi, from_wasm_abi))]
 pub struct FileSource {
     /// File Path
     pub path: String,
     /// File Source
     pub source: Option<String>,
     /// Last File Access Time
+    #[cfg_attr(feature = "wasm", tsify(type = "number | undefined"))]
     pub access: Option<time::Time>,
     /// An Ordered List of File Dependencies
     pub dependencies: Vec<Arc<FileSource>>,
