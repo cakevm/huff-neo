@@ -22,7 +22,6 @@ use tsify::Tsify;
 pub struct CompilerInput {
     evm_version: Option<String>,
     sources: Vec<String>,
-    #[tsify(type = "Record<string, string>")]
     files: HashMap<String, String>,
     construct_args: Option<Vec<String>>,
     alternative_main: Option<String>,
@@ -45,7 +44,6 @@ pub struct CompilerArtifact {
 #[tsify(into_wasm_abi, from_wasm_abi)]
 pub struct CompilerOutput {
     errors: Option<Vec<String>>,
-    #[tsify(type = "Record<string, CompilerArtifact>")]
     contracts: Option<HashMap<String, CompilerArtifact>>,
 }
 

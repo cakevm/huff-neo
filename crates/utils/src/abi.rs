@@ -59,13 +59,10 @@ pub struct Abi {
     /// The constructor
     pub constructor: Option<Constructor>,
     /// A list of functions and their definitions
-    #[cfg_attr(feature = "wasm", tsify(type = "Record<string, Function>"))]
     pub functions: BTreeMap<String, Function>,
     /// A list of events and their definitions
-    #[cfg_attr(feature = "wasm", tsify(type = "Record<string, Event>"))]
     pub events: BTreeMap<String, Event>,
     /// A list of errors and their definitions
-    #[cfg_attr(feature = "wasm", tsify(type = "Record<string, Error>"))]
     pub errors: BTreeMap<String, Error>,
     /// If the contract defines receive logic
     pub receive: bool,
