@@ -3,6 +3,8 @@
 # Huff Neo Compiler changelog
 
 ## Unreleased
+
+## [1.3.3] - 2025-08-16
 - Add `--flattened-source` CLI flag to output the flattened source code (with all includes resolved).
 - Add source code display in debugger with proper multi-file support.
 - Improve TypeScript definitions for WASM/JS package with proper types instead of `any`.
