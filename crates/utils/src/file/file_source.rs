@@ -57,6 +57,8 @@ impl FileSource {
     /// Let's say you have a file, `a.txt` with two dependencies, `b.txt` and `c.txt`,
     /// `fully_flatten()` will generate a source code string with the contents of `b.txt` and
     /// `c.txt` appended to the end of the contents of `a.txt`.
+    ///
+    /// Note: This preserves #include statements in the output to maintain correct span positions
     pub fn fully_flatten(node_file_source: Arc<FileSource>) -> (String, Vec<(Arc<FileSource>, Span)>) {
         let all_file_sources = FileSource::discover_all_file_sources(node_file_source, &mut HashSet::new());
 
@@ -65,10 +67,17 @@ impl FileSource {
         let mut shift_pos = 0;
 
         // Append all child elements
-        for child_file_source in all_file_sources {
+        for (i, child_file_source) in all_file_sources.into_iter().enumerate() {
             let Some(source) = child_file_source.source.clone() else {
                 continue;
             };
+
+            // Add a newline before each file after the first to ensure proper separation
+            if i > 0 && !full_source.ends_with('\n') {
+                full_source.push('\n');
+                shift_pos += 1;
+            }
+
             let span = Span::new(shift_pos..(shift_pos + source.len() - 1), Some(child_file_source.clone()));
             relative_positions.push((child_file_source, span));
             shift_pos += source.len();
