@@ -55,9 +55,11 @@ revm = { version = "27.1.0", default-features = false, features = ["optional_no_
 anvil = { git = "https://github.com/foundry-rs/foundry", rev = "1ee320a" }
 foundry-cli = { git = "https://github.com/foundry-rs/foundry", rev = "1ee320a" }
 foundry-common = { git = "https://github.com/foundry-rs/foundry", rev = "1ee320a" }
+foundry-compilers = { version = "0.18.0", default-features = false }
 foundry-config = { git = "https://github.com/foundry-rs/foundry", rev = "1ee320a" }
 foundry-debugger = { git = "https://github.com/foundry-rs/foundry", rev = "1ee320a" }
 foundry-evm = { git = "https://github.com/foundry-rs/foundry", rev = "1ee320a" }
+foundry-evm-core = { git = "https://github.com/foundry-rs/foundry", rev = "1ee320a" }
 foundry-evm-traces = { git = "https://github.com/foundry-rs/foundry", rev = "1ee320a" }
 
 # serde

@@ -14,6 +14,7 @@ pub mod types;
 /// The errors module
 pub mod errors;
 
+use alloy_primitives::map::AddressHashMap;
 /// Re-export the Inspector from anvil crate
 pub use anvil::eth::backend::mem::inspector::AnvilInspector;
 use foundry_debugger::Debugger;
@@ -21,6 +22,7 @@ use foundry_evm::Env;
 use foundry_evm::backend::Backend;
 use foundry_evm::fork::CreateFork;
 use foundry_evm::traces::{InternalTraceMode, SparsedTraceArena, TraceKind};
+use foundry_evm_traces::debug::{ArtifactData, ContractSources, SourceData};
 use revm::database::CacheDB;
 use revm::primitives::hardfork::SpecId;
 
@@ -175,7 +177,97 @@ impl<'t> HuffTester<'t> {
 
         let traces = [(TraceKind::Execution, SparsedTraceArena { arena: trace_area.into_traces(), ignored: Default::default() })];
 
-        let mut debugger = Debugger::builder().traces(traces.iter().filter(|(t, _)| t.is_execution()).cloned().collect()).build();
+        eprintln!("DEBUG: Starting debugger for test: {}", test_result.name);
+        eprintln!("DEBUG: Has source map: {}", test_result.source_map.is_some());
+        eprintln!("DEBUG: Has source code: {}", test_result.source_code.is_some());
+        if let Some(addr) = test_result.address {
+            eprintln!("DEBUG: Contract address: {}", addr);
+        }
+
+        // Create ContractSources if we have source maps
+        let mut debugger_builder = Debugger::builder().traces(traces.iter().filter(|(t, _)| t.is_execution()).cloned().collect());
+
+        // Add identified contracts and source maps for debugging
+        let mut identified_contracts = AddressHashMap::default();
+        let mut contracts_sources = ContractSources::default();
+
+        if let Some(address) = test_result.address {
+            let contract_name = format!("Test::{}", test_result.name);
+            identified_contracts.insert(address, contract_name.clone());
+
+            // Add source maps if available
+            if let Some(source_map) = &test_result.source_map {
+                // Create inner map for file IDs
+                let mut file_map = std::collections::HashMap::new();
+
+                // Check if we have multiple source files
+                if !test_result.source_files.is_empty() {
+                    // Add each source file with its proper file ID
+                    for (file_id, (file_path, source_content)) in test_result.source_files.iter().enumerate() {
+                        let source_data = SourceData::new(
+                            std::sync::Arc::new(source_content.clone()),
+                            foundry_compilers::multi::MultiCompilerLanguage::Solc(
+                                foundry_compilers::compilers::solc::SolcLanguage::Solidity,
+                            ),
+                            std::path::PathBuf::from(file_path),
+                        );
+                        file_map.insert(file_id as u32, std::sync::Arc::new(source_data));
+                    }
+                } else {
+                    // Fallback to single flattened source
+                    let source_code = test_result
+                        .source_code
+                        .clone()
+                        .unwrap_or_else(|| format!("// Huff test macro: {}\n// Source not available", test_result.name));
+
+                    let source_data = SourceData::new(
+                        std::sync::Arc::new(source_code),
+                        foundry_compilers::multi::MultiCompilerLanguage::Solc(foundry_compilers::compilers::solc::SolcLanguage::Solidity),
+                        std::path::PathBuf::from("test.huff"),
+                    );
+                    file_map.insert(0u32, std::sync::Arc::new(source_data));
+                }
+
+                // Insert into sources_by_id with address as string key
+                contracts_sources.sources_by_id.insert(address.to_string(), file_map);
+
+                // Also need to add the artifact data with the source map
+                let solidity_source_map = huff_neo_utils::artifact::SourceMapEntry::generate_solidity_source_map(source_map);
+
+                // Parse the source map
+                let parsed_source_map = foundry_compilers::artifacts::sourcemap::parse(&solidity_source_map).ok();
+
+                if let Some(source_map_parsed) = parsed_source_map {
+                    // Create PcIcMap from bytecode if available
+                    let pc_ic_map = test_result.bytecode.as_ref().and_then(|bytecode_hex| {
+                        alloy_primitives::hex::decode(bytecode_hex).ok().map(|bytes| foundry_evm_core::ic::PcIcMap::new(&bytes))
+                    });
+
+                    // Add artifact data for the contract
+                    // The build_id should match the key in sources_by_id
+                    let artifact_data = ArtifactData {
+                        build_id: address.to_string(),
+                        file_id: 0,
+                        source_map: Some(source_map_parsed.clone()),
+                        source_map_runtime: Some(source_map_parsed),
+                        pc_ic_map: pc_ic_map.clone(),
+                        pc_ic_map_runtime: pc_ic_map,
+                    };
+
+                    // Try adding artifacts by both name AND address
+                    // Add by contract name
+                    let contract_name = format!("Test::{}", test_result.name);
+                    contracts_sources.artifacts_by_name.entry(contract_name).or_default().push(artifact_data.clone());
+
+                    // Also add by address in case debugger looks it up that way
+                    contracts_sources.artifacts_by_name.entry(address.to_string()).or_default().push(artifact_data);
+                }
+            }
+        }
+
+        debugger_builder = debugger_builder.identified_contracts(identified_contracts).sources(contracts_sources);
+
+        let mut debugger = debugger_builder.build();
 
         debugger.try_run_tui().map_err(|e| RunnerError::GenericError(format!("{e:?}")))?;
 

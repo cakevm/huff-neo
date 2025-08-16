@@ -325,7 +325,7 @@ impl<'a, 'l> Compiler<'a, 'l> {
                 // its dependencies
                 let flattened = FileSource::fully_flatten(Arc::clone(&file));
                 tracing::info!(target: "core", "FLATTENED SOURCE FILE \"{}\"", file.path);
-                let full_source = FullFileSource { source: &flattened.0, file: Some(Arc::clone(&file)), spans: flattened.1 };
+                let full_source = FullFileSource { source: &flattened.0, file: Some(Arc::clone(&file)), spans: flattened.1.clone() };
                 tracing::debug!(target: "core", "GOT FULL SOURCE FOR PATH: {:?}", file.path);
 
                 // Perform Lexical Analysis
@@ -353,6 +353,38 @@ impl<'a, 'l> Compiler<'a, 'l> {
                 let mut contract = parse_res?;
                 contract.derive_storage_pointers();
                 contract.add_override_constants(&self.constant_overrides);
+                // Store the flattened source for debugging
+                contract.flattened_source = Some(flattened.0.clone());
+
+                // Build source files list and mapping for multi-file debugging
+                let mut source_files = Vec::new();
+                let mut source_map = Vec::new();
+                let mut file_map = std::collections::HashMap::new();
+
+                for (file_source, span) in &flattened.1 {
+                    // Get or create file ID
+                    let file_id = if let Some(&id) = file_map.get(&file_source.path) {
+                        id
+                    } else {
+                        let id = source_files.len();
+                        if let Some(source) = &file_source.source {
+                            tracing::debug!(target: "core", "Adding source file {}: {}", id, file_source.path);
+                            source_files.push((file_source.path.clone(), source.clone()));
+                            file_map.insert(file_source.path.clone(), id);
+                        }
+                        id
+                    };
+
+                    // Add mapping entry (flattened_start, file_id, original_start)
+                    // The third parameter should be 0 since each file starts at position 0 in its original source
+                    tracing::debug!(target: "core", "Source map entry: flattened_start={}, file_id={}, file_path={}", 
+                        span.start, file_id, file_source.path);
+                    source_map.push((span.start, file_id, 0));
+                }
+
+                contract.source_files = source_files;
+                contract.source_map = source_map;
+
                 tracing::info!(target: "core", "PARSED CONTRACT [{}]", file.path);
                 Ok(contract)
             })
@@ -365,7 +397,8 @@ impl<'a, 'l> Compiler<'a, 'l> {
     pub fn gen_artifact(&self, file: Arc<FileSource>) -> Result<Artifact, CompilerError> {
         // Fully Flatten a file into a source string containing source code of file and all
         // its dependencies
-        let (merged_source, spans) = FileSource::fully_flatten(Arc::clone(&file));
+        let flattened = FileSource::fully_flatten(Arc::clone(&file));
+        let (merged_source, spans) = (flattened.0.clone(), flattened.1.clone());
 
         tracing::info!(target: "core", "FLATTENED SOURCE FILE \"{}\"", file.path);
         let full_source = FullFileSource { source: &merged_source, file: Some(Arc::clone(&file)), spans };
@@ -396,6 +429,47 @@ impl<'a, 'l> Compiler<'a, 'l> {
         let mut contract = parse_res?;
         contract.derive_storage_pointers();
         contract.add_override_constants(&self.constant_overrides);
+
+        // Store the flattened source and build multi-file mapping
+        contract.flattened_source = Some(merged_source.clone());
+
+        // Build source files list and mapping for multi-file debugging
+        let mut source_files = Vec::new();
+        let mut source_map = Vec::new();
+        let mut file_map = std::collections::HashMap::new();
+
+        // For single files, ensure we still have the main file in source_files
+        if flattened.1.is_empty() {
+            // Single file case - add the main file
+            source_files.push((file.path.clone(), merged_source.clone()));
+            source_map.push((0, 0, 0)); // Main file starts at position 0
+        } else {
+            // Multi-file case - process all included files
+            for (file_source, span) in &flattened.1 {
+                // Get or create file ID
+                let file_id = if let Some(&id) = file_map.get(&file_source.path) {
+                    id
+                } else {
+                    let id = source_files.len();
+                    if let Some(source) = &file_source.source {
+                        tracing::debug!(target: "core", "Adding source file {}: {}", id, file_source.path);
+                        source_files.push((file_source.path.clone(), source.clone()));
+                        file_map.insert(file_source.path.clone(), id);
+                    }
+                    id
+                };
+
+                // Add mapping entry (flattened_start, file_id, original_start)
+                // The third parameter should be 0 since each file starts at position 0 in its original source
+                tracing::debug!(target: "core", "Source map entry: flattened_start={}, file_id={}, file_path={}", 
+                    span.start, file_id, file_source.path);
+                source_map.push((span.start, file_id, 0));
+            }
+        }
+
+        contract.source_files = source_files;
+        contract.source_map = source_map;
+
         tracing::info!(target: "core", "PARSED CONTRACT [{}]", file.path);
 
         // Primary Bytecode Generation

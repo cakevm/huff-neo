@@ -248,20 +248,45 @@ impl Codegen {
         }
 
         tracing::info!(target: "codegen", "GENERATING JUMPTABLE BYTECODE");
+        tracing::debug!(target: "codegen", "Contract has {} source files", contract.source_files.len());
+        tracing::debug!(target: "codegen", "Source map entries: {:?}", contract.source_map);
+        tracing::debug!(target: "codegen", "res.bytes.len() = {}", res.bytes.len());
+        tracing::debug!(target: "codegen", "res.spans.len() = {}", res.spans.len());
 
         // Generate source map from bytecode segments and spans
+        // Create one entry per instruction for Solidity-compatible source maps
+        // The source map is indexed by IC, so we need an entry for every instruction
         let mut source_map = Vec::new();
-        let mut byte_offset = 0;
+        let mut program_counter = 0; // PC: byte offset in bytecode
 
-        for (i, (_, bytes)) in res.bytes.iter().enumerate() {
-            let length = bytes.0.len(); // Length in hex string (2 chars per byte)
+        for (instruction_counter, (_opcode, bytes)) in res.bytes.iter().enumerate() {
+            let instruction_bytecode_length = bytes.0.len() / 2; // Length in bytes (hex string has 2 chars per byte)
 
-            // Add source map entry if we have span information
-            if let Some(Some((start, end))) = res.spans.get(i) {
-                source_map.push(SourceMapEntry { byte_offset, length, source_start: *start, source_end: *end });
-            }
+            // Create source map entry for this instruction
+            // Use span information if available, otherwise use zeros (unmapped)
+            let (source_start, source_end, file_id) = if let Some(Some((start, end))) = res.spans.get(instruction_counter) {
+                // Use the Contract's helper method to map flattened positions to original file positions
+                let (file_id, original_start, original_end) = contract.map_flattened_position_to_source(*start, *end);
 
-            byte_offset += length;
+                tracing::debug!(target: "codegen", "Source map entry: IC={}, flattened_pos={}..{}, mapped_pos={}..{}, file={}, bytes={}, PC={}, bytecode_len={}, source_len={}", 
+                    instruction_counter, start, end, original_start, original_end, file_id, bytes.0, program_counter, instruction_bytecode_length, original_end - original_start);
+                (original_start, original_end, file_id)
+            } else {
+                // No source mapping for this instruction
+                tracing::debug!(target: "codegen", "Source map entry: IC={}, no span, using (0,0,0)", instruction_counter);
+                (0, 0, 0)
+            };
+
+            source_map.push(SourceMapEntry {
+                ic: instruction_counter,                      // IC: instruction index (0, 1, 2, ...)
+                pc: program_counter,                          // PC: byte offset in bytecode where this instruction starts
+                bytecode_length: instruction_bytecode_length, // Length of this instruction in bytecode (bytes)
+                source_start,
+                source_length: source_end - source_start, // Length in source code (chars, not bytecode bytes)
+                file_id,
+            });
+
+            program_counter += instruction_bytecode_length; // Advance PC by the bytecode length
         }
 
         let mut bytecode = res.bytes.into_iter().map(|(_, b)| b.0).collect::<String>();
@@ -403,8 +428,16 @@ impl Codegen {
             let starting_offset = offset;
 
             // Extract span information if available
+            // Convert from original file coordinates to flattened coordinates
             let span_info = if !ir_byte.span.0.is_empty() {
-                ir_byte.span.0.first().and_then(|s| if s.start != 0 || s.end != 0 { Some((s.start, s.end)) } else { None })
+                ir_byte.span.0.first().and_then(|s| {
+                    if s.start != 0 || s.end != 0 {
+                        // Convert original span to flattened coordinates
+                        contract.map_original_span_to_flattened(s)
+                    } else {
+                        None
+                    }
+                })
             } else {
                 None
             };

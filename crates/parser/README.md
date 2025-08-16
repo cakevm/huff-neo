@@ -63,6 +63,9 @@ fn example() {
       events: vec![],
       tables: vec![],
       labels: HashSet::new(),
+      flattened_source: None,
+      source_files: vec![],
+      source_map: vec![],
     };
     assert_eq!(unwrapped_contract.macros, expected_contract.macros);
 }

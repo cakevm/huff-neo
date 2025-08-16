@@ -31,6 +31,9 @@ fn constructs_valid_abi() {
         events: vec![],
         tables: vec![],
         labels: HashSet::new(),
+        flattened_source: None,
+        source_files: vec![],
+        source_map: vec![],
     };
 
     // Generate the abi from the contract
@@ -72,6 +75,9 @@ fn missing_constructor_fails() {
         events: vec![],
         tables: vec![],
         labels: HashSet::new(),
+        flattened_source: None,
+        source_files: vec![],
+        source_map: vec![],
     };
 
     // Generate the abi from the contract

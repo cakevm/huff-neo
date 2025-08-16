@@ -53,9 +53,67 @@ pub struct Contract {
     pub tables: Vec<TableDefinition>,
     /// Labels
     pub labels: HashSet<String>,
+    /// Flattened source code (for debugging and source maps)
+    pub flattened_source: Option<String>,
+    /// Individual source files for multi-file debugging support
+    /// Vec of (file_path, source_content)
+    pub source_files: Vec<(String, String)>,
+    /// Mapping from flattened position to (file_index, original_position)
+    pub source_map: Vec<(usize, usize, usize)>, // (flattened_start, file_id, original_start)
 }
 
 impl Contract {
+    /// Map a position from the flattened source to the original file and position
+    /// Returns (file_id, original_start, original_end)
+    pub fn map_flattened_position_to_source(&self, flattened_start: usize, flattened_end: usize) -> (u32, usize, usize) {
+        // Find which file this position belongs to
+        let mut file_id = 0u32;
+        let mut original_start = flattened_start;
+        let mut original_end = flattened_end;
+
+        // Iterate through source_map to find the right file
+        for (idx, (file_start_in_flattened, fid, _)) in self.source_map.iter().enumerate() {
+            // Check if we have a next entry to determine the file's end position
+            let file_end = if idx + 1 < self.source_map.len() {
+                self.source_map[idx + 1].0
+            } else {
+                // Last file extends to the end
+                usize::MAX
+            };
+
+            // Check if this position is within this file's range
+            if *file_start_in_flattened <= flattened_start && flattened_start < file_end {
+                file_id = *fid as u32;
+                // Map to position within this file (subtract the file's start position in flattened source)
+                original_start = flattened_start - file_start_in_flattened;
+                original_end = flattened_end - file_start_in_flattened;
+                break;
+            }
+        }
+
+        (file_id, original_start, original_end)
+    }
+
+    /// Convert a span from original file coordinates to flattened source coordinates
+    /// This is needed because AST spans are in original file positions, but source maps need flattened positions
+    pub fn map_original_span_to_flattened(&self, span: &crate::prelude::Span) -> Option<(usize, usize)> {
+        if let Some(file) = &span.file {
+            // Find this file in our source_files list
+            let file_id = self.source_files.iter().enumerate().find(|(_, (path, _))| path == &file.path).map(|(id, _)| id)?;
+
+            // Find the start position of this file in the flattened source
+            let file_start_in_flattened = self.source_map.iter().find(|(_, fid, _)| *fid == file_id).map(|(start, _, _)| *start)?;
+
+            // Convert original file positions to flattened positions
+            let flattened_start = file_start_in_flattened + span.start;
+            let flattened_end = file_start_in_flattened + span.end;
+
+            Some((flattened_start, flattened_end))
+        } else {
+            None
+        }
+    }
+
     /// Returns the first macro that matches the provided name
     pub fn find_macro_by_name(&self, name: &str) -> Option<&MacroDefinition> {
         self.macros.get(name).or_else(|| {
