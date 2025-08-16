@@ -34,6 +34,9 @@
 //!     events: vec![],
 //!     tables: vec![],
 //!     labels: Default::default(),
+//!     flattened_source: None,
+//!     source_files: vec![],
+//!     source_map: vec![],
 //! };
 //!
 //! // Create an ABI using that generate contract
