@@ -85,13 +85,13 @@ pub struct HuffArgs {
     #[clap(subcommand)]
     pub test: Option<TestCommands>,
 
+    /// Output the flattened source code with all dependencies resolved
+    #[clap(long = "flattened-source")]
+    pub flattened_source: bool,
+
     /// Print version
     #[arg(short = 'V', long = "version")]
     pub version_long: bool,
-
-    /// Output the flattened source code
-    #[clap(long = "flattened-source")]
-    pub flattened_source: bool,
 }
 
 #[derive(Subcommand, Clone, Debug)]
