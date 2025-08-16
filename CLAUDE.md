@@ -6,6 +6,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Huff Neo is a production-ready compiler for the Huff language - a low-level programming language for developing highly optimized smart contracts that compile to EVM bytecode. This is a maintained fork of the archived huff-rs repository.
 
+## Code Organization Requirements
+
+### Import Statements
+- **MUST**: All `use` statements must be placed at the top of the file with the other imports
+- **NEVER**: Place `use` statements inside functions or methods
+- This ensures consistency, makes dependencies clear at a glance, and improves compilation performance
+
 ## Build and Development Commands
 
 ### Essential Commands

@@ -4085,6 +4085,7 @@ dependencies = [
  "huff-neo-utils",
  "rand 0.9.2",
  "rayon",
+ "regex",
  "serde_json",
  "tracing",
  "tracing-subscriber 0.3.19",

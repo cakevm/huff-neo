@@ -17,6 +17,7 @@ use huff_neo_utils::wasm::IntoParallelIterator;
 use huff_neo_utils::{prelude::*, time};
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 use rayon::prelude::*;
+use regex::Regex;
 use std::collections::HashSet;
 use std::{
     collections::{BTreeMap, HashMap},
@@ -259,7 +260,7 @@ impl<'a, 'l> Compiler<'a, 'l> {
     }
 
     /// Get the flattened source code for a file with all dependencies resolved
-    /// and #include statements removed
+    /// and #include statements commented out
     pub fn get_flattened_source(file: Arc<FileSource>, file_provider: Arc<dyn FileProvider>) -> Result<String, Arc<CompilerError>> {
         // Recurse through dependencies
         let remapper = Remapper::new("./");
@@ -268,10 +269,11 @@ impl<'a, 'l> Compiler<'a, 'l> {
         // Flatten the source
         let (merged_source, _) = FileSource::fully_flatten(file_with_deps);
 
-        // Remove #include statements
-        let cleaned_source = merged_source.lines().filter(|line| !line.trim_start().starts_with("#include")).collect::<Vec<_>>().join("\n");
+        // Find and comment out #include statements
+        let include_regex = Regex::new(r#"#include\s+["'][^"']*["']"#).unwrap();
+        let final_source = include_regex.replace_all(&merged_source, "// $0").to_string();
 
-        Ok(cleaned_source)
+        Ok(final_source)
     }
 
     /// Grab the ASTs for all file sources.
