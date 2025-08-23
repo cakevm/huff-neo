@@ -16,6 +16,11 @@ run:
 
 .PHONY: test
 test:
+	@command -v cargo-nextest >/dev/null 2>&1 || cargo install cargo-nextest --locked
+	cargo nextest run --workspace --bins --lib --tests
+
+.PHONY: test-cargo
+test-cargo:
 	cargo test --workspace --bins --lib --tests
 
 .PHONY: test-doc
