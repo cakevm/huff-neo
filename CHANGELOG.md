@@ -5,7 +5,7 @@
 ## Unreleased
 
 ## [1.3.5] - 2025-08-23
-- Fix invoking nested first-class macro with parameters (<arg>() syntax) (fixes #94).
+- Fix invoking nested first-class macro with parameters (`<arg>()` syntax) (fixes #94).
 
 ## [1.3.4] - 2025-08-16
 - Fix TypeScript definitions to use `Map<string, T>` types matching runtime behavior with ES2015+ support.
