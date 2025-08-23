@@ -1153,14 +1153,23 @@ impl Parser {
                 TokenKind::LeftAngle => {
                     // Passed into the Macro Call like:
                     // GET_SLOT_FROM_KEY(<mem_ptr>)  // [slot]
+                    // Or invoked as a macro: MACRO2(<m>())
                     self.consume();
                     let arg_name = self.match_kind(TokenKind::Ident("ARG_CALL".to_string()))?.to_string();
-                    args.push(MacroArg::ArgCall(ArgCall {
-                        macro_name: macro_name.clone(),
-                        name: arg_name,
-                        span: AstSpan(vec![self.current_token.span.clone()]),
-                    }));
+                    let closing_angle_span = self.current_token.span.clone(); // Capture > span
                     self.match_kind(TokenKind::RightAngle)?;
+
+                    // Check if followed by parentheses for invocation
+                    if self.check(TokenKind::OpenParen) {
+                        let invoc_args = self.parse_macro_call_args(macro_name.clone())?;
+                        args.push(MacroArg::ArgCallMacroInvocation(arg_name, invoc_args));
+                    } else {
+                        args.push(MacroArg::ArgCall(ArgCall {
+                            macro_name: macro_name.clone(),
+                            name: arg_name,
+                            span: AstSpan(vec![closing_angle_span]),
+                        }));
+                    }
                 }
                 arg => {
                     tracing::error!(

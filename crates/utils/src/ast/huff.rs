@@ -567,6 +567,8 @@ pub enum MacroArg {
     Ident(String),
     /// An Arg Call
     ArgCall(ArgCall),
+    /// An Arg Call that is invoked as a macro: <arg>()
+    ArgCallMacroInvocation(String, Vec<MacroArg>),
     /// A Nested Macro Call
     MacroCall(MacroInvocation),
     /// Opcode Argument

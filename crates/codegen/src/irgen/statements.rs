@@ -341,6 +341,10 @@ pub fn statement_gen<'a>(
                                         // The argument is itself an argument reference - need to resolve it recursively
                                         return resolve_argument(&arg_call.name, mis, contract);
                                     }
+                                    MacroArg::ArgCallMacroInvocation(inner_arg_name, _) => {
+                                        // The argument is an invocation of another argument - resolve that argument
+                                        return resolve_argument(inner_arg_name, mis, contract);
+                                    }
                                     _ => {
                                         // Other types of arguments not supported for macro invocation
                                         continue;

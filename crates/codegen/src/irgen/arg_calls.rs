@@ -58,6 +58,69 @@ pub fn bubble_arg_call(
             tracing::info!(target: "codegen", "GOT \"{}\" POS IN ARG LIST: {} (from macro {} invocation {})", arg_name, pos, target_macro.name, target_macro_invoc.1.macro_name);
 
             if let Some(arg) = target_macro_invoc.1.args.get(pos) {
+                // Special case: if the argument is an ArgCallMacroInvocation, expand it here
+                if let MacroArg::ArgCallMacroInvocation(inner_arg_name, invoc_args) = arg {
+                    tracing::info!(target: "codegen", "GOT ArgCallMacroInvocation for argument '{}', expanding it", inner_arg_name);
+
+                    // We need to resolve inner_arg_name and expand the macro
+                    // Look in the parent scope for the actual macro name
+                    if scope.len() > 1 {
+                        let parent_macro = scope[scope.len() - 2];
+                        if let Some(parent_param_idx) = parent_macro.parameters.iter().position(|p| p.name.as_ref() == Some(inner_arg_name))
+                            && mis.len() > 1
+                            && let Some(parent_invoc) = mis.get(mis.len() - 2)
+                            && let Some(MacroArg::Ident(actual_macro_name)) = parent_invoc.1.args.get(parent_param_idx)
+                            && let Some(called_macro) = contract.find_macro_by_name(actual_macro_name)
+                        {
+                            let inner_mi =
+                                MacroInvocation { macro_name: actual_macro_name.clone(), args: invoc_args.clone(), span: span.clone() };
+
+                            let mut new_scope = scope.to_vec();
+                            new_scope.push(called_macro);
+                            let mut new_mis = mis.to_vec();
+                            new_mis.push((*offset, inner_mi));
+
+                            match Codegen::macro_to_bytecode(
+                                evm_version,
+                                called_macro,
+                                contract,
+                                &mut new_scope,
+                                *offset,
+                                &mut new_mis,
+                                false,
+                                None,
+                            ) {
+                                Ok(expanded) => {
+                                    let byte_len: usize = expanded.bytes.iter().map(|(_, b)| b.0.len() / 2).sum();
+                                    bytes.extend(expanded.bytes);
+                                    *offset += byte_len;
+
+                                    // Handle jumps and tables
+                                    for jump in expanded.unmatched_jumps {
+                                        if let Some(existing) = jump_table.get_mut(&jump.bytecode_index) {
+                                            existing.push(jump);
+                                        } else {
+                                            jump_table.insert(jump.bytecode_index, vec![jump]);
+                                        }
+                                    }
+                                    for table_instance in expanded.table_instances {
+                                        table_instances.push(table_instance);
+                                    }
+                                    for table in expanded.utilized_tables {
+                                        if !utilized_tables.contains(&table) {
+                                            utilized_tables.push(table);
+                                        }
+                                    }
+                                    return Ok(());
+                                }
+                                Err(e) => return Err(e),
+                            }
+                        }
+                    }
+                    // If we couldn't expand it, fall through to normal handling
+                }
+
+                // Original handling for other argument types
                 tracing::info!(target: "codegen", "GOT \"{:?}\" ARG FROM MACRO INVOCATION", arg);
                 match arg {
                     MacroArg::Literal(l) => {
@@ -203,6 +266,79 @@ pub fn bubble_arg_call(
                                 }],
                             );
                             *offset += 3;
+                        }
+                    }
+                    MacroArg::ArgCallMacroInvocation(arg_name, invoc_args) => {
+                        // Resolve the argument to get the actual macro name
+                        if let Some(param_idx) = target_macro.parameters.iter().position(|p| p.name.as_ref() == Some(arg_name)) {
+                            if let Some(MacroArg::Ident(actual_macro_name)) = target_macro_invoc.1.args.get(param_idx) {
+                                // Now invoke the resolved macro with the provided arguments
+                                if let Some(called_macro) = contract.find_macro_by_name(actual_macro_name) {
+                                    let inner_mi = MacroInvocation {
+                                        macro_name: actual_macro_name.clone(),
+                                        args: invoc_args.clone(),
+                                        span: AstSpan(vec![]), // We don't have the original span here
+                                    };
+
+                                    let mut new_scope = scope.to_vec();
+                                    new_scope.push(called_macro);
+                                    let mut new_mis = mis.to_vec();
+                                    new_mis.push((*offset, inner_mi));
+
+                                    match Codegen::macro_to_bytecode(
+                                        evm_version,
+                                        called_macro,
+                                        contract,
+                                        &mut new_scope,
+                                        *offset,
+                                        &mut new_mis,
+                                        false,
+                                        None,
+                                    ) {
+                                        Ok(expanded_macro) => {
+                                            let byte_len: usize = expanded_macro.bytes.iter().map(|(_, b)| b.0.len() / 2).sum();
+                                            bytes.extend(expanded_macro.bytes);
+                                            *offset += byte_len;
+
+                                            // Bubble up jumps and tables
+                                            for unmatched_jump in expanded_macro.unmatched_jumps {
+                                                let existing_jumps =
+                                                    jump_table.get(&unmatched_jump.bytecode_index).cloned().unwrap_or_else(Vec::new);
+                                                let mut new_jumps = existing_jumps;
+                                                new_jumps.push(unmatched_jump.clone());
+                                                jump_table.insert(unmatched_jump.bytecode_index, new_jumps);
+                                            }
+                                            for table_instance in expanded_macro.table_instances {
+                                                table_instances.push(table_instance);
+                                            }
+                                            for table in expanded_macro.utilized_tables {
+                                                if !utilized_tables.contains(&table) {
+                                                    utilized_tables.push(table);
+                                                }
+                                            }
+                                        }
+                                        Err(e) => return Err(e),
+                                    }
+                                } else {
+                                    return Err(CodegenError {
+                                        kind: CodegenErrorKind::MissingMacroDefinition(actual_macro_name.clone()),
+                                        span: span.clone(),
+                                        token: None,
+                                    });
+                                }
+                            } else {
+                                return Err(CodegenError {
+                                    kind: CodegenErrorKind::MissingArgumentDefinition(arg_name.clone()),
+                                    span: span.clone(),
+                                    token: None,
+                                });
+                            }
+                        } else {
+                            return Err(CodegenError {
+                                kind: CodegenErrorKind::MissingArgumentDefinition(arg_name.clone()),
+                                span: span.clone(),
+                                token: None,
+                            });
                         }
                     }
                     MacroArg::MacroCall(inner_mi) => {

@@ -69,6 +69,307 @@ fn test_opcode_macro_args() {
 }
 
 #[test]
+fn test_arg_call_macro_invocation() {
+    // Test simple argument macro invocation without arguments
+    let source = r#"
+        #define macro MAIN() = takes(0) returns(0) {
+            MACRO1(NO_OP)
+        }
+        
+        #define macro MACRO1(m) = takes(0) returns(0) {
+            <m>()
+        }
+        
+        #define macro NO_OP() = takes(0) returns(0) {
+            0x42
+        }
+    "#;
+
+    // Lex + Parse
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    let evm_version = EVMVersion::default();
+
+    // Create main bytecode
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
+
+    // Expected bytecode: PUSH1 0x42
+    let expected_bytecode = "6042";
+    assert_eq!(main_bytecode.to_lowercase(), expected_bytecode.to_lowercase());
+}
+
+#[test]
+fn test_arg_call_macro_invocation_with_args() {
+    // Test argument macro invocation with arguments
+    let source = r#"
+        #define macro MAIN() = takes(0) returns(0) {
+            WRAPPER(ADD_TWO)
+        }
+        
+        #define macro WRAPPER(m) = takes(0) returns(0) {
+            <m>(0x01, 0x02)
+        }
+        
+        #define macro ADD_TWO(a, b) = takes(0) returns(0) {
+            <a> <b> add
+        }
+    "#;
+
+    // Lex + Parse
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    let evm_version = EVMVersion::default();
+
+    // Create main bytecode
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
+
+    // Expected bytecode: PUSH1 0x01 PUSH1 0x02 ADD
+    let expected_bytecode = "6001600201";
+    assert_eq!(main_bytecode.to_lowercase(), expected_bytecode.to_lowercase());
+}
+
+#[test]
+fn test_nested_arg_call_macro_invocation() {
+    // Test nested argument macro invocations (GitHub issue #94 example)
+    let source = r#"
+        #define macro MAIN() = takes(0) returns(0) {
+            MACRO1(NO_OP)
+        }
+        
+        #define macro MACRO1(m) = takes(0) returns(0) {
+            MACRO2(<m>())
+        }
+        
+        #define macro MACRO2(m) = takes(0) returns(0) {
+            <m>
+        }
+        
+        #define macro NO_OP() = takes(0) returns(0) {
+            0x01
+        }
+    "#;
+
+    // Lex + Parse
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    let evm_version = EVMVersion::default();
+
+    // Create main bytecode
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
+
+    // Expected bytecode: PUSH1 0x01
+    let expected_bytecode = "6001";
+    assert_eq!(main_bytecode.to_lowercase(), expected_bytecode.to_lowercase());
+}
+
+#[test]
+fn test_arg_call_macro_invocation_passed_with_args() {
+    // Test passing a macro invocation with arguments as an argument to another macro
+    let source = r#"
+        #define macro MAIN() = takes(0) returns(0) {
+            OUTER(MULTIPLY)
+        }
+        
+        #define macro OUTER(m) = takes(0) returns(0) {
+            INNER(<m>(0x03, 0x04))
+        }
+        
+        #define macro INNER(result) = takes(0) returns(0) {
+            <result>
+        }
+        
+        #define macro MULTIPLY(a, b) = takes(0) returns(0) {
+            <a> <b> mul
+        }
+    "#;
+
+    // Lex + Parse
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    let evm_version = EVMVersion::default();
+
+    // Create main bytecode
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
+
+    // Expected bytecode: PUSH1 0x03 PUSH1 0x04 MUL
+    let expected_bytecode = "6003600402";
+    assert_eq!(main_bytecode.to_lowercase(), expected_bytecode.to_lowercase());
+}
+
+#[test]
+fn test_arg_call_with_literal_and_arg_arguments() {
+    // Test invoking a macro with mixed literal and argument arguments
+    let source = r#"
+        #define macro MAIN() = takes(0) returns(0) {
+            WRAPPER(COMPLEX_OP, 0x05)
+        }
+        
+        #define macro WRAPPER(m, val) = takes(0) returns(0) {
+            <m>(0x10, <val>)
+        }
+        
+        #define macro COMPLEX_OP(a, b) = takes(0) returns(0) {
+            <a> <b> sub
+        }
+    "#;
+
+    // Lex + Parse
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    let evm_version = EVMVersion::default();
+
+    // Create main bytecode
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
+
+    // Expected bytecode: PUSH1 0x10 PUSH1 0x05 SUB
+    let expected_bytecode = "6010600503";
+    assert_eq!(main_bytecode.to_lowercase(), expected_bytecode.to_lowercase());
+}
+
+#[test]
+fn test_multiple_arg_call_invocations() {
+    // Test multiple macro invocations through arguments in the same macro
+    let source = r#"
+        #define macro MAIN() = takes(0) returns(0) {
+            DISPATCHER(ADD_OP, SUB_OP)
+        }
+        
+        #define macro DISPATCHER(m1, m2) = takes(0) returns(0) {
+            <m1>(0x08, 0x03)
+            <m2>(0x08, 0x03)
+        }
+        
+        #define macro ADD_OP(a, b) = takes(0) returns(0) {
+            <a> <b> add
+        }
+        
+        #define macro SUB_OP(a, b) = takes(0) returns(0) {
+            <a> <b> sub
+        }
+    "#;
+
+    // Lex + Parse
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    let evm_version = EVMVersion::default();
+
+    // Create main bytecode
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
+
+    // Expected bytecode: PUSH1 0x08 PUSH1 0x03 ADD PUSH1 0x08 PUSH1 0x03 SUB
+    let expected_bytecode = "60086003016008600303";
+    assert_eq!(main_bytecode.to_lowercase(), expected_bytecode.to_lowercase());
+}
+
+#[test]
+fn test_arg_call_with_opcode_arguments() {
+    // Test passing opcodes as arguments to a macro invoked through an argument
+    let source = r#"
+        #define macro MAIN() = takes(0) returns(0) {
+            EXECUTOR(APPLY_OP)
+        }
+        
+        #define macro EXECUTOR(m) = takes(0) returns(0) {
+            <m>(caller, origin)
+        }
+        
+        #define macro APPLY_OP(op1, op2) = takes(0) returns(0) {
+            <op1> <op2> eq
+        }
+    "#;
+
+    // Lex + Parse
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    let evm_version = EVMVersion::default();
+
+    // Create main bytecode
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
+
+    // Expected bytecode: CALLER ORIGIN EQ
+    let expected_bytecode = "333214";
+    assert_eq!(main_bytecode.to_lowercase(), expected_bytecode.to_lowercase());
+}
+
+#[test]
+fn test_deeply_nested_arg_call_with_args() {
+    // Test deeply nested macro invocations with arguments
+    let source = r#"
+        #define macro MAIN() = takes(0) returns(0) {
+            LEVEL1(COMPUTE)
+        }
+        
+        #define macro LEVEL1(m) = takes(0) returns(0) {
+            LEVEL2(<m>(0x02))
+        }
+        
+        #define macro LEVEL2(result) = takes(0) returns(0) {
+            LEVEL3(<result>)
+        }
+        
+        #define macro LEVEL3(final) = takes(0) returns(0) {
+            <final> 0x03 add
+        }
+        
+        #define macro COMPUTE(val) = takes(0) returns(0) {
+            <val> dup1 mul
+        }
+    "#;
+
+    // Lex + Parse
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    let evm_version = EVMVersion::default();
+
+    // Create main bytecode
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
+
+    // Expected bytecode: PUSH1 0x02 DUP1 MUL PUSH1 0x03 ADD
+    let expected_bytecode = "60028002600301";
+    assert_eq!(main_bytecode.to_lowercase(), expected_bytecode.to_lowercase());
+}
+
+#[test]
 fn test_all_opcodes_in_macro_args() {
     for o in OPCODES {
         let source = format!(
