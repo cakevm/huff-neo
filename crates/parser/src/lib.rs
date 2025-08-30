@@ -1091,16 +1091,39 @@ impl Parser {
                 Ok(MacroArg::Ident("calldata".to_string()))
             }
             TokenKind::LeftAngle => {
-                // ArgCall: <arg>
+                // ArgCall: <arg> or ArgCallMacroInvocation: <arg>(...)
                 self.consume();
                 let arg_name = self.match_kind(TokenKind::Ident("ARG_CALL".to_string()))?.to_string();
                 let span = AstSpan(vec![self.current_token.span.clone()]);
                 self.match_kind(TokenKind::RightAngle)?;
-                Ok(MacroArg::ArgCall(ArgCall {
-                    macro_name: String::new(), // Will be filled in by caller
-                    name: arg_name,
-                    span,
-                }))
+
+                // Check if this is an arg macro call <arg>(...)
+                if self.current_token.kind == TokenKind::OpenParen {
+                    self.consume(); // consume '('
+
+                    // Parse arguments for the arg macro invocation
+                    let mut args = Vec::new();
+                    while self.current_token.kind != TokenKind::CloseParen {
+                        args.push(self.parse_single_macro_argument()?);
+
+                        if self.current_token.kind == TokenKind::Comma {
+                            self.consume();
+                        } else if self.current_token.kind != TokenKind::CloseParen {
+                            break; // Let the outer parser handle the error
+                        }
+                    }
+
+                    self.match_kind(TokenKind::CloseParen)?; // consume ')'
+
+                    Ok(MacroArg::ArgCallMacroInvocation(arg_name, args))
+                } else {
+                    // Simple arg call <arg>
+                    Ok(MacroArg::ArgCall(ArgCall {
+                        macro_name: String::new(), // Will be filled in by caller
+                        name: arg_name,
+                        span,
+                    }))
+                }
             }
             arg => Err(ParserError {
                 kind: ParserErrorKind::InvalidMacroArgs(arg),
