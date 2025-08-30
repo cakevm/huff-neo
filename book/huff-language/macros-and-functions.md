@@ -24,9 +24,7 @@ terms of runtime gas cost due to not having to jump to and from the macro's code
 but it can quickly increase the size of the contract's bytecode if it is used commonly
 throughout.
 
-> **Note on Label Scoping**: Each macro invocation creates its own scope for labels. 
-> This means labels defined within a macro are local to that specific invocation,
-> preventing naming conflicts. See [Jump Labels](./jump-labels.md#label-scoping) for details.
+> **Note**: Labels defined within macros have their own scope. See [Label Scoping](./jump-labels.md#label-scoping) for details on how labels work across macro invocations.
 
 ### Constructor and Main
 

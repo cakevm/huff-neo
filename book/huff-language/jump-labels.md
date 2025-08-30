@@ -134,6 +134,111 @@ This resolution order allows:
 }
 ```
 
+#### Labels as Macro Arguments
+
+When labels are passed as arguments to macros, they are resolved from the perspective of the macro that's passing them, not the macro that's using them. This allows labels to be accessed across different scopes:
+
+```huff
+#define macro SET_LABEL() = takes(0) returns(0) {
+    my_label:
+    0x42
+}
+
+#define macro USE_LABEL(lbl) = takes(0) returns(0) {
+    <lbl> jump      // Uses the label passed as argument
+}
+
+#define macro WRAPPER(m) = takes(0) returns(0) {
+    USE_LABEL(<m>)  // Pass label as argument to USE_LABEL
+}
+
+#define macro MAIN() = takes(0) returns(0) {
+    SET_LABEL()         // Define my_label in SET_LABEL's scope
+    WRAPPER(my_label)   // Pass label through nested invocations
+}
+```
+
+In this example:
+1. `my_label` is defined in `SET_LABEL`'s scope (a child of MAIN)
+2. When `MAIN` calls `WRAPPER(my_label)`, the label is resolved from MAIN's perspective
+3. MAIN can see `my_label` because it's defined in a child scope (SET_LABEL)
+4. `WRAPPER` passes the label to `USE_LABEL` as `<m>`
+5. When `USE_LABEL` uses `<lbl>`, it jumps to the correct label
+
+This works even with deeply nested invocations:
+
+```huff
+#define macro DEEP_USE(label) = takes(0) returns(0) {
+    <label> jump
+}
+
+#define macro LEVEL2(lbl) = takes(0) returns(0) {
+    DEEP_USE(<lbl>)     // Pass through another level
+}
+
+#define macro LEVEL1(l) = takes(0) returns(0) {
+    LEVEL2(<l>)         // Pass through to LEVEL2
+}
+
+#define macro MAIN() = takes(0) returns(0) {
+    target:
+    0x42
+    LEVEL1(target)      // Label resolved from MAIN's scope
+}
+```
+
+The key point is that label arguments (`<label>`) are resolved where they are passed, not where they are used. This enables flexible label passing between macros at different scope levels.
+
+##### Label Shadowing with Arguments
+
+When passing labels as arguments, shadowing rules still apply. Inner scope labels shadow outer scope labels:
+
+```huff
+#define macro USE_LABEL(lbl) = takes(0) returns(0) {
+    <lbl> jump
+}
+
+#define macro INNER() = takes(0) returns(0) {
+    target:             // Inner scope's target
+    0x01
+    USE_LABEL(target)   // Resolves to INNER's target (0x01)
+}
+
+#define macro MAIN() = takes(0) returns(0) {
+    target:             // MAIN's target
+    0x00
+    INNER()             // INNER defines its own target
+    USE_LABEL(target)   // Resolves to MAIN's target (0x00)
+}
+```
+
+In this example:
+- `INNER` defines its own `target` label that shadows `MAIN`'s `target`
+- When `INNER` passes `target` to `USE_LABEL`, it resolves to INNER's label
+- When `MAIN` passes `target` to `USE_LABEL`, it resolves to MAIN's label
+- Each macro sees and passes its own version of the label
+
+This shadowing behavior is useful when you want macros to work with their local labels without worrying about naming conflicts:
+
+```huff
+#define macro JUMP_TO(lbl) = takes(0) returns(0) {
+    <lbl> jump
+}
+
+#define macro PROCESS() = takes(0) returns(0) {
+    loop:               // Local loop label
+    0x01 add
+    dup1 0x10 lt
+    loop JUMP_TO        // Uses local loop, not affected by other loops
+}
+
+#define macro MAIN() = takes(0) returns(0) {
+    loop:               // MAIN's loop label
+    PROCESS()           // PROCESS has its own loop
+    loop jump           // Jumps to MAIN's loop
+}
+```
+
 ### Best Practices
 
 1. Use unique label names within a macro to avoid confusion
