@@ -2,6 +2,35 @@ use crate::Codegen;
 use huff_neo_utils::ast::span::AstSpan;
 use huff_neo_utils::prelude::*;
 use std::str::FromStr;
+
+/// Computes the scope context for label resolution in argument calls.
+///
+/// When a label is passed as an argument (e.g., `<label>` in a macro body), it must be
+/// resolved from the calling macro's scope rather than the invoked macro's scope. This
+/// ensures labels are accessible from their definition context when passed between macros.
+///
+/// # Arguments
+/// * `scope` - Macro scope chain from root to current
+/// * `mis` - Macro invocation stack with bytecode offsets
+///
+/// # Returns
+/// * `(scope_path, scope_depth)` - Resolution context for label lookup
+fn calculate_label_scope(scope: &[&MacroDefinition], mis: &[(usize, MacroInvocation)]) -> (Vec<String>, usize) {
+    // Standard case: search from parent's scope
+    // This works for most cases including nested arguments
+    let scope_path = if scope.len() > 2 {
+        let parent_offset = if mis.len() > 1 { mis[mis.len() - 2].0 } else { 0 };
+        let mut path: Vec<String> = scope[..scope.len() - 2].iter().map(|m| m.name.clone()).collect();
+        path.push(format!("{}_{}", scope[scope.len() - 2].name, parent_offset));
+        path
+    } else if scope.len() > 1 {
+        scope[..scope.len() - 1].iter().map(|m| m.name.clone()).collect()
+    } else {
+        vec![]
+    };
+    let scope_depth = scope.len().saturating_sub(2);
+    (scope_path, scope_depth)
+}
 // Arguments can be literals, labels, opcodes, constants, or macro calls
 // !! IF THERE IS AMBIGUOUS NOMENCLATURE
 // !! (E.G. BOTH OPCODE AND LABEL ARE THE SAME STRING)
@@ -240,21 +269,8 @@ pub fn bubble_arg_call(
 
                             // This should be equivalent to a label call.
                             bytes.push((*offset, Bytes(format!("{}xxxx", Opcode::Push2))));
-                            // For arg calls that are labels, search from parent's scope
-                            let scope_path: Vec<String> = if scope.len() > 2 {
-                                // Remove the current macro from the path and use parent's invocation offset
-                                let parent_invocation_offset = if mis.len() > 1 { mis[mis.len() - 2].0 } else { 0 };
-                                let mut path: Vec<String> = scope[..scope.len() - 2].iter().map(|m| m.name.clone()).collect();
-                                path.push(format!("{}_{}", scope[scope.len() - 2].name, parent_invocation_offset));
-                                path
-                            } else if scope.len() > 1 {
-                                // Just use the parent without suffix if we're at depth 1
-                                scope[..scope.len() - 1].iter().map(|m| m.name.clone()).collect()
-                            } else {
-                                vec![]
-                            };
-                            // Reduce depth by 1 since we're searching from parent's perspective
-                            let scope_depth = scope.len().saturating_sub(2);
+
+                            let (scope_path, scope_depth) = calculate_label_scope(scope, mis);
                             jump_table.insert(
                                 *offset,
                                 vec![Jump {
@@ -521,22 +537,8 @@ pub fn bubble_arg_call(
             Some(mi) => mi.1.span.clone(),
             None => AstSpan(vec![]),
         };
-        // For arg calls that are labels, we need to search from the parent's scope
-        // because the label was likely defined in the parent or a sibling of the parent
-        let scope_path: Vec<String> = if scope.len() > 2 {
-            // Remove the current macro from the path and use parent's invocation offset
-            let parent_invocation_offset = if mis.len() > 1 { mis[mis.len() - 2].0 } else { 0 };
-            let mut path: Vec<String> = scope[..scope.len() - 2].iter().map(|m| m.name.clone()).collect();
-            path.push(format!("{}_{}", scope[scope.len() - 2].name, parent_invocation_offset));
-            path
-        } else if scope.len() > 1 {
-            // Just use the parent without suffix if we're at depth 1
-            scope[..scope.len() - 1].iter().map(|m| m.name.clone()).collect()
-        } else {
-            vec![]
-        };
-        // Reduce depth by 1 since we're searching from parent's perspective
-        let scope_depth = scope.len().saturating_sub(2);
+
+        let (scope_path, scope_depth) = calculate_label_scope(scope, mis);
         jump_table.insert(
             mis.last().map(|mi| mi.0).unwrap_or_else(|| 0),
             vec![Jump { label: arg_name.to_owned(), bytecode_index: 0, span: new_span, scope_depth, scope_path }],

@@ -621,7 +621,11 @@ impl Codegen {
                         }
                         Ok(None) => {
                             // The jump did not have a corresponding label index. Add it to the unmatched jumps vec.
-                            tracing::warn!(target: "codegen", "UNMATCHED JUMP LABEL \"{}\" AT BYTECODE INDEX {}", jump.label, code_index);
+                            tracing::warn!(
+                                target: "codegen",
+                                "UNMATCHED JUMP LABEL \"{}\" AT BYTECODE INDEX {} (scope_depth={}, scope_path={:?})",
+                                jump.label, code_index, jump.scope_depth, jump.scope_path
+                            );
                             unmatched_jumps.push(Jump {
                                 label: jump.label.clone(),
                                 bytecode_index: code_index,
