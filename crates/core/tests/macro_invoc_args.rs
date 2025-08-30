@@ -989,3 +989,78 @@ fn test_verbatim_before_macro_expansion() {
     // IDENTITY(CONST) with CONST=0x5678 produces: 61 5678 (PUSH2 0x5678)
     assert_eq!(main_bytecode, "1234 61 5678".replace(" ", ""));
 }
+
+#[test]
+fn test_nested_first_class_macro_invocation() {
+    let source = r#"
+        #define macro MAIN() = takes(0) returns(0) {
+            OUTER(NO_OP)
+        }
+
+        #define macro OUTER(m) = takes(0) returns(0) {
+            INNER(<m>)
+        }
+
+        #define macro INNER(m) = takes(0) returns(0) {
+            <m>()
+        }
+
+        #define macro NO_OP() = takes(0) returns(0) {}
+    "#;
+
+    // Lex + Parse
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    let evm_version = EVMVersion::default();
+
+    // Create main bytecode - should not hang or stack overflow
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
+
+    // NO_OP macro is empty, so the bytecode should be empty
+    assert_eq!(main_bytecode, "");
+}
+
+#[test]
+fn test_nested_first_class_macro_with_bytecode() {
+    let source = r#"
+        #define macro MAIN() = takes(0) returns(0) {
+            APPLY(UNARY, NO_OP)
+        }
+
+        #define macro APPLY(m, a) = takes(0) returns(0) {
+            <m>(<a>())
+            0x02
+        }
+
+        #define macro UNARY(a) = takes(0) returns(0) {
+            <a>
+            0x01
+        }
+
+        #define macro NO_OP() = takes(0) returns(0) {}
+    "#;
+
+    // Lex + Parse
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    let evm_version = EVMVersion::default();
+
+    // Create main bytecode
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
+
+    // Expected bytecode:
+    // APPLY expands to: UNARY(NO_OP()) + 0x02
+    // UNARY(NO_OP()) expands to: NO_OP() + 0x01 = 0x01 (since NO_OP is empty)
+    // So total: 0x01 + 0x02 = "6001" + "6002"
+    assert_eq!(main_bytecode, "60016002");
+}

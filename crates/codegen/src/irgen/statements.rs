@@ -156,7 +156,66 @@ pub fn statement_gen<'a>(
 
                 // Recurse into macro invocation
                 scope.push(ir_macro);
-                mis.push((*offset, mi.clone()));
+
+                // Resolve any ArgCall and ArgCallMacroInvocation arguments before pushing the invocation
+                let mut resolved_args = Vec::new();
+                for arg in &mi.args {
+                    match arg {
+                        MacroArg::ArgCall(arg_call) => {
+                            // Resolve this ArgCall by looking it up in the current context
+                            let mut resolved = None;
+
+                            // Search through the invocation stack for the argument's value
+                            for (_, parent_mi) in mis.iter().rev() {
+                                if let Some(parent_macro) = contract.find_macro_by_name(&parent_mi.macro_name)
+                                    && let Some(param_idx) =
+                                        parent_macro.parameters.iter().position(|p| p.name.as_deref() == Some(&arg_call.name))
+                                    && let Some(arg_value) = parent_mi.args.get(param_idx)
+                                {
+                                    resolved = Some(arg_value.clone());
+                                    break;
+                                }
+                            }
+
+                            // Use resolved value or keep the ArgCall if not found
+                            resolved_args.push(resolved.unwrap_or_else(|| arg.clone()));
+                        }
+                        MacroArg::ArgCallMacroInvocation(arg_name, invoc_args) => {
+                            // Resolve the argument name to find the actual macro
+                            let mut resolved_macro_name = None;
+
+                            // Search through the invocation stack for the argument's value
+                            for (_, parent_mi) in mis.iter().rev() {
+                                if let Some(parent_macro) = contract.find_macro_by_name(&parent_mi.macro_name)
+                                    && let Some(param_idx) =
+                                        parent_macro.parameters.iter().position(|p| p.name.as_deref() == Some(arg_name))
+                                    && let Some(MacroArg::Ident(macro_name)) = parent_mi.args.get(param_idx)
+                                {
+                                    resolved_macro_name = Some(macro_name.clone());
+                                    break;
+                                }
+                            }
+
+                            // If we resolved the macro name, create a regular MacroCall
+                            if let Some(macro_name) = resolved_macro_name {
+                                resolved_args.push(MacroArg::MacroCall(MacroInvocation {
+                                    macro_name,
+                                    args: invoc_args.clone(),
+                                    span: AstSpan(vec![]),
+                                }));
+                            } else {
+                                // Keep the original if we couldn't resolve
+                                resolved_args.push(arg.clone());
+                            }
+                        }
+                        _ => resolved_args.push(arg.clone()),
+                    }
+                }
+
+                // Create a resolved invocation
+                let resolved_mi = MacroInvocation { macro_name: mi.macro_name.clone(), args: resolved_args, span: mi.span.clone() };
+
+                mis.push((*offset, resolved_mi));
 
                 let mut res: BytecodeRes = match Codegen::macro_to_bytecode(
                     evm_version,
