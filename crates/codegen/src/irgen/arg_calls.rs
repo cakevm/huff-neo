@@ -240,21 +240,62 @@ pub fn bubble_arg_call(
 
                             // This should be equivalent to a label call.
                             bytes.push((*offset, Bytes(format!("{}xxxx", Opcode::Push2))));
-                            // For arg calls that are labels, search from parent's scope
-                            let scope_path: Vec<String> = if scope.len() > 2 {
-                                // Remove the current macro from the path and use parent's invocation offset
-                                let parent_invocation_offset = if mis.len() > 1 { mis[mis.len() - 2].0 } else { 0 };
-                                let mut path: Vec<String> = scope[..scope.len() - 2].iter().map(|m| m.name.clone()).collect();
-                                path.push(format!("{}_{}", scope[scope.len() - 2].name, parent_invocation_offset));
-                                path
-                            } else if scope.len() > 1 {
-                                // Just use the parent without suffix if we're at depth 1
-                                scope[..scope.len() - 1].iter().map(|m| m.name.clone()).collect()
+
+                            // For labels passed as arguments to nested macros, we need to find the correct scope
+                            // Check if we're in a nested macro invocation by looking at the invocation stack
+                            let (scope_path, scope_depth) = if mis.len() > 1 {
+                                // We're in a nested context - find the scope where label resolution should start
+                                // Look for the first non-argument macro invocation going backwards
+                                let mut search_depth = mis.len() - 1;
+                                while search_depth > 0 {
+                                    // Check if this invocation is a direct child of a non-argument context
+                                    let parent_invoc = &mis[search_depth - 1].1;
+                                    let current_invoc = &mis[search_depth].1;
+
+                                    // If the current macro is being invoked as part of an argument expansion,
+                                    // we need to go up further to find the right scope for label resolution
+                                    let is_arg_expansion = parent_invoc
+                                        .args
+                                        .iter()
+                                        .any(|arg| matches!(arg, MacroArg::MacroCall(mi) if mi.macro_name == current_invoc.macro_name));
+
+                                    if !is_arg_expansion {
+                                        // Found the right level - use the parent's scope
+                                        break;
+                                    }
+                                    search_depth -= 1;
+                                }
+
+                                // Calculate scope path based on where we found the non-argument context
+                                let base_depth = search_depth.saturating_sub(1);
+                                let scope_path = if base_depth > 0 {
+                                    let offset = mis[base_depth].0;
+                                    let mut path: Vec<String> = scope[..base_depth].iter().map(|m| m.name.clone()).collect();
+                                    if base_depth < scope.len() {
+                                        path.push(format!("{}_{}", scope[base_depth].name, offset));
+                                    }
+                                    path
+                                } else {
+                                    vec![]
+                                };
+
+                                (scope_path, base_depth)
                             } else {
-                                vec![]
+                                // Not in a nested context, use the standard approach
+                                let scope_path: Vec<String> = if scope.len() > 2 {
+                                    let parent_invocation_offset = if mis.len() > 1 { mis[mis.len() - 2].0 } else { 0 };
+                                    let mut path: Vec<String> = scope[..scope.len() - 2].iter().map(|m| m.name.clone()).collect();
+                                    path.push(format!("{}_{}", scope[scope.len() - 2].name, parent_invocation_offset));
+                                    path
+                                } else if scope.len() > 1 {
+                                    scope[..scope.len() - 1].iter().map(|m| m.name.clone()).collect()
+                                } else {
+                                    vec![]
+                                };
+                                let scope_depth = scope.len().saturating_sub(2);
+                                (scope_path, scope_depth)
                             };
-                            // Reduce depth by 1 since we're searching from parent's perspective
-                            let scope_depth = scope.len().saturating_sub(2);
+
                             jump_table.insert(
                                 *offset,
                                 vec![Jump {

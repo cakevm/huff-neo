@@ -283,6 +283,47 @@ fn test_label_shadowing_across_scopes() {
 }
 
 #[test]
+fn test_sibling_label_resolution_with_nested_arg_invocation() {
+    // Test label resolution when label is used as argument in nested macro invocations
+    // This tests the fix for sibling scope label resolution
+    let source = r#"
+        #define macro MAIN() = takes(0) returns(0) {
+            SET_LBL()
+            USE_LBL_AS_NESTED_ARG()
+        }
+
+        #define macro SET_LBL() = takes(0) returns(0) {
+            lbl:
+            0x42
+        }
+
+        #define macro USE_LBL_AS_NESTED_ARG() = takes(0) returns(0) {
+            UNARY(UNARY(lbl))
+        }
+
+        #define macro UNARY(m) = takes(0) returns(0) {
+            <m>
+            jump
+        }
+    "#;
+
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None);
+    assert!(result.is_ok());
+
+    let bytecode = result.unwrap();
+    // Expected: JUMPDEST, PUSH1 0x42, PUSH2 0x0000, JUMP, JUMP
+    // The nested UNARY(UNARY(lbl)) expands to: lbl jump jump
+    assert_eq!(bytecode, "5b60426100005656");
+}
+
+#[test]
 fn test_nested_label_shadowing_three_levels() {
     // Test deeper nesting with label shadowing
     let source = r#"

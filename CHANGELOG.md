@@ -5,6 +5,7 @@
 ## Unreleased
 - Fix parsing of nested first-class macro argument invocations like `<m>(<a>())` (fixes #96).
 - Fix infinite loop when compiling nested first-class macro invocations by resolving arguments at invocation time (fixes #98).
+- Fix sibling scope label resolution when labels are used as arguments in nested macro invocations (fixes #97).
 
 ## [1.3.5] - 2025-08-23
 - Fix invoking nested first-class macro with parameters (`<arg>()` syntax) (fixes #94).
