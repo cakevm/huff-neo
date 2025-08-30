@@ -283,6 +283,47 @@ fn test_label_shadowing_across_scopes() {
 }
 
 #[test]
+fn test_nested_macro_label_argument() {
+    // Test label resolution when passed through nested macro invocations
+    let source = r#"
+        #define macro MAIN() = takes(0) returns(0) {
+            SET_LBL()
+            USE_LBL_AS_NESTED_ARG()
+        }
+
+        #define macro SET_LBL() = takes(0) returns(0) {
+            lbl:
+            0x42
+        }
+
+        #define macro USE_LBL_AS_NESTED_ARG() = takes(0) returns(0) {
+            UNARY(UNARY(lbl))
+        }
+
+        #define macro UNARY(m) = takes(0) returns(0) {
+            <m>
+            jump
+        }
+    "#;
+
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None);
+
+    // This should compile successfully
+    assert!(result.is_ok(), "Failed to compile nested macro with label argument");
+
+    let bytecode = result.unwrap();
+    // Expected: JUMPDEST, PUSH1 0x42, PUSH2 0x0000, JUMP, JUMP
+    assert_eq!(bytecode, "5b60426100005656");
+}
+
+#[test]
 fn test_nested_label_shadowing_three_levels() {
     // Test deeper nesting with label shadowing
     let source = r#"

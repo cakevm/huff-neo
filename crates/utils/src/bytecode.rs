@@ -207,39 +207,58 @@ impl ScopedLabelIndices {
 
             // If not found in current/parent/child scopes, search in sibling scopes
             // This allows accessing labels defined in sibling macros invoked from the same parent
-            if !current_scope_path.is_empty() {
-                // Get the parent scope path (all but the last element)
-                let parent_scope = &current_scope_path[..current_scope_path.len() - 1];
+            // We need to check siblings at all levels up the tree
+            for depth in (0..current_scope_path.len()).rev() {
+                // Get the scope at this depth
+                let search_scope = &current_scope_path[..depth + 1];
 
-                // Find all labels in sibling scopes (but not our own scope)
-                let sibling_labels: Vec<&ScopedLabel> = labels
+                // Find all labels in cousin/sibling scopes that share this common ancestor
+                let cousin_labels: Vec<&ScopedLabel> = labels
                     .iter()
                     .filter(|label| {
-                        // Check if this label is in a sibling scope (same parent, different last element)
-                        // Exclude our own scope from the sibling check
-                        label.scope_path.len() == current_scope_path.len()
-                            && label.scope_path.len() > parent_scope.len()
-                            && label.scope_path[..parent_scope.len()] == *parent_scope
-                            && label.scope_path != current_scope_path // Not our own scope
+                        // Must have at least the depth we're checking
+                        if label.scope_path.len() <= depth {
+                            return false;
+                        }
+
+                        // Must share the common ancestor path
+                        if label.scope_path[..depth] != search_scope[..depth] {
+                            return false;
+                        }
+
+                        // If we're at the immediate parent level, exclude our own path
+                        if depth == current_scope_path.len() - 1 {
+                            // Same depth siblings
+                            label.scope_path.len() == current_scope_path.len() && label.scope_path != current_scope_path
+                        } else {
+                            // Different branch from this ancestor - must diverge after depth
+                            if label.scope_path.len() > depth {
+                                // The path diverges at depth+1 (different child of common ancestor)
+                                label.scope_path.get(depth) != current_scope_path.get(depth)
+                            } else {
+                                false
+                            }
+                        }
                     })
                     .collect();
 
-                // Check for duplicates across siblings only when we're doing cross-sibling reference
-                if sibling_labels.len() > 1 {
-                    // Multiple siblings define this label - this is an error when cross-referencing
-                    // Get unique scope paths to check if they're actually different siblings
-                    let unique_scopes: std::collections::HashSet<_> = sibling_labels.iter().map(|label| &label.scope_path).collect();
+                if !cousin_labels.is_empty() {
+                    // Check for duplicates across cousins only when we're doing cross-reference
+                    if cousin_labels.len() > 1 {
+                        // Multiple cousins define this label - check if they're in different branches
+                        let unique_scopes: std::collections::HashSet<_> = cousin_labels.iter().map(|label| &label.scope_path).collect();
 
-                    if unique_scopes.len() > 1 {
-                        // Labels are in different sibling scopes - ambiguous reference
-                        return Err(format!("DuplicateLabelAcrossSiblings:{}", name));
+                        if unique_scopes.len() > 1 {
+                            // Labels are in different cousin scopes - ambiguous reference
+                            return Err(format!("DuplicateLabelAcrossSiblings:{}", name));
+                        }
                     }
-                }
 
-                Ok(sibling_labels.first().map(|label| label.offset))
-            } else {
-                Ok(None)
+                    return Ok(cousin_labels.first().map(|label| label.offset));
+                }
             }
+
+            Ok(None)
         })
     }
 
