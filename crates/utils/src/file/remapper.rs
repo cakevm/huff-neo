@@ -58,11 +58,12 @@ impl Remapper {
                 }
 
                 // Parse the foundry.toml file as toml
-                let toml = if let Ok(t) = data.parse::<toml::Value>() {
-                    t
-                } else {
-                    tracing::warn!(target: "parser", "\"foundry.toml\" incorrectly formatted!");
-                    return;
+                let toml = match toml::from_str::<toml::Value>(&data) {
+                    Ok(t) => t,
+                    Err(e) => {
+                        tracing::warn!(target: "parser", "\"foundry.toml\" incorrectly formatted: {:?}", e);
+                        return;
+                    }
                 };
 
                 // Parse the toml as a map
