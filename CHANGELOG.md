@@ -3,6 +3,8 @@
 # Huff Neo Compiler changelog
 
 ## Unreleased
+
+## [1.3.6] - 2025-08-30
 - Fix parsing of nested first-class macro argument invocations like `<m>(<a>())` (fixes #96).
 - Fix infinite loop when compiling nested first-class macro invocations by resolving arguments at invocation time (fixes #98).
 - Fix label resolution in sibling scopes when labels are passed through nested macro invocations (fixes #97).
