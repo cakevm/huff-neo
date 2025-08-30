@@ -34,6 +34,25 @@ There are new built-in functions available in `huff-neo`.
 }
 ```
 
+### First-class macros
+Macros can now be passed as arguments to other macros and invoked dynamically, making code more reusable and flexible.
+
+```javascript
+#define macro ADD(a, b) = takes(0) returns(1) {
+    <a> <b> add
+}
+
+#define macro APPLY(fn, x, y) = takes(0) returns(1) {
+    <fn>(<x>, <y>)  // Invoke macro with arguments
+}
+
+#define macro MAIN() = takes(0) returns(0) {
+    APPLY(ADD, 0x05, 0x06)  // Expands to: 0x05 0x06 add
+}
+```
+
+See the [Macros and Functions](../huff-language/macros-and-functions.md#first-class-macro-arguments) documentation for more details.
+
 ### New test capabilities
 The test module has been refactored to use `anvil` and `forge` features from `foundry` to fork the mainnet. This allows for more advanced testing capabilities.
 

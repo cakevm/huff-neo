@@ -45,92 +45,85 @@ by the constructor.
 
 Macros can accept arguments, which can be used within the macro itself or passed as reference. These arguments can be labels, opcodes, literals, constants, or other macro calls. Since macros are inlined at compile time, their arguments are also inlined and not evaluated at runtime.
 
-#### First-Class Macro Arguments
+#### First-Class Macros
 
-Starting from version 1.3.0, Huff supports passing macros as arguments to other macros, enabling powerful composition patterns. When a macro is passed as an argument, it can be invoked within the receiving macro using the `<arg>()` syntax.
+Macros can be passed as arguments to other macros, allowing you to write more reusable and composable code. When a macro is passed as an argument, it can be invoked within the receiving macro using the `<arg>` syntax.
 
-##### Basic Invocation
+##### Basic Usage
 
-The simplest form is invoking a macro argument without any parameters:
+To pass a macro as an argument and invoke it:
 
 ```javascript
-#define macro OPERATION() = takes(2) returns(1) {
+#define macro ADD_OP() = takes(2) returns(1) {
     add
 }
 
-#define macro WRAPPER(op) = takes(0) returns(1) {
+#define macro APPLY_OP(operation) = takes(0) returns(1) {
     0x10
     0x20
-    <op>()  // Invoke the macro passed as argument
+    <operation>()  // Invoke the macro passed as argument
 }
 
 #define macro MAIN() = takes(0) returns(0) {
-    WRAPPER(OPERATION)  // Results in: 0x10 + 0x20 = 0x30
+    APPLY_OP(ADD_OP)  // Expands to: 0x10 0x20 add
 }
 ```
 
-##### Invocation with Arguments
+##### Passing Arguments to Macro Arguments
 
-Macro arguments can also be invoked with their own arguments, allowing for more complex compositions:
+You can also pass arguments when invoking a macro argument:
 
 ```javascript
-#define macro COMPUTE(a, b) = takes(0) returns(1) {
+#define macro MUL_OP(a, b) = takes(0) returns(1) {
     <a> <b> mul
 }
 
-#define macro APPLY(fn, x, y) = takes(0) returns(1) {
+#define macro COMPUTE(fn, x, y) = takes(0) returns(1) {
     <fn>(<x>, <y>)  // Invoke macro with arguments
 }
 
 #define macro MAIN() = takes(0) returns(0) {
-    APPLY(COMPUTE, 0x05, 0x06)  // Results in: 0x05 * 0x06 = 0x1E
+    COMPUTE(MUL_OP, 0x05, 0x06)  // Expands to: 0x05 0x06 mul
 }
 ```
 
-##### Nested Invocations
+##### Combining with Other Arguments
 
-Arguments can be passed through multiple levels of macro invocations:
+Macro arguments can be mixed with literals, opcodes, and other argument references:
 
 ```javascript
-#define macro ADD_TWO(a, b) = takes(0) returns(1) {
-    <a> <b> add
+#define macro CALC(val1, val2, op) = takes(0) returns(1) {
+    <val1>    // First value
+    <val2>    // Second value  
+    <op>      // Operation
 }
 
-#define macro LEVEL1(op) = takes(0) returns(1) {
-    LEVEL2(<op>(0x10, 0x20))  // Pass the result of invocation
-}
-
-#define macro LEVEL2(result) = takes(0) returns(1) {
-    <result>  // Expands to the bytecode from ADD_TWO
+#define macro WRAPPER(fn, num) = takes(0) returns(1) {
+    <fn>(0x10, <num>, add)  // Mix literal, argument, and opcode
 }
 
 #define macro MAIN() = takes(0) returns(0) {
-    LEVEL1(ADD_TWO)  // Results in: 0x10 + 0x20 = 0x30
+    WRAPPER(CALC, 0x20)  // Expands to: 0x10 0x20 add
 }
 ```
 
-##### Mixed Argument Types
+##### Nested Macro Invocations
 
-When invoking a macro through an argument, you can pass various types of arguments including literals, opcodes, other argument references, and even nested macro calls:
+Macros can be passed through multiple levels and even invoke other macro arguments:
 
 ```javascript
-#define macro COMPLEX_OP(lit, arg, op) = takes(0) returns(1) {
-    <lit>    // Literal value
-    <arg>    // Argument reference
-    <op>     // Opcode
-    add add
+#define macro DOUBLE(x) = takes(0) returns(1) {
+    <x> 0x02 mul
 }
 
-#define macro WRAPPER(fn, val) = takes(0) returns(1) {
-    <fn>(0x10, <val>, caller)  // Mix of literal, arg reference, and opcode
+#define macro PROCESS(fn, arg) = takes(0) returns(1) {
+    <fn>(<arg>())  // Invoke fn with the invocation of arg
 }
 
 #define macro MAIN() = takes(0) returns(0) {
-    WRAPPER(COMPLEX_OP, 0x05)
+    PROCESS(PROCESS, DOUBLE)  // Complex nesting
 }
 ```
-
-This feature allows for greater code reusability and abstraction, enabling you to write more flexible and composable Huff code. The macro expansion happens at compile time, so there's no runtime overhead for using these patterns.
 
 #### Example
 
