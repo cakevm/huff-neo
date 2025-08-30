@@ -313,3 +313,89 @@ fn parse_arg_call_with_ident_arg() {
         panic!("Expected ArgMacroInvocation");
     }
 }
+
+#[test]
+fn parse_nested_arg_macro_invocation() {
+    let source = r#"
+        #define macro APPLY(m, a) = takes(0) returns(0) {
+            <m>(<a>())
+        }
+    "#;
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+
+    let contract = parser.parse().unwrap();
+    let macro_def = contract.macros.get("APPLY").unwrap();
+
+    assert_eq!(macro_def.parameters.len(), 2);
+    assert_eq!(macro_def.statements.len(), 1);
+
+    // Check that <m>(<a>()) is parsed correctly
+    if let StatementType::ArgMacroInvocation(parent_macro, arg_name, args) = &macro_def.statements[0].ty {
+        assert_eq!(parent_macro, "APPLY");
+        assert_eq!(arg_name, "m");
+        assert_eq!(args.len(), 1);
+
+        // Check the argument is another ArgCallMacroInvocation
+        if let MacroArg::ArgCallMacroInvocation(inner_arg_name, inner_args) = &args[0] {
+            assert_eq!(inner_arg_name, "a");
+            assert_eq!(inner_args.len(), 0);
+        } else {
+            panic!("Expected ArgCallMacroInvocation for <a>()");
+        }
+    } else {
+        panic!("Expected ArgMacroInvocation");
+    }
+}
+
+#[test]
+fn parse_nested_arg_macro_invocation_with_args() {
+    let source = r#"
+        #define macro COMPLEX(m, a, b) = takes(0) returns(0) {
+            <m>(<a>(0x42, <b>))
+        }
+    "#;
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+
+    let contract = parser.parse().unwrap();
+    let macro_def = contract.macros.get("COMPLEX").unwrap();
+
+    assert_eq!(macro_def.parameters.len(), 3);
+    assert_eq!(macro_def.statements.len(), 1);
+
+    // Check that <m>(<a>(0x42, <b>)) is parsed correctly
+    if let StatementType::ArgMacroInvocation(parent_macro, arg_name, args) = &macro_def.statements[0].ty {
+        assert_eq!(parent_macro, "COMPLEX");
+        assert_eq!(arg_name, "m");
+        assert_eq!(args.len(), 1);
+
+        // Check the argument is another ArgCallMacroInvocation with arguments
+        if let MacroArg::ArgCallMacroInvocation(inner_arg_name, inner_args) = &args[0] {
+            assert_eq!(inner_arg_name, "a");
+            assert_eq!(inner_args.len(), 2);
+
+            // Check first inner argument is literal 0x42
+            if let MacroArg::Literal(bytes) = &inner_args[0] {
+                assert_eq!(bytes[31], 0x42);
+            } else {
+                panic!("Expected literal 0x42");
+            }
+
+            // Check second inner argument is ArgCall for <b>
+            if let MacroArg::ArgCall(arg_call) = &inner_args[1] {
+                assert_eq!(arg_call.name, "b");
+            } else {
+                panic!("Expected ArgCall for <b>");
+            }
+        } else {
+            panic!("Expected ArgCallMacroInvocation for <a>(0x42, <b>)");
+        }
+    } else {
+        panic!("Expected ArgMacroInvocation");
+    }
+}

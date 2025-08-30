@@ -3,6 +3,7 @@
 # Huff Neo Compiler changelog
 
 ## Unreleased
+- Fix parsing of nested first-class macro argument invocations like `<m>(<a>())` (fixes #96).
 
 ## [1.3.5] - 2025-08-23
 - Fix invoking nested first-class macro with parameters (`<arg>()` syntax) (fixes #94).
