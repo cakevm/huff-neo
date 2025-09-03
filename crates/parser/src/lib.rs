@@ -657,53 +657,8 @@ impl Parser {
                     statements.push(Statement { ty: StatementType::Constant(constant), span: AstSpan(vec![const_span]) });
                 }
                 TokenKind::LeftAngle => {
-                    let (arg_call, arg_span) = self.parse_arg_call()?;
-
-                    // Check if this is a macro invocation through argument: <arg>()
-                    if self.current_token.kind == TokenKind::OpenParen {
-                        tracing::info!(target: "parser", "PARSING MACRO BODY: [ARG MACRO INVOCATION: {}()]", arg_call);
-                        self.consume(); // consume '('
-
-                        // Parse arguments for the macro invocation
-                        let mut args = Vec::new();
-                        while self.current_token.kind != TokenKind::CloseParen {
-                            // Parse each argument similar to regular macro invocation
-                            let arg = self.parse_single_macro_argument()?;
-                            // Fix up ArgCall macro_name if needed
-                            let arg = if let MacroArg::ArgCall(mut ac) = arg {
-                                ac.macro_name = macro_name.to_string();
-                                MacroArg::ArgCall(ac)
-                            } else {
-                                arg
-                            };
-                            args.push(arg);
-
-                            // Handle comma separation
-                            if self.current_token.kind == TokenKind::Comma {
-                                self.consume();
-                            } else if self.current_token.kind != TokenKind::CloseParen {
-                                return Err(ParserError {
-                                    kind: ParserErrorKind::InvalidTokenInMacroBody(self.current_token.kind.clone()),
-                                    hint: Some("Expected ',' or ')' in macro argument list".to_string()),
-                                    spans: AstSpan(vec![self.current_token.span.clone()]),
-                                    cursor: self.cursor,
-                                });
-                            }
-                        }
-
-                        self.match_kind(TokenKind::CloseParen)?; // consume ')'
-
-                        statements.push(Statement {
-                            ty: StatementType::ArgMacroInvocation(macro_name.to_string(), arg_call, args),
-                            span: AstSpan(vec![arg_span]),
-                        });
-                    } else {
-                        tracing::info!(target: "parser", "PARSING MACRO BODY: [ARG CALL: {}]", arg_call);
-                        statements.push(Statement {
-                            ty: StatementType::ArgCall(macro_name.to_string(), arg_call),
-                            span: AstSpan(vec![arg_span]),
-                        });
-                    }
+                    let stmt = self.parse_arg_call_or_invocation(macro_name.to_owned())?;
+                    statements.push(stmt);
                 }
                 TokenKind::BuiltinFunction(f) => {
                     let mut curr_spans = vec![self.current_token.span.clone()];
@@ -798,10 +753,8 @@ impl Parser {
                     statements.push(Statement { ty: StatementType::Constant(constant), span: AstSpan(vec![const_span]) });
                 }
                 TokenKind::LeftAngle => {
-                    let (arg_call, arg_span) = self.parse_arg_call()?;
-                    tracing::info!(target: "parser", "PARSING LABEL BODY: [ARG CALL: {}]", arg_call);
-                    statements
-                        .push(Statement { ty: StatementType::ArgCall(parent_macro_name.clone(), arg_call), span: AstSpan(vec![arg_span]) });
+                    let stmt = self.parse_arg_call_or_invocation(parent_macro_name.clone())?;
+                    statements.push(stmt);
                 }
                 TokenKind::BuiltinFunction(f) => {
                     let mut curr_spans = vec![self.current_token.span.clone()];
@@ -1410,6 +1363,52 @@ impl Parser {
                     cursor: self.cursor,
                 })
             }
+        }
+    }
+
+    /// Parse an arg call or arg macro invocation: `<arg>` or `<arg>(...)`
+    /// Returns either an ArgCall or ArgMacroInvocation statement
+    fn parse_arg_call_or_invocation(&mut self, parent_macro_name: String) -> Result<Statement, ParserError> {
+        let (arg_call, arg_span) = self.parse_arg_call()?;
+
+        // Check if this is a macro invocation through argument: <arg>()
+        if self.current_token.kind == TokenKind::OpenParen {
+            tracing::info!(target: "parser", "PARSING ARG MACRO INVOCATION: {}()", arg_call);
+            self.consume(); // consume '('
+
+            // Parse arguments for the macro invocation
+            let mut args = Vec::new();
+            while self.current_token.kind != TokenKind::CloseParen {
+                // Parse each argument similar to regular macro invocation
+                let arg = self.parse_single_macro_argument()?;
+                // Fix up ArgCall macro_name if needed
+                let arg = if let MacroArg::ArgCall(mut ac) = arg {
+                    ac.macro_name = parent_macro_name.clone();
+                    MacroArg::ArgCall(ac)
+                } else {
+                    arg
+                };
+                args.push(arg);
+
+                // Handle comma separation
+                if self.current_token.kind == TokenKind::Comma {
+                    self.consume();
+                } else if self.current_token.kind != TokenKind::CloseParen {
+                    return Err(ParserError {
+                        kind: ParserErrorKind::InvalidTokenInMacroBody(self.current_token.kind.clone()),
+                        hint: Some("Expected ',' or ')' in macro argument list".to_string()),
+                        spans: AstSpan(vec![self.current_token.span.clone()]),
+                        cursor: self.cursor,
+                    });
+                }
+            }
+
+            self.match_kind(TokenKind::CloseParen)?; // consume ')'
+
+            Ok(Statement { ty: StatementType::ArgMacroInvocation(parent_macro_name, arg_call, args), span: AstSpan(vec![arg_span]) })
+        } else {
+            tracing::info!(target: "parser", "PARSING ARG CALL: {}", arg_call);
+            Ok(Statement { ty: StatementType::ArgCall(parent_macro_name, arg_call), span: AstSpan(vec![arg_span]) })
         }
     }
 

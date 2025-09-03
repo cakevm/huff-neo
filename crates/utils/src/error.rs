@@ -417,7 +417,7 @@ impl fmt::Display for CompilerError {
                 ParserErrorKind::InvalidTokenInLabelDefinition(tlb) => {
                     write!(
                         f,
-                        "\nError at token {}: Invalid Token In Label Defintiion: \"{}\" \n{}\n",
+                        "\nError at token {}: Invalid Token In Label Definition: \"{}\" \n{}\n",
                         pe.cursor,
                         tlb,
                         pe.spans.error(pe.hint.as_ref())

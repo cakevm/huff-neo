@@ -4,6 +4,9 @@
 
 ## Unreleased
 
+## [1.3.7] - 2025-09-02
+- Fix parsing of first-class macro invocations inside label definitions (fixes #103).
+
 ## [1.3.6] - 2025-08-30
 - Fix parsing of nested first-class macro argument invocations like `<m>(<a>())` (fixes #96).
 - Fix infinite loop when compiling nested first-class macro invocations by resolving arguments at invocation time (fixes #98).

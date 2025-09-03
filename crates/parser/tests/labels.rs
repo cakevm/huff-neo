@@ -405,3 +405,108 @@ fn duplicated_labels() {
     assert!(parse_result.is_err());
     assert_eq!(parse_result.unwrap_err().kind, ParserErrorKind::DuplicateLabel("dup_label".to_string()));
 }
+
+#[test]
+fn label_with_first_class_macro_invocation() {
+    let source = r#"
+    #define macro WRAPPER(m) = takes(0) returns(0) {
+        my_label:
+            <m>()
+            0x00 0x00 revert
+    }
+    "#;
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+
+    let macro_definition = parser.parse().unwrap().macros.get("WRAPPER").cloned().unwrap();
+    let md_expected = MacroDefinition {
+        name: "WRAPPER".to_string(),
+        decorator: None,
+        parameters: vec![Argument {
+            arg_type: None,
+            name: Some("m".to_string()),
+            indexed: false,
+            arg_location: None,
+            span: AstSpan(vec![Span { start: 27, end: 28, file: None }]),
+        }],
+        statements: vec![Statement {
+            ty: StatementType::Label(Label {
+                name: "my_label".to_string(),
+                inner: vec![
+                    Statement {
+                        ty: StatementType::ArgMacroInvocation("WRAPPER".to_string(), "m".to_string(), vec![]),
+                        span: AstSpan(vec![Span { start: 84, end: 87, file: None }]),
+                    },
+                    Statement {
+                        ty: StatementType::Literal(str_to_bytes32("00")),
+                        span: AstSpan(vec![Span { start: 102, end: 106, file: None }]),
+                    },
+                    Statement {
+                        ty: StatementType::Literal(str_to_bytes32("00")),
+                        span: AstSpan(vec![Span { start: 107, end: 111, file: None }]),
+                    },
+                    Statement { ty: StatementType::Opcode(Opcode::Revert), span: AstSpan(vec![Span { start: 112, end: 118, file: None }]) },
+                ],
+                span: AstSpan(vec![
+                    Span { start: 62, end: 70, file: None },
+                    Span { start: 84, end: 87, file: None },
+                    Span { start: 102, end: 106, file: None },
+                    Span { start: 107, end: 111, file: None },
+                    Span { start: 112, end: 118, file: None },
+                ]),
+            }),
+            span: AstSpan(vec![
+                Span { start: 62, end: 70, file: None },
+                Span { start: 84, end: 87, file: None },
+                Span { start: 102, end: 106, file: None },
+                Span { start: 107, end: 111, file: None },
+                Span { start: 112, end: 118, file: None },
+            ]),
+        }],
+        takes: 0,
+        returns: 0,
+        span: AstSpan(vec![
+            Span { start: 5, end: 12, file: None },
+            Span { start: 13, end: 18, file: None },
+            Span { start: 19, end: 26, file: None },
+            Span { start: 26, end: 27, file: None },
+            Span { start: 27, end: 28, file: None },
+            Span { start: 28, end: 29, file: None },
+            Span { start: 30, end: 31, file: None },
+            Span { start: 32, end: 37, file: None },
+            Span { start: 37, end: 38, file: None },
+            Span { start: 38, end: 39, file: None },
+            Span { start: 39, end: 40, file: None },
+            Span { start: 41, end: 48, file: None },
+            Span { start: 48, end: 49, file: None },
+            Span { start: 49, end: 50, file: None },
+            Span { start: 50, end: 51, file: None },
+            Span { start: 52, end: 53, file: None },
+            Span { start: 58, end: 66, file: None },
+            Span { start: 66, end: 67, file: None },
+            Span { start: 76, end: 77, file: None },
+            Span { start: 77, end: 78, file: None },
+            Span { start: 78, end: 79, file: None },
+            Span { start: 79, end: 80, file: None },
+            Span { start: 80, end: 81, file: None },
+            Span { start: 94, end: 98, file: None },
+            Span { start: 99, end: 103, file: None },
+            Span { start: 104, end: 110, file: None },
+            Span { start: 115, end: 116, file: None },
+        ]),
+        outlined: false,
+        test: false,
+    };
+    assert_eq!(macro_definition.name, md_expected.name);
+    assert_eq!(macro_definition.parameters, md_expected.parameters);
+    assert_eq!(macro_definition.takes, md_expected.takes);
+    assert_eq!(macro_definition.returns, md_expected.returns);
+    assert_eq!(parser.current_token.kind, TokenKind::Eof);
+
+    // Test that each statement is the correct type
+    for (i, s) in macro_definition.statements.iter().enumerate() {
+        assert_eq!(s.ty, md_expected.statements[i].ty);
+    }
+}
