@@ -1366,7 +1366,7 @@ impl Parser {
         }
     }
 
-    /// Parse an arg call or arg macro invocation: <arg> or <arg>(...)
+    /// Parse an arg call or arg macro invocation: `<arg>` or `<arg>(...)`
     /// Returns either an ArgCall or ArgMacroInvocation statement
     fn parse_arg_call_or_invocation(&mut self, parent_macro_name: String) -> Result<Statement, ParserError> {
         let (arg_call, arg_span) = self.parse_arg_call()?;
