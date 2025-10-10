@@ -82,7 +82,7 @@ fn main() {
                 // Value rule: Valid literal string (0x...)
                 if parts.len() != 2
                     || parts[0].chars().any(|c| !(c.is_alphanumeric() || c == '_'))
-                    || parts[0].chars().next().map_or(false, |c| c.is_numeric())
+                    || parts[0].chars().next().is_some_and(|c| c.is_numeric())
                     || !parts[1].starts_with("0x")
                     || parts[1][2..].chars().any(|c| !c.is_ascii_hexdigit())
                 {
