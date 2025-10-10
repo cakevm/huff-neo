@@ -74,6 +74,10 @@ tsify = { version = "0.5.5", features = ["js"] }
 # dev
 criterion = "0.7.0"
 rayon = "1.10.0"
+assert_cmd = "2.0.17"
+predicates = "3.1.3"
+assert_fs = "1.1.3"
+
 
 [profile.test]
 debug = "full"
