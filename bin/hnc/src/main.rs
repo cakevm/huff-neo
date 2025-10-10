@@ -78,12 +78,13 @@ fn main() {
                 let parts = c.as_str().split('=').collect::<Vec<_>>();
 
                 // Check that constant override argument is valid
-                // Key rule: Alphabetic chars + underscore
+                // Key rule: Alphanumeric or underscore, but first char is not numeric
                 // Value rule: Valid literal string (0x...)
                 if parts.len() != 2
-                    || parts[0].chars().any(|c| !(c.is_alphabetic() || c == '_'))
+                    || parts[0].chars().any(|c| !(c.is_alphanumeric() || c == '_'))
+                    || parts[0].chars().next().map_or(false, |c| c.is_numeric())
                     || !parts[1].starts_with("0x")
-                    || parts[1][2..].chars().any(|c| !(c.is_numeric() || matches!(c, '\u{0041}'..='\u{0046}' | '\u{0061}'..='\u{0066}')))
+                    || parts[1][2..].chars().any(|c| !c.is_ascii_hexdigit())
                 {
                     eprintln!("Invalid constant override argument: {}", Paint::red(&c.to_string()));
                     exit(1);
