@@ -27,9 +27,15 @@ foundry-config.workspace = true
 foundry-evm-traces.workspace = true
 serde.workspace = true
 shadow-rs.workspace = true
+thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 yansi.workspace = true
+
+[dev-dependencies]
+assert_cmd.workspace = true
+assert_fs.workspace = true
+predicates.workspace = true
 
 [build-dependencies]
 shadow-rs.workspace = true
