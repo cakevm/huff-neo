@@ -29,12 +29,17 @@ use huff_neo_utils::file::full_file_source::OutputLocation;
 use huff_neo_utils::prelude::{
     BytecodeRes, CodegenError, CodegenErrorKind, CompilerError, EVMVersion, Span, export_interfaces, gen_sol_interfaces,
 };
-use shadow_rs::shadow;
 use std::process::exit;
 use std::{sync::Arc, time::Instant};
 use yansi::Paint;
 
-shadow!(build);
+// Wrap shadow-rs generated code in a module to suppress missing_docs warnings.
+#[allow(missing_docs)]
+mod build {
+    use shadow_rs::shadow;
+    shadow!(build);
+    pub use self::build::*;
+}
 
 fn main() {
     let mut command = HuffArgs::command();

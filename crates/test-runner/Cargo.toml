@@ -27,6 +27,7 @@ foundry-config.workspace = true
 foundry-debugger.workspace = true
 foundry-evm.workspace = true
 foundry-evm-core.workspace = true
+foundry-evm-networks.workspace = true
 foundry-evm-traces.workspace = true
 op-revm.workspace = true
 revm.workspace = true

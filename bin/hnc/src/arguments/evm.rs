@@ -1,7 +1,7 @@
 use alloy_primitives::Address;
 use alloy_primitives::private::serde::Serialize;
 use clap::Parser;
-use foundry_common::evm::EnvArgs;
+use foundry_cli::opts::EnvArgs;
 use foundry_config::figment::error::Kind::InvalidType;
 use foundry_config::figment::value::{Dict, Map, Value};
 use foundry_config::figment::{Figment, Metadata, Profile, Provider};
