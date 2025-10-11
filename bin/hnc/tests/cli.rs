@@ -9,10 +9,10 @@ fn bytecode_overrides_constant() {
     let file = tmp.child("code.huff");
     file.write_str(
         r#"
-#define constant TEST = 0x42
+#define constant TEST_1 = 0x42
 
 #define macro CONSTRUCTOR() = {
-  [TEST] 0x00 mstore
+  [TEST_1] 0x00 mstore
   0x20 0x00 return
 }
 
@@ -22,7 +22,7 @@ fn bytecode_overrides_constant() {
     .unwrap();
 
     cmd.current_dir(&tmp)
-        .args(["code.huff", "--bytecode", "-c", "TEST=0xff"])
+        .args(["code.huff", "--bytecode", "-c", "TEST_1=0xff"])
         .assert()
         .success()
         .stdout(predicate::str::is_match(r"^60ff5f5260205ff3$").unwrap())
@@ -32,7 +32,7 @@ fn bytecode_overrides_constant() {
 }
 
 #[test]
-fn bytecode_overrides_constant_with_numbers() {
+fn bytecode_overrides_constant_invalid() {
     let mut cmd = Command::cargo_bin("hnc").unwrap();
     let tmp = assert_fs::TempDir::new().unwrap();
     let file = tmp.child("code.huff");
@@ -51,11 +51,11 @@ fn bytecode_overrides_constant_with_numbers() {
     .unwrap();
 
     cmd.current_dir(&tmp)
-        .args(["code.huff", "--bytecode", "-c", "TEST1=0xff"])
+        .args(["code.huff", "--bytecode", "-c", "1=0xff"])
         .assert()
-        .success()
-        .stdout(predicate::str::is_match(r"^60ff5f5260205ff3$").unwrap())
-        .stderr(predicate::str::is_empty());
+        .failure()
+        .stdout(predicate::str::is_empty())
+        .stderr(predicate::str::contains("must start with letter or underscore"));
 
     tmp.close().unwrap();
 }

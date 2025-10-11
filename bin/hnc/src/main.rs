@@ -10,6 +10,7 @@ mod arguments;
 
 use crate::arguments::base::TestCommands;
 use crate::arguments::base::{HuffArgs, get_input};
+use crate::arguments::constants::parse_constant_overrides;
 use alloy_primitives::hex;
 use clap::{CommandFactory, Parser};
 use comfy_table::{Cell, Color, Row, Table, modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL};
@@ -22,7 +23,6 @@ use huff_neo_test_runner::{
     prelude::{ReportKind, print_test_report},
 };
 use huff_neo_utils::ast::span::AstSpan;
-use huff_neo_utils::bytecode::Bytes;
 use huff_neo_utils::file::file_provider::{FileProvider, FileSystemFileProvider};
 use huff_neo_utils::file::file_source::FileSource;
 use huff_neo_utils::file::full_file_source::OutputLocation;
@@ -31,7 +31,7 @@ use huff_neo_utils::prelude::{
 };
 use shadow_rs::shadow;
 use std::process::exit;
-use std::{collections::BTreeMap, sync::Arc, time::Instant};
+use std::{sync::Arc, time::Instant};
 use yansi::Paint;
 
 shadow!(build);
@@ -70,29 +70,12 @@ fn main() {
         }
     };
 
-    // If constant overrides were passed, create a map of their names and values
-    let constants: Option<BTreeMap<&str, Bytes>> = cli.constants.as_ref().map(|_constants| {
-        _constants
-            .iter()
-            .map(|c: &String| {
-                let parts = c.as_str().split('=').collect::<Vec<_>>();
-
-                // Check that constant override argument is valid
-                // Key rule: Alphanumeric or underscore, but first char is not numeric
-                // Value rule: Valid literal string (0x...)
-                if parts.len() != 2
-                    || parts[0].chars().any(|c| !(c.is_alphanumeric() || c == '_'))
-                    || parts[0].chars().next().is_some_and(|c| c.is_numeric())
-                    || !parts[1].starts_with("0x")
-                    || parts[1][2..].chars().any(|c| !c.is_ascii_hexdigit())
-                {
-                    eprintln!("Invalid constant override argument: {}", Paint::red(&c.to_string()));
-                    exit(1);
-                }
-
-                (parts[0], Bytes(parts[1][2..].to_string()))
-            })
-            .collect()
+    // Parse constant overrides if provided
+    let constants = cli.constants.as_ref().map(|c| {
+        parse_constant_overrides(c).unwrap_or_else(|err| {
+            eprintln!("{}", Paint::red(&err));
+            exit(1);
+        })
     });
 
     // Parse the EVM version

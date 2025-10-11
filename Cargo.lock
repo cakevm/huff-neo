@@ -4075,6 +4075,7 @@ dependencies = [
  "predicates",
  "serde",
  "shadow-rs",
+ "thiserror 2.0.16",
  "tokio",
  "tracing",
  "yansi",
