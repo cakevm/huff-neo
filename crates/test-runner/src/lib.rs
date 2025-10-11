@@ -207,7 +207,6 @@ impl<'t> HuffTester<'t> {
                 if !test_result.source_files.is_empty() {
                     // Add each source file with its proper file ID
                     for (file_id, (file_path, source_content)) in test_result.source_files.iter().enumerate() {
-                        // Extract filename for contract_definitions
                         let file_name = PathBuf::from(file_path)
                             .file_stem()
                             .map(|s| s.to_string_lossy().to_string())
