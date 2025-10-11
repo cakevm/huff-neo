@@ -3,8 +3,11 @@
 # Huff Neo Compiler changelog
 
 ## Unreleased
-- Fix constant override CLI validation to allow numbers in constant names (e.g., `VALUE_V1`).
-- 
+
+## [1.3.8] - 2025-10-11
+- Fix constant validation to allow numbers in constant names (not first char) (e.g., `VALUE_V1`).
+- Update foundry to v1.4.0.
+
 ## [1.3.7] - 2025-09-02
 - Fix parsing of first-class macro invocations inside label definitions (fixes #103).
 

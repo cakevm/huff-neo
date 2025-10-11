@@ -1,11 +1,10 @@
 use crate::prelude::{ReportKind, TestResult, TestStatus};
-use alloy_primitives::map::HashMap;
 use comfy_table::{Attribute, Cell, Color, ContentArrangement, Row, Table, modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL};
-use foundry_cli::utils::{TraceResult, handle_traces};
-use foundry_config::Config;
 use foundry_evm::decode::decode_console_logs;
 use foundry_evm::inspectors::TracingInspector;
-use foundry_evm::traces::{SparsedTraceArena, TraceKind};
+use foundry_evm::traces::{
+    CallTraceDecoderBuilder, SparsedTraceArena, decode_trace_arena, identifier::SignaturesIdentifier, render_trace_arena_inner,
+};
 use std::time::Instant;
 use yansi::Paint;
 
@@ -77,7 +76,7 @@ pub async fn print_test_report(results: Vec<TestResult>, report_kind: ReportKind
                 }
 
                 if let Some(tracer) = result.inspector.tracer.clone() {
-                    print_call_trace(&result, tracer).await?;
+                    print_call_trace(tracer).await?;
                 }
             }
         }
@@ -102,14 +101,19 @@ pub async fn print_test_report(results: Vec<TestResult>, report_kind: ReportKind
 }
 
 /// Print the call trace for a given test result.
-async fn print_call_trace(result: &TestResult, tracer: TracingInspector) -> eyre::Result<()> {
-    // This code is taken and adapted from https://github.com/foundry-rs/foundry
+async fn print_call_trace(tracer: TracingInspector) -> eyre::Result<()> {
+    // Create a signature identifier to decode unknown function selectors and events
+    let identifier = SignaturesIdentifier::new(false)?;
 
-    let config = Config::default();
-    let traces = vec![(TraceKind::Execution, SparsedTraceArena { arena: tracer.into_traces(), ignored: Default::default() })];
-    let trace_tesult = TraceResult { success: result.status == TestStatus::Success, traces: Some(traces), gas_used: result.gas };
+    // Build a decoder with the signature identifier
+    let decoder = CallTraceDecoderBuilder::new().with_signature_identifier(identifier).build();
 
-    handle_traces(trace_tesult, &config, None, &HashMap::default(), vec![], false, false, false, false).await?;
+    // Decode and render the trace
+    let mut arena = SparsedTraceArena { arena: tracer.into_traces(), ignored: Default::default() };
+    decode_trace_arena(&mut arena, &decoder).await;
+
+    println!("├─ {}", Paint::cyan("TRACES"));
+    println!("{}", render_trace_arena_inner(&arena, false, false));
 
     Ok(())
 }

@@ -5,6 +5,7 @@ use anvil::eth::backend::executor::new_evm_with_inspector;
 use anvil::eth::backend::mem::inspector::AnvilInspector;
 use foundry_evm::Env;
 use foundry_evm::backend::DatabaseError;
+use foundry_evm_networks::NetworkConfigs;
 use huff_neo_codegen::Codegen;
 use huff_neo_utils::ast::huff::{DecoratorFlag, MacroDefinition};
 use huff_neo_utils::prelude::{CompilerError, Contract, EVMVersion, pad_n_bytes};
@@ -171,7 +172,7 @@ impl TestRunner {
         self.set_balance(db, env.tx.caller, U256::MAX)?;
 
         let tx = OpTransaction::<TxEnv> { base: env.tx, enveloped_tx: None, deposit: Default::default() };
-        let foundry_env = anvil::eth::backend::env::Env { evm_env: env.evm_env.clone(), tx, is_optimism: false };
+        let foundry_env = anvil::eth::backend::env::Env { evm_env: env.evm_env.clone(), tx, networks: NetworkConfigs::default() };
 
         let mut inspector = self.inspector.clone();
         let mut evm = new_evm_with_inspector(db, &foundry_env, &mut inspector);

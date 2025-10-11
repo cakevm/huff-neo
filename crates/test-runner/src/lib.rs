@@ -17,6 +17,7 @@ pub mod errors;
 use alloy_primitives::map::AddressHashMap;
 /// Re-export the Inspector from anvil crate
 pub use anvil::eth::backend::mem::inspector::AnvilInspector;
+use foundry_compilers::{compilers::solc::SolcLanguage, multi::MultiCompilerLanguage};
 use foundry_debugger::Debugger;
 use foundry_evm::Env;
 use foundry_evm::backend::Backend;
@@ -25,6 +26,8 @@ use foundry_evm::traces::{InternalTraceMode, SparsedTraceArena, TraceKind};
 use foundry_evm_traces::debug::{ArtifactData, ContractSources, SourceData};
 use revm::database::CacheDB;
 use revm::primitives::hardfork::SpecId;
+use std::path::PathBuf;
+use std::sync::Arc;
 
 /// Prelude wraps all modules within the crate
 pub mod prelude {
@@ -204,14 +207,18 @@ impl<'t> HuffTester<'t> {
                 if !test_result.source_files.is_empty() {
                     // Add each source file with its proper file ID
                     for (file_id, (file_path, source_content)) in test_result.source_files.iter().enumerate() {
-                        let source_data = SourceData::new(
-                            std::sync::Arc::new(source_content.clone()),
-                            foundry_compilers::multi::MultiCompilerLanguage::Solc(
-                                foundry_compilers::compilers::solc::SolcLanguage::Solidity,
-                            ),
-                            std::path::PathBuf::from(file_path),
-                        );
-                        file_map.insert(file_id as u32, std::sync::Arc::new(source_data));
+                        let file_name = PathBuf::from(file_path)
+                            .file_stem()
+                            .map(|s| s.to_string_lossy().to_string())
+                            .unwrap_or_else(|| format!("file_{}", file_id));
+
+                        let source_data = SourceData {
+                            source: Arc::new(source_content.clone()),
+                            language: MultiCompilerLanguage::Solc(SolcLanguage::Solidity),
+                            path: PathBuf::from(file_path),
+                            contract_definitions: vec![(file_name, 0..source_content.len())],
+                        };
+                        file_map.insert(file_id as u32, Arc::new(source_data));
                     }
                 } else {
                     // Fallback to single flattened source
@@ -220,12 +227,13 @@ impl<'t> HuffTester<'t> {
                         .clone()
                         .unwrap_or_else(|| format!("// Huff test macro: {}\n// Source not available", test_result.name));
 
-                    let source_data = SourceData::new(
-                        std::sync::Arc::new(source_code),
-                        foundry_compilers::multi::MultiCompilerLanguage::Solc(foundry_compilers::compilers::solc::SolcLanguage::Solidity),
-                        std::path::PathBuf::from("test.huff"),
-                    );
-                    file_map.insert(0u32, std::sync::Arc::new(source_data));
+                    let source_data = SourceData {
+                        source: Arc::new(source_code.clone()),
+                        language: MultiCompilerLanguage::Solc(SolcLanguage::Solidity),
+                        path: PathBuf::from("test.huff"),
+                        contract_definitions: vec![("test".to_string(), 0..source_code.len())],
+                    };
+                    file_map.insert(0u32, Arc::new(source_data));
                 }
 
                 // Insert into sources_by_id with address as string key
