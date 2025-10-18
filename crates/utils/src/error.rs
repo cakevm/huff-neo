@@ -73,6 +73,8 @@ pub enum ParserErrorKind {
     DuplicateMacro(String),
     /// Invalid code table statement
     InvalidTableStatement(String),
+    /// Invalid expression syntax
+    InvalidExpression(TokenKind),
 }
 
 /// A Lexing Error
@@ -224,6 +226,16 @@ pub enum CodegenErrorKind {
     CircularMacroInvocation(String),
     /// Recursion depth limit exceeded
     RecursionDepthExceeded(usize),
+    /// Undefined constant in expression
+    UndefinedConstant(String),
+    /// Invalid constant expression (contains runtime elements)
+    InvalidConstantExpression,
+    /// Arithmetic overflow in constant expression
+    ArithmeticOverflow,
+    /// Arithmetic underflow in constant expression
+    ArithmeticUnderflow,
+    /// Division by zero in constant expression
+    DivisionByZero,
 }
 
 impl Spanned for CodegenError {
@@ -314,6 +326,21 @@ impl<W: Write> Report<W> for CodegenError {
             }
             CodegenErrorKind::RecursionDepthExceeded(depth) => {
                 write!(f.out, "Recursion depth limit exceeded: maximum depth of {} reached", depth)
+            }
+            CodegenErrorKind::UndefinedConstant(name) => {
+                write!(f.out, "Undefined constant '{}' used in expression", name)
+            }
+            CodegenErrorKind::InvalidConstantExpression => {
+                write!(f.out, "Invalid constant expression - expression contains runtime elements")
+            }
+            CodegenErrorKind::ArithmeticOverflow => {
+                write!(f.out, "Arithmetic overflow in constant expression")
+            }
+            CodegenErrorKind::ArithmeticUnderflow => {
+                write!(f.out, "Arithmetic underflow in constant expression")
+            }
+            CodegenErrorKind::DivisionByZero => {
+                write!(f.out, "Division by zero in constant expression")
             }
         }
     }
@@ -504,6 +531,15 @@ impl fmt::Display for CompilerError {
                 ParserErrorKind::InvalidTableStatement(statement_type) => {
                     write!(f, "\nError: Invalid Table Statement: \"{}\" \n{}\n", statement_type, pe.spans.error(pe.hint.as_ref()))
                 }
+                ParserErrorKind::InvalidExpression(token) => {
+                    write!(
+                        f,
+                        "\nError at token {}: Invalid expression syntax: \"{}\" \n{}\n",
+                        pe.cursor,
+                        token,
+                        pe.spans.error(pe.hint.as_ref())
+                    )
+                }
             },
             CompilerError::PathBufRead(os_str) => {
                 write!(f, "\nError: Invalid Import Path: \"{}\"", os_str.as_os_str().to_str().unwrap_or("<unknown import>"))
@@ -610,6 +646,21 @@ impl fmt::Display for CompilerError {
                 }
                 CodegenErrorKind::RecursionDepthExceeded(depth) => {
                     write!(f, "\nError: Recursion depth limit exceeded: maximum depth of {} reached\n{}\n", depth, ce.span.error(None))
+                }
+                CodegenErrorKind::UndefinedConstant(name) => {
+                    write!(f, "\nError: Undefined constant '{}' used in expression\n{}\n", name, ce.span.error(None))
+                }
+                CodegenErrorKind::InvalidConstantExpression => {
+                    write!(f, "\nError: Invalid constant expression - contains runtime elements\n{}\n", ce.span.error(None))
+                }
+                CodegenErrorKind::ArithmeticOverflow => {
+                    write!(f, "\nError: Arithmetic overflow in constant expression\n{}\n", ce.span.error(None))
+                }
+                CodegenErrorKind::ArithmeticUnderflow => {
+                    write!(f, "\nError: Arithmetic underflow in constant expression\n{}\n", ce.span.error(None))
+                }
+                CodegenErrorKind::DivisionByZero => {
+                    write!(f, "\nError: Division by zero in constant expression\n{}\n", ce.span.error(None))
                 }
             },
             CompilerError::FailedCompiles(v) => {

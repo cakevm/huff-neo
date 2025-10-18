@@ -244,6 +244,11 @@ pub fn bubble_arg_call(
                                 ConstVal::BuiltinFunctionCall(bf) => {
                                     Codegen::gen_builtin_bytecode(evm_version, contract, bf, target_macro_invoc.1.span.clone())?
                                 }
+                                ConstVal::Expression(expr) => {
+                                    tracing::info!(target: "codegen", "EVALUATING CONSTANT EXPRESSION FOR \"{}\"", constant.name);
+                                    let evaluated = contract.evaluate_constant_expression(expr)?;
+                                    literal_gen(evm_version, &evaluated)
+                                }
                                 ConstVal::FreeStoragePointer(fsp) => {
                                     // If this is reached in codegen stage,
                                     // `derive_storage_pointers`

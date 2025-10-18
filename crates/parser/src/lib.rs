@@ -371,21 +371,27 @@ impl Parser {
                 self.consume();
                 ConstVal::FreeStoragePointer(FreeStoragePointer {})
             }
-            TokenKind::Bytes(l) => {
-                self.consume();
-                ConstVal::Bytes(Bytes(l))
-            }
             TokenKind::BuiltinFunction(f) => {
                 let curr_spans = vec![self.current_token.span.clone()];
                 self.match_kind(TokenKind::BuiltinFunction(String::default()))?;
                 let args = self.parse_builtin_args()?;
                 ConstVal::BuiltinFunctionCall(BuiltinFunctionCall { kind: BuiltinFunctionKind::from(f), args, span: AstSpan(curr_spans) })
             }
+            // Simple hex literal without any operators - preserve original byte length
+            TokenKind::Bytes(hex_str) if !self.is_expression_context() => {
+                self.consume();
+                ConstVal::Bytes(Bytes(hex_str))
+            }
+            // Handle arithmetic expressions (including hex literals that are part of expressions)
+            TokenKind::Literal(_) | TokenKind::Bytes(_) | TokenKind::OpenParen | TokenKind::Sub | TokenKind::Ident(_) => {
+                let expr = self.parse_constant_expression()?;
+                ConstVal::Expression(expr)
+            }
             kind => {
                 tracing::error!(target: "parser", "TOKEN MISMATCH - EXPECTED FreeStoragePointer OR Hex, GOT: {}", self.current_token.kind);
                 return Err(ParserError {
                     kind: ParserErrorKind::InvalidConstantValue(kind),
-                    hint: Some("Expected constant value to be Hex or `FREE_STORAGE_POINTER()`".to_string()),
+                    hint: Some("Expected constant value to be Hex, arithmetic expression, or `FREE_STORAGE_POINTER()`".to_string()),
                     spans: AstSpan(vec![self.current_token.span.clone()]),
                     cursor: self.cursor,
                 });
@@ -1484,6 +1490,128 @@ impl Parser {
                 self.consume();
                 Ok(curr_token_kind)
             }
+        }
+    }
+
+    /// Check if the current context indicates we're parsing an expression
+    /// (i.e., the next token is an operator)
+    fn is_expression_context(&mut self) -> bool {
+        if let Some(next_token) = self.peek() {
+            matches!(next_token.kind, TokenKind::Add | TokenKind::Sub | TokenKind::Mul | TokenKind::Div | TokenKind::Mod)
+        } else {
+            false
+        }
+    }
+
+    /// Parse an arithmetic expression (entry point for constant expressions).
+    ///
+    /// Implements operator precedence:
+    /// - Lowest: + -
+    /// - Higher: * / %
+    /// - Highest: unary -, literals, parentheses
+    fn parse_constant_expression(&mut self) -> Result<Expression, ParserError> {
+        self.parse_additive_expression()
+    }
+
+    /// Parse addition and subtraction (lowest precedence binary operators).
+    fn parse_additive_expression(&mut self) -> Result<Expression, ParserError> {
+        let mut left = self.parse_multiplicative_expression()?;
+
+        while matches!(self.current_token.kind, TokenKind::Add | TokenKind::Sub) {
+            let op = match self.current_token.kind {
+                TokenKind::Add => BinaryOp::Add,
+                TokenKind::Sub => BinaryOp::Sub,
+                _ => unreachable!(),
+            };
+            let op_span = self.current_token.span.clone();
+            self.consume();
+            let right = self.parse_multiplicative_expression()?;
+            // Span covers from the start of left to the end of right, including the operator
+            let mut spans = left.span().inner_ref().to_vec();
+            spans.push(op_span);
+            spans.extend_from_slice(right.span().inner_ref());
+            let span = AstSpan(spans);
+            left = Expression::Binary { left: Box::new(left), op, right: Box::new(right), span };
+        }
+
+        Ok(left)
+    }
+
+    /// Parse multiplication, division, and modulo (higher precedence).
+    fn parse_multiplicative_expression(&mut self) -> Result<Expression, ParserError> {
+        let mut left = self.parse_unary_expression()?;
+
+        while matches!(self.current_token.kind, TokenKind::Mul | TokenKind::Div | TokenKind::Mod) {
+            let op = match self.current_token.kind {
+                TokenKind::Mul => BinaryOp::Mul,
+                TokenKind::Div => BinaryOp::Div,
+                TokenKind::Mod => BinaryOp::Mod,
+                _ => unreachable!(),
+            };
+            let op_span = self.current_token.span.clone();
+            self.consume();
+            let right = self.parse_unary_expression()?;
+            // Span covers from the start of left to the end of right, including the operator
+            let mut spans = left.span().inner_ref().to_vec();
+            spans.push(op_span);
+            spans.extend_from_slice(right.span().inner_ref());
+            let span = AstSpan(spans);
+            left = Expression::Binary { left: Box::new(left), op, right: Box::new(right), span };
+        }
+
+        Ok(left)
+    }
+
+    /// Parse unary operators (negation).
+    fn parse_unary_expression(&mut self) -> Result<Expression, ParserError> {
+        if matches!(self.current_token.kind, TokenKind::Sub) {
+            let start_span = self.current_token.span.clone();
+            self.consume();
+            let expr = self.parse_unary_expression()?;
+            // Span includes operator and the expression
+            let end_span = expr.span().inner_ref().last().cloned().unwrap_or_else(|| start_span.clone());
+            let span = AstSpan(vec![start_span, end_span]);
+            Ok(Expression::Unary { op: UnaryOp::Neg, expr: Box::new(expr), span })
+        } else {
+            self.parse_primary_expression()
+        }
+    }
+
+    /// Parse primary expressions: literals, constants, and parenthesized expressions.
+    fn parse_primary_expression(&mut self) -> Result<Expression, ParserError> {
+        match self.current_token.kind.clone() {
+            TokenKind::Literal(lit) => {
+                let span = AstSpan(vec![self.current_token.span.clone()]);
+                self.consume();
+                Ok(Expression::Literal { value: lit, span })
+            }
+            TokenKind::Bytes(hex_str) => {
+                // In Constant context, hex literals are lexed as Bytes instead of Literal
+                let span = AstSpan(vec![self.current_token.span.clone()]);
+                self.consume();
+                Ok(Expression::Literal { value: str_to_bytes32(&hex_str), span })
+            }
+            TokenKind::OpenParen => {
+                let start_span = self.current_token.span.clone();
+                self.consume();
+                let expr = self.parse_constant_expression()?;
+                let end_span = self.current_token.span.clone();
+                self.match_kind(TokenKind::CloseParen)?;
+                // Span includes opening paren to closing paren
+                let span = AstSpan(vec![start_span, end_span]);
+                Ok(Expression::Grouped { expr: Box::new(expr), span })
+            }
+            TokenKind::Ident(name) => {
+                let span = AstSpan(vec![self.current_token.span.clone()]);
+                self.consume();
+                Ok(Expression::Constant { name, span })
+            }
+            _ => Err(ParserError {
+                kind: ParserErrorKind::InvalidExpression(self.current_token.kind.clone()),
+                hint: Some("Expected literal, constant name, or '('".to_string()),
+                spans: AstSpan(vec![self.current_token.span.clone()]),
+                cursor: self.cursor,
+            }),
         }
     }
 }

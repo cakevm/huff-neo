@@ -4,6 +4,10 @@
 
 ## Unreleased
 
+## [1.3.9] - 2025-10-18
+- Add arithmetic support for constants with operators: `+`, `-`, `*`, `/`, `%`, and negation.
+  - Example: `#define constant SUM = 0x01 + 0x02 // Results in 0x03`
+
 ## [1.3.8] - 2025-10-11
 - Fix constant validation to allow numbers in constant names (not first char) (e.g., `VALUE_V1`).
 - Update foundry to v1.4.0.

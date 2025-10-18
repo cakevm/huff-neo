@@ -19,6 +19,11 @@ pub fn constant_gen(evm_version: &EVMVersion, name: &str, contract: &Contract, i
         }
         ConstVal::StoragePointer(sp) => literal_gen(evm_version, sp),
         ConstVal::BuiltinFunctionCall(bf) => Codegen::gen_builtin_bytecode(evm_version, contract, bf, ir_byte_span.clone())?,
+        ConstVal::Expression(expr) => {
+            tracing::info!(target: "codegen", "EVALUATING CONSTANT EXPRESSION FOR \"{}\"", constant.name);
+            let evaluated = contract.evaluate_constant_expression(expr)?;
+            literal_gen(evm_version, &evaluated)
+        }
         ConstVal::FreeStoragePointer(fsp) => {
             // If this is reached in codegen stage, the `derive_storage_pointers`
             // method was not called on the AST.

@@ -6,12 +6,12 @@ resolver = "2"
 
 [workspace.package]
 edition = "2024"
-homepage = "https://github.com/cakevm/huff-neo"
+homepage = "https://github.com/foundry-rs/huff-neo"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
-repository = "https://github.com/cakevm/huff-neo"
+repository = "https://github.com/foundry-rs/huff-neo"
 rust-version = "1.89"
-version = "1.3.8"
+version = "1.3.9"
 
 [workspace.dependencies]
 huff-neo-codegen = { path = "crates/codegen" }
@@ -43,7 +43,7 @@ wasm-bindgen = "0.2.100"
 yansi = "1.0.1"
 
 # alloy
-alloy-dyn-abi = { version = "1.3.1", default-features = false }
+alloy-dyn-abi = { version = "1.4.1", default-features = false }
 alloy-evm = { version = "0.21.1", default-features = false }
 alloy-primitives = { version = "1.3.1", default-features = false, features = ["std"] }
 
@@ -52,17 +52,16 @@ op-revm = { version = "10.0.0", default-features = false }
 revm = { version = "29.0.0", default-features = false, features = ["optional_no_base_fee"] }
 
 # foundry
-# WORKAROUND: make contract_definitions in SourceData public
-anvil = { git = "https://github.com/cakevm/foundry", rev = "bea397f" }
-foundry-cli = { git = "https://github.com/cakevm/foundry", rev = "bea397f" }
-foundry-common = { git = "https://github.com/cakevm/foundry", rev = "bea397f" }
+anvil = { git = "https://github.com/foundry-rs/foundry", rev = "fd63a5d" }
+foundry-cli = { git = "https://github.com/foundry-rs/foundry", rev = "fd63a5d" }
+foundry-common = { git = "https://github.com/foundry-rs/foundry", rev = "fd63a5d" }
 foundry-compilers = { version = "0.19.5", default-features = false }
-foundry-config = { git = "https://github.com/cakevm/foundry", rev = "bea397f" }
-foundry-debugger = { git = "https://github.com/cakevm/foundry", rev = "bea397f" }
-foundry-evm = { git = "https://github.com/cakevm/foundry", rev = "bea397f" }
-foundry-evm-core = { git = "https://github.com/cakevm/foundry", rev = "bea397f" }
-foundry-evm-networks = { git = "https://github.com/cakevm/foundry", rev = "bea397f" }
-foundry-evm-traces = { git = "https://github.com/cakevm/foundry", rev = "bea397f" }
+foundry-config = { git = "https://github.com/foundry-rs/foundry", rev = "fd63a5d" }
+foundry-debugger = { git = "https://github.com/foundry-rs/foundry", rev = "fd63a5d" }
+foundry-evm = { git = "https://github.com/foundry-rs/foundry", rev = "fd63a5d" }
+foundry-evm-core = { git = "https://github.com/foundry-rs/foundry", rev = "fd63a5d" }
+foundry-evm-networks = { git = "https://github.com/foundry-rs/foundry", rev = "fd63a5d" }
+foundry-evm-traces = { git = "https://github.com/foundry-rs/foundry", rev = "fd63a5d" }
 
 # serde
 serde = { version = "1.0.219", features = ["derive", "rc"] }

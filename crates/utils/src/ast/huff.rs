@@ -3,11 +3,12 @@ use crate::ast::span::AstSpan;
 use crate::{
     bytecode::*,
     bytes_util::*,
-    error::CodegenError,
+    error::{CodegenError, CodegenErrorKind},
     evm_version::EVMVersion,
     opcodes::Opcode,
     prelude::{MacroArg::Ident, Span, TokenKind},
 };
+use alloy_primitives::U256;
 use indexmap::IndexMap;
 use std::collections::HashSet;
 use std::{
@@ -317,7 +318,7 @@ impl Contract {
                             let new_value = str_to_bytes32(&format!("{old_p}"));
                             storage_pointers.push((const_name.to_string(), new_value));
                         }
-                        ConstVal::Bytes(_) | ConstVal::BuiltinFunctionCall(_) => {
+                        ConstVal::Bytes(_) | ConstVal::BuiltinFunctionCall(_) | ConstVal::Expression(_) => {
                             // Skip constants that are not free storage pointers
                         }
                         // This should never be reached, as we only assign free storage pointers
@@ -350,6 +351,113 @@ impl Contract {
                         span: AstSpan::default(),
                     });
                 }
+            }
+        }
+    }
+
+    /// Recursively evaluates arithmetic expressions in constant definitions at compile time.
+    /// This supports binary operations (+, -, *, /, %), unary negation, literals, constant references,
+    /// and parenthesized expressions with proper operator precedence and overflow/underflow checking.
+    pub fn evaluate_constant_expression(&self, expr: &Expression) -> Result<Literal, CodegenError> {
+        match expr {
+            Expression::Literal { value, .. } => {
+                // Direct literal value
+                Ok(*value)
+            }
+
+            Expression::Constant { name, span } => {
+                // Look up the constant by name and clone the value
+                // We must clone before recursing to avoid holding the lock during recursion
+                let const_value = {
+                    let constants = self.constants.lock().unwrap();
+                    let const_def = constants.iter().find(|c| c.name == *name).ok_or_else(|| CodegenError {
+                        kind: CodegenErrorKind::UndefinedConstant(name.clone()),
+                        span: span.clone(),
+                        token: None,
+                    })?;
+                    const_def.value.clone()
+                };
+
+                // Evaluate the constant's value (lock is released at this point)
+                match &const_value {
+                    ConstVal::Bytes(bytes) => {
+                        // Parse hex string to [u8; 32]
+                        Ok(str_to_bytes32(&bytes.0))
+                    }
+                    ConstVal::Expression(e) => {
+                        // Recursively evaluate nested expressions
+                        self.evaluate_constant_expression(e)
+                    }
+                    ConstVal::StoragePointer(lit) => {
+                        // Storage pointers are already resolved literals
+                        Ok(*lit)
+                    }
+                    _ => Err(CodegenError { kind: CodegenErrorKind::InvalidConstantExpression, span: span.clone(), token: None }),
+                }
+            }
+
+            Expression::Binary { left, op, right, span } => {
+                // Evaluate both operands
+                let left_val = self.evaluate_constant_expression(left)?;
+                let right_val = self.evaluate_constant_expression(right)?;
+
+                // Convert to U256 for arithmetic
+                let l = U256::from_be_bytes(left_val);
+                let r = U256::from_be_bytes(right_val);
+
+                // Perform the operation with overflow checking
+                let result = match op {
+                    BinaryOp::Add => l.checked_add(r).ok_or_else(|| CodegenError {
+                        kind: CodegenErrorKind::ArithmeticOverflow,
+                        span: span.clone(),
+                        token: None,
+                    })?,
+                    BinaryOp::Sub => l.checked_sub(r).ok_or_else(|| CodegenError {
+                        kind: CodegenErrorKind::ArithmeticUnderflow,
+                        span: span.clone(),
+                        token: None,
+                    })?,
+                    BinaryOp::Mul => l.checked_mul(r).ok_or_else(|| CodegenError {
+                        kind: CodegenErrorKind::ArithmeticOverflow,
+                        span: span.clone(),
+                        token: None,
+                    })?,
+                    BinaryOp::Div => {
+                        if r.is_zero() {
+                            return Err(CodegenError { kind: CodegenErrorKind::DivisionByZero, span: span.clone(), token: None });
+                        }
+                        l / r
+                    }
+                    BinaryOp::Mod => {
+                        if r.is_zero() {
+                            return Err(CodegenError { kind: CodegenErrorKind::DivisionByZero, span: span.clone(), token: None });
+                        }
+                        l % r
+                    }
+                };
+
+                Ok(result.to_be_bytes())
+            }
+
+            Expression::Unary { op, expr, .. } => {
+                // Evaluate the operand
+                let val = self.evaluate_constant_expression(expr)?;
+                let v = U256::from_be_bytes(val);
+
+                // Perform unary operation
+                let result = match op {
+                    UnaryOp::Neg => {
+                        // Two's complement negation
+                        U256::ZERO.wrapping_sub(v)
+                    }
+                };
+
+                Ok(result.to_be_bytes())
+            }
+
+            Expression::Grouped { expr, .. } => {
+                // Grouped expressions just evaluate the inner expression
+                self.evaluate_constant_expression(expr)
             }
         }
     }
@@ -590,6 +698,87 @@ pub struct ArgCall {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct FreeStoragePointer;
 
+/// An arithmetic expression node
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Expression {
+    /// A literal value
+    Literal {
+        /// The literal value
+        value: Literal,
+        /// The span of the literal
+        span: AstSpan,
+    },
+    /// Reference to a named constant
+    Constant {
+        /// The name of the constant
+        name: String,
+        /// The span of the constant reference
+        span: AstSpan,
+    },
+    /// Binary operation (e.g., 1 + 2, 3 * 4)
+    Binary {
+        /// Left operand
+        left: Box<Expression>,
+        /// Binary operator
+        op: BinaryOp,
+        /// Right operand
+        right: Box<Expression>,
+        /// The span of the binary operation
+        span: AstSpan,
+    },
+    /// Unary operation (e.g., -5)
+    Unary {
+        /// Unary operator
+        op: UnaryOp,
+        /// Operand expression
+        expr: Box<Expression>,
+        /// The span of the unary operation
+        span: AstSpan,
+    },
+    /// Grouped/parenthesized expression
+    Grouped {
+        /// The inner expression
+        expr: Box<Expression>,
+        /// The span of the grouped expression (including parentheses)
+        span: AstSpan,
+    },
+}
+
+impl Expression {
+    /// Get the span of this expression
+    pub fn span(&self) -> &AstSpan {
+        match self {
+            Expression::Literal { span, .. } => span,
+            Expression::Constant { span, .. } => span,
+            Expression::Binary { span, .. } => span,
+            Expression::Unary { span, .. } => span,
+            Expression::Grouped { span, .. } => span,
+        }
+    }
+}
+
+/// Binary operators for arithmetic expressions
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum BinaryOp {
+    /// Addition (+)
+    Add,
+    /// Subtraction (-)
+    Sub,
+    /// Multiplication (*)
+    Mul,
+    /// Division (/)
+    Div,
+    /// Modulo (%)
+    Mod,
+}
+
+/// Unary operators for arithmetic expressions
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum UnaryOp {
+    /// Negation (-)
+    Neg,
+}
+
 /// A Constant Value
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ConstVal {
@@ -601,6 +790,8 @@ pub enum ConstVal {
     StoragePointer(Literal),
     /// Built-in function call
     BuiltinFunctionCall(BuiltinFunctionCall),
+    /// An arithmetic expression (evaluated at compile time)
+    Expression(Expression),
 }
 
 /// A Constant Definition
