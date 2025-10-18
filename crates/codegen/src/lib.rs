@@ -200,11 +200,15 @@ impl Codegen {
                 }
                 StatementType::Constant(name) => {
                     let constant = lookup_constant(name, contract, &statement.span)?;
-                    let bytes = match constant.value {
-                        ConstVal::Bytes(bytes) => bytes,
+                    let bytes = match &constant.value {
+                        ConstVal::Bytes(bytes) => bytes.clone(),
+                        ConstVal::Expression(expr) => {
+                            let literal = contract.evaluate_constant_expression(expr)?;
+                            Bytes(bytes_util::bytes32_to_hex_string(&literal, false))
+                        }
                         _ => {
                             return Err(CodegenError {
-                                kind: CodegenErrorKind::InvalidArguments("Constant must be a hex literal".to_string()),
+                                kind: CodegenErrorKind::InvalidArguments("Constant must be a hex literal or expression".to_string()),
                                 span: statement.span.clone(),
                                 token: None,
                             });

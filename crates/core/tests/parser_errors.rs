@@ -114,15 +114,12 @@ fn test_invalid_definition() {
 #[test]
 fn test_invalid_constant_value() {
     let invalid_constant_values = vec![
-        ("ident", TokenKind::Ident("ident".to_string())),
         ("<", TokenKind::LeftAngle),
         ("{", TokenKind::OpenBrace),
         ("[", TokenKind::OpenBracket),
-        ("(", TokenKind::OpenParen),
         (":", TokenKind::Colon),
         (",", TokenKind::Comma),
         ("+", TokenKind::Add),
-        ("-", TokenKind::Sub),
     ];
 
     for (value, kind) in invalid_constant_values {
@@ -140,7 +137,7 @@ fn test_invalid_constant_value() {
                     e,
                     ParserError {
                         kind: ParserErrorKind::InvalidConstantValue(kind),
-                        hint: Some("Expected constant value to be Hex or `FREE_STORAGE_POINTER()`".to_string()),
+                        hint: Some("Expected constant value to be Hex, arithmetic expression, or `FREE_STORAGE_POINTER()`".to_string()),
                         spans: AstSpan(vec![Span {
                             start: source.find(value).unwrap_or(0),
                             end: source.find(value).unwrap_or(0) + value.len(),

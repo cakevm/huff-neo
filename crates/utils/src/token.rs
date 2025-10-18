@@ -94,6 +94,8 @@ pub enum TokenKind {
     Sub,
     /// Multiplication
     Mul,
+    /// Modulo
+    Mod,
     /// A comma
     Comma,
     /// A Colon
@@ -190,6 +192,7 @@ impl fmt::Display for TokenKind {
             TokenKind::Add => "+",
             TokenKind::Sub => "-",
             TokenKind::Mul => "*",
+            TokenKind::Mod => "%",
             TokenKind::Colon => ":",
             TokenKind::Comma => ",",
             TokenKind::Pound => "#",

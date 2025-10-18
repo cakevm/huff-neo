@@ -352,6 +352,7 @@ impl<'a> Lexer<'a> {
                 '+' => self.single_char_token(TokenKind::Add),
                 '-' => self.single_char_token(TokenKind::Sub),
                 '*' => self.single_char_token(TokenKind::Mul),
+                '%' => self.single_char_token(TokenKind::Mod),
                 '<' => self.single_char_token(TokenKind::LeftAngle),
                 '>' => self.single_char_token(TokenKind::RightAngle),
                 // NOTE: TokenKind::Div is lexed further up since it overlaps with comment

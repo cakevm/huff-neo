@@ -22,6 +22,22 @@ The usage of built-in functions for constants and code tables is now possible.
 }
 ```
 
+### Arithmetic expressions in constants
+Constants can use arithmetic expressions evaluated at compile time.
+
+```javascript
+#define constant BASE = 0x20
+#define constant OFFSET = 0x04
+#define constant COMBINED = BASE + OFFSET          // 0x24
+
+#define constant WORD_SIZE = 0x20
+#define constant HALF_WORD = WORD_SIZE / 0x02      // 0x10
+
+#define constant COMPLEX = (0x0a + 0x05) * 0x02    // 0x1e
+```
+
+Supported operators: `+`, `-`, `*`, `/`, `%` (binary), `-` (unary). Parentheses `()` for grouping. See the [Constants](../huff-language/constants.md#arithmetic-expressions) documentation for details.
+
 ### New built-in functions
 There are new built-in functions available in `huff-neo`.
 
