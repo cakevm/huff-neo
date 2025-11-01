@@ -28,7 +28,7 @@ pub fn constant_gen(evm_version: &EVMVersion, name: &str, contract: &Contract, i
             // If this is reached in codegen stage, the `derive_storage_pointers`
             // method was not called on the AST.
             tracing::error!(target: "codegen", "STORAGE POINTERS INCORRECTLY DERIVED FOR \"{:?}\"", fsp);
-            return Err(CodegenError { kind: CodegenErrorKind::StoragePointersNotDerived, span: constant.span.clone(), token: None });
+            return Err(CodegenError { kind: CodegenErrorKind::StoragePointersNotDerived, span: constant.span.clone_box(), token: None });
         }
     };
 
@@ -46,7 +46,7 @@ pub fn lookup_constant(name: &str, contract: &Contract, ir_byte_span: &AstSpan) 
 
         return Err(CodegenError {
             kind: CodegenErrorKind::MissingConstantDefinition(name.to_string()),
-            span: ir_byte_span.clone(),
+            span: ir_byte_span.clone_box(),
             token: None,
         });
     };

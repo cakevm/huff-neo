@@ -1,4 +1,5 @@
 use std::cmp::PartialOrd;
+use std::fmt::Display;
 
 /// Evm Version
 ///
@@ -6,17 +7,43 @@ use std::cmp::PartialOrd;
 
 #[derive(Debug, Default, PartialEq, PartialOrd)]
 pub enum SupportedEVMVersions {
-    /// Introduced prevrandao, disallow difficulty opcode (does not affect codegen)
+    /// Introduced PREVRANDAO, disallow difficulty opcode (does not affect codegen)
     Paris,
-    /// Introduced Push0
+    /// Introduced PUSH0
     Shanghai,
-    /// Introduced TLOAD, TSTORE, MCOPY, BLOBHASH, and BLOBBASEFEE
+    /// Deneb/Cancun - Introduced TLOAD, TSTORE, MCOPY, BLOBHASH, and BLOBBASEFEE
+    ///
+    /// Meta: https://eips.ethereum.org/EIPS/eip-7569
+    /// TLOAD/TSTORE: https://eips.ethereum.org/EIPS/eip-1153
+    /// MCOPY: https://eips.ethereum.org/EIPS/eip-5656
+    /// BLOBHASH: https://eips.ethereum.org/EIPS/eip-4844
+    /// BLOBBASEFEE: https://eips.ethereum.org/EIPS/eip-7516
     Cancun,
-    /// No new opcodes
+    /// Prague/Electra - No new opcodes
+    ///
+    /// Meta: https://eips.ethereum.org/EIPS/eip-7600
     #[default]
     Prague,
-    /// No new opcodes
+    /// Fulu/Osaka - Introduced CLZ
+    ///
+    ///
+    /// Meta: https://eips.ethereum.org/EIPS/eip-7607
+    /// CLZ: https://eips.ethereum.org/EIPS/eip-7939
     Osaka,
+}
+
+/// Display SupportedEVMVersions as string
+impl Display for SupportedEVMVersions {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let version_str = match self {
+            SupportedEVMVersions::Shanghai => "shanghai",
+            SupportedEVMVersions::Paris => "paris",
+            SupportedEVMVersions::Cancun => "cancun",
+            SupportedEVMVersions::Prague => "prague",
+            SupportedEVMVersions::Osaka => "osaka",
+        };
+        write!(f, "{}", version_str)
+    }
 }
 
 #[derive(Debug, Default)]
@@ -31,9 +58,39 @@ impl EVMVersion {
         Self { version }
     }
 
+    /// Get the current EVM version
+    pub fn version(&self) -> &SupportedEVMVersions {
+        &self.version
+    }
+
     /// As PartialOrd is implemented in the struct, all versions after shanghai will support this
     pub fn has_push0(&self) -> bool {
         self.version >= SupportedEVMVersions::Shanghai
+    }
+
+    /// Check if the EVM version supports prevrandao - Paris or later
+    pub fn has_prevrandao(&self) -> bool {
+        self.version >= SupportedEVMVersions::Paris
+    }
+
+    /// Check if the EVM version supports transient storage (TLOAD, TSTORE) - Cancun or later
+    pub fn has_transient_storage(&self) -> bool {
+        self.version >= SupportedEVMVersions::Cancun
+    }
+
+    /// Check if the EVM version supports MCOPY opcode - Cancun or later
+    pub fn has_mcopy(&self) -> bool {
+        self.version >= SupportedEVMVersions::Cancun
+    }
+
+    /// Check if the EVM version supports blob opcodes (BLOBHASH, BLOBBASEFEE) - Cancun or later
+    pub fn has_blob_opcodes(&self) -> bool {
+        self.version >= SupportedEVMVersions::Cancun
+    }
+
+    /// Check if the EVM version supports CLZ opcode - Osaka or later
+    pub fn has_clz(&self) -> bool {
+        self.version >= SupportedEVMVersions::Osaka
     }
 }
 
@@ -58,5 +115,12 @@ impl From<String> for EVMVersion {
             "osaka" => Self::new(SupportedEVMVersions::Osaka),
             _ => Self::default(),
         }
+    }
+}
+
+/// Display EVMVersion as string
+impl Display for EVMVersion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.version)
     }
 }

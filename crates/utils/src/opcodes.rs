@@ -1,12 +1,14 @@
 use phf::phf_map;
 use std::fmt;
-use strum_macros::EnumString;
+use strum_macros::{AsRefStr, EnumString};
+
+use crate::evm_version::SupportedEVMVersions;
 
 /// All the EVM opcodes as a static array
 /// They are arranged in a particular order such that all the opcodes that have common
 /// prefixes are ordered alphabetically by decreasing length to avoid mismatch when lexing.
 /// Example : [origin, or] or [push32, ..., push3]
-pub const OPCODES: [&str; 150] = [
+pub const OPCODES: [&str; 151] = [
     "addmod",
     "address",
     "add",
@@ -25,6 +27,7 @@ pub const OPCODES: [&str; 150] = [
     "callvalue",
     "call",
     "chainid",
+    "clz",
     "codecopy",
     "codesize",
     "coinbase",
@@ -193,6 +196,7 @@ pub static OPCODES_MAP: phf::Map<&'static str, Opcode> = phf_map! {
     "prevrandao" => Opcode::Prevrandao,
     "gaslimit" => Opcode::Gaslimit,
     "chainid" => Opcode::Chainid,
+    "clz" => Opcode::Clz,
     "selfbalance" => Opcode::Selfbalance,
     "pop" => Opcode::Pop,
     "mload" => Opcode::Mload,
@@ -315,7 +319,7 @@ pub static OPCODES_MAP: phf::Map<&'static str, Opcode> = phf_map! {
 
 /// EVM Opcodes
 /// References <https://evm.codes> and <https://github.com/ethereum/execution-specs/blob/master/lists/evm/proposed-opcodes.md>
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, EnumString)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, EnumString, AsRefStr)]
 #[strum(serialize_all = "lowercase")]
 pub enum Opcode {
     /// Halts execution.
@@ -418,6 +422,8 @@ pub enum Opcode {
     Gaslimit,
     /// The Chain ID
     Chainid,
+    /// Count Leading Zeros - Returns the number of zeros preceding the most significant one bit
+    Clz,
     /// Balance of the Currently Executing Account
     Selfbalance,
     /// Base Fee
@@ -676,6 +682,7 @@ impl Opcode {
             Opcode::Prevrandao => "44",
             Opcode::Gaslimit => "45",
             Opcode::Chainid => "46",
+            Opcode::Clz => "1e",
             Opcode::Selfbalance => "47",
             Opcode::Basefee => "48",
             Opcode::Blobhash => "49",
@@ -821,7 +828,7 @@ impl Opcode {
     /// Prefixes the literal if necessary
     pub fn prefix_push_literal(&self, literal: &str) -> String {
         if self.is_value_push()
-            && let Ok(len) = u8::from_str_radix(&self.to_string(), 16)
+            && let Ok(len) = u8::from_str_radix(&self.string(), 16)
             && len >= 96
         {
             let size = (len - 96 + 1) * 2;
@@ -839,7 +846,7 @@ impl Opcode {
     /// Checks if the value overflows the given push opcode
     pub fn push_overflows(&self, literal: &str) -> bool {
         if self.is_value_push()
-            && let Ok(len) = u8::from_str_radix(&self.to_string(), 16)
+            && let Ok(len) = u8::from_str_radix(&self.string(), 16)
             && len >= 96
         {
             let size = (len - 96 + 1) * 2;
@@ -847,6 +854,25 @@ impl Opcode {
         }
 
         false
+    }
+
+    /// Returns the minimum EVM version required for this opcode
+    /// Returns None for opcodes that have been available since the beginning
+    pub fn requires_evm_version(&self) -> Option<SupportedEVMVersions> {
+        match self {
+            // Paris opcodes
+            Opcode::Prevrandao => Some(SupportedEVMVersions::Paris),
+            // Shanghai opcodes
+            Opcode::Push0 => Some(SupportedEVMVersions::Shanghai),
+            // Cancun opcodes
+            Opcode::Tload | Opcode::Tstore => Some(SupportedEVMVersions::Cancun),
+            Opcode::Mcopy => Some(SupportedEVMVersions::Cancun),
+            Opcode::Blobhash | Opcode::Blobbasefee => Some(SupportedEVMVersions::Cancun),
+            // Osaka opcodes
+            Opcode::Clz => Some(SupportedEVMVersions::Osaka),
+            // All other opcodes are available since before Paris
+            _ => None,
+        }
     }
 }
 

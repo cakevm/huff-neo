@@ -54,7 +54,8 @@ fn test_storage_pointers_not_derived() {
                         Span { start: 22, end: 43, file: None },
                         Span { start: 44, end: 45, file: None },
                         Span { start: 46, end: 68, file: None }
-                    ]),
+                    ])
+                    .boxed(),
                     token: None
                 }
             )
@@ -108,7 +109,7 @@ fn test_invalid_constant_definition() {
                 e,
                 CodegenError {
                     kind: CodegenErrorKind::MissingConstantDefinition("UNKNOWN_CONSTANT_DEFINITION".to_string()),
-                    span: AstSpan(vec![Span { start: const_start, end: const_end, file: None }]),
+                    span: AstSpan(vec![Span { start: const_start, end: const_end, file: None }]).boxed(),
                     token: None
                 }
             )
@@ -149,7 +150,7 @@ fn test_missing_constructor() {
                 e,
                 CodegenError {
                     kind: CodegenErrorKind::MissingMacroDefinition("CONSTRUCTOR".to_string()),
-                    span: AstSpan(vec![Span { start: 0, end: 0, file: None }]),
+                    span: AstSpan(vec![Span { start: 0, end: 0, file: None }]).boxed(),
                     token: None
                 }
             )
@@ -182,7 +183,7 @@ fn test_missing_main() {
                 e,
                 CodegenError {
                     kind: CodegenErrorKind::MissingMacroDefinition("MAIN".to_string()),
-                    span: AstSpan(vec![Span { start: 0, end: 0, file: None }]),
+                    span: AstSpan(vec![Span { start: 0, end: 0, file: None }]).boxed(),
                     token: None
                 }
             )
@@ -217,7 +218,7 @@ fn test_missing_when_alternative_main_provided() {
                 e,
                 CodegenError {
                     kind: CodegenErrorKind::MissingMacroDefinition("NAH".to_string()),
-                    span: AstSpan(vec![Span { start: 0, end: 0, file: None }]),
+                    span: AstSpan(vec![Span { start: 0, end: 0, file: None }]).boxed(),
                     token: None
                 }
             )
@@ -262,7 +263,8 @@ fn test_unknown_macro_definition() {
                         Span { start: 344, end: 351, file: None },
                         Span { start: 351, end: 352, file: None },
                         Span { start: 352, end: 353, file: None }
-                    ]),
+                    ])
+                    .boxed(),
                     token: None
                 }
             )
@@ -310,7 +312,8 @@ fn test_unmatched_jump_label() {
                         Span { start: 376, end: 377, file: None },
                         Span { start: 377, end: 380, file: None },
                         Span { start: 380, end: 381, file: None }
-                    ]),
+                    ])
+                    .boxed(),
                     token: None
                 }
             )

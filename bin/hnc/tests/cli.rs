@@ -1,10 +1,10 @@
-use assert_cmd::Command;
+use assert_cmd::cargo_bin_cmd;
 use assert_fs::prelude::*;
 use predicates::prelude::*;
 
 #[test]
 fn bytecode_overrides_constant() {
-    let mut cmd = Command::cargo_bin("hnc").unwrap();
+    let mut cmd = cargo_bin_cmd!("hnc");
     let tmp = assert_fs::TempDir::new().unwrap();
     let file = tmp.child("code.huff");
     file.write_str(
@@ -33,7 +33,7 @@ fn bytecode_overrides_constant() {
 
 #[test]
 fn bytecode_overrides_constant_invalid() {
-    let mut cmd = Command::cargo_bin("hnc").unwrap();
+    let mut cmd = cargo_bin_cmd!("hnc");
     let tmp = assert_fs::TempDir::new().unwrap();
     let file = tmp.child("code.huff");
     file.write_str(

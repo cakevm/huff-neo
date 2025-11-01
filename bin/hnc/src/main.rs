@@ -320,7 +320,8 @@ fn main() {
                         file: Some(Arc::new(FileSource { path: s.clone(), source: None, access: None, dependencies: vec![] })),
                     })
                     .collect::<Vec<Span>>(),
-            ),
+            )
+            .boxed(),
             token: None,
         });
         tracing::error!(target: "cli", "COMPILER ERRORED: {}", e);
