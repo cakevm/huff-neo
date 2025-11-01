@@ -497,15 +497,30 @@ pub fn bubble_arg_call(
             }
         } else {
             // Argument not found in current macro parameters.
-            // Try to bubble up to parent scope to find it.
-            tracing::debug!(target: "codegen", "Argument \"{}\" not found in macro \"{}\", attempting to bubble up", arg_name, macro_def.name);
+            // Before bubbling up, verify that the argument was actually passed to this macro.
+            tracing::debug!(target: "codegen", "Argument \"{}\" not found in macro \"{}\", checking if it was passed to this macro", arg_name, macro_def.name);
 
             if scope.len() > 1 && mis.len() > 1 {
-                // We have a parent scope to bubble up to
+                // Check if the argument was explicitly passed to the current macro
+                // by looking at the last macro invocation (how we were called)
+                let current_invocation = &macro_invoc.1;
+                let arg_was_passed = current_invocation.args.iter().any(|arg| matches!(arg, MacroArg::ArgCall(ac) if ac.name == arg_name));
+
+                if !arg_was_passed {
+                    // The argument was not passed to this macro, so it's not accessible here
+                    tracing::debug!(target: "codegen", "Argument \"{}\" was not passed to macro \"{}\", cannot bubble up", arg_name, macro_def.name);
+                    return Err(CodegenError {
+                        kind: CodegenErrorKind::MissingArgumentDefinition(arg_name.to_string()),
+                        span: span.clone(),
+                        token: None,
+                    });
+                }
+
+                // Argument was passed via ArgCall, we can bubble up to parent scope
                 let scope_len = scope.len();
                 let new_scope = &mut scope[..scope_len.saturating_sub(1)];
                 let bubbled_macro_invocation = new_scope.last().unwrap();
-                tracing::debug!(target: "codegen", "BUBBLING UP TO MACRO DEF: {}", &bubbled_macro_invocation.name);
+                tracing::debug!(target: "codegen", "Argument \"{}\" was passed to macro \"{}\", bubbling up to macro \"{}\"", arg_name, macro_def.name, bubbled_macro_invocation.name);
 
                 let mis_len = mis.len();
                 // Remove the current mis entry since we're bubbling up
