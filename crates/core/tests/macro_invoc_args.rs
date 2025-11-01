@@ -1064,3 +1064,78 @@ fn test_nested_first_class_macro_with_bytecode() {
     // So total: 0x01 + 0x02 = "6001" + "6002"
     assert_eq!(main_bytecode, "60016002");
 }
+
+#[test]
+fn test_arg_not_passed_to_nested_macro() {
+    // Verify that arguments do not leak into nested macros that don't receive them.
+    // If M1 has parameter 'arg' and calls M2() without passing it, M2 should not have access to 'arg'.
+    let source = r#"
+        #define macro ARG() = takes(0) returns(0) {
+            0xff
+        }
+
+        #define macro M1(arg) = takes(0) returns(0) {
+            M2()
+        }
+
+        #define macro M2() = takes(0) returns(0) {
+            <arg>
+        }
+
+        #define macro MAIN() = takes(0) returns(0) {
+            M1(ARG())
+        }
+    "#;
+
+    // Lex + Parse
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    // Codegen should fail because M2 tries to use <arg> which was not passed to it
+    let codegen_result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None);
+
+    assert!(codegen_result.is_err());
+    assert_eq!(codegen_result.unwrap_err().kind, CodegenErrorKind::MissingArgumentDefinition(String::from("arg")));
+}
+
+#[test]
+fn test_arg_properly_passed_to_nested_macro() {
+    // This test verifies that arguments CAN be passed through nested macros when done correctly
+    let source = r#"
+        #define macro ARG() = takes(0) returns(0) {
+            0xff
+        }
+
+        #define macro M1(arg) = takes(0) returns(0) {
+            M2(<arg>)
+        }
+
+        #define macro M2(x) = takes(0) returns(0) {
+            <x>
+        }
+
+        #define macro MAIN() = takes(0) returns(0) {
+            M1(ARG())
+        }
+    "#;
+
+    // Lex + Parse
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    let evm_version = EVMVersion::default();
+
+    // This should succeed because M1 properly passes <arg> to M2
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
+
+    // Expected bytecode: ARG() expands to 0xff, which is PUSH1 0xff = 60ff
+    assert_eq!(main_bytecode, "60ff");
+}

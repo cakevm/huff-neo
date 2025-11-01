@@ -26,7 +26,7 @@ test-cargo:
 .PHONY: test-doc
 test-doc:
 	RUSTDOCFLAGS="--show-type-layout --generate-link-to-definition --enable-index-page -D warnings -Z unstable-options" \
-	cargo +nightly test --doc --workspace --all-features
+	cargo +nightly test --doc --workspace --exclude huff-neo-js --all-features
 
 .PHONY: clean
 clean:

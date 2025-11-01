@@ -3,6 +3,7 @@
 # Huff Neo Compiler changelog
 
 ## Unreleased
+- Fix macro argument scoping to prevent arguments from leaking into nested macros that don't receive them (fixes #108).
 
 ## [1.3.9] - 2025-10-18
 - Add arithmetic support for constants with operators: `+`, `-`, `*`, `/`, `%`, and negation.
