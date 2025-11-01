@@ -150,7 +150,7 @@ pub struct CodegenError {
     /// The kind of code generation error
     pub kind: CodegenErrorKind,
     /// An Optional Span where the error occured
-    pub span: AstSpan,
+    pub span: Box<AstSpan>,
     /// An Optional Token Kind
     pub token: Option<TokenKind>,
 }
@@ -158,7 +158,7 @@ pub struct CodegenError {
 impl CodegenError {
     /// Public associated function to instatiate a new CodegenError.
     pub fn new(kind: CodegenErrorKind, spans: AstSpan, token: Option<TokenKind>) -> Self {
-        Self { kind, span: spans, token }
+        Self { kind, span: Box::new(spans), token }
     }
 }
 
@@ -236,6 +236,8 @@ pub enum CodegenErrorKind {
     ArithmeticUnderflow,
     /// Division by zero in constant expression
     DivisionByZero,
+    /// Invalid opcode for EVM version (opcode, required_version, current_version)
+    InvalidOpcodeForEVMVersion(String, String, String),
 }
 
 impl Spanned for CodegenError {
@@ -341,6 +343,13 @@ impl<W: Write> Report<W> for CodegenError {
             }
             CodegenErrorKind::DivisionByZero => {
                 write!(f.out, "Division by zero in constant expression")
+            }
+            CodegenErrorKind::InvalidOpcodeForEVMVersion(opcode, required_version, current_version) => {
+                write!(
+                    f.out,
+                    "Opcode '{}' requires EVM version '{}' or later (current version: '{}')",
+                    opcode, required_version, current_version
+                )
             }
         }
     }
@@ -661,6 +670,16 @@ impl fmt::Display for CompilerError {
                 }
                 CodegenErrorKind::DivisionByZero => {
                     write!(f, "\nError: Division by zero in constant expression\n{}\n", ce.span.error(None))
+                }
+                CodegenErrorKind::InvalidOpcodeForEVMVersion(opcode, required_version, current_version) => {
+                    write!(
+                        f,
+                        "\nError: Opcode '{}' requires EVM version '{}' or later (current version: '{}')\n{}\n",
+                        opcode,
+                        required_version,
+                        current_version,
+                        ce.span.error(None)
+                    )
                 }
             },
             CompilerError::FailedCompiles(v) => {

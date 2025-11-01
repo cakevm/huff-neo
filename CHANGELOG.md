@@ -3,7 +3,12 @@
 # Huff Neo Compiler changelog
 
 ## Unreleased
+
+## [1.3.10] - 2025-11-01
 - Fix macro argument scoping to prevent arguments from leaking into nested macros that don't receive them (fixes #108).
+- Support the new opcode CLZ (Count Leading Zeros) introduced in the Osaka upgrade.
+  - See: https://eips.ethereum.org/EIPS/eip-7939.
+- Add new error handling for opcodes that are not available in the selected EVM version.
 
 ## [1.3.9] - 2025-10-18
 - Add arithmetic support for constants with operators: `+`, `-`, `*`, `/`, `%`, and negation.

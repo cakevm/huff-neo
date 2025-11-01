@@ -180,7 +180,7 @@ pub fn bubble_arg_call(
                             None => {
                                 return Err(CodegenError {
                                     kind: CodegenErrorKind::MissingMacroInvocation(macro_def.name.clone()),
-                                    span: bubbled_macro_invocation.span.clone(),
+                                    span: bubbled_macro_invocation.span.clone_box(),
                                     token: None,
                                 });
                             }
@@ -256,7 +256,7 @@ pub fn bubble_arg_call(
                                     tracing::error!(target: "codegen", "STORAGE POINTERS INCORRECTLY DERIVED FOR \"{:?}\"", fsp);
                                     return Err(CodegenError {
                                         kind: CodegenErrorKind::StoragePointersNotDerived,
-                                        span: AstSpan(vec![]),
+                                        span: AstSpan(vec![]).boxed(),
                                         token: None,
                                     });
                                 }
@@ -343,21 +343,21 @@ pub fn bubble_arg_call(
                                 } else {
                                     return Err(CodegenError {
                                         kind: CodegenErrorKind::MissingMacroDefinition(actual_macro_name.clone()),
-                                        span: span.clone(),
+                                        span: span.clone_box(),
                                         token: None,
                                     });
                                 }
                             } else {
                                 return Err(CodegenError {
                                     kind: CodegenErrorKind::MissingArgumentDefinition(arg_name.clone()),
-                                    span: span.clone(),
+                                    span: span.clone_box(),
                                     token: None,
                                 });
                             }
                         } else {
                             return Err(CodegenError {
                                 kind: CodegenErrorKind::MissingArgumentDefinition(arg_name.clone()),
-                                span: span.clone(),
+                                span: span.clone_box(),
                                 token: None,
                             });
                         }
@@ -416,7 +416,7 @@ pub fn bubble_arg_call(
                             } else {
                                 return Err(CodegenError {
                                     kind: CodegenErrorKind::MissingMacroDefinition(inner_mi.macro_name.clone()),
-                                    span: inner_mi.span.clone(),
+                                    span: inner_mi.span.clone_box(),
                                     token: None,
                                 });
                             }
@@ -485,7 +485,7 @@ pub fn bubble_arg_call(
                             } else {
                                 return Err(CodegenError {
                                     kind: CodegenErrorKind::MissingMacroDefinition(inner_mi.macro_name.clone()),
-                                    span: inner_mi.span.clone(),
+                                    span: inner_mi.span.clone_box(),
                                     token: None,
                                 });
                             }
@@ -511,7 +511,7 @@ pub fn bubble_arg_call(
                     tracing::debug!(target: "codegen", "Argument \"{}\" was not passed to macro \"{}\", cannot bubble up", arg_name, macro_def.name);
                     return Err(CodegenError {
                         kind: CodegenErrorKind::MissingArgumentDefinition(arg_name.to_string()),
-                        span: span.clone(),
+                        span: span.clone_box(),
                         token: None,
                     });
                 }
@@ -545,7 +545,7 @@ pub fn bubble_arg_call(
                 // No parent scope or at the top level - this is truly an undefined argument
                 return Err(CodegenError {
                     kind: CodegenErrorKind::MissingArgumentDefinition(arg_name.to_string()),
-                    span: span.clone(),
+                    span: span.clone_box(),
                     token: None,
                 });
             }

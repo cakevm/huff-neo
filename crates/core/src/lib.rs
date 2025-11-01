@@ -353,6 +353,8 @@ impl<'a, 'l> Compiler<'a, 'l> {
                 let mut contract = parse_res?;
                 contract.derive_storage_pointers();
                 contract.add_override_constants(&self.constant_overrides);
+                // Validate opcodes against EVM version
+                contract.validate_opcodes(self.evm_version).map_err(CompilerError::CodegenError)?;
                 // Store the flattened source for debugging
                 contract.flattened_source = Some(flattened.0.clone());
 
@@ -429,6 +431,8 @@ impl<'a, 'l> Compiler<'a, 'l> {
         let mut contract = parse_res?;
         contract.derive_storage_pointers();
         contract.add_override_constants(&self.constant_overrides);
+        // Validate opcodes against EVM version
+        contract.validate_opcodes(self.evm_version).map_err(CompilerError::CodegenError)?;
 
         // Store the flattened source and build multi-file mapping
         contract.flattened_source = Some(merged_source.clone());
@@ -491,7 +495,8 @@ impl<'a, 'l> Compiler<'a, 'l> {
                                 s
                             })
                             .collect::<Vec<Span>>(),
-                    );
+                    )
+                    .boxed();
                     tracing::error!(target: "core", "Roll Failed with CodegenError: {:?}", e.kind);
                     return Err(CompilerError::CodegenError(e));
                 }
@@ -520,7 +525,7 @@ impl<'a, 'l> Compiler<'a, 'l> {
                             })
                             .collect::<Vec<Span>>();
                         errs.dedup();
-                        e.span = AstSpan(errs);
+                        e.span = AstSpan(errs).boxed();
                         tracing::error!(target: "codegen", "Constructor inputs provided, but contract missing \"CONSTRUCTOR\" macro!");
                         return Err(CompilerError::CodegenError(e));
                     }

@@ -77,7 +77,7 @@ fn test_missing_constructor_with_inputs() {
                 e,
                 CompilerError::CodegenError(CodegenError {
                     kind: CodegenErrorKind::MissingMacroDefinition("CONSTRUCTOR".to_string()),
-                    span: AstSpan(vec![Span { start: 0, end: 0, file: Some(arc_source) }]),
+                    span: AstSpan(vec![Span { start: 0, end: 0, file: Some(arc_source) }]).boxed(),
                     token: None
                 })
             )

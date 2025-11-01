@@ -160,7 +160,7 @@ impl Codegen {
             tracing::error!(target: "codegen", "MISSING \"{}\" MACRO!", name);
             Err(CodegenError {
                 kind: CodegenErrorKind::MissingMacroDefinition(name.to_string()),
-                span: AstSpan(vec![Span { start: 0, end: 0, file: None }]),
+                span: AstSpan(vec![Span { start: 0, end: 0, file: None }]).boxed(),
                 token: None,
             })
         }
@@ -178,7 +178,11 @@ impl Codegen {
             BuiltinFunctionKind::RightPad => Ok(builtin_pad(evm_version, contract, bf, PadDirection::Right)?),
             BuiltinFunctionKind::LeftPad => Ok(builtin_pad(evm_version, contract, bf, PadDirection::Left)?),
             BuiltinFunctionKind::Bytes => Ok(builtin_bytes(evm_version, bf)?),
-            _ => Err(CodegenError { kind: CodegenErrorKind::UnsupportedBuiltinFunction(format!("{}", bf.kind)), span, token: None }),
+            _ => Err(CodegenError {
+                kind: CodegenErrorKind::UnsupportedBuiltinFunction(format!("{}", bf.kind)),
+                span: span.boxed(),
+                token: None,
+            }),
         }
     }
 
@@ -209,7 +213,7 @@ impl Codegen {
                         _ => {
                             return Err(CodegenError {
                                 kind: CodegenErrorKind::InvalidArguments("Constant must be a hex literal or expression".to_string()),
-                                span: statement.span.clone(),
+                                span: statement.span.clone_box(),
                                 token: None,
                             });
                         }
@@ -219,7 +223,7 @@ impl Codegen {
                 _ => {
                     return Err(CodegenError {
                         kind: CodegenErrorKind::UnsupportedStatementType(format!("{}", statement.ty)),
-                        span: table_definition.span.clone(),
+                        span: table_definition.span.clone_box(),
                         token: None,
                     });
                 }
@@ -246,7 +250,7 @@ impl Codegen {
 
             return Err(CodegenError {
                 kind: CodegenErrorKind::UnmatchedJumpLabels(labels),
-                span: AstSpan(res.unmatched_jumps.iter().flat_map(|uj| uj.span.0.clone()).collect::<Vec<Span>>()),
+                span: AstSpan(res.unmatched_jumps.iter().flat_map(|uj| uj.span.0.clone()).collect::<Vec<Span>>()).boxed(),
                 token: None,
             });
         }
@@ -301,7 +305,11 @@ impl Codegen {
             table_offsets.insert(jt.name.to_string(), table_offset);
 
             let Some(table_size) = &jt.size else {
-                return Err(CodegenError { kind: CodegenErrorKind::MissingTableSize(jt.name.clone()), span: jt.span.clone(), token: None });
+                return Err(CodegenError {
+                    kind: CodegenErrorKind::MissingTableSize(jt.name.clone()),
+                    span: jt.span.clone_box(),
+                    token: None,
+                });
             };
 
             let size = match bytes_util::hex_to_usize(bytes_util::bytes32_to_hex_string(table_size, false).as_str()) {
@@ -310,7 +318,7 @@ impl Codegen {
                     tracing::error!(target: "codegen", "Errored converting bytes32 to str. Bytes {:?} with error: {:?}", jt.size, e);
                     return Err(CodegenError {
                         kind: CodegenErrorKind::UsizeConversion(format!("{:?}", jt.size)),
-                        span: jt.span.clone(),
+                        span: jt.span.clone_box(),
                         token: None,
                     });
                 }
@@ -343,7 +351,7 @@ impl Codegen {
                                 );
                                 return Err(CodegenError {
                                     kind: CodegenErrorKind::UnmatchedJumpLabels(vec![label.clone()]),
-                                    span: s.span.clone(),
+                                    span: s.span.clone_box(),
                                     token: None,
                                 });
                             }
@@ -355,7 +363,9 @@ impl Codegen {
                             pad_n_bytes(hex.as_str(), if matches!(jt.kind, TableKind::JumpTablePacked) { 0x02 } else { 0x20 },)
                         );
                     }
-                    _ => return Err(CodegenError { kind: CodegenErrorKind::InvalidMacroStatement, span: jt.span.clone(), token: None }),
+                    _ => {
+                        return Err(CodegenError { kind: CodegenErrorKind::InvalidMacroStatement, span: jt.span.clone_box(), token: None });
+                    }
                 }
                 Ok(())
             })?;
@@ -644,14 +654,14 @@ impl Codegen {
                                 let label_name = err_msg.strip_prefix("DuplicateLabelAcrossSiblings:").unwrap_or(&jump.label);
                                 return Err(CodegenError {
                                     kind: CodegenErrorKind::DuplicateLabelAcrossSiblings(label_name.to_string()),
-                                    span: jump.span.clone(),
+                                    span: jump.span.clone_box(),
                                     token: None,
                                 });
                             } else {
                                 // Other error
                                 return Err(CodegenError {
                                     kind: CodegenErrorKind::InvalidMacroInvocation(err_msg),
-                                    span: jump.span.clone(),
+                                    span: jump.span.clone_box(),
                                     token: None,
                                 });
                             }
@@ -790,7 +800,7 @@ impl Codegen {
                 tracing::error!(target: "codegen", "INTERNAL ERROR: Duplicate goto_ label for function '{}': {}", macro_def.name, err_msg);
                 return Err(CodegenError {
                     kind: CodegenErrorKind::DuplicateLabelInScope(format!("goto_{}", macro_def.name)),
-                    span: macro_def.span.clone(),
+                    span: macro_def.span.clone_box(),
                     token: None,
                 });
             }
@@ -899,7 +909,7 @@ impl Codegen {
             tracing::error!(target = "codegen", "Failed to fill `__CODECOPY_DYN_ARG` placeholders. Dynamic argument index is invalid.");
             return Err(CodegenError {
                 kind: CodegenErrorKind::InvalidDynArgIndex,
-                span: AstSpan(vec![Span { start: 0, end: 0, file: None }]),
+                span: AstSpan(vec![Span { start: 0, end: 0, file: None }]).boxed(),
                 token: None,
             });
         }
@@ -966,7 +976,8 @@ impl Codegen {
                     start: 0,
                     end: 0,
                     file: Some(Arc::new(FileSource { path: output, source: None, access: None, dependencies: vec![] })),
-                }]),
+                }])
+                .boxed(),
                 token: None,
             });
         }
@@ -977,7 +988,8 @@ impl Codegen {
                     start: 0,
                     end: 0,
                     file: Some(Arc::new(FileSource { path: output, source: None, access: None, dependencies: vec![] })),
-                }]),
+                }])
+                .boxed(),
                 token: None,
             });
         }

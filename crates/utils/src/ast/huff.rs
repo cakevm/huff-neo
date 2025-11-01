@@ -5,7 +5,7 @@ use crate::{
     bytes_util::*,
     error::{CodegenError, CodegenErrorKind},
     evm_version::EVMVersion,
-    opcodes::Opcode,
+    opcodes::{OPCODES_MAP, Opcode},
     prelude::{MacroArg::Ident, Span, TokenKind},
 };
 use alloy_primitives::U256;
@@ -355,6 +355,98 @@ impl Contract {
         }
     }
 
+    /// Validate that all opcodes used in the contract are compatible with the target EVM version
+    pub fn validate_opcodes(&self, evm_version: &EVMVersion) -> Result<(), CodegenError> {
+        for macro_def in self.macros.values() {
+            Self::validate_statements_opcodes(&macro_def.statements, evm_version)?;
+        }
+
+        for table in &self.tables {
+            Self::validate_statements_opcodes(&table.statements, evm_version)?;
+        }
+
+        Ok(())
+    }
+
+    /// Helper function to recursively validate opcodes in a list of statements
+    fn validate_statements_opcodes(statements: &[Statement], evm_version: &EVMVersion) -> Result<(), CodegenError> {
+        for statement in statements {
+            match &statement.ty {
+                StatementType::Opcode(opcode) => {
+                    if let Some(required_version) = opcode.requires_evm_version()
+                        && evm_version.version() < &required_version
+                    {
+                        return Err(CodegenError {
+                            kind: CodegenErrorKind::InvalidOpcodeForEVMVersion(
+                                opcode.as_ref().to_string(),
+                                required_version.to_string(),
+                                evm_version.to_string(),
+                            ),
+                            span: statement.span.clone_box(),
+                            token: Some(TokenKind::Opcode(*opcode)),
+                        });
+                    }
+                }
+                StatementType::Label(label) => {
+                    // Recursively validate statements inside labels
+                    Self::validate_statements_opcodes(&label.inner, evm_version)?;
+                }
+                StatementType::MacroInvocation(invocation) => {
+                    // Validate opcodes passed as arguments to the macro
+                    Self::validate_macro_invocation_args(&invocation.args, evm_version, &statement.span)?;
+                }
+                StatementType::ArgMacroInvocation(_, _, args) => {
+                    // Validate opcodes passed as arguments to the arg macro invocation
+                    Self::validate_macro_invocation_args(args, evm_version, &statement.span)?;
+                }
+                _ => {
+                    // Other statement types don't contain opcodes we need to validate
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Helper function to validate opcodes passed as macro invocation arguments
+    fn validate_macro_invocation_args(args: &[MacroArg], evm_version: &EVMVersion, invocation_span: &AstSpan) -> Result<(), CodegenError> {
+        for arg in args {
+            match arg {
+                MacroArg::Ident(name) => {
+                    // Check if this identifier is an opcode name
+                    if let Some(&opcode) = OPCODES_MAP.get(name.as_str()) {
+                        // Validate the opcode against the EVM version
+                        if let Some(required_version) = opcode.requires_evm_version()
+                            && evm_version.version() < &required_version
+                        {
+                            return Err(CodegenError {
+                                kind: CodegenErrorKind::InvalidOpcodeForEVMVersion(
+                                    opcode.as_ref().to_string(),
+                                    required_version.to_string(),
+                                    evm_version.to_string(),
+                                ),
+                                span: invocation_span.clone_box(),
+                                token: Some(TokenKind::Opcode(opcode)),
+                            });
+                        }
+                    }
+                }
+                MacroArg::MacroCall(invocation) => {
+                    // Recursively validate nested macro invocations
+                    Self::validate_macro_invocation_args(&invocation.args, evm_version, &invocation.span)?;
+                }
+                MacroArg::ArgCallMacroInvocation(_, nested_args) => {
+                    // Recursively validate arg call macro invocations
+                    // Note: We use the parent invocation span since arg calls don't have their own span
+                    Self::validate_macro_invocation_args(nested_args, evm_version, invocation_span)?;
+                }
+                _ => {
+                    // Literals and ArgCalls don't need validation
+                }
+            }
+        }
+        Ok(())
+    }
+
     /// Recursively evaluates arithmetic expressions in constant definitions at compile time.
     /// This supports binary operations (+, -, *, /, %), unary negation, literals, constant references,
     /// and parenthesized expressions with proper operator precedence and overflow/underflow checking.
@@ -372,7 +464,7 @@ impl Contract {
                     let constants = self.constants.lock().unwrap();
                     let const_def = constants.iter().find(|c| c.name == *name).ok_or_else(|| CodegenError {
                         kind: CodegenErrorKind::UndefinedConstant(name.clone()),
-                        span: span.clone(),
+                        span: span.clone_box(),
                         token: None,
                     })?;
                     const_def.value.clone()
@@ -392,7 +484,7 @@ impl Contract {
                         // Storage pointers are already resolved literals
                         Ok(*lit)
                     }
-                    _ => Err(CodegenError { kind: CodegenErrorKind::InvalidConstantExpression, span: span.clone(), token: None }),
+                    _ => Err(CodegenError { kind: CodegenErrorKind::InvalidConstantExpression, span: span.clone_box(), token: None }),
                 }
             }
 
@@ -409,28 +501,28 @@ impl Contract {
                 let result = match op {
                     BinaryOp::Add => l.checked_add(r).ok_or_else(|| CodegenError {
                         kind: CodegenErrorKind::ArithmeticOverflow,
-                        span: span.clone(),
+                        span: span.clone_box(),
                         token: None,
                     })?,
                     BinaryOp::Sub => l.checked_sub(r).ok_or_else(|| CodegenError {
                         kind: CodegenErrorKind::ArithmeticUnderflow,
-                        span: span.clone(),
+                        span: span.clone_box(),
                         token: None,
                     })?,
                     BinaryOp::Mul => l.checked_mul(r).ok_or_else(|| CodegenError {
                         kind: CodegenErrorKind::ArithmeticOverflow,
-                        span: span.clone(),
+                        span: span.clone_box(),
                         token: None,
                     })?,
                     BinaryOp::Div => {
                         if r.is_zero() {
-                            return Err(CodegenError { kind: CodegenErrorKind::DivisionByZero, span: span.clone(), token: None });
+                            return Err(CodegenError { kind: CodegenErrorKind::DivisionByZero, span: span.clone_box(), token: None });
                         }
                         l / r
                     }
                     BinaryOp::Mod => {
                         if r.is_zero() {
-                            return Err(CodegenError { kind: CodegenErrorKind::DivisionByZero, span: span.clone(), token: None });
+                            return Err(CodegenError { kind: CodegenErrorKind::DivisionByZero, span: span.clone_box(), token: None });
                         }
                         l % r
                     }
@@ -670,16 +762,28 @@ pub struct MacroInvocation {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum MacroArg {
     /// Macro Literal Argument
+    ///
+    /// Example: `MACRO(0x04)`, `MACRO(0x420)`
     Literal(Literal),
     /// Macro Iden String Argument
+    ///
+    /// Example: `MACRO(my_label)`, `MACRO(SOME_CONSTANT)`
     Ident(String),
     /// An Arg Call
+    ///
+    /// Passing through an argument from outer macro. Example: `INNER(<value>)`
     ArgCall(ArgCall),
-    /// An Arg Call that is invoked as a macro: `<arg>()`
+    /// An Arg Call that is invoked as a macro
+    ///
+    /// First-class macro invocation. Example: `APPLY(<operation>())`
     ArgCallMacroInvocation(String, Vec<MacroArg>),
     /// A Nested Macro Call
+    ///
+    /// Example: `OUTER(INNER())`, `TRANSFER(CALCULATE_AMOUNT())`
     MacroCall(MacroInvocation),
     /// Opcode Argument
+    ///
+    /// Example: `APPLY_OP(add)`, `USE_TWO_OPS(tload, clz)`
     Opcode(Opcode),
 }
 
@@ -969,26 +1073,48 @@ pub struct Statement {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum StatementType {
     /// A Literal Statement
+    ///
+    /// Example: `0x04`, `0x420`
     Literal(Literal),
     /// An Opcode Statement
+    ///
+    /// Example: `add`, `mstore`, `calldataload`
     Opcode(Opcode),
     /// A Code Statement
+    ///
+    /// Raw bytecode string
     Code(String),
     /// A Macro Invocation Statement
+    ///
+    /// Example: `TRANSFER()`, `ONLY_OWNER()`
     MacroInvocation(MacroInvocation),
     /// A Constant Push
+    ///
+    /// Example: `[BALANCE_LOCATION]`, `[MAX_SUPPLY]`
     Constant(String),
     /// An Arg Call
+    ///
+    /// Referencing a macro parameter. Example: `<amount>`, `<recipient>`
+    ///
     /// Macro name and argument name
     ArgCall(String, String),
     /// A Macro Invocation through Argument
+    ///
+    /// Calling a macro passed as an argument. Example: `<operation>()`
+    ///
     /// Parent macro name, argument name, and arguments for the invoked macro
     ArgMacroInvocation(String, String, Vec<MacroArg>),
     /// A Label
+    ///
+    /// Jump destination definition. Example: `success:`, `error:`
     Label(Label),
     /// A Label Reference/Call
+    ///
+    /// Reference to jump to a label. Example: `success`, `error`
     LabelCall(String),
     /// A built-in function call
+    ///
+    /// Example: `__FUNC_SIG(transfer)`, `__EVENT_HASH(Transfer)`
     BuiltinFunctionCall(BuiltinFunctionCall),
 }
 

@@ -55,6 +55,16 @@ impl AstSpan {
     pub fn inner_ref(&self) -> &Vec<Span> {
         &self.0
     }
+
+    /// Box self
+    pub fn boxed(self) -> Box<Self> {
+        Box::new(self)
+    }
+
+    /// Clone into a boxed version
+    pub fn clone_box(&self) -> Box<Self> {
+        Box::new(self.clone())
+    }
 }
 
 /// Allows AstSpan to be indexed into

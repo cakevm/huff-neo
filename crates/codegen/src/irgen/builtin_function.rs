@@ -51,7 +51,7 @@ pub fn builtin_function_gen<'a>(
             let BuiltinFunctionArg::Argument(ref first_arg) = bf.args[0] else {
                 return Err(CodegenError {
                     kind: CodegenErrorKind::InvalidArguments(String::from("Incorrect arguments type passed to __tablestart")),
-                    span: bf.span.clone(),
+                    span: bf.span.clone_box(),
                     token: None,
                 });
             };
@@ -87,7 +87,7 @@ pub fn builtin_function_gen<'a>(
                 );
                 return Err(CodegenError {
                     kind: CodegenErrorKind::InvalidMacroInvocation(first_arg.name.as_ref().unwrap().to_string()),
-                    span: bf.span.clone(),
+                    span: bf.span.clone_box(),
                     token: None,
                 });
             }
@@ -118,7 +118,7 @@ pub fn builtin_function_gen<'a>(
         BuiltinFunctionKind::LeftPad => {
             return Err(CodegenError {
                 kind: CodegenErrorKind::InvalidArguments(String::from("LeftPad is not supported in a function or macro")),
-                span: bf.span.clone(),
+                span: bf.span.clone_box(),
                 token: None,
             });
         }
@@ -134,7 +134,7 @@ pub fn builtin_function_gen<'a>(
                         "Incorrect number of arguments passed to __CODECOPY_DYN_ARG, should be 2: {}",
                         bf.args.len()
                     )),
-                    span: bf.span.clone(),
+                    span: bf.span.clone_box(),
                     token: None,
                 });
             }
@@ -142,14 +142,14 @@ pub fn builtin_function_gen<'a>(
             let BuiltinFunctionArg::Argument(ref first_arg) = bf.args[0] else {
                 return Err(CodegenError {
                     kind: CodegenErrorKind::InvalidArguments(String::from("Incorrect arguments type passed to __CODECOPY_DYN_ARG")),
-                    span: bf.span.clone(),
+                    span: bf.span.clone_box(),
                     token: None,
                 });
             };
             let BuiltinFunctionArg::Argument(ref second_arg) = bf.args[1] else {
                 return Err(CodegenError {
                     kind: CodegenErrorKind::InvalidArguments(String::from("Incorrect arguments type passed to __CODECOPY_DYN_ARG")),
-                    span: bf.span.clone(),
+                    span: bf.span.clone_box(),
                     token: None,
                 });
             };
@@ -168,7 +168,7 @@ pub fn builtin_function_gen<'a>(
                     kind: CodegenErrorKind::InvalidArguments(String::from(
                         "Incorrect number of bytes in argument passed to __CODECOPY_DYN_ARG. Should be (1 byte, <= 2 bytes)",
                     )),
-                    span: bf.span.clone(),
+                    span: bf.span.clone_box(),
                     token: None,
                 });
             }
@@ -197,7 +197,7 @@ pub fn builtin_function_gen<'a>(
                         "Incorrect number of arguments passed to __VERBATIM, should be 1: {}",
                         bf.args.len()
                     )),
-                    span: bf.span.clone(),
+                    span: bf.span.clone_box(),
                     token: None,
                 });
             }
@@ -205,7 +205,7 @@ pub fn builtin_function_gen<'a>(
             let BuiltinFunctionArg::Argument(ref first_arg) = bf.args[0] else {
                 return Err(CodegenError {
                     kind: CodegenErrorKind::InvalidArguments(String::from("Incorrect arguments type passed to __VERBATIM")),
-                    span: bf.span.clone(),
+                    span: bf.span.clone_box(),
                     token: None,
                 });
             };
@@ -226,7 +226,7 @@ pub fn builtin_function_gen<'a>(
                 );
                 return Err(CodegenError {
                     kind: CodegenErrorKind::InvalidHex(verbatim_str.to_string()),
-                    span: bf.span.clone(),
+                    span: bf.span.clone_box(),
                     token: None,
                 });
             }
@@ -261,7 +261,7 @@ fn codesize<'a>(
     let BuiltinFunctionArg::Argument(ref first_arg) = bf.args[0] else {
         return Err(CodegenError {
             kind: CodegenErrorKind::InvalidArguments(String::from("Incorrect arguments type passed to __codesize")),
-            span: bf.span.clone(),
+            span: bf.span.clone_box(),
             token: None,
         });
     };
@@ -275,7 +275,7 @@ fn codesize<'a>(
         );
         return Err(CodegenError {
             kind: CodegenErrorKind::MissingMacroDefinition(first_arg.name.as_ref().unwrap().to_string() /* yuck */),
-            span: bf.span.clone(),
+            span: bf.span.clone_box(),
             token: None,
         });
     };
@@ -342,14 +342,14 @@ pub fn error(contract: &Contract, bf: &BuiltinFunctionCall) -> Result<String, Co
                 "Incorrect number of arguments passed to __ERROR, should be 1: {}",
                 bf.args.len()
             )),
-            span: bf.span.clone(),
+            span: bf.span.clone_box(),
             token: None,
         });
     }
     let BuiltinFunctionArg::Argument(ref first_arg) = bf.args[0] else {
         return Err(CodegenError {
             kind: CodegenErrorKind::InvalidArguments(String::from("Incorrect arguments type passed to __ERROR")),
-            span: bf.span.clone(),
+            span: bf.span.clone_box(),
             token: None,
         });
     };
@@ -368,7 +368,7 @@ pub fn error(contract: &Contract, bf: &BuiltinFunctionCall) -> Result<String, Co
         );
         return Err(CodegenError {
             kind: CodegenErrorKind::MissingErrorDefinition(first_arg.name.as_ref().unwrap().to_string()),
-            span: bf.span.clone(),
+            span: bf.span.clone_box(),
             token: None,
         });
     };
@@ -379,7 +379,7 @@ pub fn tablesize(contract: &Contract, bf: &BuiltinFunctionCall) -> Result<(Table
     let BuiltinFunctionArg::Argument(ref first_arg) = bf.args[0] else {
         return Err(CodegenError {
             kind: CodegenErrorKind::InvalidArguments(String::from("Incorrect arguments type passed to __tablesize")),
-            span: bf.span.clone(),
+            span: bf.span.clone_box(),
             token: None,
         });
     };
@@ -393,12 +393,16 @@ pub fn tablesize(contract: &Contract, bf: &BuiltinFunctionCall) -> Result<(Table
         );
         return Err(CodegenError {
             kind: CodegenErrorKind::InvalidMacroInvocation(first_arg.name.as_ref().unwrap().to_string() /* yuck */),
-            span: bf.span.clone(),
+            span: bf.span.clone_box(),
             token: None,
         });
     };
     let Some(table_size) = ir_table.size else {
-        return Err(CodegenError { kind: CodegenErrorKind::MissingTableSize(ir_table.name.clone()), span: bf.span.clone(), token: None });
+        return Err(CodegenError {
+            kind: CodegenErrorKind::MissingTableSize(ir_table.name.clone()),
+            span: bf.span.clone_box(),
+            token: None,
+        });
     };
     let size = bytes32_to_hex_string(&table_size, false);
     let push_bytes = format!("{:02x}{size}", 95 + size.len() / 2);
@@ -417,14 +421,14 @@ pub fn event_hash(contract: &Contract, bf: &BuiltinFunctionCall) -> Result<Strin
                 "Incorrect number of arguments passed to __EVENT_HASH, should be 1: {}",
                 bf.args.len()
             )),
-            span: bf.span.clone(),
+            span: bf.span.clone_box(),
             token: None,
         });
     }
     let BuiltinFunctionArg::Argument(ref first_arg) = bf.args[0] else {
         return Err(CodegenError {
             kind: CodegenErrorKind::InvalidArguments(String::from("Incorrect argument type passed to __EVENT_HASH")),
-            span: bf.span.clone(),
+            span: bf.span.clone_box(),
             token: None,
         });
     };
@@ -442,7 +446,7 @@ pub fn event_hash(contract: &Contract, bf: &BuiltinFunctionCall) -> Result<Strin
         );
         return Err(CodegenError {
             kind: CodegenErrorKind::MissingEventInterface(first_arg.name.as_ref().unwrap().to_string()),
-            span: bf.span.clone(),
+            span: bf.span.clone_box(),
             token: None,
         });
     };
@@ -461,14 +465,14 @@ pub fn function_signature(contract: &Contract, bf: &BuiltinFunctionCall) -> Resu
                 "Incorrect number of arguments passed to __FUNC_SIG, should be 1: {}",
                 bf.args.len()
             )),
-            span: bf.span.clone(),
+            span: bf.span.clone_box(),
             token: None,
         });
     }
     let BuiltinFunctionArg::Argument(ref first_arg) = bf.args[0] else {
         return Err(CodegenError {
             kind: CodegenErrorKind::InvalidArguments(String::from("Incorrect argument type passed to __FUNC_SIG")),
-            span: bf.span.clone(),
+            span: bf.span.clone_box(),
             token: None,
         });
     };
@@ -487,7 +491,7 @@ pub fn function_signature(contract: &Contract, bf: &BuiltinFunctionCall) -> Resu
         );
         return Err(CodegenError {
             kind: CodegenErrorKind::MissingFunctionInterface(first_arg.name.as_ref().unwrap().to_string()),
-            span: bf.span.clone(),
+            span: bf.span.clone_box(),
             token: None,
         });
     };
@@ -522,7 +526,7 @@ pub fn builtin_pad(
                 "Incorrect number of arguments passed to {direction}, should be 1: {}",
                 bf.args.len()
             )),
-            span: bf.span.clone(),
+            span: bf.span.clone_box(),
             token: None,
         });
     }
@@ -542,7 +546,7 @@ pub fn builtin_pad(
                     tracing::error!(target: "codegen", "Invalid function call argument type passed to {direction}");
                     return Err(CodegenError {
                         kind: CodegenErrorKind::InvalidArguments(format!("Invalid argument type passed to {direction}")),
-                        span: bf.span.clone(),
+                        span: bf.span.clone_box(),
                         token: None,
                     });
                 }
@@ -556,7 +560,7 @@ pub fn builtin_pad(
             tracing::error!(target: "codegen", "Invalid argument type passed to {direction}");
             return Err(CodegenError {
                 kind: CodegenErrorKind::InvalidArguments(format!("Invalid argument type passed to {direction}")),
-                span: bf.span.clone(),
+                span: bf.span.clone_box(),
                 token: None,
             });
         }
@@ -576,7 +580,7 @@ pub fn builtin_bytes(evm_version: &EVMVersion, bf: &BuiltinFunctionCall) -> Resu
                 "Incorrect number of arguments passed to __BYTES, should be 1: {}",
                 bf.args.len()
             )),
-            span: bf.span.clone(),
+            span: bf.span.clone_box(),
             token: None,
         });
     }
@@ -586,7 +590,7 @@ pub fn builtin_bytes(evm_version: &EVMVersion, bf: &BuiltinFunctionCall) -> Resu
             tracing::error!(target: "codegen", "Invalid argument type passed to __BYTES");
             return Err(CodegenError {
                 kind: CodegenErrorKind::InvalidArguments(String::from("Invalid argument type passed to __BYTES")),
-                span: bf.span.clone(),
+                span: bf.span.clone_box(),
                 token: None,
             });
         }
@@ -595,7 +599,7 @@ pub fn builtin_bytes(evm_version: &EVMVersion, bf: &BuiltinFunctionCall) -> Resu
     if first_arg.is_empty() {
         return Err(CodegenError {
             kind: CodegenErrorKind::InvalidArguments(String::from("Empty string passed to __BYTES")),
-            span: bf.span.clone(),
+            span: bf.span.clone_box(),
             token: None,
         });
     }
@@ -604,7 +608,7 @@ pub fn builtin_bytes(evm_version: &EVMVersion, bf: &BuiltinFunctionCall) -> Resu
     if bytes.len() > 32 {
         return Err(CodegenError {
             kind: CodegenErrorKind::InvalidArguments(String::from("Encoded bytes length exceeds 32 bytes")),
-            span: bf.span.clone(),
+            span: bf.span.clone_box(),
             token: None,
         });
     }

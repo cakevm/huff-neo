@@ -42,7 +42,7 @@ pub fn statement_gen<'a>(
                 );
                 return Err(CodegenError {
                     kind: CodegenErrorKind::InvalidMacroInvocation(mi.macro_name.clone()),
-                    span: mi.span.clone(),
+                    span: mi.span.clone_box(),
                     token: None,
                 });
             };
@@ -53,7 +53,7 @@ pub fn statement_gen<'a>(
                 tracing::error!(target: "codegen", "MISMATCHED ARGUMENT COUNT FOR {}: {} != {}", ir_macro.name, ir_macro.parameters.len(), mi.args.len());
                 return Err(CodegenError {
                     kind: CodegenErrorKind::InvalidArgumentCount(ir_macro.name.clone(), ir_macro.parameters.len(), mi.args.len()),
-                    span: mi.span.clone(),
+                    span: mi.span.clone_box(),
                     token: None,
                 });
             }
@@ -63,7 +63,7 @@ pub fn statement_gen<'a>(
                 tracing::error!(target: "codegen", "Tests may not be invoked: {}", ir_macro.name);
                 return Err(CodegenError {
                     kind: CodegenErrorKind::TestInvocation(ir_macro.name.clone()),
-                    span: ir_macro.span.clone(),
+                    span: ir_macro.span.clone_box(),
                     token: None,
                 });
             }
@@ -134,7 +134,7 @@ pub fn statement_gen<'a>(
                     );
                     return Err(CodegenError {
                         kind: CodegenErrorKind::CircularMacroInvocation(ir_macro.name.clone()),
-                        span: mi.span.clone(),
+                        span: mi.span.clone_box(),
                         token: None,
                     });
                 }
@@ -149,7 +149,7 @@ pub fn statement_gen<'a>(
                     );
                     return Err(CodegenError {
                         kind: CodegenErrorKind::RecursionDepthExceeded(MAX_RECURSION_DEPTH),
-                        span: mi.span.clone(),
+                        span: mi.span.clone_box(),
                         token: None,
                     });
                 }
@@ -284,7 +284,7 @@ pub fn statement_gen<'a>(
                 tracing::error!(target: "codegen", "DUPLICATE LABEL: {}", err_msg);
                 return Err(CodegenError {
                     kind: CodegenErrorKind::DuplicateLabelInScope(label.name.clone()),
-                    span: s.span.clone(),
+                    span: s.span.clone_box(),
                     token: None,
                 });
             }
@@ -449,7 +449,7 @@ pub fn statement_gen<'a>(
                 tracing::error!(target: "codegen", "Failed to resolve argument '{}' to a macro name", arg_name);
                 return Err(CodegenError {
                     kind: CodegenErrorKind::MissingArgumentDefinition(arg_name.clone()),
-                    span: s.span.clone(),
+                    span: s.span.clone_box(),
                     token: None,
                 });
             }
@@ -457,7 +457,7 @@ pub fn statement_gen<'a>(
         sty => {
             tracing::error!(target: "codegen", "CURRENT MACRO DEF: {}", macro_def.name);
             tracing::error!(target: "codegen", "UNEXPECTED STATEMENT: {:?}", sty);
-            return Err(CodegenError { kind: CodegenErrorKind::InvalidMacroStatement, span: s.span.clone(), token: None });
+            return Err(CodegenError { kind: CodegenErrorKind::InvalidMacroStatement, span: s.span.clone_box(), token: None });
         }
     }
 
