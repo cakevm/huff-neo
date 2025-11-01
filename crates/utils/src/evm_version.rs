@@ -13,22 +13,22 @@ pub enum SupportedEVMVersions {
     Shanghai,
     /// Deneb/Cancun - Introduced TLOAD, TSTORE, MCOPY, BLOBHASH, and BLOBBASEFEE
     ///
-    /// Meta: https://eips.ethereum.org/EIPS/eip-7569
-    /// TLOAD/TSTORE: https://eips.ethereum.org/EIPS/eip-1153
-    /// MCOPY: https://eips.ethereum.org/EIPS/eip-5656
-    /// BLOBHASH: https://eips.ethereum.org/EIPS/eip-4844
-    /// BLOBBASEFEE: https://eips.ethereum.org/EIPS/eip-7516
+    /// Meta: <https://eips.ethereum.org/EIPS/eip-7569>
+    /// TLOAD/TSTORE: <https://eips.ethereum.org/EIPS/eip-1153>
+    /// MCOPY: <https://eips.ethereum.org/EIPS/eip-5656>
+    /// BLOBHASH: <https://eips.ethereum.org/EIPS/eip-4844>
+    /// BLOBBASEFEE: <https://eips.ethereum.org/EIPS/eip-7516>
     Cancun,
     /// Prague/Electra - No new opcodes
     ///
-    /// Meta: https://eips.ethereum.org/EIPS/eip-7600
+    /// Meta: <https://eips.ethereum.org/EIPS/eip-7600>
     #[default]
     Prague,
     /// Fulu/Osaka - Introduced CLZ
     ///
     ///
-    /// Meta: https://eips.ethereum.org/EIPS/eip-7607
-    /// CLZ: https://eips.ethereum.org/EIPS/eip-7939
+    /// Meta: <https://eips.ethereum.org/EIPS/eip-7607>
+    /// CLZ: <https://eips.ethereum.org/EIPS/eip-7939>
     Osaka,
 }
 
