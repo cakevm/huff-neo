@@ -51,6 +51,39 @@ This function allows to insert a string as UTF-8 encoded bytes into the compiled
 }
 ```
 
+### `__ASSERT_PC(<literal>|<constant>)`
+This function is a compile-time assertion that validates the current bytecode position (program counter) matches the expected value. It generates no bytecode - it's purely a compile-time check. If the assertion fails, compilation will stop with an error showing the expected vs actual position.
+
+This is useful for ensuring critical instructions (like jump destinations) are positioned at specific bytecode offsets, which can be important for gas optimization or when interfacing with external systems that expect specific bytecode layouts.
+
+#### Example
+```javascript
+#define macro MAIN() = takes (0) returns (0) {
+    __ASSERT_PC(0x00)    // Assert we're at the start
+    0x01 0x02            // PUSH1 0x01, PUSH1 0x02 = 4 bytes
+    __ASSERT_PC(0x04)    // Assert we're at byte 4
+    target:              // Label at position 0x04 (generates JUMPDEST = 1 byte)
+    __ASSERT_PC(0x05)    // Assert we're at byte 5
+    0x11                 // PUSH1 0x11 = 2 bytes
+    __ASSERT_PC(0x07)    // Assert we're at byte 7
+}
+```
+
+You can also use constants:
+```javascript
+#define constant TARGET_OFFSET = 0x20
+
+#define macro MAIN() = takes (0) returns (0) {
+    // Fill space to reach target offset
+    stop stop stop stop stop stop stop stop  // 8 bytes
+    stop stop stop stop stop stop stop stop  // 8 bytes
+    stop stop stop stop stop stop stop stop  // 8 bytes
+    stop stop stop stop stop stop stop stop  // 8 bytes
+    __ASSERT_PC([TARGET_OFFSET])  // Ensure we're at the expected offset (0x20 = 32 bytes)
+    important_label:             // Label generates JUMPDEST automatically
+}
+```
+
 ## Combining Builtin Functions
 Some builtin functions can be combined with other functions. Possible combinations are:
 - `__RIGHTPAD(__FUNC_SIG("test(address, uint256)"))`

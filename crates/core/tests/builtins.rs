@@ -1,3 +1,4 @@
+use crate::common::{assert_compile_error, compile_to_bytecode};
 use huff_neo_codegen::*;
 use huff_neo_lexer::*;
 use huff_neo_parser::*;
@@ -541,4 +542,224 @@ fn test_bytes_builtin_empty_string_error() {
 
     assert!(codegen_result.is_err());
     assert_eq!(codegen_result.unwrap_err().kind, CodegenErrorKind::InvalidArguments(String::from("Empty string passed to __BYTES")));
+}
+
+mod common;
+
+#[test]
+fn test_assert_pc_success() {
+    let source: &str = r#"
+        #define macro MAIN() = takes(0) returns(0) {
+            __ASSERT_PC(0x00)
+            0x01 0x02       // 4 bytes total (PUSH1 0x01, PUSH1 0x02)
+            __ASSERT_PC(0x04)
+        }
+    "#;
+
+    let bytecode = compile_to_bytecode(source).unwrap();
+    // Expected bytecode: PUSH1 0x01, PUSH1 0x02 = 0x6001 0x6002
+    assert_eq!(bytecode, "60016002");
+}
+
+#[test]
+fn test_assert_pc_with_constant() {
+    let source: &str = r#"
+        #define constant TARGET_PC = 0x04
+        #define macro MAIN() = takes(0) returns(0) {
+            0x01 0x02       // 4 bytes total
+            __ASSERT_PC([TARGET_PC])
+        }
+    "#;
+
+    let bytecode = compile_to_bytecode(source).unwrap();
+    assert_eq!(bytecode, "60016002");
+}
+
+#[test]
+fn test_assert_pc_with_arithmetic_expression() {
+    let source: &str = r#"
+        #define constant BASE = 0x02
+        #define constant OFFSET = 0x02
+        #define constant TARGET_PC = BASE + OFFSET
+        #define macro MAIN() = takes(0) returns(0) {
+            0x01 0x02       // 4 bytes total
+            __ASSERT_PC([TARGET_PC])  // Should evaluate to 0x04
+        }
+    "#;
+
+    let bytecode = compile_to_bytecode(source).unwrap();
+    assert_eq!(bytecode, "60016002");
+}
+
+#[test]
+fn test_assert_pc_failure() {
+    let source: &str = r#"
+        #define macro MAIN() = takes(0) returns(0) {
+            0x01 0x02       // 4 bytes total
+            __ASSERT_PC(0x00)  // Wrong! Should be 0x04
+        }
+    "#;
+
+    assert_compile_error(source, |kind| matches!(kind, CodegenErrorKind::AssertPcFailed(0, 4)));
+}
+
+#[test]
+fn test_assert_pc_complex_positioning() {
+    let source: &str = r#"
+        #define macro MAIN() = takes(0) returns(0) {
+            __ASSERT_PC(0x00)
+            0x01            // PUSH1 0x01 = 2 bytes
+            __ASSERT_PC(0x02)
+            0x02 0x03       // PUSH1 0x02, PUSH1 0x03 = 4 bytes
+            __ASSERT_PC(0x06)
+            jumpdest        // JUMPDEST = 1 byte
+            __ASSERT_PC(0x07)
+        }
+    "#;
+
+    let bytecode = compile_to_bytecode(source).unwrap();
+    // PUSH1 0x01, PUSH1 0x02, PUSH1 0x03, JUMPDEST
+    assert_eq!(bytecode, "6001600260035b");
+}
+
+#[test]
+fn test_assert_pc_with_label() {
+    let source: &str = r#"
+        #define macro MAIN() = takes(0) returns(0) {
+            __ASSERT_PC(0x00)
+            0x01 0x02       // PUSH1 0x01, PUSH1 0x02 = 4 bytes
+            __ASSERT_PC(0x04)
+            target:         // Label generates JUMPDEST = 1 byte (position 4)
+                0x03        // PUSH1 0x03 = 2 bytes (position 5)
+            __ASSERT_PC(0x07)
+        }
+    "#;
+
+    let bytecode = compile_to_bytecode(source).unwrap();
+    // PUSH1 0x01, PUSH1 0x02, JUMPDEST, PUSH1 0x03
+    assert_eq!(bytecode, "600160025b6003");
+}
+
+#[test]
+fn test_assert_pc_with_macro_call() {
+    let source: &str = r#"
+        #define macro HELPER() = takes(0) returns(0) {
+            0x01 0x02       // PUSH1 0x01, PUSH1 0x02 = 4 bytes
+        }
+
+        #define macro MAIN() = takes(0) returns(0) {
+            __ASSERT_PC(0x00)
+            HELPER()        // 4 bytes
+            __ASSERT_PC(0x04)
+            0x03            // PUSH1 0x03 = 2 bytes
+            __ASSERT_PC(0x06)
+        }
+    "#;
+
+    let bytecode = compile_to_bytecode(source).unwrap();
+    // PUSH1 0x01, PUSH1 0x02, PUSH1 0x03
+    assert_eq!(bytecode, "600160026003");
+}
+
+#[test]
+fn test_assert_pc_with_label_and_jump() {
+    let source: &str = r#"
+        #define macro MAIN() = takes(0) returns(0) {
+            __ASSERT_PC(0x00)
+            target jumpi    // PUSH2 target, JUMPI = 4 bytes
+            __ASSERT_PC(0x04)
+            0x01            // PUSH1 0x01 = 2 bytes (position 4-5)
+            __ASSERT_PC(0x06)
+            target:         // Label generates JUMPDEST = 1 byte (position 6)
+                stop        // STOP = 1 byte (position 7)
+            __ASSERT_PC(0x08)
+        }
+    "#;
+
+    let bytecode = compile_to_bytecode(source).unwrap();
+    // PUSH2 0x0006, JUMPI, PUSH1 0x01, JUMPDEST, STOP
+    assert_eq!(bytecode, "6100065760015b00");
+}
+
+#[test]
+fn test_assert_pc_nested_macro_calls() {
+    let source: &str = r#"
+        #define macro INNER() = takes(0) returns(0) {
+            0x01            // PUSH1 0x01 = 2 bytes
+        }
+
+        #define macro MIDDLE() = takes(0) returns(0) {
+            INNER()         // 2 bytes
+            0x02            // PUSH1 0x02 = 2 bytes
+        }
+
+        #define macro MAIN() = takes(0) returns(0) {
+            __ASSERT_PC(0x00)
+            MIDDLE()        // 4 bytes
+            __ASSERT_PC(0x04)
+            0x03            // PUSH1 0x03 = 2 bytes
+            __ASSERT_PC(0x06)
+        }
+    "#;
+
+    let bytecode = compile_to_bytecode(source).unwrap();
+    // PUSH1 0x01, PUSH1 0x02, PUSH1 0x03
+    assert_eq!(bytecode, "600160026003");
+}
+
+#[test]
+fn test_assert_pc_with_multiple_labels() {
+    let source: &str = r#"
+        #define macro MAIN() = takes(0) returns(0) {
+            __ASSERT_PC(0x00)
+            label1:         // Label generates JUMPDEST = 1 byte (position 0)
+                0x01        // PUSH1 0x01 = 2 bytes (position 1-2)
+
+            __ASSERT_PC(0x03)
+            label2:         // Label generates JUMPDEST = 1 byte (position 3)
+                0x02        // PUSH1 0x02 = 2 bytes (position 4-5)
+                __ASSERT_PC(0x06)
+        }
+    "#;
+
+    let bytecode = compile_to_bytecode(source).unwrap();
+    // JUMPDEST, PUSH1 0x01, JUMPDEST, PUSH1 0x02
+    assert_eq!(bytecode, "5b60015b6002");
+}
+
+#[test]
+fn test_assert_pc_with_jump_and_multiple_labels() {
+    let source: &str = r#"
+        #define macro MAIN() = takes(0) returns(0) {
+            __ASSERT_PC(0x00)
+            dup1 case_true jumpi    // DUP1, PUSH2 case_true, JUMPI = 1 + 3 + 1 = 5 bytes (0-4)
+
+            __ASSERT_PC(0x05)
+            case_false:             // JUMPDEST = 1 byte (position 5)
+                0x11                // PUSH1 0x11 = 2 bytes (6-7)
+                end jump            // PUSH2 end, JUMP = 4 bytes (8-11)
+
+            __ASSERT_PC(0x0C)
+            case_true:              // JUMPDEST = 1 byte (position 12)
+                0x22                // PUSH1 0x22 = 2 bytes (13-14)
+
+            __ASSERT_PC(0x0F)
+            end:                    // JUMPDEST = 1 byte (position 15)
+                stop                // STOP = 1 byte (position 16)
+            __ASSERT_PC(0x11)
+        }
+    "#;
+
+    let bytecode = compile_to_bytecode(source).unwrap();
+    // Expected bytecode:
+    // 80 = DUP1
+    // 61 000C 57 = PUSH2 0x000C (case_true), JUMPI
+    // 5B = JUMPDEST (case_false)
+    // 60 11 = PUSH1 0x11
+    // 61 000F 56 = PUSH2 0x000F (end), JUMP
+    // 5B = JUMPDEST (case_true)
+    // 60 22 = PUSH1 0x22
+    // 5B = JUMPDEST (end)
+    // 00 = STOP
+    assert_eq!(bytecode, "8061000c575b601161000f565b60225b00");
 }
