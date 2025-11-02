@@ -24,6 +24,10 @@ pub fn constant_gen(evm_version: &EVMVersion, name: &str, contract: &Contract, i
             let evaluated = contract.evaluate_constant_expression(expr)?;
             literal_gen(evm_version, &evaluated)
         }
+        ConstVal::Noop => {
+            tracing::info!(target: "codegen", "CONSTANT \"{}\" IS __NOOP - GENERATING NO BYTECODE", constant.name);
+            String::new() // Generate no bytecode
+        }
         ConstVal::FreeStoragePointer(fsp) => {
             // If this is reached in codegen stage, the `derive_storage_pointers`
             // method was not called on the AST.

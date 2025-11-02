@@ -252,6 +252,14 @@ impl<'a> Lexer<'a> {
                         found_kind = Some(TokenKind::FreeStoragePointer);
                     }
 
+                    // Check for __NOOP builtin constant
+                    if word == "__NOOP"
+                        && matches!(self.context_stack.top(), &Context::MacroBody | &Context::ForLoopBody | &Context::Constant)
+                    {
+                        debug!(target: "lexer", "FOUND __NOOP");
+                        found_kind = Some(TokenKind::Noop);
+                    }
+
                     if let Some(':') = self.peek() {
                         debug!(target: "lexer", "FOUND LABEL '{:?}'", word);
                         found_kind = Some(TokenKind::Label(word.clone()));

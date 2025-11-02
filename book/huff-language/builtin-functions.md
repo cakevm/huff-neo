@@ -97,3 +97,8 @@ Some builtin functions can be combined with other functions. Possible combinatio
         TEST2()
 }
 ```
+
+## See Also
+
+- **[Constants](./constants.md#free_storage_pointer)** - Documentation for `FREE_STORAGE_POINTER()`, a special compile-time function that allocates unique storage slots
+- **[Builtin Constants](./builtin-constants.md)** - Documentation for built-in constants like `__NOOP`

@@ -318,7 +318,7 @@ impl Contract {
                             let new_value = str_to_bytes32(&format!("{old_p}"));
                             storage_pointers.push((const_name.to_string(), new_value));
                         }
-                        ConstVal::Bytes(_) | ConstVal::BuiltinFunctionCall(_) | ConstVal::Expression(_) => {
+                        ConstVal::Bytes(_) | ConstVal::BuiltinFunctionCall(_) | ConstVal::Expression(_) | ConstVal::Noop => {
                             // Skip constants that are not free storage pointers
                         }
                         // This should never be reached, as we only assign free storage pointers
@@ -789,6 +789,10 @@ pub enum MacroArg {
     ///
     /// Example: `APPLY_OP(add)`, `USE_TWO_OPS(tload, clz)`
     Opcode(Opcode),
+    /// __NOOP builtin constant (generates no bytecode)
+    ///
+    /// Example: `MACRO(__NOOP)`
+    Noop,
 }
 
 /// An argument call
@@ -900,6 +904,8 @@ pub enum ConstVal {
     BuiltinFunctionCall(BuiltinFunctionCall),
     /// An arithmetic expression (evaluated at compile time)
     Expression(Expression),
+    /// __NOOP builtin constant (generates no bytecode)
+    Noop,
 }
 
 /// A Constant Definition
