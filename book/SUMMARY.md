@@ -1,7 +1,7 @@
 # Summary
 - [Getting Started](get-started/getting-started.md)
   - [About Huff](get-started/about-huff.md)
-  - [Comparison to huffc](get-started/comparison-to-huff-rs.md)
+  - [Comparison to huff-rs](get-started/comparison-to-huff-rs.md)
   - [Compile a contract](get-started/compiling.md)
   - [Project Quickstart](get-started/project-quickstart.md)
 - [Huff Language](huff-language/overview.md)
@@ -9,6 +9,7 @@
   - [Builtin Functions](huff-language/builtin-functions.md)
   - [Functions and events](huff-language/functions-and-events.md)
   - [Constants](huff-language/constants.md)
+  - [Compile-Time Loops](huff-language/compile-time-loops.md)
   - [Custom Errors](huff-language/custom-errors.md)
   - [Jump Labels](huff-language/jump-labels.md)
   - [Jump Tables](huff-language/jump-tables.md)

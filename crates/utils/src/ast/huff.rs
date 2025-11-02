@@ -740,6 +740,10 @@ impl MacroDefinition {
                         span: &statement.span,
                     });
                 }
+                StatementType::ForLoop { .. } => {
+                    // ForLoop should have been expanded before bytecode generation
+                    panic!("ForLoop statement reached bytecode generation - loops should be expanded during the pre-codegen pass");
+                }
             }
         }
 
@@ -1116,6 +1120,21 @@ pub enum StatementType {
     ///
     /// Example: `__FUNC_SIG(transfer)`, `__EVENT_HASH(Transfer)`
     BuiltinFunctionCall(BuiltinFunctionCall),
+    /// A compile-time for loop
+    ///
+    /// Example: `for(i in 0..5) { <i> }`
+    ForLoop {
+        /// Loop variable name
+        variable: String,
+        /// Start value (constant expression)
+        start: Expression,
+        /// End value (exclusive, constant expression)
+        end: Expression,
+        /// Optional step value (defaults to 1)
+        step: Option<Expression>,
+        /// Loop body statements
+        body: Vec<Statement>,
+    },
 }
 
 impl Display for StatementType {
@@ -1136,6 +1155,9 @@ impl Display for StatementType {
             StatementType::LabelCall(l) => write!(f, "LABEL CALL: {l}"),
             StatementType::BuiltinFunctionCall(b) => {
                 write!(f, "BUILTIN FUNCTION CALL: {:?}", b.kind)
+            }
+            StatementType::ForLoop { variable, start: _, end: _, step, body } => {
+                write!(f, "FOR LOOP: {} in ... step {:?}, {} statements", variable, step, body.len())
             }
         }
     }

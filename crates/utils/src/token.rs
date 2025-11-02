@@ -136,6 +136,14 @@ pub enum TokenKind {
     Memory,
     /// Storage Data Location
     Storage,
+    /// "for" keyword
+    For,
+    /// "in" keyword
+    In,
+    /// "step" keyword
+    Step,
+    /// ".." range operator
+    DoubleDot,
 }
 
 impl TokenKind {
@@ -224,6 +232,10 @@ impl fmt::Display for TokenKind {
             TokenKind::Calldata => return write!(f, "calldata"),
             TokenKind::Memory => return write!(f, "memory"),
             TokenKind::Storage => return write!(f, "storage"),
+            TokenKind::For => "for",
+            TokenKind::In => "in",
+            TokenKind::Step => "step",
+            TokenKind::DoubleDot => "..",
         };
 
         write!(f, "{x}")

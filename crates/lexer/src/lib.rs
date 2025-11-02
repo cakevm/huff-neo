@@ -258,7 +258,7 @@ impl<'a> Lexer<'a> {
                     }
 
                     // Syntax sugar: true evaluates to 0x01, false evaluates to 0x00
-                    if matches!(self.context_stack.top(), &Context::MacroBody | &Context::Constant)
+                    if matches!(self.context_stack.top(), &Context::MacroBody | &Context::ForLoopBody | &Context::Constant)
                         && !self.checked_lookback(TokenKind::Constant) // allow to use `true` and `false` as identifiers
                         && matches!(word.as_str(), "true" | "false")
                     {
@@ -267,7 +267,27 @@ impl<'a> Lexer<'a> {
                         self.eat_while(None, |c| c.is_alphanumeric());
                     }
 
-                    if self.context_stack.top() == &Context::MacroBody
+                    // Check for loop keywords in MacroBody or ForLoopBody context
+                    if matches!(self.context_stack.top(), &Context::MacroBody | &Context::ForLoopBody) && found_kind.is_none() {
+                        match word.as_str() {
+                            "for" => {
+                                debug!(target: "lexer", "FOUND FOR KEYWORD");
+                                found_kind = Some(TokenKind::For);
+                            }
+                            "in" => {
+                                debug!(target: "lexer", "FOUND IN KEYWORD");
+                                found_kind = Some(TokenKind::In);
+                            }
+                            "step" => {
+                                debug!(target: "lexer", "FOUND STEP KEYWORD");
+                                found_kind = Some(TokenKind::Step);
+                            }
+                            _ => {}
+                        }
+                    }
+
+                    if matches!(self.context_stack.top(), &Context::MacroBody | &Context::ForLoopBody)
+                        && found_kind.is_none()
                         && let Some(o) = OPCODES_MAP.get(&word)
                     {
                         debug!(target: "lexer", "FOUND OPCODE '{:?}'", o);
@@ -301,10 +321,15 @@ impl<'a> Lexer<'a> {
                             debug!(target: "lexer", "PUSH CONTEXT AbiArgs");
                             self.context_stack.push(Context::AbiArgs)
                         }
-                        Context::MacroBody => match self.lookback.as_ref().unwrap().kind {
+                        Context::MacroBody | Context::ForLoopBody => match self.lookback.as_ref().unwrap().kind {
                             TokenKind::BuiltinFunction(_) => {
                                 debug!(target: "lexer", "PUSH CONTEXT BuiltinFunction");
                                 self.context_stack.push(Context::BuiltinFunction)
+                            }
+                            TokenKind::For => {
+                                // Don't push MacroArgs context for `for(...)` - keep current context
+                                // so that loop keywords like `in` and `step` are recognized
+                                debug!(target: "lexer", "KEEP CONTEXT for 'for' loop");
                             }
                             _ => {
                                 debug!(target: "lexer", "PUSH CONTEXT MacroArgs");
@@ -330,6 +355,12 @@ impl<'a> Lexer<'a> {
                 '[' => self.single_char_token(TokenKind::OpenBracket),
                 ']' => self.single_char_token(TokenKind::CloseBracket),
                 '{' => {
+                    // Push ForLoopBody context in MacroBody or ForLoopBody context for nested braces
+                    if matches!(self.context_stack.top(), &Context::MacroBody | &Context::ForLoopBody) {
+                        debug!(target: "lexer", "PUSH CONTEXT ForLoopBody");
+                        self.context_stack.push(Context::ForLoopBody);
+                    }
+
                     if self.context_stack.top() == &Context::MacroDefinition {
                         // New stack: Global -> MacroBody
                         debug!(target: "lexer", "REPLACE CONTEXT MacroDefinition to MacroBody");
@@ -338,8 +369,8 @@ impl<'a> Lexer<'a> {
                     self.single_char_token(TokenKind::OpenBrace)
                 }
                 '}' => {
-                    if matches!(self.context_stack.top(), &Context::CodeTableBody | &Context::MacroBody) {
-                        debug!(target: "lexer", "POP CONTEXT MacroBody OR CodeTableBody");
+                    if matches!(self.context_stack.top(), &Context::ForLoopBody | &Context::MacroBody | &Context::CodeTableBody) {
+                        debug!(target: "lexer", "POP CONTEXT {:?}", self.context_stack.top());
                         self.context_stack.pop(1).map_err(|_| {
                             LexicalError::new(
                                 LexicalErrorKind::StackUnderflow,
@@ -357,6 +388,21 @@ impl<'a> Lexer<'a> {
                 '>' => self.single_char_token(TokenKind::RightAngle),
                 // NOTE: TokenKind::Div is lexed further up since it overlaps with comment
                 ':' => self.single_char_token(TokenKind::Colon),
+                '.' => {
+                    // Check if next char is also '.' for DoubleDot (..)
+                    if self.peek() == Some('.') {
+                        self.consume(); // consume the second '.'
+                        Ok(TokenKind::DoubleDot
+                            .into_token_with_span(self.source.relative_span_by_pos(self.position - 1, self.position + 1)))
+                    } else {
+                        // Single dot is not supported
+                        error!(target: "lexer", "UNSUPPORTED TOKEN '.'");
+                        return Err(LexicalError::new(
+                            LexicalErrorKind::InvalidCharacter('.'),
+                            self.source.relative_span_by_pos(self.position, self.position),
+                        ));
+                    }
+                }
                 // identifiers
                 ',' => self.single_char_token(TokenKind::Comma),
                 '0'..='9' => self.eat_digit(ch),

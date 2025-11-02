@@ -238,6 +238,10 @@ pub enum CodegenErrorKind {
     DivisionByZero,
     /// Invalid opcode for EVM version (opcode, required_version, current_version)
     InvalidOpcodeForEVMVersion(String, String, String),
+    /// Invalid loop step value (step cannot be zero)
+    InvalidLoopStep,
+    /// Loop iteration limit exceeded (contains max limit)
+    LoopIterationLimitExceeded(usize),
 }
 
 impl Spanned for CodegenError {
@@ -350,6 +354,12 @@ impl<W: Write> Report<W> for CodegenError {
                     "Opcode '{}' requires EVM version '{}' or later (current version: '{}')",
                     opcode, required_version, current_version
                 )
+            }
+            CodegenErrorKind::InvalidLoopStep => {
+                write!(f.out, "Invalid loop step: step value cannot be zero")
+            }
+            CodegenErrorKind::LoopIterationLimitExceeded(max) => {
+                write!(f.out, "Loop iteration limit exceeded: maximum {} iterations allowed at compile-time", max)
             }
         }
     }
@@ -678,6 +688,17 @@ impl fmt::Display for CompilerError {
                         opcode,
                         required_version,
                         current_version,
+                        ce.span.error(None)
+                    )
+                }
+                CodegenErrorKind::InvalidLoopStep => {
+                    write!(f, "\nError: Invalid loop step: step value cannot be zero\n{}\n", ce.span.error(None))
+                }
+                CodegenErrorKind::LoopIterationLimitExceeded(max) => {
+                    write!(
+                        f,
+                        "\nError: Loop iteration limit exceeded\nMaximum {} iterations allowed at compile-time\n{}\n",
+                        max,
                         ce.span.error(None)
                     )
                 }

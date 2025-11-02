@@ -21,4 +21,6 @@ pub enum Context {
     CodeTableBody,
     /// Built-in function context
     BuiltinFunction,
+    /// For loop body context
+    ForLoopBody,
 }

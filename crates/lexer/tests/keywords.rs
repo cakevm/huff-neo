@@ -669,3 +669,203 @@ fn parses_takes_keyword_arbitrary_whitespace() {
     // We covered the whole source
     assert!(lexer.eof);
 }
+
+#[test]
+fn parses_for_loop_keywords() {
+    let source = "#define macro TEST() = takes(0) returns(0) { for(i in 0..5 step 2) { } }";
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let mut lexer = Lexer::new(flattened_source);
+
+    let _ = lexer.next(); // #define
+    let _ = lexer.next(); // whitespace
+    let _ = lexer.next(); // macro
+    let _ = lexer.next(); // whitespace
+    let _ = lexer.next(); // TEST
+    let _ = lexer.next(); // open parenthesis
+    let _ = lexer.next(); // close parenthesis
+    let _ = lexer.next(); // whitespace
+    let _ = lexer.next(); // =
+    let _ = lexer.next(); // whitespace
+    let _ = lexer.next(); // takes
+    let _ = lexer.next(); // open parenthesis
+    let _ = lexer.next(); // 0
+    let _ = lexer.next(); // close parenthesis
+    let _ = lexer.next(); // whitespace
+    let _ = lexer.next(); // returns
+    let _ = lexer.next(); // open parenthesis
+    let _ = lexer.next(); // 0
+    let _ = lexer.next(); // close parenthesis
+    let _ = lexer.next(); // whitespace
+    let _ = lexer.next(); // {
+
+    let _ = lexer.next(); // whitespace
+
+    // Lex 'for' keyword
+    let tok = lexer.next();
+    let unwrapped = tok.unwrap().unwrap();
+    let for_span = Span::new(45..48, None);
+    assert_eq!(unwrapped, Token::new(TokenKind::For, for_span));
+
+    let _ = lexer.next(); // open parenthesis
+    let _ = lexer.next(); // i (identifier)
+
+    let _ = lexer.next(); // whitespace
+
+    // Lex 'in' keyword
+    let tok = lexer.next();
+    let unwrapped = tok.unwrap().unwrap();
+    let in_span = Span::new(51..53, None);
+    assert_eq!(unwrapped, Token::new(TokenKind::In, in_span));
+
+    let _ = lexer.next(); // whitespace
+    let _ = lexer.next(); // 0
+
+    // Lex '..' (DoubleDot) - no whitespace between 0 and ..
+    let tok = lexer.next();
+    let unwrapped = tok.unwrap().unwrap();
+    let doubledot_span = Span::new(55..57, None);
+    assert_eq!(unwrapped, Token::new(TokenKind::DoubleDot, doubledot_span));
+
+    let _ = lexer.next(); // 5
+
+    let _ = lexer.next(); // whitespace
+
+    // Lex 'step' keyword
+    let tok = lexer.next();
+    let unwrapped = tok.unwrap().unwrap();
+    let step_span = Span::new(59..63, None);
+    assert_eq!(unwrapped, Token::new(TokenKind::Step, step_span));
+
+    let _ = lexer.next(); // whitespace
+    let _ = lexer.next(); // 2
+    let _ = lexer.next(); // close parenthesis
+    let _ = lexer.next(); // whitespace
+    let _ = lexer.next(); // {
+    let _ = lexer.next(); // whitespace
+    let _ = lexer.next(); // }
+    let _ = lexer.next(); // whitespace
+    let _ = lexer.next(); // }
+    let _ = lexer.next(); // eof
+
+    // We covered the whole source
+    assert!(lexer.eof);
+}
+
+#[test]
+fn parses_for_keyword_in_macro_body() {
+    let source = "#define macro TEST() = takes(0) returns(0) { for(i in 0..3) { <i> } }";
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let mut lexer = Lexer::new(flattened_source);
+
+    let _ = lexer.next(); // #define
+    let _ = lexer.next(); // whitespace
+    let _ = lexer.next(); // macro
+    let _ = lexer.next(); // whitespace
+    let _ = lexer.next(); // TEST
+    let _ = lexer.next(); // open parenthesis
+    let _ = lexer.next(); // close parenthesis
+    let _ = lexer.next(); // whitespace
+    let _ = lexer.next(); // =
+    let _ = lexer.next(); // whitespace
+    let _ = lexer.next(); // takes
+    let _ = lexer.next(); // open parenthesis
+    let _ = lexer.next(); // 0
+    let _ = lexer.next(); // close parenthesis
+    let _ = lexer.next(); // whitespace
+    let _ = lexer.next(); // returns
+    let _ = lexer.next(); // open parenthesis
+    let _ = lexer.next(); // 0
+    let _ = lexer.next(); // close parenthesis
+    let _ = lexer.next(); // whitespace
+    let _ = lexer.next(); // {
+    let _ = lexer.next(); // whitespace
+
+    // Lex 'for' keyword - should be parsed as TokenKind::For inside macro body
+    let tok = lexer.next();
+    let unwrapped = tok.unwrap().unwrap();
+    assert_eq!(unwrapped.kind, TokenKind::For);
+
+    let _ = lexer.next(); // open parenthesis
+    let _ = lexer.next(); // i (identifier)
+    let _ = lexer.next(); // whitespace
+
+    // Lex 'in' keyword - should be parsed as TokenKind::In inside macro body
+    let tok = lexer.next();
+    let unwrapped = tok.unwrap().unwrap();
+    assert_eq!(unwrapped.kind, TokenKind::In);
+
+    // Continue parsing the rest
+    let _ = lexer.next(); // whitespace
+    let _ = lexer.next(); // 0
+    let _ = lexer.next(); // whitespace
+    let _ = lexer.next(); // ..
+    let _ = lexer.next(); // 3
+    let _ = lexer.next(); // close parenthesis
+    let _ = lexer.next(); // whitespace
+    let _ = lexer.next(); // {
+    let _ = lexer.next(); // whitespace
+    let _ = lexer.next(); // <
+    let _ = lexer.next(); // i
+    let _ = lexer.next(); // >
+    let _ = lexer.next(); // whitespace
+    let _ = lexer.next(); // }
+    let _ = lexer.next(); // whitespace
+    let _ = lexer.next(); // }
+    let _ = lexer.next(); // eof
+
+    assert!(lexer.eof);
+}
+
+#[test]
+fn parses_doubledot_operator() {
+    let source = "0..10";
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let mut lexer = Lexer::new(flattened_source);
+
+    // Lex 0
+    let tok = lexer.next();
+    let unwrapped = tok.unwrap().unwrap();
+    let num_span = Span::new(0..1, None);
+    assert_eq!(unwrapped, Token::new(TokenKind::Num(0), num_span));
+
+    // Lex '..'
+    let tok = lexer.next();
+    let unwrapped = tok.unwrap().unwrap();
+    let doubledot_span = Span::new(1..3, None);
+    assert_eq!(unwrapped, Token::new(TokenKind::DoubleDot, doubledot_span));
+
+    // Lex 10
+    let tok = lexer.next();
+    let unwrapped = tok.unwrap().unwrap();
+    let num_span = Span::new(3..5, None);
+    assert_eq!(unwrapped, Token::new(TokenKind::Num(10), num_span));
+
+    let _ = lexer.next(); // eof
+    assert!(lexer.eof);
+}
+
+#[test]
+fn for_keywords_not_lexed_outside_macro_body() {
+    // Keywords 'for', 'in', and 'step' should only be recognized in MacroBody context
+    let source = "#define constant FOR = 0x01";
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let mut lexer = Lexer::new(flattened_source);
+
+    let _ = lexer.next(); // #define
+    let _ = lexer.next(); // whitespace
+    let _ = lexer.next(); // constant
+    let _ = lexer.next(); // whitespace
+
+    // 'FOR' should be lexed as an identifier, not a keyword, outside macro body
+    let tok = lexer.next();
+    let unwrapped = tok.unwrap().unwrap();
+    assert_eq!(unwrapped.kind, TokenKind::Ident("FOR".to_string()));
+
+    let _ = lexer.next(); // whitespace
+    let _ = lexer.next(); // =
+    let _ = lexer.next(); // whitespace
+    let _ = lexer.next(); // 0x01
+    let _ = lexer.next(); // eof
+
+    assert!(lexer.eof);
+}
