@@ -38,17 +38,56 @@ Constants can use arithmetic expressions evaluated at compile time.
 
 Supported operators: `+`, `-`, `*`, `/`, `%` (binary), `-` (unary). Parentheses `()` for grouping. See the [Constants](../huff-language/constants.md#arithmetic-expressions) documentation for details.
 
-### New built-in functions
-There are new built-in functions available in `huff-neo`.
+### New builtin constant: `__NOOP`
+A special constant that generates no bytecode, useful for optional macro arguments and conditional compilation patterns.
 
-- `__LEFTPAD` - Left pads a hex input or the result of a passed built-in in a code table.
+```javascript
+// Macro with optional operation
+#define macro EXECUTE_OPTIONAL(op) = takes(0) returns(0) {
+    <op>          // Can be __NOOP to skip this operation
+    0x01 0x02 add
+}
+
+// With operation
+EXECUTE_OPTIONAL(pop)  // Generates: pop, push 0x01, push 0x02, add
+
+// Without operation (generates no extra bytecode)
+EXECUTE_OPTIONAL(__NOOP)  // Generates: push 0x01, push 0x02, add
+```
+
+See the [Builtin Constants](../huff-language/builtin-constants.md) documentation for details.
+
+### New builtin functions
+There are new builtin functions available in `huff-neo`.
+
+- `__LEFTPAD` - Left pads a hex input or the result of a passed builtin in a code table.
 - `__BYTES` - Converts a string to the UTF-8 representation bytes and pushes it to the stack.
+- `__ASSERT_PC` - Validates bytecode position at compile-time to ensure instructions are at expected offsets.
+
+#### `__BYTES()` example
 
 ```javascript
 #define macro MAIN() = takes (0) returns (0) {
     __BYTES("hello") // Will push UTF-8 encoded string (PUSH5 0x68656c6c6f)
 }
 ```
+
+#### `__ASSERT_PC()` example
+
+Validates that bytecode is positioned at expected offsets, useful for ensuring jump destinations align correctly.
+
+```javascript
+#define constant TARGET_OFFSET = 0x20
+
+#define macro MAIN() = takes(0) returns(0) {
+    __ASSERT_PC(0x00)           // Assert we're at the start
+    // ... 32 bytes of code ...
+    __ASSERT_PC([TARGET_OFFSET]) // Assert we're at byte 32
+    target:                      // Label for jump destination
+}
+```
+
+See the [Builtin Functions](../huff-language/builtin-functions.md) documentation for complete details.
 
 ### First-class macros
 Macros can now be passed as arguments to other macros and invoked dynamically, making code more reusable and flexible.
