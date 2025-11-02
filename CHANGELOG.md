@@ -4,6 +4,13 @@
 
 ## Unreleased
 
+## [1.5.0] - 2025-11-02
+- **Breaking**: Bracket notation `[CONSTANT_NAME]` is now required for referencing constants in arithmetic expressions and for-loop bounds (fixes #115).
+  - Example: `#define constant RESULT = [A] + [B]` (was: `A + B`)
+  - This follow the Huff language convention for constant values using brackets.
+  - Applies to: constant definitions with arithmetic expressions, for-loop bounds (`for(i in [START]..[END])`), and for-loop step values.
+  - Migration: Update code from `for(i in START..END)` to `for(i in [START]..[END])` and arithmetic expressions from `A + B` to `[A] + [B]`.
+
 ## [1.4.0] - 2025-11-02
 - Add compile-time for-loops that expand during compilation.
   - Syntax: `for(variable in start..end) { body }` or `for(variable in start..end step N) { body }`

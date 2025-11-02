@@ -580,7 +580,7 @@ fn test_assert_pc_with_arithmetic_expression() {
     let source: &str = r#"
         #define constant BASE = 0x02
         #define constant OFFSET = 0x02
-        #define constant TARGET_PC = BASE + OFFSET
+        #define constant TARGET_PC = [BASE] + [OFFSET]
         #define macro MAIN() = takes(0) returns(0) {
             0x01 0x02       // 4 bytes total
             __ASSERT_PC([TARGET_PC])  // Should evaluate to 0x04

@@ -400,7 +400,7 @@ impl Parser {
                 ConstVal::Bytes(Bytes(hex_str))
             }
             // Handle arithmetic expressions (including hex literals that are part of expressions)
-            TokenKind::Literal(_) | TokenKind::Bytes(_) | TokenKind::OpenParen | TokenKind::Sub | TokenKind::Ident(_) => {
+            TokenKind::Literal(_) | TokenKind::Bytes(_) | TokenKind::OpenParen | TokenKind::Sub | TokenKind::OpenBracket => {
                 let expr = self.parse_constant_expression()?;
                 ConstVal::Expression(expr)
             }
@@ -1922,7 +1922,7 @@ impl Parser {
         }
     }
 
-    /// Parse primary expressions: literals, constants, and parenthesized expressions.
+    /// Parse primary expressions: literals, bracketed constants, and parenthesized expressions.
     fn parse_primary_expression(&mut self) -> Result<Expression, ParserError> {
         match self.current_token.kind.clone() {
             TokenKind::Literal(lit) => {
@@ -1953,14 +1953,14 @@ impl Parser {
                 let span = AstSpan(vec![start_span, end_span]);
                 Ok(Expression::Grouped { expr: Box::new(expr), span })
             }
-            TokenKind::Ident(name) => {
-                let span = AstSpan(vec![self.current_token.span.clone()]);
-                self.consume();
-                Ok(Expression::Constant { name, span })
+            TokenKind::OpenBracket => {
+                // Support [CONSTANT_NAME] syntax in expressions
+                let (name, full_span) = self.parse_constant_push()?;
+                Ok(Expression::Constant { name, span: AstSpan(vec![full_span]) })
             }
             _ => Err(ParserError {
                 kind: ParserErrorKind::InvalidExpression(self.current_token.kind.clone()),
-                hint: Some("Expected literal, constant name, or '('".to_string()),
+                hint: Some("Expected literal, bracketed constant [NAME], or '('".to_string()),
                 spans: AstSpan(vec![self.current_token.span.clone()]),
                 cursor: self.cursor,
             }),

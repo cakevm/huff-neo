@@ -84,7 +84,7 @@ fn test_for_loop_with_step() {
 
 #[test]
 fn test_for_loop_with_constants() {
-    let source = "#define macro TEST() = takes(0) returns(0) { for(i in START..END) { } }";
+    let source = "#define macro TEST() = takes(0) returns(0) { for(i in [START]..[END]) { } }";
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
     let lexer = Lexer::new(flattened_source);
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
@@ -98,8 +98,8 @@ fn test_for_loop_with_constants() {
     let expected_statement = Statement {
         ty: StatementType::ForLoop {
             variable: "i".to_string(),
-            start: Expression::Constant { name: "START".to_string(), span: AstSpan(vec![Span { start: 54, end: 59, file: None }]) },
-            end: Expression::Constant { name: "END".to_string(), span: AstSpan(vec![Span { start: 61, end: 64, file: None }]) },
+            start: Expression::Constant { name: "START".to_string(), span: AstSpan(vec![Span { start: 54, end: 61, file: None }]) },
+            end: Expression::Constant { name: "END".to_string(), span: AstSpan(vec![Span { start: 63, end: 68, file: None }]) },
             step: None,
             body: vec![],
         },
@@ -108,12 +108,12 @@ fn test_for_loop_with_constants() {
             Span { start: 48, end: 49, file: None }, // "("
             Span { start: 49, end: 50, file: None }, // "i"
             Span { start: 51, end: 53, file: None }, // "in"
-            Span { start: 54, end: 59, file: None }, // "START"
-            Span { start: 59, end: 61, file: None }, // ".."
-            Span { start: 61, end: 64, file: None }, // "END"
-            Span { start: 64, end: 65, file: None }, // ")"
-            Span { start: 66, end: 67, file: None }, // "{"
-            Span { start: 68, end: 69, file: None }, // "}"
+            Span { start: 54, end: 61, file: None }, // "[START]"
+            Span { start: 61, end: 63, file: None }, // ".."
+            Span { start: 63, end: 68, file: None }, // "[END]"
+            Span { start: 68, end: 69, file: None }, // ")"
+            Span { start: 70, end: 71, file: None }, // "{"
+            Span { start: 72, end: 73, file: None }, // "}"
         ]),
     };
 
@@ -123,7 +123,7 @@ fn test_for_loop_with_constants() {
 
 #[test]
 fn test_for_loop_with_arithmetic_bounds() {
-    let source = "#define macro TEST() = takes(0) returns(0) { for(i in 0..SIZE * 2) { } }";
+    let source = "#define macro TEST() = takes(0) returns(0) { for(i in 0..[SIZE] * 2) { } }";
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
     let lexer = Lexer::new(flattened_source);
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
@@ -141,17 +141,17 @@ fn test_for_loop_with_arithmetic_bounds() {
             end: Expression::Binary {
                 left: Box::new(Expression::Constant {
                     name: "SIZE".to_string(),
-                    span: AstSpan(vec![Span { start: 57, end: 61, file: None }]),
+                    span: AstSpan(vec![Span { start: 57, end: 63, file: None }]),
                 }),
                 op: BinaryOp::Mul,
                 right: Box::new(Expression::Literal {
                     value: str_to_bytes32("02"),
-                    span: AstSpan(vec![Span { start: 64, end: 65, file: None }]),
+                    span: AstSpan(vec![Span { start: 66, end: 67, file: None }]),
                 }),
                 span: AstSpan(vec![
-                    Span { start: 57, end: 61, file: None }, // "SIZE"
-                    Span { start: 62, end: 63, file: None }, // "*"
-                    Span { start: 64, end: 65, file: None }, // "2"
+                    Span { start: 57, end: 63, file: None }, // "[SIZE]"
+                    Span { start: 64, end: 65, file: None }, // "*"
+                    Span { start: 66, end: 67, file: None }, // "2"
                 ]),
             },
             step: None,
@@ -164,12 +164,12 @@ fn test_for_loop_with_arithmetic_bounds() {
             Span { start: 51, end: 53, file: None }, // "in"
             Span { start: 54, end: 55, file: None }, // "0"
             Span { start: 55, end: 57, file: None }, // ".."
-            Span { start: 57, end: 61, file: None }, // "SIZE"
-            Span { start: 62, end: 63, file: None }, // "*"
-            Span { start: 64, end: 65, file: None }, // "2"
-            Span { start: 65, end: 66, file: None }, // ")"
-            Span { start: 67, end: 68, file: None }, // "{"
-            Span { start: 69, end: 70, file: None }, // "}"
+            Span { start: 57, end: 63, file: None }, // "[SIZE]"
+            Span { start: 64, end: 65, file: None }, // "*"
+            Span { start: 66, end: 67, file: None }, // "2"
+            Span { start: 67, end: 68, file: None }, // ")"
+            Span { start: 69, end: 70, file: None }, // "{"
+            Span { start: 71, end: 72, file: None }, // "}"
         ]),
     };
 
@@ -341,7 +341,7 @@ fn test_for_loop_with_body_statements() {
 
 #[test]
 fn test_for_loop_with_constant_step() {
-    let source = "#define macro TEST() = takes(0) returns(0) { for(i in 0..10 step STEP) { } }";
+    let source = "#define macro TEST() = takes(0) returns(0) { for(i in 0..10 step [STEP]) { } }";
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
     let lexer = Lexer::new(flattened_source);
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
@@ -357,7 +357,7 @@ fn test_for_loop_with_constant_step() {
             variable: "i".to_string(),
             start: Expression::Literal { value: str_to_bytes32("00"), span: AstSpan(vec![Span { start: 54, end: 55, file: None }]) },
             end: Expression::Literal { value: str_to_bytes32("10"), span: AstSpan(vec![Span { start: 57, end: 59, file: None }]) },
-            step: Some(Expression::Constant { name: "STEP".to_string(), span: AstSpan(vec![Span { start: 65, end: 69, file: None }]) }),
+            step: Some(Expression::Constant { name: "STEP".to_string(), span: AstSpan(vec![Span { start: 65, end: 71, file: None }]) }),
             body: vec![],
         },
         span: AstSpan(vec![
@@ -369,10 +369,10 @@ fn test_for_loop_with_constant_step() {
             Span { start: 55, end: 57, file: None }, // ".."
             Span { start: 57, end: 59, file: None }, // "10"
             Span { start: 60, end: 64, file: None }, // "step"
-            Span { start: 65, end: 69, file: None }, // "STEP"
-            Span { start: 69, end: 70, file: None }, // ")"
-            Span { start: 71, end: 72, file: None }, // "{"
-            Span { start: 73, end: 74, file: None }, // "}"
+            Span { start: 65, end: 71, file: None }, // "[STEP]"
+            Span { start: 71, end: 72, file: None }, // ")"
+            Span { start: 73, end: 74, file: None }, // "{"
+            Span { start: 75, end: 76, file: None }, // "}"
         ]),
     };
 

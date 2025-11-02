@@ -289,7 +289,7 @@ fn parses_for_loop_with_hex_bounds() {
 
 #[test]
 fn parses_for_loop_with_constants() {
-    let source = "#define macro TEST() = takes(0) returns(0) { for(i in START..END) { } }";
+    let source = "#define macro TEST() = takes(0) returns(0) { for(i in [START]..[END]) { } }";
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
     let mut lexer = Lexer::new(flattened_source);
 

@@ -8,7 +8,7 @@ use huff_neo_utils::prelude::*;
 
 #[test]
 fn test_parse_simple_addition() {
-    let source = "#define constant RESULT = A + B";
+    let source = "#define constant RESULT = [A] + [B]";
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
     let lexer = Lexer::new(flattened_source);
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
@@ -20,13 +20,13 @@ fn test_parse_simple_addition() {
     let expected = ConstantDefinition {
         name: "RESULT".to_string(),
         value: ConstVal::Expression(Expression::Binary {
-            left: Box::new(Expression::Constant { name: "A".to_string(), span: AstSpan(vec![Span { start: 26, end: 27, file: None }]) }),
+            left: Box::new(Expression::Constant { name: "A".to_string(), span: AstSpan(vec![Span { start: 26, end: 29, file: None }]) }),
             op: BinaryOp::Add,
-            right: Box::new(Expression::Constant { name: "B".to_string(), span: AstSpan(vec![Span { start: 30, end: 31, file: None }]) }),
+            right: Box::new(Expression::Constant { name: "B".to_string(), span: AstSpan(vec![Span { start: 32, end: 35, file: None }]) }),
             span: AstSpan(vec![
-                Span { start: 26, end: 27, file: None }, // "A"
-                Span { start: 28, end: 29, file: None }, // "+"
-                Span { start: 30, end: 31, file: None }, // "B"
+                Span { start: 26, end: 29, file: None }, // "[A]"
+                Span { start: 30, end: 31, file: None }, // "+"
+                Span { start: 32, end: 35, file: None }, // "[B]"
             ]),
         }),
         span: AstSpan(vec![
@@ -34,9 +34,13 @@ fn test_parse_simple_addition() {
             Span { start: 8, end: 16, file: None },  // "constant"
             Span { start: 17, end: 23, file: None }, // "RESULT"
             Span { start: 24, end: 25, file: None }, // "="
-            Span { start: 26, end: 27, file: None }, // "A"
-            Span { start: 28, end: 29, file: None }, // "+"
-            Span { start: 30, end: 31, file: None }, // "B"
+            Span { start: 26, end: 27, file: None }, // "["
+            Span { start: 27, end: 28, file: None }, // "A"
+            Span { start: 28, end: 29, file: None }, // "]"
+            Span { start: 30, end: 31, file: None }, // "+"
+            Span { start: 32, end: 33, file: None }, // "["
+            Span { start: 33, end: 34, file: None }, // "B"
+            Span { start: 34, end: 35, file: None }, // "]"
         ]),
     };
     assert_eq!(constant, expected);
@@ -44,7 +48,7 @@ fn test_parse_simple_addition() {
 
 #[test]
 fn test_parse_simple_subtraction() {
-    let source = "#define constant RESULT = A - B";
+    let source = "#define constant RESULT = [A] - [B]";
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
     let lexer = Lexer::new(flattened_source);
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
@@ -56,13 +60,13 @@ fn test_parse_simple_subtraction() {
     let expected = ConstantDefinition {
         name: "RESULT".to_string(),
         value: ConstVal::Expression(Expression::Binary {
-            left: Box::new(Expression::Constant { name: "A".to_string(), span: AstSpan(vec![Span { start: 26, end: 27, file: None }]) }),
+            left: Box::new(Expression::Constant { name: "A".to_string(), span: AstSpan(vec![Span { start: 26, end: 29, file: None }]) }),
             op: BinaryOp::Sub,
-            right: Box::new(Expression::Constant { name: "B".to_string(), span: AstSpan(vec![Span { start: 30, end: 31, file: None }]) }),
+            right: Box::new(Expression::Constant { name: "B".to_string(), span: AstSpan(vec![Span { start: 32, end: 35, file: None }]) }),
             span: AstSpan(vec![
-                Span { start: 26, end: 27, file: None }, // "A"
-                Span { start: 28, end: 29, file: None }, // "-"
-                Span { start: 30, end: 31, file: None }, // "B"
+                Span { start: 26, end: 29, file: None }, // "[A]"
+                Span { start: 30, end: 31, file: None }, // "-"
+                Span { start: 32, end: 35, file: None }, // "[B]"
             ]),
         }),
         span: AstSpan(vec![
@@ -70,9 +74,13 @@ fn test_parse_simple_subtraction() {
             Span { start: 8, end: 16, file: None },  // "constant"
             Span { start: 17, end: 23, file: None }, // "RESULT"
             Span { start: 24, end: 25, file: None }, // "="
-            Span { start: 26, end: 27, file: None }, // "A"
-            Span { start: 28, end: 29, file: None }, // "-"
-            Span { start: 30, end: 31, file: None }, // "B"
+            Span { start: 26, end: 27, file: None }, // "["
+            Span { start: 27, end: 28, file: None }, // "A"
+            Span { start: 28, end: 29, file: None }, // "]"
+            Span { start: 30, end: 31, file: None }, // "-"
+            Span { start: 32, end: 33, file: None }, // "["
+            Span { start: 33, end: 34, file: None }, // "B"
+            Span { start: 34, end: 35, file: None }, // "]"
         ]),
     };
     assert_eq!(constant, expected);
@@ -80,7 +88,7 @@ fn test_parse_simple_subtraction() {
 
 #[test]
 fn test_parse_simple_multiplication() {
-    let source = "#define constant RESULT = A * B";
+    let source = "#define constant RESULT = [A] * [B]";
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
     let lexer = Lexer::new(flattened_source);
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
@@ -92,13 +100,13 @@ fn test_parse_simple_multiplication() {
     let expected = ConstantDefinition {
         name: "RESULT".to_string(),
         value: ConstVal::Expression(Expression::Binary {
-            left: Box::new(Expression::Constant { name: "A".to_string(), span: AstSpan(vec![Span { start: 26, end: 27, file: None }]) }),
+            left: Box::new(Expression::Constant { name: "A".to_string(), span: AstSpan(vec![Span { start: 26, end: 29, file: None }]) }),
             op: BinaryOp::Mul,
-            right: Box::new(Expression::Constant { name: "B".to_string(), span: AstSpan(vec![Span { start: 30, end: 31, file: None }]) }),
+            right: Box::new(Expression::Constant { name: "B".to_string(), span: AstSpan(vec![Span { start: 32, end: 35, file: None }]) }),
             span: AstSpan(vec![
-                Span { start: 26, end: 27, file: None },
-                Span { start: 28, end: 29, file: None },
+                Span { start: 26, end: 29, file: None },
                 Span { start: 30, end: 31, file: None },
+                Span { start: 32, end: 35, file: None },
             ]),
         }),
         span: AstSpan(vec![
@@ -106,9 +114,13 @@ fn test_parse_simple_multiplication() {
             Span { start: 8, end: 16, file: None },
             Span { start: 17, end: 23, file: None },
             Span { start: 24, end: 25, file: None },
-            Span { start: 26, end: 27, file: None },
-            Span { start: 28, end: 29, file: None },
+            Span { start: 26, end: 27, file: None }, // "["
+            Span { start: 27, end: 28, file: None }, // "A"
+            Span { start: 28, end: 29, file: None }, // "]"
             Span { start: 30, end: 31, file: None },
+            Span { start: 32, end: 33, file: None }, // "["
+            Span { start: 33, end: 34, file: None }, // "B"
+            Span { start: 34, end: 35, file: None }, // "]"
         ]),
     };
     assert_eq!(constant, expected);
@@ -116,7 +128,7 @@ fn test_parse_simple_multiplication() {
 
 #[test]
 fn test_parse_simple_division() {
-    let source = "#define constant RESULT = A / B";
+    let source = "#define constant RESULT = [A] / [B]";
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
     let lexer = Lexer::new(flattened_source);
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
@@ -128,13 +140,13 @@ fn test_parse_simple_division() {
     let expected = ConstantDefinition {
         name: "RESULT".to_string(),
         value: ConstVal::Expression(Expression::Binary {
-            left: Box::new(Expression::Constant { name: "A".to_string(), span: AstSpan(vec![Span { start: 26, end: 27, file: None }]) }),
+            left: Box::new(Expression::Constant { name: "A".to_string(), span: AstSpan(vec![Span { start: 26, end: 29, file: None }]) }),
             op: BinaryOp::Div,
-            right: Box::new(Expression::Constant { name: "B".to_string(), span: AstSpan(vec![Span { start: 30, end: 31, file: None }]) }),
+            right: Box::new(Expression::Constant { name: "B".to_string(), span: AstSpan(vec![Span { start: 32, end: 35, file: None }]) }),
             span: AstSpan(vec![
-                Span { start: 26, end: 27, file: None },
-                Span { start: 28, end: 29, file: None },
+                Span { start: 26, end: 29, file: None },
                 Span { start: 30, end: 31, file: None },
+                Span { start: 32, end: 35, file: None },
             ]),
         }),
         span: AstSpan(vec![
@@ -142,9 +154,13 @@ fn test_parse_simple_division() {
             Span { start: 8, end: 16, file: None },
             Span { start: 17, end: 23, file: None },
             Span { start: 24, end: 25, file: None },
-            Span { start: 26, end: 27, file: None },
-            Span { start: 28, end: 29, file: None },
+            Span { start: 26, end: 27, file: None }, // "["
+            Span { start: 27, end: 28, file: None }, // "A"
+            Span { start: 28, end: 29, file: None }, // "]"
             Span { start: 30, end: 31, file: None },
+            Span { start: 32, end: 33, file: None }, // "["
+            Span { start: 33, end: 34, file: None }, // "B"
+            Span { start: 34, end: 35, file: None }, // "]"
         ]),
     };
     assert_eq!(constant, expected);
@@ -152,7 +168,7 @@ fn test_parse_simple_division() {
 
 #[test]
 fn test_parse_simple_modulo() {
-    let source = "#define constant RESULT = A % B";
+    let source = "#define constant RESULT = [A] % [B]";
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
     let lexer = Lexer::new(flattened_source);
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
@@ -164,13 +180,13 @@ fn test_parse_simple_modulo() {
     let expected = ConstantDefinition {
         name: "RESULT".to_string(),
         value: ConstVal::Expression(Expression::Binary {
-            left: Box::new(Expression::Constant { name: "A".to_string(), span: AstSpan(vec![Span { start: 26, end: 27, file: None }]) }),
+            left: Box::new(Expression::Constant { name: "A".to_string(), span: AstSpan(vec![Span { start: 26, end: 29, file: None }]) }),
             op: BinaryOp::Mod,
-            right: Box::new(Expression::Constant { name: "B".to_string(), span: AstSpan(vec![Span { start: 30, end: 31, file: None }]) }),
+            right: Box::new(Expression::Constant { name: "B".to_string(), span: AstSpan(vec![Span { start: 32, end: 35, file: None }]) }),
             span: AstSpan(vec![
-                Span { start: 26, end: 27, file: None },
-                Span { start: 28, end: 29, file: None },
+                Span { start: 26, end: 29, file: None },
                 Span { start: 30, end: 31, file: None },
+                Span { start: 32, end: 35, file: None },
             ]),
         }),
         span: AstSpan(vec![
@@ -178,9 +194,13 @@ fn test_parse_simple_modulo() {
             Span { start: 8, end: 16, file: None },
             Span { start: 17, end: 23, file: None },
             Span { start: 24, end: 25, file: None },
-            Span { start: 26, end: 27, file: None },
-            Span { start: 28, end: 29, file: None },
-            Span { start: 30, end: 31, file: None },
+            Span { start: 26, end: 27, file: None }, // "["
+            Span { start: 27, end: 28, file: None }, // "A"
+            Span { start: 28, end: 29, file: None }, // "]"
+            Span { start: 30, end: 31, file: None }, // "%"
+            Span { start: 32, end: 33, file: None }, // "["
+            Span { start: 33, end: 34, file: None }, // "B"
+            Span { start: 34, end: 35, file: None }, // "]"
         ]),
     };
     assert_eq!(constant, expected);
@@ -188,7 +208,7 @@ fn test_parse_simple_modulo() {
 
 #[test]
 fn test_parse_unary_negation() {
-    let source = "#define constant RESULT = -A";
+    let source = "#define constant RESULT = -[A]";
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
     let lexer = Lexer::new(flattened_source);
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
@@ -201,10 +221,10 @@ fn test_parse_unary_negation() {
         name: "RESULT".to_string(),
         value: ConstVal::Expression(Expression::Unary {
             op: UnaryOp::Neg,
-            expr: Box::new(Expression::Constant { name: "A".to_string(), span: AstSpan(vec![Span { start: 27, end: 28, file: None }]) }),
+            expr: Box::new(Expression::Constant { name: "A".to_string(), span: AstSpan(vec![Span { start: 27, end: 30, file: None }]) }),
             span: AstSpan(vec![
                 Span { start: 26, end: 27, file: None }, // "-"
-                Span { start: 27, end: 28, file: None }, // "A"
+                Span { start: 27, end: 30, file: None }, // "[A]"
             ]),
         }),
         span: AstSpan(vec![
@@ -212,8 +232,10 @@ fn test_parse_unary_negation() {
             Span { start: 8, end: 16, file: None },
             Span { start: 17, end: 23, file: None },
             Span { start: 24, end: 25, file: None },
-            Span { start: 26, end: 27, file: None },
-            Span { start: 27, end: 28, file: None },
+            Span { start: 26, end: 27, file: None }, // "-"
+            Span { start: 27, end: 28, file: None }, // "["
+            Span { start: 28, end: 29, file: None }, // "A"
+            Span { start: 29, end: 30, file: None }, // "]"
         ]),
     };
     assert_eq!(constant, expected);
@@ -223,7 +245,7 @@ fn test_parse_unary_negation() {
 
 #[test]
 fn test_parse_precedence_mul_before_add() {
-    let source = "#define constant RESULT = A + B * C";
+    let source = "#define constant RESULT = [A] + [B] * [C]";
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
     let lexer = Lexer::new(flattened_source);
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
@@ -237,42 +259,48 @@ fn test_parse_precedence_mul_before_add() {
     let expected = ConstantDefinition {
         name: "RESULT".to_string(),
         value: ConstVal::Expression(Expression::Binary {
-            left: Box::new(Expression::Constant { name: "A".to_string(), span: AstSpan(vec![Span { start: 26, end: 27, file: None }]) }),
+            left: Box::new(Expression::Constant { name: "A".to_string(), span: AstSpan(vec![Span { start: 26, end: 29, file: None }]) }),
             op: BinaryOp::Add,
             right: Box::new(Expression::Binary {
                 left: Box::new(Expression::Constant {
                     name: "B".to_string(),
-                    span: AstSpan(vec![Span { start: 30, end: 31, file: None }]),
+                    span: AstSpan(vec![Span { start: 32, end: 35, file: None }]),
                 }),
                 op: BinaryOp::Mul,
                 right: Box::new(Expression::Constant {
                     name: "C".to_string(),
-                    span: AstSpan(vec![Span { start: 34, end: 35, file: None }]),
+                    span: AstSpan(vec![Span { start: 38, end: 41, file: None }]),
                 }),
                 span: AstSpan(vec![
-                    Span { start: 30, end: 31, file: None }, // "B"
-                    Span { start: 32, end: 33, file: None }, // "*"
-                    Span { start: 34, end: 35, file: None }, // "C"
+                    Span { start: 32, end: 35, file: None }, // "[B]"
+                    Span { start: 36, end: 37, file: None }, // "*"
+                    Span { start: 38, end: 41, file: None }, // "[C]"
                 ]),
             }),
             span: AstSpan(vec![
-                Span { start: 26, end: 27, file: None }, // "A"
-                Span { start: 28, end: 29, file: None }, // "+"
-                Span { start: 30, end: 31, file: None }, // "B"
-                Span { start: 32, end: 33, file: None }, // "*"
-                Span { start: 34, end: 35, file: None }, // "C"
+                Span { start: 26, end: 29, file: None }, // "[A]"
+                Span { start: 30, end: 31, file: None }, // "+"
+                Span { start: 32, end: 35, file: None }, // "[B]"
+                Span { start: 36, end: 37, file: None }, // "*"
+                Span { start: 38, end: 41, file: None }, // "[C]"
             ]),
         }),
         span: AstSpan(vec![
-            Span { start: 0, end: 7, file: None },
-            Span { start: 8, end: 16, file: None },
-            Span { start: 17, end: 23, file: None },
-            Span { start: 24, end: 25, file: None },
-            Span { start: 26, end: 27, file: None },
-            Span { start: 28, end: 29, file: None },
-            Span { start: 30, end: 31, file: None },
-            Span { start: 32, end: 33, file: None },
-            Span { start: 34, end: 35, file: None },
+            Span { start: 0, end: 7, file: None },   // "#define"
+            Span { start: 8, end: 16, file: None },  // "constant"
+            Span { start: 17, end: 23, file: None }, // "RESULT"
+            Span { start: 24, end: 25, file: None }, // "="
+            Span { start: 26, end: 27, file: None }, // "["
+            Span { start: 27, end: 28, file: None }, // "A"
+            Span { start: 28, end: 29, file: None }, // "]"
+            Span { start: 30, end: 31, file: None }, // "+"
+            Span { start: 32, end: 33, file: None }, // "["
+            Span { start: 33, end: 34, file: None }, // "B"
+            Span { start: 34, end: 35, file: None }, // "]"
+            Span { start: 36, end: 37, file: None }, // "*"
+            Span { start: 38, end: 39, file: None }, // "["
+            Span { start: 39, end: 40, file: None }, // "C"
+            Span { start: 40, end: 41, file: None }, // "]"
         ]),
     };
     assert_eq!(constant, expected);
@@ -280,7 +308,7 @@ fn test_parse_precedence_mul_before_add() {
 
 #[test]
 fn test_parse_precedence_div_before_sub() {
-    let source = "#define constant RESULT = A - B / C";
+    let source = "#define constant RESULT = [A] - [B] / [C]";
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
     let lexer = Lexer::new(flattened_source);
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
@@ -294,42 +322,48 @@ fn test_parse_precedence_div_before_sub() {
     let expected = ConstantDefinition {
         name: "RESULT".to_string(),
         value: ConstVal::Expression(Expression::Binary {
-            left: Box::new(Expression::Constant { name: "A".to_string(), span: AstSpan(vec![Span { start: 26, end: 27, file: None }]) }),
+            left: Box::new(Expression::Constant { name: "A".to_string(), span: AstSpan(vec![Span { start: 26, end: 29, file: None }]) }),
             op: BinaryOp::Sub,
             right: Box::new(Expression::Binary {
                 left: Box::new(Expression::Constant {
                     name: "B".to_string(),
-                    span: AstSpan(vec![Span { start: 30, end: 31, file: None }]),
+                    span: AstSpan(vec![Span { start: 32, end: 35, file: None }]),
                 }),
                 op: BinaryOp::Div,
                 right: Box::new(Expression::Constant {
                     name: "C".to_string(),
-                    span: AstSpan(vec![Span { start: 34, end: 35, file: None }]),
+                    span: AstSpan(vec![Span { start: 38, end: 41, file: None }]),
                 }),
                 span: AstSpan(vec![
-                    Span { start: 30, end: 31, file: None },
-                    Span { start: 32, end: 33, file: None },
-                    Span { start: 34, end: 35, file: None },
+                    Span { start: 32, end: 35, file: None }, // "[B]"
+                    Span { start: 36, end: 37, file: None }, // "/"
+                    Span { start: 38, end: 41, file: None }, // "[C]"
                 ]),
             }),
             span: AstSpan(vec![
-                Span { start: 26, end: 27, file: None },
-                Span { start: 28, end: 29, file: None },
-                Span { start: 30, end: 31, file: None },
-                Span { start: 32, end: 33, file: None },
-                Span { start: 34, end: 35, file: None },
+                Span { start: 26, end: 29, file: None }, // "[A]"
+                Span { start: 30, end: 31, file: None }, // "-"
+                Span { start: 32, end: 35, file: None }, // "[B]"
+                Span { start: 36, end: 37, file: None }, // "/"
+                Span { start: 38, end: 41, file: None }, // "[C]"
             ]),
         }),
         span: AstSpan(vec![
-            Span { start: 0, end: 7, file: None },
-            Span { start: 8, end: 16, file: None },
-            Span { start: 17, end: 23, file: None },
-            Span { start: 24, end: 25, file: None },
-            Span { start: 26, end: 27, file: None },
-            Span { start: 28, end: 29, file: None },
-            Span { start: 30, end: 31, file: None },
-            Span { start: 32, end: 33, file: None },
-            Span { start: 34, end: 35, file: None },
+            Span { start: 0, end: 7, file: None },   // "#define"
+            Span { start: 8, end: 16, file: None },  // "constant"
+            Span { start: 17, end: 23, file: None }, // "RESULT"
+            Span { start: 24, end: 25, file: None }, // "="
+            Span { start: 26, end: 27, file: None }, // "["
+            Span { start: 27, end: 28, file: None }, // "A"
+            Span { start: 28, end: 29, file: None }, // "]"
+            Span { start: 30, end: 31, file: None }, // "-"
+            Span { start: 32, end: 33, file: None }, // "["
+            Span { start: 33, end: 34, file: None }, // "B"
+            Span { start: 34, end: 35, file: None }, // "]"
+            Span { start: 36, end: 37, file: None }, // "/"
+            Span { start: 38, end: 39, file: None }, // "["
+            Span { start: 39, end: 40, file: None }, // "C"
+            Span { start: 40, end: 41, file: None }, // "]"
         ]),
     };
     assert_eq!(constant, expected);
@@ -337,7 +371,7 @@ fn test_parse_precedence_div_before_sub() {
 
 #[test]
 fn test_parse_precedence_mod_before_add() {
-    let source = "#define constant RESULT = A + B % C";
+    let source = "#define constant RESULT = [A] + [B] % [C]";
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
     let lexer = Lexer::new(flattened_source);
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
@@ -351,42 +385,48 @@ fn test_parse_precedence_mod_before_add() {
     let expected = ConstantDefinition {
         name: "RESULT".to_string(),
         value: ConstVal::Expression(Expression::Binary {
-            left: Box::new(Expression::Constant { name: "A".to_string(), span: AstSpan(vec![Span { start: 26, end: 27, file: None }]) }),
+            left: Box::new(Expression::Constant { name: "A".to_string(), span: AstSpan(vec![Span { start: 26, end: 29, file: None }]) }),
             op: BinaryOp::Add,
             right: Box::new(Expression::Binary {
                 left: Box::new(Expression::Constant {
                     name: "B".to_string(),
-                    span: AstSpan(vec![Span { start: 30, end: 31, file: None }]),
+                    span: AstSpan(vec![Span { start: 32, end: 35, file: None }]),
                 }),
                 op: BinaryOp::Mod,
                 right: Box::new(Expression::Constant {
                     name: "C".to_string(),
-                    span: AstSpan(vec![Span { start: 34, end: 35, file: None }]),
+                    span: AstSpan(vec![Span { start: 38, end: 41, file: None }]),
                 }),
                 span: AstSpan(vec![
-                    Span { start: 30, end: 31, file: None },
-                    Span { start: 32, end: 33, file: None },
-                    Span { start: 34, end: 35, file: None },
+                    Span { start: 32, end: 35, file: None }, // "[B]"
+                    Span { start: 36, end: 37, file: None }, // "%"
+                    Span { start: 38, end: 41, file: None }, // "[C]"
                 ]),
             }),
             span: AstSpan(vec![
-                Span { start: 26, end: 27, file: None },
-                Span { start: 28, end: 29, file: None },
-                Span { start: 30, end: 31, file: None },
-                Span { start: 32, end: 33, file: None },
-                Span { start: 34, end: 35, file: None },
+                Span { start: 26, end: 29, file: None }, // "[A]"
+                Span { start: 30, end: 31, file: None }, // "+"
+                Span { start: 32, end: 35, file: None }, // "[B]"
+                Span { start: 36, end: 37, file: None }, // "%"
+                Span { start: 38, end: 41, file: None }, // "[C]"
             ]),
         }),
         span: AstSpan(vec![
-            Span { start: 0, end: 7, file: None },
-            Span { start: 8, end: 16, file: None },
-            Span { start: 17, end: 23, file: None },
-            Span { start: 24, end: 25, file: None },
-            Span { start: 26, end: 27, file: None },
-            Span { start: 28, end: 29, file: None },
-            Span { start: 30, end: 31, file: None },
-            Span { start: 32, end: 33, file: None },
-            Span { start: 34, end: 35, file: None },
+            Span { start: 0, end: 7, file: None },   // "#define"
+            Span { start: 8, end: 16, file: None },  // "constant"
+            Span { start: 17, end: 23, file: None }, // "RESULT"
+            Span { start: 24, end: 25, file: None }, // "="
+            Span { start: 26, end: 27, file: None }, // "["
+            Span { start: 27, end: 28, file: None }, // "A"
+            Span { start: 28, end: 29, file: None }, // "]"
+            Span { start: 30, end: 31, file: None }, // "+"
+            Span { start: 32, end: 33, file: None }, // "["
+            Span { start: 33, end: 34, file: None }, // "B"
+            Span { start: 34, end: 35, file: None }, // "]"
+            Span { start: 36, end: 37, file: None }, // "%"
+            Span { start: 38, end: 39, file: None }, // "["
+            Span { start: 39, end: 40, file: None }, // "C"
+            Span { start: 40, end: 41, file: None }, // "]"
         ]),
     };
     assert_eq!(constant, expected);
@@ -394,7 +434,7 @@ fn test_parse_precedence_mod_before_add() {
 
 #[test]
 fn test_parse_precedence_same_level_left_assoc() {
-    let source = "#define constant RESULT = A - B + C";
+    let source = "#define constant RESULT = [A] - [B] + [C]";
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
     let lexer = Lexer::new(flattened_source);
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
@@ -411,39 +451,45 @@ fn test_parse_precedence_same_level_left_assoc() {
             left: Box::new(Expression::Binary {
                 left: Box::new(Expression::Constant {
                     name: "A".to_string(),
-                    span: AstSpan(vec![Span { start: 26, end: 27, file: None }]),
+                    span: AstSpan(vec![Span { start: 26, end: 29, file: None }]),
                 }),
                 op: BinaryOp::Sub,
                 right: Box::new(Expression::Constant {
                     name: "B".to_string(),
-                    span: AstSpan(vec![Span { start: 30, end: 31, file: None }]),
+                    span: AstSpan(vec![Span { start: 32, end: 35, file: None }]),
                 }),
                 span: AstSpan(vec![
-                    Span { start: 26, end: 27, file: None },
-                    Span { start: 28, end: 29, file: None },
-                    Span { start: 30, end: 31, file: None },
+                    Span { start: 26, end: 29, file: None }, // "[A]"
+                    Span { start: 30, end: 31, file: None }, // "-"
+                    Span { start: 32, end: 35, file: None }, // "[B]"
                 ]),
             }),
             op: BinaryOp::Add,
-            right: Box::new(Expression::Constant { name: "C".to_string(), span: AstSpan(vec![Span { start: 34, end: 35, file: None }]) }),
+            right: Box::new(Expression::Constant { name: "C".to_string(), span: AstSpan(vec![Span { start: 38, end: 41, file: None }]) }),
             span: AstSpan(vec![
-                Span { start: 26, end: 27, file: None },
-                Span { start: 28, end: 29, file: None },
-                Span { start: 30, end: 31, file: None },
-                Span { start: 32, end: 33, file: None },
-                Span { start: 34, end: 35, file: None },
+                Span { start: 26, end: 29, file: None }, // "[A]"
+                Span { start: 30, end: 31, file: None }, // "-"
+                Span { start: 32, end: 35, file: None }, // "[B]"
+                Span { start: 36, end: 37, file: None }, // "+"
+                Span { start: 38, end: 41, file: None }, // "[C]"
             ]),
         }),
         span: AstSpan(vec![
-            Span { start: 0, end: 7, file: None },
-            Span { start: 8, end: 16, file: None },
-            Span { start: 17, end: 23, file: None },
-            Span { start: 24, end: 25, file: None },
-            Span { start: 26, end: 27, file: None },
-            Span { start: 28, end: 29, file: None },
-            Span { start: 30, end: 31, file: None },
-            Span { start: 32, end: 33, file: None },
-            Span { start: 34, end: 35, file: None },
+            Span { start: 0, end: 7, file: None },   // "#define"
+            Span { start: 8, end: 16, file: None },  // "constant"
+            Span { start: 17, end: 23, file: None }, // "RESULT"
+            Span { start: 24, end: 25, file: None }, // "="
+            Span { start: 26, end: 27, file: None }, // "["
+            Span { start: 27, end: 28, file: None }, // "A"
+            Span { start: 28, end: 29, file: None }, // "]"
+            Span { start: 30, end: 31, file: None }, // "-"
+            Span { start: 32, end: 33, file: None }, // "["
+            Span { start: 33, end: 34, file: None }, // "B"
+            Span { start: 34, end: 35, file: None }, // "]"
+            Span { start: 36, end: 37, file: None }, // "+"
+            Span { start: 38, end: 39, file: None }, // "["
+            Span { start: 39, end: 40, file: None }, // "C"
+            Span { start: 40, end: 41, file: None }, // "]"
         ]),
     };
     assert_eq!(constant, expected);
@@ -451,7 +497,7 @@ fn test_parse_precedence_same_level_left_assoc() {
 
 #[test]
 fn test_parse_precedence_mul_div_left_assoc() {
-    let source = "#define constant RESULT = A * B / C";
+    let source = "#define constant RESULT = [A] * [B] / [C]";
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
     let lexer = Lexer::new(flattened_source);
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
@@ -468,39 +514,45 @@ fn test_parse_precedence_mul_div_left_assoc() {
             left: Box::new(Expression::Binary {
                 left: Box::new(Expression::Constant {
                     name: "A".to_string(),
-                    span: AstSpan(vec![Span { start: 26, end: 27, file: None }]),
+                    span: AstSpan(vec![Span { start: 26, end: 29, file: None }]),
                 }),
                 op: BinaryOp::Mul,
                 right: Box::new(Expression::Constant {
                     name: "B".to_string(),
-                    span: AstSpan(vec![Span { start: 30, end: 31, file: None }]),
+                    span: AstSpan(vec![Span { start: 32, end: 35, file: None }]),
                 }),
                 span: AstSpan(vec![
-                    Span { start: 26, end: 27, file: None },
-                    Span { start: 28, end: 29, file: None },
-                    Span { start: 30, end: 31, file: None },
+                    Span { start: 26, end: 29, file: None }, // "[A]"
+                    Span { start: 30, end: 31, file: None }, // "*"
+                    Span { start: 32, end: 35, file: None }, // "[B]"
                 ]),
             }),
             op: BinaryOp::Div,
-            right: Box::new(Expression::Constant { name: "C".to_string(), span: AstSpan(vec![Span { start: 34, end: 35, file: None }]) }),
+            right: Box::new(Expression::Constant { name: "C".to_string(), span: AstSpan(vec![Span { start: 38, end: 41, file: None }]) }),
             span: AstSpan(vec![
-                Span { start: 26, end: 27, file: None },
-                Span { start: 28, end: 29, file: None },
-                Span { start: 30, end: 31, file: None },
-                Span { start: 32, end: 33, file: None },
-                Span { start: 34, end: 35, file: None },
+                Span { start: 26, end: 29, file: None }, // "[A]"
+                Span { start: 30, end: 31, file: None }, // "*"
+                Span { start: 32, end: 35, file: None }, // "[B]"
+                Span { start: 36, end: 37, file: None }, // "/"
+                Span { start: 38, end: 41, file: None }, // "[C]"
             ]),
         }),
         span: AstSpan(vec![
-            Span { start: 0, end: 7, file: None },
-            Span { start: 8, end: 16, file: None },
-            Span { start: 17, end: 23, file: None },
-            Span { start: 24, end: 25, file: None },
-            Span { start: 26, end: 27, file: None },
-            Span { start: 28, end: 29, file: None },
-            Span { start: 30, end: 31, file: None },
-            Span { start: 32, end: 33, file: None },
-            Span { start: 34, end: 35, file: None },
+            Span { start: 0, end: 7, file: None },   // "#define"
+            Span { start: 8, end: 16, file: None },  // "constant"
+            Span { start: 17, end: 23, file: None }, // "RESULT"
+            Span { start: 24, end: 25, file: None }, // "="
+            Span { start: 26, end: 27, file: None }, // "["
+            Span { start: 27, end: 28, file: None }, // "A"
+            Span { start: 28, end: 29, file: None }, // "]"
+            Span { start: 30, end: 31, file: None }, // "*"
+            Span { start: 32, end: 33, file: None }, // "["
+            Span { start: 33, end: 34, file: None }, // "B"
+            Span { start: 34, end: 35, file: None }, // "]"
+            Span { start: 36, end: 37, file: None }, // "/"
+            Span { start: 38, end: 39, file: None }, // "["
+            Span { start: 39, end: 40, file: None }, // "C"
+            Span { start: 40, end: 41, file: None }, // "]"
         ]),
     };
     assert_eq!(constant, expected);
@@ -510,7 +562,7 @@ fn test_parse_precedence_mul_div_left_assoc() {
 
 #[test]
 fn test_parse_grouped_expression() {
-    let source = "#define constant RESULT = (A + B) * C";
+    let source = "#define constant RESULT = ([A] + [B]) * [C]";
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
     let lexer = Lexer::new(flattened_source);
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
@@ -528,45 +580,51 @@ fn test_parse_grouped_expression() {
                 expr: Box::new(Expression::Binary {
                     left: Box::new(Expression::Constant {
                         name: "A".to_string(),
-                        span: AstSpan(vec![Span { start: 27, end: 28, file: None }]),
+                        span: AstSpan(vec![Span { start: 27, end: 30, file: None }]),
                     }),
                     op: BinaryOp::Add,
                     right: Box::new(Expression::Constant {
                         name: "B".to_string(),
-                        span: AstSpan(vec![Span { start: 31, end: 32, file: None }]),
+                        span: AstSpan(vec![Span { start: 33, end: 36, file: None }]),
                     }),
                     span: AstSpan(vec![
-                        Span { start: 27, end: 28, file: None },
-                        Span { start: 29, end: 30, file: None },
-                        Span { start: 31, end: 32, file: None },
+                        Span { start: 27, end: 30, file: None }, // "[A]"
+                        Span { start: 31, end: 32, file: None }, // "+"
+                        Span { start: 33, end: 36, file: None }, // "[B]"
                     ]),
                 }),
                 span: AstSpan(vec![
                     Span { start: 26, end: 27, file: None }, // "("
-                    Span { start: 32, end: 33, file: None }, // ")"
+                    Span { start: 36, end: 37, file: None }, // ")"
                 ]),
             }),
             op: BinaryOp::Mul,
-            right: Box::new(Expression::Constant { name: "C".to_string(), span: AstSpan(vec![Span { start: 36, end: 37, file: None }]) }),
+            right: Box::new(Expression::Constant { name: "C".to_string(), span: AstSpan(vec![Span { start: 40, end: 43, file: None }]) }),
             span: AstSpan(vec![
                 Span { start: 26, end: 27, file: None }, // "("
-                Span { start: 32, end: 33, file: None }, // ")"
-                Span { start: 34, end: 35, file: None }, // "*"
-                Span { start: 36, end: 37, file: None }, // "C"
+                Span { start: 36, end: 37, file: None }, // ")"
+                Span { start: 38, end: 39, file: None }, // "*"
+                Span { start: 40, end: 43, file: None }, // "[C]"
             ]),
         }),
         span: AstSpan(vec![
-            Span { start: 0, end: 7, file: None },
-            Span { start: 8, end: 16, file: None },
-            Span { start: 17, end: 23, file: None },
-            Span { start: 24, end: 25, file: None },
-            Span { start: 26, end: 27, file: None },
-            Span { start: 27, end: 28, file: None },
-            Span { start: 29, end: 30, file: None },
-            Span { start: 31, end: 32, file: None },
-            Span { start: 32, end: 33, file: None },
-            Span { start: 34, end: 35, file: None },
-            Span { start: 36, end: 37, file: None },
+            Span { start: 0, end: 7, file: None },   // "#define"
+            Span { start: 8, end: 16, file: None },  // "constant"
+            Span { start: 17, end: 23, file: None }, // "RESULT"
+            Span { start: 24, end: 25, file: None }, // "="
+            Span { start: 26, end: 27, file: None }, // "("
+            Span { start: 27, end: 28, file: None }, // "["
+            Span { start: 28, end: 29, file: None }, // "A"
+            Span { start: 29, end: 30, file: None }, // "]"
+            Span { start: 31, end: 32, file: None }, // "+"
+            Span { start: 33, end: 34, file: None }, // "["
+            Span { start: 34, end: 35, file: None }, // "B"
+            Span { start: 35, end: 36, file: None }, // "]"
+            Span { start: 36, end: 37, file: None }, // ")"
+            Span { start: 38, end: 39, file: None }, // "*"
+            Span { start: 40, end: 41, file: None }, // "["
+            Span { start: 41, end: 42, file: None }, // "C"
+            Span { start: 42, end: 43, file: None }, // "]"
         ]),
     };
     assert_eq!(constant, expected);
@@ -574,7 +632,7 @@ fn test_parse_grouped_expression() {
 
 #[test]
 fn test_parse_nested_parentheses() {
-    let source = "#define constant RESULT = ((A + B) * (C + D))";
+    let source = "#define constant RESULT = (([A] + [B]) * ([C] + [D]))";
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
     let lexer = Lexer::new(flattened_source);
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
@@ -605,7 +663,7 @@ fn test_parse_nested_parentheses() {
 
 #[test]
 fn test_parse_deeply_nested_parentheses() {
-    let source = "#define constant RESULT = ((((A))))";
+    let source = "#define constant RESULT = (((([A]))))";
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
     let lexer = Lexer::new(flattened_source);
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
@@ -636,7 +694,7 @@ fn test_parse_deeply_nested_parentheses() {
 
 #[test]
 fn test_parse_negation_of_grouped() {
-    let source = "#define constant RESULT = -(A + B)";
+    let source = "#define constant RESULT = -([A] + [B])";
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
     let lexer = Lexer::new(flattened_source);
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
@@ -653,40 +711,44 @@ fn test_parse_negation_of_grouped() {
                 expr: Box::new(Expression::Binary {
                     left: Box::new(Expression::Constant {
                         name: "A".to_string(),
-                        span: AstSpan(vec![Span { start: 28, end: 29, file: None }]),
+                        span: AstSpan(vec![Span { start: 28, end: 31, file: None }]),
                     }),
                     op: BinaryOp::Add,
                     right: Box::new(Expression::Constant {
                         name: "B".to_string(),
-                        span: AstSpan(vec![Span { start: 32, end: 33, file: None }]),
+                        span: AstSpan(vec![Span { start: 34, end: 37, file: None }]),
                     }),
                     span: AstSpan(vec![
-                        Span { start: 28, end: 29, file: None },
-                        Span { start: 30, end: 31, file: None },
-                        Span { start: 32, end: 33, file: None },
+                        Span { start: 28, end: 31, file: None }, // "[A]"
+                        Span { start: 32, end: 33, file: None }, // "+"
+                        Span { start: 34, end: 37, file: None }, // "[B]"
                     ]),
                 }),
                 span: AstSpan(vec![
                     Span { start: 27, end: 28, file: None }, // "("
-                    Span { start: 33, end: 34, file: None }, // ")"
+                    Span { start: 37, end: 38, file: None }, // ")"
                 ]),
             }),
             span: AstSpan(vec![
                 Span { start: 26, end: 27, file: None }, // "-"
-                Span { start: 33, end: 34, file: None }, // last span from grouped expr
+                Span { start: 37, end: 38, file: None }, // last span from grouped expr
             ]),
         }),
         span: AstSpan(vec![
-            Span { start: 0, end: 7, file: None },
-            Span { start: 8, end: 16, file: None },
-            Span { start: 17, end: 23, file: None },
-            Span { start: 24, end: 25, file: None },
-            Span { start: 26, end: 27, file: None },
-            Span { start: 27, end: 28, file: None },
-            Span { start: 28, end: 29, file: None },
-            Span { start: 30, end: 31, file: None },
-            Span { start: 32, end: 33, file: None },
-            Span { start: 33, end: 34, file: None },
+            Span { start: 0, end: 7, file: None },   // "#define"
+            Span { start: 8, end: 16, file: None },  // "constant"
+            Span { start: 17, end: 23, file: None }, // "RESULT"
+            Span { start: 24, end: 25, file: None }, // "="
+            Span { start: 26, end: 27, file: None }, // "-"
+            Span { start: 27, end: 28, file: None }, // "("
+            Span { start: 28, end: 29, file: None }, // "["
+            Span { start: 29, end: 30, file: None }, // "A"
+            Span { start: 30, end: 31, file: None }, // "]"
+            Span { start: 32, end: 33, file: None }, // "+"
+            Span { start: 34, end: 35, file: None }, // "["
+            Span { start: 35, end: 36, file: None }, // "B"
+            Span { start: 36, end: 37, file: None }, // "]"
+            Span { start: 37, end: 38, file: None }, // ")"
         ]),
     };
     assert_eq!(constant, expected);
@@ -719,7 +781,7 @@ fn test_parse_hex_literal_in_expression() {
 
 #[test]
 fn test_parse_constant_reference() {
-    let source = "#define constant RESULT = BASE + OFFSET";
+    let source = "#define constant RESULT = [BASE] + [OFFSET]";
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
     let lexer = Lexer::new(flattened_source);
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
@@ -731,16 +793,16 @@ fn test_parse_constant_reference() {
     let expected = ConstantDefinition {
         name: "RESULT".to_string(),
         value: ConstVal::Expression(Expression::Binary {
-            left: Box::new(Expression::Constant { name: "BASE".to_string(), span: AstSpan(vec![Span { start: 26, end: 30, file: None }]) }),
+            left: Box::new(Expression::Constant { name: "BASE".to_string(), span: AstSpan(vec![Span { start: 26, end: 32, file: None }]) }),
             op: BinaryOp::Add,
             right: Box::new(Expression::Constant {
                 name: "OFFSET".to_string(),
-                span: AstSpan(vec![Span { start: 33, end: 39, file: None }]),
+                span: AstSpan(vec![Span { start: 35, end: 43, file: None }]),
             }),
             span: AstSpan(vec![
-                Span { start: 26, end: 30, file: None },
-                Span { start: 31, end: 32, file: None },
-                Span { start: 33, end: 39, file: None },
+                Span { start: 26, end: 32, file: None },
+                Span { start: 33, end: 34, file: None },
+                Span { start: 35, end: 43, file: None },
             ]),
         }),
         span: AstSpan(vec![
@@ -748,9 +810,13 @@ fn test_parse_constant_reference() {
             Span { start: 8, end: 16, file: None },
             Span { start: 17, end: 23, file: None },
             Span { start: 24, end: 25, file: None },
-            Span { start: 26, end: 30, file: None },
-            Span { start: 31, end: 32, file: None },
-            Span { start: 33, end: 39, file: None },
+            Span { start: 26, end: 27, file: None }, // "["
+            Span { start: 27, end: 31, file: None }, // "BASE"
+            Span { start: 31, end: 32, file: None }, // "]"
+            Span { start: 33, end: 34, file: None }, // "+"
+            Span { start: 35, end: 36, file: None }, // "["
+            Span { start: 36, end: 42, file: None }, // "OFFSET"
+            Span { start: 42, end: 43, file: None }, // "]"
         ]),
     };
     assert_eq!(constant, expected);
@@ -758,7 +824,7 @@ fn test_parse_constant_reference() {
 
 #[test]
 fn test_parse_complex_nested() {
-    let source = "#define constant RESULT = (A + B) * C - D / E";
+    let source = "#define constant RESULT = ([A] + [B]) * [C] - [D] / [E]";
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
     let lexer = Lexer::new(flattened_source);
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
@@ -800,7 +866,7 @@ fn test_parse_complex_nested() {
 
 #[test]
 fn test_parse_all_operators() {
-    let source = "#define constant RESULT = ((A + B) * C - D) / E % F";
+    let source = "#define constant RESULT = (([A] + [B]) * [C] - [D]) / [E] % [F]";
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
     let lexer = Lexer::new(flattened_source);
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
@@ -824,7 +890,7 @@ fn test_parse_all_operators() {
 
 #[test]
 fn test_parse_double_negation() {
-    let source = "#define constant RESULT = --A";
+    let source = "#define constant RESULT = --[A]";
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
     let lexer = Lexer::new(flattened_source);
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
@@ -852,7 +918,7 @@ fn test_parse_double_negation() {
 
 #[test]
 fn test_parse_negation_in_expression() {
-    let source = "#define constant RESULT = -A + B";
+    let source = "#define constant RESULT = -[A] + [B]";
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
     let lexer = Lexer::new(flattened_source);
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
@@ -868,28 +934,35 @@ fn test_parse_negation_in_expression() {
                 op: UnaryOp::Neg,
                 expr: Box::new(Expression::Constant {
                     name: "A".to_string(),
-                    span: AstSpan(vec![Span { start: 27, end: 28, file: None }]),
+                    span: AstSpan(vec![Span { start: 27, end: 30, file: None }]),
                 }),
-                span: AstSpan(vec![Span { start: 26, end: 27, file: None }, Span { start: 27, end: 28, file: None }]),
+                span: AstSpan(vec![
+                    Span { start: 26, end: 27, file: None }, // "-"
+                    Span { start: 27, end: 30, file: None }, // "[A]"
+                ]),
             }),
             op: BinaryOp::Add,
-            right: Box::new(Expression::Constant { name: "B".to_string(), span: AstSpan(vec![Span { start: 31, end: 32, file: None }]) }),
+            right: Box::new(Expression::Constant { name: "B".to_string(), span: AstSpan(vec![Span { start: 33, end: 36, file: None }]) }),
             span: AstSpan(vec![
-                Span { start: 26, end: 27, file: None },
-                Span { start: 27, end: 28, file: None },
-                Span { start: 29, end: 30, file: None },
-                Span { start: 31, end: 32, file: None },
+                Span { start: 26, end: 27, file: None }, // "-"
+                Span { start: 27, end: 30, file: None }, // "[A]"
+                Span { start: 31, end: 32, file: None }, // "+"
+                Span { start: 33, end: 36, file: None }, // "[B]"
             ]),
         }),
         span: AstSpan(vec![
-            Span { start: 0, end: 7, file: None },
-            Span { start: 8, end: 16, file: None },
-            Span { start: 17, end: 23, file: None },
-            Span { start: 24, end: 25, file: None },
-            Span { start: 26, end: 27, file: None },
-            Span { start: 27, end: 28, file: None },
-            Span { start: 29, end: 30, file: None },
-            Span { start: 31, end: 32, file: None },
+            Span { start: 0, end: 7, file: None },   // "#define"
+            Span { start: 8, end: 16, file: None },  // "constant"
+            Span { start: 17, end: 23, file: None }, // "RESULT"
+            Span { start: 24, end: 25, file: None }, // "="
+            Span { start: 26, end: 27, file: None }, // "-"
+            Span { start: 27, end: 28, file: None }, // "["
+            Span { start: 28, end: 29, file: None }, // "A"
+            Span { start: 29, end: 30, file: None }, // "]"
+            Span { start: 31, end: 32, file: None }, // "+"
+            Span { start: 33, end: 34, file: None }, // "["
+            Span { start: 34, end: 35, file: None }, // "B"
+            Span { start: 35, end: 36, file: None }, // "]"
         ]),
     };
     assert_eq!(constant, expected);
@@ -897,7 +970,7 @@ fn test_parse_negation_in_expression() {
 
 #[test]
 fn test_parse_chained_operations() {
-    let source = "#define constant RESULT = A + B + C + D";
+    let source = "#define constant RESULT = [A] + [B] + [C] + [D]";
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
     let lexer = Lexer::new(flattened_source);
     let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
