@@ -7,6 +7,8 @@
   - Syntax: `for(variable in start..end) { body }` or `for(variable in start..end step N) { body }`
   - Support for a loop variable with `<variable>`.
     - Example: `for(i in 0..5) { <i> }` expands to `0x00 0x01 0x02 0x03 0x04`
+- Add `__NOOP` builtin constant that generates no bytecode.
+  - Can be used e.g. for optional macro arguments `MACRO(__NOOP)`.
 
 ## [1.3.10] - 2025-11-01
 - Fix macro argument scoping to prevent arguments from leaking into nested macros that don't receive them (fixes #108).

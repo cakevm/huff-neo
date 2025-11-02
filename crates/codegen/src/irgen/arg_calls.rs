@@ -164,6 +164,10 @@ pub fn bubble_arg_call(
                         *offset += b.0.len() / 2;
                         bytes.push((starting_offset, b));
                     }
+                    MacroArg::Noop => {
+                        tracing::info!(target: "codegen", "GOT __NOOP ARG FROM MACRO INVOCATION - GENERATING NO BYTECODE");
+                        // Generate no bytecode - __NOOP is a no-op
+                    }
                     MacroArg::ArgCall(ArgCall { macro_name: ac_parent_macro_name, name: ac, span: arg_span }) => {
                         tracing::info!(target: "codegen", "GOT ARG CALL \"{}\" ARG FROM MACRO INVOCATION", ac);
                         tracing::debug!(target: "codegen", "~~~ BUBBLING UP ARG CALL");
@@ -248,6 +252,10 @@ pub fn bubble_arg_call(
                                     tracing::info!(target: "codegen", "EVALUATING CONSTANT EXPRESSION FOR \"{}\"", constant.name);
                                     let evaluated = contract.evaluate_constant_expression(expr)?;
                                     literal_gen(evm_version, &evaluated)
+                                }
+                                ConstVal::Noop => {
+                                    tracing::info!(target: "codegen", "CONSTANT \"{}\" IS __NOOP - GENERATING NO BYTECODE IN ARGCALL", constant.name);
+                                    String::new() // Generate no bytecode
                                 }
                                 ConstVal::FreeStoragePointer(fsp) => {
                                     // If this is reached in codegen stage,

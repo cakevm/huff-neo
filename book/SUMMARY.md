@@ -7,6 +7,7 @@
 - [Huff Language](huff-language/overview.md)
   - [Macros and Functions](huff-language/macros-and-functions.md)
   - [Builtin Functions](huff-language/builtin-functions.md)
+  - [Builtin Constants](huff-language/builtin-constants.md)
   - [Functions and events](huff-language/functions-and-events.md)
   - [Constants](huff-language/constants.md)
   - [Compile-Time Loops](huff-language/compile-time-loops.md)

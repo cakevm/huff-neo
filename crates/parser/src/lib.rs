@@ -350,6 +350,17 @@ impl Parser {
         self.match_kind(TokenKind::Constant)?;
 
         // Parse the constant name
+        // Check for reserved constant names first (before match_kind)
+        if matches!(self.current_token.kind, TokenKind::Noop) {
+            tracing::error!(target: "parser", "RESERVED CONSTANT NAME: __NOOP");
+            return Err(ParserError {
+                kind: ParserErrorKind::InvalidConstantName,
+                hint: Some("__NOOP is a reserved built-in constant and cannot be used as a constant name.".to_string()),
+                spans: AstSpan(self.spans.clone()),
+                cursor: self.cursor,
+            });
+        }
+
         self.match_kind(TokenKind::Ident("x".to_string()))?;
         let tok = self.peek_behind().unwrap().kind;
         let name = match tok {
@@ -372,6 +383,10 @@ impl Parser {
             TokenKind::FreeStoragePointer => {
                 self.consume();
                 ConstVal::FreeStoragePointer(FreeStoragePointer {})
+            }
+            TokenKind::Noop => {
+                self.consume();
+                ConstVal::Noop
             }
             TokenKind::BuiltinFunction(f) => {
                 let curr_spans = vec![self.current_token.span.clone()];
@@ -683,6 +698,11 @@ impl Parser {
                         span: AstSpan(curr_spans),
                     });
                 }
+                TokenKind::Noop => {
+                    tracing::info!(target: "parser", "PARSING MACRO BODY: [__NOOP] - Skipping (no bytecode)");
+                    self.consume();
+                    // Don't push any statement - __NOOP generates no bytecode
+                }
                 TokenKind::For => {
                     let for_loop = self.parse_for_loop(macro_name)?;
                     statements.push(for_loop);
@@ -907,6 +927,11 @@ impl Parser {
                         span: AstSpan(curr_spans),
                     });
                 }
+                TokenKind::Noop => {
+                    tracing::info!(target: "parser", "PARSING FOR BODY: [__NOOP] - Skipping (no bytecode)");
+                    self.consume();
+                    // Don't push any statement - __NOOP generates no bytecode
+                }
                 TokenKind::For => {
                     // Support nested for loops
                     let nested_for_loop = self.parse_for_loop(macro_name)?;
@@ -1028,6 +1053,11 @@ impl Parser {
                         }),
                         span: AstSpan(curr_spans),
                     });
+                }
+                TokenKind::Noop => {
+                    tracing::info!(target: "parser", "PARSING LABEL BODY: [__NOOP] - Skipping (no bytecode)");
+                    self.consume();
+                    // Don't push any statement - __NOOP generates no bytecode
                 }
                 kind => {
                     tracing::error!(target: "parser", "TOKEN MISMATCH - LABEL BODY: {}", kind);
@@ -1382,6 +1412,10 @@ impl Parser {
                 }
                 TokenKind::Calldata => {
                     args.push(MacroArg::Ident("calldata".to_string()));
+                    self.consume();
+                }
+                TokenKind::Noop => {
+                    args.push(MacroArg::Noop);
                     self.consume();
                 }
                 TokenKind::LeftAngle => {
