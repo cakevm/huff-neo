@@ -244,6 +244,8 @@ pub enum CodegenErrorKind {
     InvalidLoopStep,
     /// Loop iteration limit exceeded (contains max limit)
     LoopIterationLimitExceeded(usize),
+    /// PC (program counter) assertion failed (expected, actual)
+    AssertPcFailed(usize, usize),
 }
 
 impl Spanned for CodegenError {
@@ -362,6 +364,9 @@ impl<W: Write> Report<W> for CodegenError {
             }
             CodegenErrorKind::LoopIterationLimitExceeded(max) => {
                 write!(f.out, "Loop iteration limit exceeded: maximum {} iterations allowed at compile-time", max)
+            }
+            CodegenErrorKind::AssertPcFailed(expected, actual) => {
+                write!(f.out, "PC assertion failed: expected position 0x{:x}, but current position is 0x{:x}", expected, actual)
             }
         }
     }
@@ -704,6 +709,15 @@ impl fmt::Display for CompilerError {
                         f,
                         "\nError: Loop iteration limit exceeded\nMaximum {} iterations allowed at compile-time\n{}\n",
                         max,
+                        ce.span.error(None)
+                    )
+                }
+                CodegenErrorKind::AssertPcFailed(expected, actual) => {
+                    write!(
+                        f,
+                        "\nError: PC assertion failed\nExpected position: 0x{:x}\nActual position: 0x{:x}\n{}\n",
+                        expected,
+                        actual,
                         ce.span.error(None)
                     )
                 }

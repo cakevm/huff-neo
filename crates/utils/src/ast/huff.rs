@@ -1008,6 +1008,8 @@ pub enum BuiltinFunctionKind {
     Verbatim,
     /// Bytes function to convert a string to bytes
     Bytes,
+    /// Assert PC (program counter) position
+    AssertPc,
 }
 
 impl From<String> for BuiltinFunctionKind {
@@ -1024,6 +1026,7 @@ impl From<String> for BuiltinFunctionKind {
             "__CODECOPY_DYN_ARG" => BuiltinFunctionKind::DynConstructorArg,
             "__VERBATIM" => BuiltinFunctionKind::Verbatim,
             "__BYTES" => BuiltinFunctionKind::Bytes,
+            "__ASSERT_PC" => BuiltinFunctionKind::AssertPc,
             _ => panic!("Invalid Builtin Function Kind"), /* This should never be reached,
                                                            * builtins are validated with a
                                                            * `try_from` call in the lexer. */
@@ -1047,6 +1050,7 @@ impl TryFrom<&String> for BuiltinFunctionKind {
             "__CODECOPY_DYN_ARG" => Ok(BuiltinFunctionKind::DynConstructorArg),
             "__VERBATIM" => Ok(BuiltinFunctionKind::Verbatim),
             "__BYTES" => Ok(BuiltinFunctionKind::Bytes),
+            "__ASSERT_PC" => Ok(BuiltinFunctionKind::AssertPc),
             _ => Err(()),
         }
     }
@@ -1066,6 +1070,7 @@ impl Display for BuiltinFunctionKind {
             BuiltinFunctionKind::DynConstructorArg => write!(f, "__CODECOPY_DYN_ARG"),
             BuiltinFunctionKind::Verbatim => write!(f, "__VERBATIM"),
             BuiltinFunctionKind::Bytes => write!(f, "__BYTES"),
+            BuiltinFunctionKind::AssertPc => write!(f, "__ASSERT_PC"),
         }
     }
 }

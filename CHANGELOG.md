@@ -3,12 +3,16 @@
 # Huff Neo Compiler changelog
 
 ## Unreleased
+
+## [1.4.0] - 2025-11-02
 - Add compile-time for-loops that expand during compilation.
   - Syntax: `for(variable in start..end) { body }` or `for(variable in start..end step N) { body }`
   - Support for a loop variable with `<variable>`.
     - Example: `for(i in 0..5) { <i> }` expands to `0x00 0x01 0x02 0x03 0x04`
-- Add `__NOOP` builtin constant that generates no bytecode.
+- Add `__NOOP` builtin constant that generates no bytecode (fixes #111).
   - Can be used e.g. for optional macro arguments `MACRO(__NOOP)`.
+- Add `__ASSERT_PC(<literal>|<constant>)` builtin function for compile-time bytecode position assertions.
+  - Useful for ensuring `JUMPDEST` are at expected offsets.
 
 ## [1.3.10] - 2025-11-01
 - Fix macro argument scoping to prevent arguments from leaking into nested macros that don't receive them (fixes #108).

@@ -1,5 +1,5 @@
 use crate::Codegen;
-use crate::irgen::constants::constant_gen;
+use crate::irgen::constants::{constant_gen, evaluate_constant_value};
 use alloy_primitives::{hex, keccak256};
 use huff_neo_utils::bytecode::{BytecodeRes, Bytes, CircularCodeSizeIndices, Jump, Jumps};
 use huff_neo_utils::bytes_util::{bytes32_to_hex_string, format_even_bytes, literal_gen, pad_n_bytes};
@@ -242,6 +242,85 @@ pub fn builtin_function_gen<'a>(
             let push_bytes = builtin_bytes(evm_version, bf)?;
             *offset += push_bytes.len() / 2;
             bytes.push((starting_offset, Bytes(push_bytes)));
+        }
+        BuiltinFunctionKind::AssertPc => {
+            if bf.args.len() != 1 {
+                tracing::error!(target = "codegen", "Incorrect number of arguments passed to __ASSERT_PC, should be 1: {}", bf.args.len());
+                return Err(CodegenError {
+                    kind: CodegenErrorKind::InvalidArguments(format!(
+                        "Incorrect number of arguments passed to __ASSERT_PC, should be 1: {}",
+                        bf.args.len()
+                    )),
+                    span: bf.span.clone_box(),
+                    token: None,
+                });
+            }
+
+            // Extract the expected position from the argument
+            let expected_position = match &bf.args[0] {
+                BuiltinFunctionArg::Literal(lit) => {
+                    // Parse the literal value (lit is a &[u8; 32])
+                    let hex_str = bytes32_to_hex_string(lit, false);
+                    usize::from_str_radix(&hex_str, 16).map_err(|_| CodegenError {
+                        kind: CodegenErrorKind::InvalidArguments(format!("Invalid literal value passed to __ASSERT_PC: 0x{}", hex_str)),
+                        span: bf.span.clone_box(),
+                        token: None,
+                    })?
+                }
+                BuiltinFunctionArg::Argument(arg) => {
+                    // The parser may create an Argument with the hex value as the name
+                    if let Some(name) = &arg.name {
+                        // Try to parse as hex
+                        usize::from_str_radix(name, 16).map_err(|_| CodegenError {
+                            kind: CodegenErrorKind::InvalidArguments(format!("Invalid hex value passed to __ASSERT_PC: {}", name)),
+                            span: bf.span.clone_box(),
+                            token: None,
+                        })?
+                    } else {
+                        return Err(CodegenError {
+                            kind: CodegenErrorKind::InvalidArguments(String::from("Argument has no name")),
+                            span: bf.span.clone_box(),
+                            token: None,
+                        });
+                    }
+                }
+                BuiltinFunctionArg::Constant(name, span) => {
+                    // Evaluate constant directly to numeric value without generating bytecode
+                    evaluate_constant_value(name, contract, span)?
+                }
+                _ => {
+                    return Err(CodegenError {
+                        kind: CodegenErrorKind::InvalidArguments(String::from(
+                            "Expected literal or constant value as argument to __ASSERT_PC",
+                        )),
+                        span: bf.span.clone_box(),
+                        token: None,
+                    });
+                }
+            };
+
+            // Check if the current position matches the expected position
+            if starting_offset != expected_position {
+                tracing::error!(
+                    target: "codegen",
+                    "PC assertion failed: expected 0x{:x}, got 0x{:x}",
+                    expected_position,
+                    starting_offset
+                );
+                return Err(CodegenError {
+                    kind: CodegenErrorKind::AssertPcFailed(expected_position, starting_offset),
+                    span: bf.span.clone_box(),
+                    token: None,
+                });
+            }
+
+            tracing::debug!(
+                target: "codegen",
+                "PC assertion passed: position is 0x{:x} as expected",
+                starting_offset
+            );
+
+            // No bytecode is generated - this is a pure compile-time check
         }
     }
     Ok(())

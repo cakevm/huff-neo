@@ -1190,3 +1190,130 @@ fn test_duplicate_macro_error() {
         }
     }
 }
+
+#[test]
+fn macro_with_assert_pc_literal() {
+    let source = r#"
+    #define macro TEST() = takes(0) returns(0) {
+        __ASSERT_PC(0x00)
+    }
+    "#;
+
+    // Parse tokens
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+
+    let macro_definition = parser.parse().unwrap().macros.get("TEST").cloned().unwrap();
+    let expected = MacroDefinition {
+        name: "TEST".to_string(),
+        decorator: None,
+        parameters: vec![],
+        statements: vec![Statement {
+            ty: StatementType::BuiltinFunctionCall(BuiltinFunctionCall {
+                kind: BuiltinFunctionKind::AssertPc,
+                args: vec![BuiltinFunctionArg::Argument(Argument {
+                    arg_type: None,
+                    arg_location: None,
+                    name: Some("00".to_string()),
+                    indexed: false,
+                    span: AstSpan(vec![Span { start: 70, end: 74, file: None }]),
+                })],
+                span: AstSpan(vec![Span { start: 58, end: 69, file: None }, Span { start: 70, end: 74, file: None }]),
+            }),
+            span: AstSpan(vec![Span { start: 58, end: 69, file: None }, Span { start: 70, end: 74, file: None }]),
+        }],
+        takes: 0,
+        returns: 0,
+        span: AstSpan(vec![
+            Span { start: 5, end: 12, file: None },
+            Span { start: 13, end: 18, file: None },
+            Span { start: 19, end: 23, file: None },
+            Span { start: 23, end: 24, file: None },
+            Span { start: 24, end: 25, file: None },
+            Span { start: 26, end: 27, file: None },
+            Span { start: 28, end: 33, file: None },
+            Span { start: 33, end: 34, file: None },
+            Span { start: 34, end: 35, file: None },
+            Span { start: 35, end: 36, file: None },
+            Span { start: 37, end: 44, file: None },
+            Span { start: 44, end: 45, file: None },
+            Span { start: 45, end: 46, file: None },
+            Span { start: 46, end: 47, file: None },
+            Span { start: 48, end: 49, file: None },
+            Span { start: 58, end: 69, file: None },
+            Span { start: 69, end: 70, file: None },
+            Span { start: 70, end: 74, file: None },
+            Span { start: 74, end: 75, file: None },
+            Span { start: 80, end: 81, file: None },
+        ]),
+        outlined: false,
+        test: false,
+    };
+
+    assert_eq!(macro_definition, expected);
+}
+
+#[test]
+fn macro_with_assert_pc_constant() {
+    let source = r#"
+    #define constant TARGET_PC = 0x10
+    #define macro TEST() = takes(0) returns(0) {
+        __ASSERT_PC([TARGET_PC])
+    }
+    "#;
+
+    // Parse tokens
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+
+    let macro_definition = parser.parse().unwrap().macros.get("TEST").cloned().unwrap();
+    let expected = MacroDefinition {
+        name: "TEST".to_string(),
+        decorator: None,
+        parameters: vec![],
+        statements: vec![Statement {
+            ty: StatementType::BuiltinFunctionCall(BuiltinFunctionCall {
+                kind: BuiltinFunctionKind::AssertPc,
+                args: vec![BuiltinFunctionArg::Constant("TARGET_PC".to_string(), AstSpan(vec![Span { start: 108, end: 119, file: None }]))],
+                span: AstSpan(vec![Span { start: 96, end: 107, file: None }, Span { start: 108, end: 119, file: None }]),
+            }),
+            span: AstSpan(vec![Span { start: 96, end: 107, file: None }, Span { start: 108, end: 119, file: None }]),
+        }],
+        takes: 0,
+        returns: 0,
+        span: AstSpan(vec![
+            Span { start: 43, end: 50, file: None },
+            Span { start: 51, end: 56, file: None },
+            Span { start: 57, end: 61, file: None },
+            Span { start: 61, end: 62, file: None },
+            Span { start: 62, end: 63, file: None },
+            Span { start: 64, end: 65, file: None },
+            Span { start: 66, end: 71, file: None },
+            Span { start: 71, end: 72, file: None },
+            Span { start: 72, end: 73, file: None },
+            Span { start: 73, end: 74, file: None },
+            Span { start: 75, end: 82, file: None },
+            Span { start: 82, end: 83, file: None },
+            Span { start: 83, end: 84, file: None },
+            Span { start: 84, end: 85, file: None },
+            Span { start: 86, end: 87, file: None },
+            Span { start: 96, end: 107, file: None },
+            Span { start: 107, end: 108, file: None },
+            Span { start: 108, end: 109, file: None },
+            Span { start: 109, end: 118, file: None },
+            Span { start: 118, end: 119, file: None },
+            Span { start: 119, end: 120, file: None },
+            Span { start: 125, end: 126, file: None },
+        ]),
+        outlined: false,
+        test: false,
+    };
+
+    assert_eq!(macro_definition, expected);
+}
