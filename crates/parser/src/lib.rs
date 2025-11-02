@@ -31,6 +31,8 @@ pub struct Parser {
     pub spans: Vec<Span>,
     /// Our remapper
     pub remapper: remapper::Remapper,
+    /// Stack of active for loop variable names (for nested loops)
+    loop_variables: Vec<String>,
 }
 
 impl Parser {
@@ -38,7 +40,7 @@ impl Parser {
     pub fn new(tokens: Vec<Token>, base: Option<String>) -> Self {
         let initial_token = tokens.first().unwrap().clone();
         let remapper = remapper::Remapper::new("./");
-        Self { tokens, cursor: 0, current_token: initial_token, base, spans: vec![], remapper }
+        Self { tokens, cursor: 0, current_token: initial_token, base, spans: vec![], remapper, loop_variables: vec![] }
     }
 
     /// Resets the current token and cursor to the first token in the parser's token vec
@@ -681,6 +683,10 @@ impl Parser {
                         span: AstSpan(curr_spans),
                     });
                 }
+                TokenKind::For => {
+                    let for_loop = self.parse_for_loop(macro_name)?;
+                    statements.push(for_loop);
+                }
                 kind => {
                     tracing::error!(target: "parser", "TOKEN MISMATCH - MACRO BODY: {}", kind);
                     return Err(ParserError {
@@ -693,6 +699,230 @@ impl Parser {
             };
         }
         // consume close brace
+        self.match_kind(TokenKind::CloseBrace)?;
+        Ok(statements)
+    }
+
+    /// Parse a for loop statement
+    ///
+    /// Syntax: `for(var in start..end) { body }` or `for(var in start..end step N) { body }`
+    pub fn parse_for_loop(&mut self, macro_name: &str) -> Result<Statement, ParserError> {
+        let mut curr_spans = vec![];
+
+        // Match 'for' keyword
+        curr_spans.push(self.current_token.span.clone());
+        self.match_kind(TokenKind::For)?;
+
+        // Match '('
+        curr_spans.push(self.current_token.span.clone());
+        self.match_kind(TokenKind::OpenParen)?;
+
+        // Parse variable name (should be Ident)
+        let variable = match self.current_token.kind.clone() {
+            TokenKind::Ident(name) => {
+                curr_spans.push(self.current_token.span.clone());
+                self.consume();
+                name
+            }
+            _ => {
+                return Err(ParserError {
+                    kind: ParserErrorKind::InvalidName(self.current_token.kind.clone()),
+                    hint: Some("Expected loop variable name after 'for('".to_string()),
+                    spans: AstSpan(vec![self.current_token.span.clone()]),
+                    cursor: self.cursor,
+                });
+            }
+        };
+
+        // Match 'in' keyword
+        curr_spans.push(self.current_token.span.clone());
+        self.match_kind(TokenKind::In)?;
+
+        // Parse start expression
+        let start = self.parse_constant_expression()?;
+        curr_spans.extend_from_slice(start.span().inner_ref());
+
+        // Match '..'
+        curr_spans.push(self.current_token.span.clone());
+        self.match_kind(TokenKind::DoubleDot)?;
+
+        // Parse end expression
+        let end = self.parse_constant_expression()?;
+        curr_spans.extend_from_slice(end.span().inner_ref());
+
+        // Check for optional 'step' keyword
+        let step = if self.check(TokenKind::Step) {
+            curr_spans.push(self.current_token.span.clone());
+            self.match_kind(TokenKind::Step)?;
+            let step_expr = self.parse_constant_expression()?;
+            curr_spans.extend_from_slice(step_expr.span().inner_ref());
+            Some(step_expr)
+        } else {
+            None
+        };
+
+        // Match ')'
+        curr_spans.push(self.current_token.span.clone());
+        self.match_kind(TokenKind::CloseParen)?;
+
+        // Capture '{' span before parsing body
+        curr_spans.push(self.current_token.span.clone());
+
+        // Push loop variable to track it during body parsing
+        self.loop_variables.push(variable.clone());
+
+        // Parse the loop body (this consumes '{' and '}')
+        let body = self.parse_for_body(macro_name)?;
+
+        // Pop loop variable after parsing body
+        self.loop_variables.pop();
+
+        // Collect spans from body
+        body.iter().for_each(|s| curr_spans.extend_from_slice(s.span.inner_ref()));
+
+        // Capture '}' span - parse_for_body consumed it, so use peek_behind
+        if let Some(close_brace_token) = self.peek_behind() {
+            curr_spans.push(close_brace_token.span);
+        }
+
+        tracing::info!(target: "parser", "PARSED FOR LOOP: {} in {}..{} step {:?} with {} statements",
+                      variable, "start", "end", step, body.len());
+
+        Ok(Statement { ty: StatementType::ForLoop { variable, start, end, step, body }, span: AstSpan(curr_spans) })
+    }
+
+    /// Parse the body of a for loop (similar to parse_body but handles interpolation)
+    fn parse_for_body(&mut self, macro_name: &str) -> Result<Vec<Statement>, ParserError> {
+        let mut statements: Vec<Statement> = Vec::new();
+        self.match_kind(TokenKind::OpenBrace)?;
+
+        while !self.check(TokenKind::CloseBrace) {
+            match self.current_token.kind.clone() {
+                TokenKind::Literal(val) => {
+                    let curr_spans = vec![self.current_token.span.clone()];
+                    self.consume();
+                    statements.push(Statement { ty: StatementType::Literal(val), span: AstSpan(curr_spans) });
+                }
+                TokenKind::Opcode(o) => {
+                    let curr_spans = vec![self.current_token.span.clone()];
+                    self.consume();
+                    statements.push(Statement { ty: StatementType::Opcode(o), span: AstSpan(curr_spans) });
+                    if o.is_value_push() {
+                        // Handle push with literal
+                        match self.current_token.kind.clone() {
+                            TokenKind::Literal(val) => {
+                                let curr_spans = vec![self.current_token.span.clone()];
+                                self.consume();
+                                statements.push(Statement { ty: StatementType::Literal(val), span: AstSpan(curr_spans) });
+                            }
+                            _ => {
+                                return Err(ParserError {
+                                    kind: ParserErrorKind::InvalidPush(o),
+                                    hint: Some(format!("Expected literal or interpolation following \"{:?}\"", o)),
+                                    spans: AstSpan(vec![self.current_token.span.clone()]),
+                                    cursor: self.cursor,
+                                });
+                            }
+                        }
+                    }
+                }
+                TokenKind::Ident(ident_str) => {
+                    let mut curr_spans = vec![self.current_token.span.clone()];
+                    self.match_kind(TokenKind::Ident("MACRO_NAME".to_string()))?;
+                    // Can be a macro call or label call
+                    match self.current_token.kind {
+                        TokenKind::OpenParen => {
+                            // Parse Macro Call
+                            let lit_args = self.parse_macro_call_args(macro_name.to_owned())?;
+                            if let Some(i) = self.spans.iter().position(|s| s.eq(&curr_spans[0])) {
+                                curr_spans.append(&mut self.spans[(i + 1)..].to_vec());
+                            }
+                            statements.push(Statement {
+                                ty: StatementType::MacroInvocation(MacroInvocation {
+                                    macro_name: ident_str.to_string(),
+                                    args: lit_args,
+                                    span: AstSpan(curr_spans.clone()),
+                                }),
+                                span: AstSpan(curr_spans),
+                            });
+                        }
+                        _ => {
+                            statements.push(Statement { ty: StatementType::LabelCall(ident_str), span: AstSpan(curr_spans) });
+                        }
+                    }
+                }
+                TokenKind::OpenBracket => {
+                    let (constant, const_span) = self.parse_constant_push()?;
+                    statements.push(Statement { ty: StatementType::Constant(constant), span: AstSpan(vec![const_span]) });
+                }
+                TokenKind::LeftAngle => {
+                    // Check if this is a loop variable reference <var>
+                    let angle_span = self.current_token.span.clone(); // Save the < span
+                    self.consume(); // consume <
+
+                    if let TokenKind::Ident(ref ident_name) = self.current_token.kind {
+                        // Check if this identifier is an active loop variable
+                        if self.loop_variables.contains(ident_name) {
+                            // This is a loop variable reference
+                            let var_name = ident_name.clone();
+                            self.consume(); // consume identifier
+                            self.match_kind(TokenKind::RightAngle)?; // consume >
+
+                            tracing::info!(target: "parser", "PARSING FOR BODY: [LOOP VAR: <{}>]", var_name);
+                            statements.push(Statement {
+                                ty: StatementType::Constant(format!("__LOOP_VAR_{}", var_name)),
+                                span: AstSpan(vec![angle_span]),
+                            });
+                            continue;
+                        }
+                    }
+
+                    // Not a loop variable - parse as arg call or macro invocation
+                    // We've already consumed the <, so we need to handle the rest
+                    let stmt = self.parse_arg_call_or_invocation_after_angle(macro_name.to_owned(), angle_span)?;
+                    statements.push(stmt);
+                }
+                TokenKind::BuiltinFunction(f) => {
+                    let mut curr_spans = vec![self.current_token.span.clone()];
+                    self.match_kind(TokenKind::BuiltinFunction(String::default()))?;
+                    let args = self.parse_builtin_args()?;
+                    args.iter().for_each(|a| curr_spans.extend_from_slice(a.span().inner_ref()));
+                    statements.push(Statement {
+                        ty: StatementType::BuiltinFunctionCall(BuiltinFunctionCall {
+                            kind: BuiltinFunctionKind::from(f),
+                            args,
+                            span: AstSpan(curr_spans.clone()),
+                        }),
+                        span: AstSpan(curr_spans),
+                    });
+                }
+                TokenKind::Label(l) => {
+                    let mut curr_spans = vec![self.current_token.span.clone()];
+                    self.consume();
+                    let inner_statements: Vec<Statement> = self.parse_label(macro_name.to_owned())?;
+                    inner_statements.iter().for_each(|a| curr_spans.extend_from_slice(a.span.inner_ref()));
+                    tracing::info!(target: "parser", "PARSED LABEL \"{}\" INSIDE FOR LOOP WITH {} STATEMENTS.", l, inner_statements.len());
+                    statements.push(Statement {
+                        ty: StatementType::Label(Label { name: l, inner: inner_statements, span: AstSpan(curr_spans.clone()) }),
+                        span: AstSpan(curr_spans),
+                    });
+                }
+                TokenKind::For => {
+                    // Support nested for loops
+                    let nested_for_loop = self.parse_for_loop(macro_name)?;
+                    statements.push(nested_for_loop);
+                }
+                kind => {
+                    return Err(ParserError {
+                        kind: ParserErrorKind::InvalidTokenInMacroBody(kind),
+                        hint: Some("Unexpected token in for loop body".to_string()),
+                        spans: AstSpan(vec![self.current_token.span.clone()]),
+                        cursor: self.cursor,
+                    });
+                }
+            }
+        }
+
         self.match_kind(TokenKind::CloseBrace)?;
         Ok(statements)
     }
@@ -759,7 +989,29 @@ impl Parser {
                     statements.push(Statement { ty: StatementType::Constant(constant), span: AstSpan(vec![const_span]) });
                 }
                 TokenKind::LeftAngle => {
-                    let stmt = self.parse_arg_call_or_invocation(parent_macro_name.clone())?;
+                    // Check if this is a loop variable reference <var>
+                    let angle_span = self.current_token.span.clone(); // Save the < span
+                    self.consume(); // consume <
+
+                    if let TokenKind::Ident(ref ident_name) = self.current_token.kind {
+                        // Check if this identifier is an active loop variable
+                        if self.loop_variables.contains(ident_name) {
+                            // This is a loop variable reference
+                            let var_name = ident_name.clone();
+                            self.consume(); // consume identifier
+                            self.match_kind(TokenKind::RightAngle)?; // consume >
+
+                            tracing::info!(target: "parser", "PARSING LABEL BODY: [LOOP VAR: <{}>]", var_name);
+                            statements.push(Statement {
+                                ty: StatementType::Constant(format!("__LOOP_VAR_{}", var_name)),
+                                span: AstSpan(vec![angle_span]),
+                            });
+                            continue;
+                        }
+                    }
+
+                    // Not a loop variable - parse as arg call or macro invocation
+                    let stmt = self.parse_arg_call_or_invocation_after_angle(parent_macro_name.clone(), angle_span)?;
                     statements.push(stmt);
                 }
                 TokenKind::BuiltinFunction(f) => {
@@ -1418,6 +1670,65 @@ impl Parser {
         }
     }
 
+    /// Parse an arg call or arg macro invocation after `<` has already been consumed
+    /// This is used in for loop bodies where we check for loop variables first
+    fn parse_arg_call_or_invocation_after_angle(&mut self, parent_macro_name: String, angle_span: Span) -> Result<Statement, ParserError> {
+        // At this point, < has been consumed, we're at the identifier
+        match self.current_token.kind.clone() {
+            TokenKind::Ident(arg_str) => {
+                self.consume();
+                let end_span = self.current_token.span.clone();
+                self.match_kind(TokenKind::RightAngle)?;
+                let full_span = Span { start: angle_span.start, end: end_span.end, file: angle_span.file };
+
+                // Check if this is a macro invocation through argument: <arg>()
+                if self.current_token.kind == TokenKind::OpenParen {
+                    tracing::info!(target: "parser", "PARSING ARG MACRO INVOCATION: {}()", arg_str);
+                    self.consume(); // consume '('
+
+                    // Parse arguments for the macro invocation
+                    let mut args = Vec::new();
+                    while self.current_token.kind != TokenKind::CloseParen {
+                        let arg = self.parse_single_macro_argument()?;
+                        let arg = if let MacroArg::ArgCall(mut ac) = arg {
+                            ac.macro_name = parent_macro_name.clone();
+                            MacroArg::ArgCall(ac)
+                        } else {
+                            arg
+                        };
+                        args.push(arg);
+
+                        if self.current_token.kind == TokenKind::Comma {
+                            self.consume();
+                        } else if self.current_token.kind != TokenKind::CloseParen {
+                            return Err(ParserError {
+                                kind: ParserErrorKind::InvalidTokenInMacroBody(self.current_token.kind.clone()),
+                                hint: Some("Expected ',' or ')' in macro argument list".to_string()),
+                                spans: AstSpan(vec![self.current_token.span.clone()]),
+                                cursor: self.cursor,
+                            });
+                        }
+                    }
+
+                    self.match_kind(TokenKind::CloseParen)?; // consume ')'
+                    Ok(Statement {
+                        ty: StatementType::ArgMacroInvocation(parent_macro_name, arg_str, args),
+                        span: AstSpan(vec![full_span]),
+                    })
+                } else {
+                    tracing::info!(target: "parser", "PARSING ARG CALL: {}", arg_str);
+                    Ok(Statement { ty: StatementType::ArgCall(parent_macro_name, arg_str), span: AstSpan(vec![full_span]) })
+                }
+            }
+            kind => Err(ParserError {
+                kind: ParserErrorKind::InvalidArgCallIdent(kind),
+                hint: None,
+                spans: AstSpan(vec![self.current_token.span.clone()]),
+                cursor: self.cursor,
+            }),
+        }
+    }
+
     /// Parses whitespaces and newlines until none are left.
     pub fn parse_nl_or_whitespace(&mut self) -> Result<(), ParserError> {
         while self.check(TokenKind::Whitespace) {
@@ -1590,6 +1901,13 @@ impl Parser {
                 let span = AstSpan(vec![self.current_token.span.clone()]);
                 self.consume();
                 Ok(Expression::Literal { value: str_to_bytes32(&hex_str), span })
+            }
+            TokenKind::Num(n) => {
+                // Handle numeric literals (used in for loops)
+                let span = AstSpan(vec![self.current_token.span.clone()]);
+                self.consume();
+                let value = str_to_bytes32(&format!("{}", n));
+                Ok(Expression::Literal { value, span })
             }
             TokenKind::OpenParen => {
                 let start_span = self.current_token.span.clone();

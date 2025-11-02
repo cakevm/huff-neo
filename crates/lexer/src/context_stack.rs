@@ -3,14 +3,20 @@ use huff_neo_utils::lexer_context::Context;
 
 // The context stack is used to keep track of the current context.
 //
+// Complete context hierarchy showing all possible parent-child relationships:
+//
 // Context::Global
 // ├─ Context::Constant
 // ├─ Context::Abi
 // │  └─ Context::AbiArgs
 // ├─ Context::MacroDefinition
-// │  └─ Context::MacroArgs
-// ├─ Context::MacroBody
-// │  └─ Context::BuiltinFunction
+// │  └─ Context::MacroBody
+// │     ├─ Context::BuiltinFunction
+// │     ├─ Context::MacroArgs
+// │     └─ Context::ForLoopBody
+// │        ├─ Context::BuiltinFunction
+// │        ├─ Context::MacroArgs
+// │        └─ Context::ForLoopBody (nested)
 // └─ Context::CodeTableBody
 
 /// The context stack is used to keep track of the current context

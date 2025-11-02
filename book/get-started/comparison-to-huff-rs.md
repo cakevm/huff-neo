@@ -69,6 +69,29 @@ Macros can now be passed as arguments to other macros and invoked dynamically, m
 
 See the [Macros and Functions](../huff-language/macros-and-functions.md#first-class-macro-arguments) documentation for more details.
 
+### Compile-time for loops
+Generate repetitive code patterns at compile-time using for loops that expand before bytecode generation.
+
+```javascript
+#define constant COUNT = 10
+
+#define macro INIT_STORAGE() = takes(0) returns(0) {
+    // Initialize storage slots 0 through 9 with zero
+    for(i in 0..COUNT) {
+        0x00 <i> sstore
+    }
+}
+
+#define macro PUSH_SEQUENCE() = takes(0) returns(5) {
+    // Generate: 0x00 0x02 0x04 0x06 0x08
+    for(i in 0..10 step 2) {
+        <i>
+    }
+}
+```
+
+See the [Compile-Time Loops](../huff-language/compile-time-loops.md) documentation for complete details and examples.
+
 ### New test capabilities
 The test module has been refactored to use `anvil` and `forge` features from `foundry` to fork the mainnet. This allows for more advanced testing capabilities.
 
