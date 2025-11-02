@@ -100,6 +100,25 @@ for(i in 0..3) {
 
 Loop bounds must be constant expressions that can be evaluated at compile-time.
 
+### Constant References
+
+When referencing constants in loop bounds or step values, you **must** use bracket notation `[CONSTANT_NAME]`:
+
+```javascript
+#define constant END = 10
+
+// ✓ Correct - bracket notation required
+for(i in 0..[END]) { }
+
+// ✗ Incorrect - bare constant name not allowed
+for(i in 0..END) { }
+```
+
+This applies to all positions where constants appear:
+- Start bound: `for(i in [START]..end)`
+- End bound: `for(i in start..[END])`
+- Step value: `for(i in start..end step [STEP])`
+
 ### U256 Range Support
 
 Loop ranges support **full u256 values** using hex notation:
@@ -110,7 +129,7 @@ Loop ranges support **full u256 values** using hex notation:
 #define constant STEP = 0x10
 
 #define macro USE_CONSTANTS() = takes(0) returns(16) {
-    for(i in START..END step STEP) {
+    for(i in [START]..[END] step [STEP]) {
         <i>
     }
 }
@@ -132,7 +151,7 @@ You can use arithmetic expressions:
 ```javascript
 #define constant SIZE = 5
 
-for(i in 0..SIZE * 2) {
+for(i in 0..[SIZE] * 2) {
     <i>
 }
 // Expands iterations from 0 to 9
@@ -209,7 +228,7 @@ loop:
     loop jumpi
 
 // Compile-time loop (no runtime overhead)
-for(i in 0..COUNT) {
+for(i in 0..[COUNT]) {
     // ... unrolled code
 }
 ```
@@ -230,8 +249,8 @@ for(i in 0..COUNT) {
 #define constant MATRIX_SIZE = 4
 
 #define macro INIT_MATRIX() = takes(0) returns(0) {
-    for(row in 0..MATRIX_SIZE) {
-        for(col in 0..MATRIX_SIZE) {
+    for(row in 0..[MATRIX_SIZE]) {
+        for(col in 0..[MATRIX_SIZE]) {
             0x00
             <row>
             <col>
@@ -249,7 +268,7 @@ for(i in 0..COUNT) {
 
 #define macro COPY_ARRAY() = takes(2) returns(0) {
     // Takes: source_ptr dest_ptr
-    for(offset in 0..ARRAY_LENGTH step 0x20) {
+    for(offset in 0..[ARRAY_LENGTH] step 0x20) {
         // Load from source
         dup2 <offset> add mload
         // Store to dest

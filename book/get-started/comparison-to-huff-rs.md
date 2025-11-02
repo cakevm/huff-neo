@@ -28,10 +28,10 @@ Constants can use arithmetic expressions evaluated at compile time.
 ```javascript
 #define constant BASE = 0x20
 #define constant OFFSET = 0x04
-#define constant COMBINED = BASE + OFFSET          // 0x24
+#define constant COMBINED = [BASE] + [OFFSET]      // 0x24
 
 #define constant WORD_SIZE = 0x20
-#define constant HALF_WORD = WORD_SIZE / 0x02      // 0x10
+#define constant HALF_WORD = [WORD_SIZE] / 0x02    // 0x10
 
 #define constant COMPLEX = (0x0a + 0x05) * 0x02    // 0x1e
 ```
@@ -74,14 +74,19 @@ There are new builtin functions available in `huff-neo`.
 
 #### `__ASSERT_PC()` example
 
-Validates that bytecode is positioned at expected offsets, useful for ensuring jump destinations align correctly.
+Validates that bytecode is positioned at expected offsets, useful for ensuring jump destinations align correctly. Can be combined with for-loops and constants for precise bytecode positioning.
 
 ```javascript
 #define constant TARGET_OFFSET = 0x20
 
 #define macro MAIN() = takes(0) returns(0) {
     __ASSERT_PC(0x00)           // Assert we're at the start
-    // ... 32 bytes of code ...
+
+    // Fill space to reach target offset using for-loop with constant
+    for(i in 0..[TARGET_OFFSET]) {
+        stop  // Expands to 32 stop instructions = 32 bytes
+    }
+
     __ASSERT_PC([TARGET_OFFSET]) // Assert we're at byte 32
     target:                      // Label for jump destination
 }
@@ -116,7 +121,7 @@ Generate repetitive code patterns at compile-time using for loops that expand be
 
 #define macro INIT_STORAGE() = takes(0) returns(0) {
     // Initialize storage slots 0 through 9 with zero
-    for(i in 0..COUNT) {
+    for(i in 0..[COUNT]) {
         0x00 <i> sstore
     }
 }

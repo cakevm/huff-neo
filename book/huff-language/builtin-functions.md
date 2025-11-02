@@ -69,16 +69,15 @@ This is useful for ensuring critical instructions (like jump destinations) are p
 }
 ```
 
-You can also use constants:
+You can also use constants and combine with for-loops:
 ```javascript
 #define constant TARGET_OFFSET = 0x20
 
 #define macro MAIN() = takes (0) returns (0) {
-    // Fill space to reach target offset
-    stop stop stop stop stop stop stop stop  // 8 bytes
-    stop stop stop stop stop stop stop stop  // 8 bytes
-    stop stop stop stop stop stop stop stop  // 8 bytes
-    stop stop stop stop stop stop stop stop  // 8 bytes
+    // Fill space to reach target offset using for-loop with constant
+    for(i in 0..[TARGET_OFFSET]) {
+        stop  // Expands to 32 stop instructions = 32 bytes
+    }
     __ASSERT_PC([TARGET_OFFSET])  // Ensure we're at the expected offset (0x20 = 32 bytes)
     important_label:             // Label generates JUMPDEST automatically
 }

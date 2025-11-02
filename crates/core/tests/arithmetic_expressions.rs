@@ -10,7 +10,7 @@ fn test_simple_addition() {
     let source = r#"
         #define constant A = 0x10
         #define constant B = 0x05
-        #define constant RESULT = A + B  // 0x15
+        #define constant RESULT = [A] + [B]  // 0x15
 
         #define macro MAIN() = takes(0) returns(0) {
             [RESULT]
@@ -26,7 +26,7 @@ fn test_simple_subtraction() {
     let source = r#"
         #define constant A = 0x20
         #define constant B = 0x08
-        #define constant RESULT = A - B  // 0x18
+        #define constant RESULT = [A] - [B]  // 0x18
 
         #define macro MAIN() = takes(0) returns(0) {
             [RESULT]
@@ -42,7 +42,7 @@ fn test_simple_multiplication() {
     let source = r#"
         #define constant A = 0x03
         #define constant B = 0x07
-        #define constant RESULT = A * B  // 0x15
+        #define constant RESULT = [A] * [B]  // 0x15
 
         #define macro MAIN() = takes(0) returns(0) {
             [RESULT]
@@ -58,7 +58,7 @@ fn test_simple_division() {
     let source = r#"
         #define constant A = 0x64  // 100
         #define constant B = 0x0a  // 10
-        #define constant RESULT = A / B  // 0x0a
+        #define constant RESULT = [A] / [B]  // 0x0a
 
         #define macro MAIN() = takes(0) returns(0) {
             [RESULT]
@@ -74,7 +74,7 @@ fn test_simple_modulo() {
     let source = r#"
         #define constant A = 0x0a  // 10
         #define constant B = 0x03  // 3
-        #define constant RESULT = A % B  // 0x01
+        #define constant RESULT = [A] % [B]  // 0x01
 
         #define macro MAIN() = takes(0) returns(0) {
             [RESULT]
@@ -89,7 +89,7 @@ fn test_simple_modulo() {
 fn test_unary_negation() {
     let source = r#"
         #define constant A = 0x05
-        #define constant RESULT = -A  // Two's complement of 5
+        #define constant RESULT = -[A]  // Two's complement of 5
 
         #define macro MAIN() = takes(0) returns(0) {
             [RESULT]
@@ -109,7 +109,7 @@ fn test_operator_precedence_mul_before_add() {
         #define constant A = 0x02
         #define constant B = 0x03
         #define constant C = 0x04
-        #define constant RESULT = A + B * C  // 2 + (3 * 4) = 14 = 0x0e
+        #define constant RESULT = [A] + [B] * [C]  // 2 + (3 * 4) = 14 = 0x0e
 
         #define macro MAIN() = takes(0) returns(0) {
             [RESULT]
@@ -154,7 +154,7 @@ fn test_parenthesized_expression_override_precedence() {
         #define constant A = 0x02
         #define constant B = 0x03
         #define constant C = 0x04
-        #define constant RESULT = (A + B) * C  // (2 + 3) * 4 = 20 = 0x14
+        #define constant RESULT = ([A] + [B]) * [C]  // (2 + 3) * 4 = 20 = 0x14
 
         #define macro MAIN() = takes(0) returns(0) {
             [RESULT]
@@ -172,7 +172,7 @@ fn test_nested_parentheses() {
         #define constant B = 0x02
         #define constant C = 0x03
         #define constant D = 0x04
-        #define constant RESULT = ((A + B) * (C + D))  // (1+2) * (3+4) = 3 * 7 = 21 = 0x15
+        #define constant RESULT = (([A] + [B]) * ([C] + [D]))  // (1+2) * (3+4) = 3 * 7 = 21 = 0x15
 
         #define macro MAIN() = takes(0) returns(0) {
             [RESULT]
@@ -187,7 +187,7 @@ fn test_nested_parentheses() {
 fn test_deeply_nested_parentheses() {
     let source = r#"
         #define constant A = 0x05
-        #define constant RESULT = ((((A))))  // Should just be 5
+        #define constant RESULT = (((([A]))))  // Should just be 5
 
         #define macro MAIN() = takes(0) returns(0) {
             [RESULT]
@@ -250,7 +250,7 @@ fn test_complex_expression_with_constants() {
         #define constant BASE = 0x20
         #define constant OFFSET = 0x04
         #define constant MULTIPLIER = 0x02
-        #define constant RESULT = BASE + (OFFSET * MULTIPLIER)  // 32 + (4 * 2) = 40 = 0x28
+        #define constant RESULT = [BASE] + ([OFFSET] * [MULTIPLIER])  // 32 + (4 * 2) = 40 = 0x28
 
         #define macro MAIN() = takes(0) returns(0) {
             [RESULT]
@@ -267,7 +267,7 @@ fn test_all_operators_combined() {
         #define constant A = 0x0a  // 10
         #define constant B = 0x03  // 3
         #define constant C = 0x02  // 2
-        #define constant RESULT = ((A + B) * C - 0x04) / 0x05  // ((10+3)*2-4)/5 = (26-4)/5 = 22/5 = 4
+        #define constant RESULT = (([A] + [B]) * [C] - 0x04) / 0x05  // ((10+3)*2-4)/5 = (26-4)/5 = 22/5 = 4
 
         #define macro MAIN() = takes(0) returns(0) {
             [RESULT]
@@ -298,10 +298,10 @@ fn test_mixed_precedence_levels() {
 fn test_chained_constant_references() {
     let source = r#"
         #define constant A = 0x01
-        #define constant B = A + 0x01  // 2
-        #define constant C = B + 0x01  // 3
-        #define constant D = C + 0x01  // 4
-        #define constant RESULT = A + B + C + D  // 1 + 2 + 3 + 4 = 10 = 0x0a
+        #define constant B = [A] + 0x01  // 2
+        #define constant C = [B] + 0x01  // 3
+        #define constant D = [C] + 0x01  // 4
+        #define constant RESULT = [A] + [B] + [C] + [D]  // 1 + 2 + 3 + 4 = 10 = 0x0a
 
         #define macro MAIN() = takes(0) returns(0) {
             [RESULT]
@@ -332,8 +332,8 @@ fn test_hex_literal_in_expression() {
 fn test_double_negation() {
     let source = r#"
         #define constant A = 0x05
-        #define constant NEG_A = -A
-        #define constant RESULT = -NEG_A  // --5 = 5
+        #define constant NEG_A = -[A]
+        #define constant RESULT = -[NEG_A]  // --5 = 5
 
         #define macro MAIN() = takes(0) returns(0) {
             [RESULT]
@@ -349,7 +349,7 @@ fn test_negation_in_expression() {
     let source = r#"
         #define constant A = 0x05
         #define constant B = 0x03
-        #define constant RESULT = B + -A  // 3 + (-5) - tests negation as operand
+        #define constant RESULT = [B] + -[A]  // 3 + (-5) - tests negation as operand
 
         #define macro MAIN() = takes(0) returns(0) {
             [RESULT]
@@ -365,9 +365,9 @@ fn test_negation_in_expression() {
 fn test_zero_operations() {
     let source = r#"
         #define constant ZERO = 0x00
-        #define constant ADD_ZERO = 0x05 + ZERO  // 5
-        #define constant SUB_ZERO = 0x05 - ZERO  // 5
-        #define constant MUL_ZERO = 0x05 * ZERO  // 0
+        #define constant ADD_ZERO = 0x05 + [ZERO]  // 5
+        #define constant SUB_ZERO = 0x05 - [ZERO]  // 5
+        #define constant MUL_ZERO = 0x05 * [ZERO]  // 0
 
         #define macro MAIN() = takes(0) returns(0) {
             [ADD_ZERO]
@@ -385,7 +385,7 @@ fn test_zero_operations() {
 fn test_large_numbers() {
     let source = r#"
         #define constant LARGE_A = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
-        #define constant RESULT = LARGE_A + 0x00  // Should handle max U256
+        #define constant RESULT = [LARGE_A] + 0x00  // Should handle max U256
 
         #define macro MAIN() = takes(0) returns(0) {
             [RESULT]
@@ -465,7 +465,7 @@ fn test_constructor_with_expressions() {
 fn test_division_by_zero_error() {
     let source = r#"
         #define constant ZERO = 0x00
-        #define constant RESULT = 0x10 / ZERO
+        #define constant RESULT = 0x10 / [ZERO]
 
         #define macro MAIN() = takes(0) returns(0) {
             [RESULT]
@@ -491,7 +491,7 @@ fn test_modulo_by_zero_error() {
 #[test]
 fn test_undefined_constant_error() {
     let source = r#"
-        #define constant RESULT = UNDEFINED_CONST + 0x01
+        #define constant RESULT = [UNDEFINED_CONST] + 0x01
 
         #define macro MAIN() = takes(0) returns(0) {
             [RESULT]
@@ -505,7 +505,7 @@ fn test_undefined_constant_error() {
 fn test_overflow_error() {
     let source = r#"
         #define constant MAX = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
-        #define constant RESULT = MAX + 0x01  // Should overflow
+        #define constant RESULT = [MAX] + 0x01  // Should overflow
 
         #define macro MAIN() = takes(0) returns(0) {
             [RESULT]
@@ -532,7 +532,7 @@ fn test_underflow_error() {
 fn test_multiplication_overflow() {
     let source = r#"
         #define constant LARGE = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
-        #define constant RESULT = LARGE * 0x02  // Should overflow
+        #define constant RESULT = [LARGE] * 0x02  // Should overflow
 
         #define macro MAIN() = takes(0) returns(0) {
             [RESULT]

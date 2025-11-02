@@ -46,7 +46,7 @@ fn test_for_loop_with_constants() {
         #define constant END = 0x04
 
         #define macro MAIN() = takes(0) returns(0) {
-            for(i in START..END) {
+            for(i in [START]..[END]) {
                 <i>
             }
         }
@@ -67,7 +67,7 @@ fn test_for_loop_with_arithmetic_bounds() {
         #define constant MULTIPLIER = 0x03
 
         #define macro MAIN() = takes(0) returns(0) {
-            for(i in BASE..BASE*MULTIPLIER) {
+            for(i in [BASE]..[BASE]*[MULTIPLIER]) {
                 <i>
             }
         }
@@ -206,7 +206,7 @@ fn test_for_loop_with_constant_step() {
         #define constant STEP_SIZE = 0x02
 
         #define macro MAIN() = takes(0) returns(0) {
-            for(i in 0..6 step STEP_SIZE) {
+            for(i in 0..6 step [STEP_SIZE]) {
                 <i>
             }
         }

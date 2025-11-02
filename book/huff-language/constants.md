@@ -56,12 +56,12 @@ Use parentheses to override precedence.
 ```javascript
 #define constant BASE = 0x20
 #define constant OFFSET = 0x04
-#define constant COMBINED = BASE + OFFSET          // Result: 0x24
+#define constant COMBINED = [BASE] + [OFFSET]      // Result: 0x24
 
 #define constant TEN = 0x0a
 #define constant FIVE = 0x05
-#define constant SIMPLE_ADD = TEN + FIVE            // Result: 0x0f
-#define constant SIMPLE_SUB = TEN - FIVE            // Result: 0x05
+#define constant SIMPLE_ADD = [TEN] + [FIVE]        // Result: 0x0f
+#define constant SIMPLE_SUB = [TEN] - [FIVE]        // Result: 0x05
 
 #define constant MULTIPLY = 0x03 * 0x04             // Result: 0x0c
 #define constant DIVIDE = 0x10 / 0x02               // Result: 0x08
@@ -70,8 +70,8 @@ Use parentheses to override precedence.
 
 **Complex Expressions:**
 ```javascript
-#define constant COMPLEX = (TEN + FIVE) * 0x02     // Result: 0x1e (30 in decimal)
-#define constant NESTED = BASE + (OFFSET * 0x02)   // Result: 0x28
+#define constant COMPLEX = ([TEN] + [FIVE]) * 0x02 // Result: 0x1e (30 in decimal)
+#define constant NESTED = [BASE] + ([OFFSET] * 0x02) // Result: 0x28
 
 // Precedence: multiplication before addition
 #define constant PRECEDENCE = 0x02 + 0x03 * 0x04   // Result: 0x0e (2 + 12)
@@ -83,7 +83,7 @@ Use parentheses to override precedence.
 **Negation:**
 ```javascript
 #define constant POSITIVE = 0x0a
-#define constant NEGATIVE = -POSITIVE               // Result: 0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff6
+#define constant NEGATIVE = -[POSITIVE]             // Result: 0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff6
 
 // Negation in expressions
 #define constant MIXED = -0x05 + 0x0a               // Result: 0x05
@@ -94,29 +94,29 @@ Use parentheses to override precedence.
 **Storage Slots:**
 ```javascript
 #define constant STORAGE_SLOT_0 = 0x00
-#define constant STORAGE_SLOT_1 = STORAGE_SLOT_0 + 0x01
-#define constant STORAGE_SLOT_2 = STORAGE_SLOT_0 + 0x02
+#define constant STORAGE_SLOT_1 = [STORAGE_SLOT_0] + 0x01
+#define constant STORAGE_SLOT_2 = [STORAGE_SLOT_0] + 0x02
 ```
 
 **Memory Offsets:**
 ```javascript
 #define constant MEM_OFFSET_0 = 0x00
-#define constant MEM_OFFSET_32 = MEM_OFFSET_0 + 0x20
-#define constant MEM_OFFSET_64 = MEM_OFFSET_32 + 0x20
+#define constant MEM_OFFSET_32 = [MEM_OFFSET_0] + 0x20
+#define constant MEM_OFFSET_64 = [MEM_OFFSET_32] + 0x20
 ```
 
 **Size Computations:**
 ```javascript
 #define constant WORD_SIZE = 0x20
-#define constant HALF_WORD = WORD_SIZE / 0x02
-#define constant DOUBLE_WORD = WORD_SIZE * 0x02
+#define constant HALF_WORD = [WORD_SIZE] / 0x02
+#define constant DOUBLE_WORD = [WORD_SIZE] * 0x02
 ```
 
 **ABI Encoding:**
 ```javascript
 #define constant SELECTOR_SIZE = 0x04
 #define constant FIRST_ARG_OFFSET = SELECTOR_SIZE
-#define constant SECOND_ARG_OFFSET = SELECTOR_SIZE + 0x20
+#define constant SECOND_ARG_OFFSET = [SELECTOR_SIZE] + 0x20
 ```
 
 ### Compile-Time Evaluation
@@ -126,7 +126,7 @@ Expressions are evaluated during compilation. The compiler replaces the expressi
 ```javascript
 #define constant A = 0x10
 #define constant B = 0x05
-#define constant C = A + B    // Evaluated to 0x15 at compile time
+#define constant C = [A] + [B]  // Evaluated to 0x15 at compile time
 
 #define macro EXAMPLE() = takes(0) returns(0) {
     [C]    // Compiles to: PUSH1 0x15

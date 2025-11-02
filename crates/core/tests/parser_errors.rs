@@ -116,7 +116,6 @@ fn test_invalid_constant_value() {
     let invalid_constant_values = vec![
         ("<", TokenKind::LeftAngle),
         ("{", TokenKind::OpenBrace),
-        ("[", TokenKind::OpenBracket),
         (":", TokenKind::Colon),
         (",", TokenKind::Comma),
         ("+", TokenKind::Add),
