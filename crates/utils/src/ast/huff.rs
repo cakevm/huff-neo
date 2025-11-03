@@ -451,6 +451,17 @@ impl Contract {
     /// This supports binary operations (+, -, *, /, %), unary negation, literals, constant references,
     /// and parenthesized expressions with proper operator precedence and overflow/underflow checking.
     pub fn evaluate_constant_expression(&self, expr: &Expression) -> Result<Literal, CodegenError> {
+        // Start evaluation with an empty set of currently-evaluating constants
+        let mut evaluating = std::collections::HashSet::new();
+        self.evaluate_constant_expression_internal(expr, &mut evaluating)
+    }
+
+    /// Internal helper that tracks which constants are currently being evaluated to detect cycles
+    fn evaluate_constant_expression_internal(
+        &self,
+        expr: &Expression,
+        evaluating: &mut std::collections::HashSet<String>,
+    ) -> Result<Literal, CodegenError> {
         match expr {
             Expression::Literal { value, .. } => {
                 // Direct literal value
@@ -458,6 +469,18 @@ impl Contract {
             }
 
             Expression::Constant { name, span } => {
+                // Check for circular dependency
+                if evaluating.contains(name) {
+                    return Err(CodegenError {
+                        kind: CodegenErrorKind::CircularConstantDependency(name.clone()),
+                        span: span.clone_box(),
+                        token: None,
+                    });
+                }
+
+                // Mark this constant as being evaluated
+                evaluating.insert(name.clone());
+
                 // Look up the constant by name and clone the value
                 // We must clone before recursing to avoid holding the lock during recursion
                 let const_value = {
@@ -471,27 +494,32 @@ impl Contract {
                 };
 
                 // Evaluate the constant's value (lock is released at this point)
-                match &const_value {
+                let result = match &const_value {
                     ConstVal::Bytes(bytes) => {
                         // Parse hex string to [u8; 32]
                         Ok(str_to_bytes32(&bytes.0))
                     }
                     ConstVal::Expression(e) => {
                         // Recursively evaluate nested expressions
-                        self.evaluate_constant_expression(e)
+                        self.evaluate_constant_expression_internal(e, evaluating)
                     }
                     ConstVal::StoragePointer(lit) => {
                         // Storage pointers are already resolved literals
                         Ok(*lit)
                     }
                     _ => Err(CodegenError { kind: CodegenErrorKind::InvalidConstantExpression, span: span.clone_box(), token: None }),
-                }
+                };
+
+                // Remove from evaluating set after evaluation completes
+                evaluating.remove(name);
+
+                result
             }
 
             Expression::Binary { left, op, right, span } => {
                 // Evaluate both operands
-                let left_val = self.evaluate_constant_expression(left)?;
-                let right_val = self.evaluate_constant_expression(right)?;
+                let left_val = self.evaluate_constant_expression_internal(left, evaluating)?;
+                let right_val = self.evaluate_constant_expression_internal(right, evaluating)?;
 
                 // Convert to U256 for arithmetic
                 let l = U256::from_be_bytes(left_val);
@@ -533,7 +561,7 @@ impl Contract {
 
             Expression::Unary { op, expr, .. } => {
                 // Evaluate the operand
-                let val = self.evaluate_constant_expression(expr)?;
+                let val = self.evaluate_constant_expression_internal(expr, evaluating)?;
                 let v = U256::from_be_bytes(val);
 
                 // Perform unary operation
@@ -549,7 +577,7 @@ impl Contract {
 
             Expression::Grouped { expr, .. } => {
                 // Grouped expressions just evaluate the inner expression
-                self.evaluate_constant_expression(expr)
+                self.evaluate_constant_expression_internal(expr, evaluating)
             }
         }
     }
