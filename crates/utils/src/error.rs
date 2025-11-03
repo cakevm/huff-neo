@@ -226,6 +226,8 @@ pub enum CodegenErrorKind {
     DuplicateLabelAcrossSiblings(String),
     /// Circular macro invocation detected
     CircularMacroInvocation(String),
+    /// Circular constant dependency detected
+    CircularConstantDependency(String),
     /// Recursion depth limit exceeded
     RecursionDepthExceeded(usize),
     /// Undefined constant in expression
@@ -333,6 +335,9 @@ impl<W: Write> Report<W> for CodegenError {
             }
             CodegenErrorKind::CircularMacroInvocation(macro_name) => {
                 write!(f.out, "Circular macro invocation detected: '{}' is already in the call stack", macro_name)
+            }
+            CodegenErrorKind::CircularConstantDependency(constant_name) => {
+                write!(f.out, "Circular constant dependency detected: '{}' is already being evaluated", constant_name)
             }
             CodegenErrorKind::RecursionDepthExceeded(depth) => {
                 write!(f.out, "Recursion depth limit exceeded: maximum depth of {} reached", depth)
@@ -670,6 +675,14 @@ impl fmt::Display for CompilerError {
                         f,
                         "\nError: Circular macro invocation detected: '{}' is already in the call stack\n{}\n",
                         macro_name,
+                        ce.span.error(None)
+                    )
+                }
+                CodegenErrorKind::CircularConstantDependency(constant_name) => {
+                    write!(
+                        f,
+                        "\nError: Circular constant dependency detected: '{}' is already being evaluated\n{}\n",
+                        constant_name,
                         ce.span.error(None)
                     )
                 }

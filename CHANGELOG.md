@@ -3,6 +3,8 @@
 # Huff Neo Compiler changelog
 
 ## Unreleased
+- Throw error for circular constant dependencies to prevent infinite loops during constant evaluation.
+  - Detects direct cycles (A = B, B = A), indirect cycles (A = B, B = C, C = A), and self-references (A = A + 1).
 
 ## [1.5.0] - 2025-11-02
 - **Breaking**: Bracket notation `[CONSTANT_NAME]` is now required for referencing constants in arithmetic expressions and for-loop bounds (fixes #115).
