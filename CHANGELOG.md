@@ -8,6 +8,8 @@
 - Fix `__NOOP` not working as a macro argument (fixes #118).
   - `__NOOP` can now be passed as an argument to macros: `MACRO(__NOOP)`.
   - Can be used in first-class macro patterns: `<m>(__NOOP)`.
+- Fix deadlock when compile-time evaluated constants are passed as macro arguments (fixes #119).
+  - The compiler previously hung when passing constants (e.g., `#define constant C2 = [C1]`) as macro arguments.
 
 ## [1.5.0] - 2025-11-02
 - **Breaking**: Bracket notation `[CONSTANT_NAME]` is now required for referencing constants in arithmetic expressions and for-loop bounds (fixes #115).

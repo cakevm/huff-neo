@@ -227,16 +227,18 @@ pub fn bubble_arg_call(
                     MacroArg::Ident(iden) => {
                         tracing::debug!(target: "codegen", "Found MacroArg::Ident IN \"{}\" Macro Invocation: \"{}\"!", target_macro_invoc.1.macro_name, iden);
 
-                        // Check for a constant first
-                        if let Some(constant) = contract
-                            .constants
-                            .lock()
-                            .map_err(|_| CodegenError::new(CodegenErrorKind::LockingError, AstSpan(vec![]), None))?
-                            .iter()
-                            .find(|const_def| const_def.name.eq(iden))
-                        {
-                            tracing::info!(target: "codegen", "ARGCALL IS CONSTANT: {:?}", constant);
-                            let push_bytes = match &constant.value {
+                        // Check for a constant first (clone to release the lock)
+                        let const_value_opt = {
+                            let constants = contract
+                                .constants
+                                .lock()
+                                .map_err(|_| CodegenError::new(CodegenErrorKind::LockingError, AstSpan(vec![]), None))?;
+                            constants.iter().find(|const_def| const_def.name.eq(iden)).map(|c| c.value.clone())
+                        };
+
+                        if let Some(const_value) = const_value_opt {
+                            tracing::info!(target: "codegen", "ARGCALL IS CONSTANT: {:?}", const_value);
+                            let push_bytes = match &const_value {
                                 ConstVal::Bytes(bytes) => {
                                     let hex_literal: String = bytes.clone().0;
                                     format!("{:02x}{hex_literal}", 95 + hex_literal.len() / 2)
@@ -249,19 +251,19 @@ pub fn bubble_arg_call(
                                     Codegen::gen_builtin_bytecode(evm_version, contract, bf, target_macro_invoc.1.span.clone())?
                                 }
                                 ConstVal::Expression(expr) => {
-                                    tracing::info!(target: "codegen", "EVALUATING CONSTANT EXPRESSION FOR \"{}\"", constant.name);
+                                    tracing::info!(target: "codegen", "EVALUATING CONSTANT EXPRESSION FOR \"{iden}\"");
                                     let evaluated = contract.evaluate_constant_expression(expr)?;
                                     literal_gen(evm_version, &evaluated)
                                 }
                                 ConstVal::Noop => {
-                                    tracing::info!(target: "codegen", "CONSTANT \"{}\" IS __NOOP - GENERATING NO BYTECODE IN ARGCALL", constant.name);
+                                    tracing::info!(target: "codegen", "CONSTANT \"{iden}\" IS __NOOP - GENERATING NO BYTECODE IN ARGCALL");
                                     String::new() // Generate no bytecode
                                 }
                                 ConstVal::FreeStoragePointer(fsp) => {
                                     // If this is reached in codegen stage,
                                     // `derive_storage_pointers`
                                     // method was not called on the AST.
-                                    tracing::error!(target: "codegen", "STORAGE POINTERS INCORRECTLY DERIVED FOR \"{:?}\"", fsp);
+                                    tracing::error!(target: "codegen", "STORAGE POINTERS INCORRECTLY DERIVED FOR \"{fsp:?}\"");
                                     return Err(CodegenError {
                                         kind: CodegenErrorKind::StoragePointersNotDerived,
                                         span: AstSpan(vec![]).boxed(),

@@ -1241,3 +1241,72 @@ fn test_noop_in_first_class_macro_invocation() {
     let expected_bytecode = "60016042";
     assert_eq!(main_bytecode.to_lowercase(), expected_bytecode.to_lowercase());
 }
+
+#[test]
+fn test_compile_time_evaluated_constant_as_macro_arg() {
+    // Test that a compile-time evaluated constant (using bracket notation) assignment
+    let source = r#"
+        #define constant C1 = 0x1
+        #define constant C2 = [C1]
+
+        #define macro MAIN() = {
+            MACRO(C2)
+        }
+
+        #define macro MACRO(arg) = {
+            <arg>
+        }
+    "#;
+
+    // Lex + Parse
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    let evm_version = EVMVersion::default();
+
+    // This should compile without hanging (previously caused a deadlock)
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
+
+    // Expected bytecode: C2 evaluates to C1 which is 0x1, so PUSH1 0x01
+    let expected_bytecode = "6001";
+    assert_eq!(main_bytecode.to_lowercase(), expected_bytecode.to_lowercase());
+}
+
+#[test]
+fn test_nested_evaluated_constants_as_macro_arg() {
+    // Extended test for compile-time evaluated constants with multiple levels
+    let source = r#"
+        #define constant BASE = 0x10
+        #define constant DERIVED = [BASE]
+        #define constant FINAL = [DERIVED]
+
+        #define macro MAIN() = {
+            MACRO(FINAL)
+        }
+
+        #define macro MACRO(arg) = {
+            <arg>
+        }
+    "#;
+
+    // Lex + Parse
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    let evm_version = EVMVersion::default();
+
+    // This should compile without hanging
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
+
+    // Expected bytecode: FINAL evaluates to DERIVED which evaluates to BASE which is 0x10
+    let expected_bytecode = "6010";
+    assert_eq!(main_bytecode.to_lowercase(), expected_bytecode.to_lowercase());
+}
