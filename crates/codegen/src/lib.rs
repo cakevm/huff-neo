@@ -79,6 +79,8 @@ impl Codegen {
     ) -> Result<(String, Vec<SourceMapEntry>), CodegenError> {
         // Expand for loops before any other processing
         let contract = Self::expand_for_loops(contract)?;
+        // Expand if statements before any other processing
+        let contract = Self::expand_if_statements(&contract)?;
         let contract = Self::update_table_size(evm_version, &contract)?;
 
         // If an alternative main is provided, then use it as the compilation target
@@ -116,6 +118,8 @@ impl Codegen {
     ) -> Result<((String, Vec<SourceMapEntry>), bool), CodegenError> {
         // Expand for loops before any other processing
         let contract = Self::expand_for_loops(contract)?;
+        // Expand if statements before any other processing
+        let contract = Self::expand_if_statements(&contract)?;
         let contract = Self::update_table_size(evm_version, &contract)?;
 
         // If an alternative constructor macro is provided, then use it as the compilation target
@@ -309,6 +313,103 @@ impl Codegen {
         }
 
         Ok(substituted)
+    }
+
+    /// Expand all if statements in the contract at compile-time
+    /// This must be called before bytecode generation
+    pub fn expand_if_statements(contract: &Contract) -> Result<Contract, CodegenError> {
+        let mut contract = contract.clone();
+
+        // Expand if statements in all macros
+        let mut expanded_macros = indexmap::IndexMap::new();
+        for (name, macro_def) in contract.macros.iter() {
+            let expanded_statements = Self::expand_statements_if_statements(&macro_def.statements, &contract)?;
+            let mut new_macro = macro_def.clone();
+            new_macro.statements = expanded_statements;
+            expanded_macros.insert(name.clone(), new_macro);
+        }
+        contract.macros = expanded_macros;
+
+        // Expand if statements in tables
+        let mut expanded_tables = Vec::new();
+        for table in contract.tables.iter() {
+            let expanded_statements = Self::expand_statements_if_statements(&table.statements, &contract)?;
+            let mut new_table = table.clone();
+            new_table.statements = expanded_statements;
+            expanded_tables.push(new_table);
+        }
+        contract.tables = expanded_tables;
+
+        Ok(contract)
+    }
+
+    /// Recursively expand if statements in a list of statements
+    fn expand_statements_if_statements(statements: &[Statement], contract: &Contract) -> Result<Vec<Statement>, CodegenError> {
+        let mut expanded = Vec::new();
+
+        for statement in statements {
+            match &statement.ty {
+                StatementType::IfStatement { condition, then_branch, else_if_branches, else_branch } => {
+                    // Evaluate condition at compile-time
+                    let condition_val = contract.evaluate_constant_expression(condition)?;
+                    let condition_true = !U256::from_be_bytes(condition_val).is_zero();
+
+                    if condition_true {
+                        // Include then branch
+                        let expanded_then = Self::expand_statements_if_statements(then_branch, contract)?;
+                        expanded.extend(expanded_then);
+                    } else {
+                        // Check else if branches
+                        let mut matched = false;
+                        for (else_if_condition, else_if_body) in else_if_branches {
+                            let else_if_val = contract.evaluate_constant_expression(else_if_condition)?;
+                            let else_if_true = !U256::from_be_bytes(else_if_val).is_zero();
+
+                            if else_if_true {
+                                // Include this else if branch
+                                let expanded_else_if = Self::expand_statements_if_statements(else_if_body, contract)?;
+                                expanded.extend(expanded_else_if);
+                                matched = true;
+                                break;
+                            }
+                        }
+
+                        // If no else if matched, include else branch if present
+                        if !matched && let Some(else_body) = else_branch {
+                            let expanded_else = Self::expand_statements_if_statements(else_body, contract)?;
+                            expanded.extend(expanded_else);
+                        }
+                    }
+                }
+                StatementType::Label(label) => {
+                    // Recursively expand if statements inside labels
+                    let expanded_inner = Self::expand_statements_if_statements(&label.inner, contract)?;
+                    let mut new_label = label.clone();
+                    new_label.inner = expanded_inner;
+                    expanded.push(Statement { ty: StatementType::Label(new_label), span: statement.span.clone() });
+                }
+                StatementType::ForLoop { variable, start, end, step, body } => {
+                    // Recursively expand if statements inside for loop bodies
+                    let expanded_body = Self::expand_statements_if_statements(body, contract)?;
+                    expanded.push(Statement {
+                        ty: StatementType::ForLoop {
+                            variable: variable.clone(),
+                            start: start.clone(),
+                            end: end.clone(),
+                            step: step.clone(),
+                            body: expanded_body,
+                        },
+                        span: statement.span.clone(),
+                    });
+                }
+                _ => {
+                    // Keep other statements as-is
+                    expanded.push(statement.clone());
+                }
+            }
+        }
+
+        Ok(expanded)
     }
 
     /// Helper function to find a macro or generate a CodegenError

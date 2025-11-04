@@ -554,6 +554,49 @@ impl Contract {
                         }
                         l % r
                     }
+                    // Comparison operators return 1 (true) or 0 (false)
+                    BinaryOp::Eq => {
+                        if l == r {
+                            U256::from(1u64)
+                        } else {
+                            U256::ZERO
+                        }
+                    }
+                    BinaryOp::NotEq => {
+                        if l != r {
+                            U256::from(1u64)
+                        } else {
+                            U256::ZERO
+                        }
+                    }
+                    BinaryOp::Lt => {
+                        if l < r {
+                            U256::from(1u64)
+                        } else {
+                            U256::ZERO
+                        }
+                    }
+                    BinaryOp::Gt => {
+                        if l > r {
+                            U256::from(1u64)
+                        } else {
+                            U256::ZERO
+                        }
+                    }
+                    BinaryOp::LtEq => {
+                        if l <= r {
+                            U256::from(1u64)
+                        } else {
+                            U256::ZERO
+                        }
+                    }
+                    BinaryOp::GtEq => {
+                        if l >= r {
+                            U256::from(1u64)
+                        } else {
+                            U256::ZERO
+                        }
+                    }
                 };
 
                 Ok(result.to_be_bytes())
@@ -569,6 +612,10 @@ impl Contract {
                     UnaryOp::Neg => {
                         // Two's complement negation
                         U256::ZERO.wrapping_sub(v)
+                    }
+                    UnaryOp::Not => {
+                        // Logical NOT: 0 becomes 1, non-zero becomes 0
+                        if v.is_zero() { U256::from(1u64) } else { U256::ZERO }
                     }
                 };
 
@@ -772,6 +819,10 @@ impl MacroDefinition {
                     // ForLoop should have been expanded before bytecode generation
                     panic!("ForLoop statement reached bytecode generation - loops should be expanded during the pre-codegen pass");
                 }
+                StatementType::IfStatement { .. } => {
+                    // IfStatement should have been expanded before bytecode generation
+                    panic!("IfStatement reached bytecode generation - if statements should be expanded during the pre-codegen pass");
+                }
             }
         }
 
@@ -897,7 +948,7 @@ impl Expression {
     }
 }
 
-/// Binary operators for arithmetic expressions
+/// Binary operators for arithmetic and comparison expressions
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum BinaryOp {
     /// Addition (+)
@@ -910,13 +961,27 @@ pub enum BinaryOp {
     Div,
     /// Modulo (%)
     Mod,
+    /// Equal comparison (==)
+    Eq,
+    /// Not equal comparison (!=)
+    NotEq,
+    /// Less than (<)
+    Lt,
+    /// Greater than (>)
+    Gt,
+    /// Less than or equal (<=)
+    LtEq,
+    /// Greater than or equal (>=)
+    GtEq,
 }
 
-/// Unary operators for arithmetic expressions
+/// Unary operators for arithmetic and logical expressions
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum UnaryOp {
     /// Negation (-)
     Neg,
+    /// Logical NOT (!)
+    Not,
 }
 
 /// A Constant Value
@@ -1174,6 +1239,19 @@ pub enum StatementType {
         /// Loop body statements
         body: Vec<Statement>,
     },
+    /// A compile-time if statement
+    ///
+    /// Example: `if([CONST] > 5) { ... } else { ... }`
+    IfStatement {
+        /// Condition (constant expression that evaluates to non-zero = true)
+        condition: Expression,
+        /// Then branch statements
+        then_branch: Vec<Statement>,
+        /// Optional else if clauses (condition, body pairs)
+        else_if_branches: Vec<(Expression, Vec<Statement>)>,
+        /// Optional else branch statements
+        else_branch: Option<Vec<Statement>>,
+    },
 }
 
 impl Display for StatementType {
@@ -1197,6 +1275,15 @@ impl Display for StatementType {
             }
             StatementType::ForLoop { variable, start: _, end: _, step, body } => {
                 write!(f, "FOR LOOP: {} in ... step {:?}, {} statements", variable, step, body.len())
+            }
+            StatementType::IfStatement { condition: _, then_branch, else_if_branches, else_branch } => {
+                write!(
+                    f,
+                    "IF STATEMENT: then {} statements, {} else if branches, else branch: {}",
+                    then_branch.len(),
+                    else_if_branches.len(),
+                    else_branch.is_some()
+                )
             }
         }
     }

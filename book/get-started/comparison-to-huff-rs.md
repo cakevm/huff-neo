@@ -136,6 +136,42 @@ Generate repetitive code patterns at compile-time using for loops that expand be
 
 See the [Compile-Time Loops](../huff-language/compile-time-loops.md) documentation for complete details and examples.
 
+### Compile-time if/else statements
+Generate conditional code at compile-time using if/else/else if statements that expand before bytecode generation. Only the matching branch is compiled into the final bytecode.
+
+```javascript
+#define constant MODE = 0x01
+#define constant DEBUG = 0x00
+
+#define macro MAIN() = takes(0) returns(0) {
+    if ([MODE] == 0x01) {
+        // This code is compiled (condition is true)
+        0xAA 0x00 mstore
+    } else if ([MODE] == 0x02) {
+        // Not compiled
+        0xBB 0x00 mstore
+    } else {
+        // Not compiled
+        0xCC 0x00 mstore
+    }
+
+    // Supports logical NOT
+    if (![DEBUG]) {
+        // This code is compiled (DEBUG is 0, !0 = 1)
+        0xFF 0x00 mstore
+    }
+}
+```
+
+Supported features:
+- Comparison operators: `==`, `!=`, `<`, `>`, `<=`, `>=`
+- Logical NOT: `!`
+- Arithmetic expressions: `([A] + [B]) > [C]`
+- Nested if statements
+- If/else if/else chains
+
+See the [Compile-Time Conditionals](../huff-language/compile-time-conditionals.md) documentation for complete details and examples.
+
 ### New test capabilities
 The test module has been refactored to use `anvil` and `forge` features from `foundry` to fork the mainnet. This allows for more advanced testing capabilities.
 

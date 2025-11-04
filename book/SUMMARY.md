@@ -11,6 +11,7 @@
   - [Functions and events](huff-language/functions-and-events.md)
   - [Constants](huff-language/constants.md)
   - [Compile-Time Loops](huff-language/compile-time-loops.md)
+  - [Compile-Time Conditionals](huff-language/compile-time-conditionals.md)
   - [Custom Errors](huff-language/custom-errors.md)
   - [Jump Labels](huff-language/jump-labels.md)
   - [Jump Tables](huff-language/jump-tables.md)
