@@ -293,6 +293,14 @@ impl<'a> Lexer<'a> {
                                 debug!(target: "lexer", "FOUND STEP KEYWORD");
                                 found_kind = Some(TokenKind::Step);
                             }
+                            "if" => {
+                                debug!(target: "lexer", "FOUND IF KEYWORD");
+                                found_kind = Some(TokenKind::If);
+                            }
+                            "else" => {
+                                debug!(target: "lexer", "FOUND ELSE KEYWORD");
+                                found_kind = Some(TokenKind::Else);
+                            }
                             _ => {}
                         }
                     }
@@ -325,7 +333,31 @@ impl<'a> Lexer<'a> {
                 }
                 // If it's the start of a hex literal
                 ch if ch == '0' && self.peek().unwrap() == 'x' => self.eat_hex_digit(ch),
-                '=' => self.single_char_token(TokenKind::Assign),
+                '=' => {
+                    // Check if next char is also '=' for EqualEqual (==)
+                    if self.peek() == Some('=') {
+                        let start = self.position;
+                        self.consume(); // consume first '='
+                        self.consume(); // consume second '='
+                        let end = self.position;
+                        Ok(TokenKind::EqualEqual.into_token_with_span(self.source.relative_span_by_pos(start, end)))
+                    } else {
+                        self.single_char_token(TokenKind::Assign)
+                    }
+                }
+                '!' => {
+                    // Check if next char is '=' for NotEqual (!=)
+                    if self.peek() == Some('=') {
+                        let start = self.position;
+                        self.consume(); // consume '!'
+                        self.consume(); // consume '='
+                        let end = self.position;
+                        Ok(TokenKind::NotEqual.into_token_with_span(self.source.relative_span_by_pos(start, end)))
+                    } else {
+                        // '!' by itself is logical NOT
+                        self.single_char_token(TokenKind::Not)
+                    }
+                }
                 '(' => {
                     match self.context_stack.top() {
                         Context::Abi => {
@@ -395,8 +427,30 @@ impl<'a> Lexer<'a> {
                 '-' => self.single_char_token(TokenKind::Sub),
                 '*' => self.single_char_token(TokenKind::Mul),
                 '%' => self.single_char_token(TokenKind::Mod),
-                '<' => self.single_char_token(TokenKind::LeftAngle),
-                '>' => self.single_char_token(TokenKind::RightAngle),
+                '<' => {
+                    // Check if next char is '=' for LessEqual (<=)
+                    if self.peek() == Some('=') {
+                        let start = self.position;
+                        self.consume(); // consume '<'
+                        self.consume(); // consume '='
+                        let end = self.position;
+                        Ok(TokenKind::LessEqual.into_token_with_span(self.source.relative_span_by_pos(start, end)))
+                    } else {
+                        self.single_char_token(TokenKind::LeftAngle)
+                    }
+                }
+                '>' => {
+                    // Check if next char is '=' for GreaterEqual (>=)
+                    if self.peek() == Some('=') {
+                        let start = self.position;
+                        self.consume(); // consume '>'
+                        self.consume(); // consume '='
+                        let end = self.position;
+                        Ok(TokenKind::GreaterEqual.into_token_with_span(self.source.relative_span_by_pos(start, end)))
+                    } else {
+                        self.single_char_token(TokenKind::RightAngle)
+                    }
+                }
                 // NOTE: TokenKind::Div is lexed further up since it overlaps with comment
                 ':' => self.single_char_token(TokenKind::Colon),
                 '.' => {

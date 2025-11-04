@@ -98,6 +98,16 @@ pub enum TokenKind {
     Mul,
     /// Modulo
     Mod,
+    /// Equal comparison (==)
+    EqualEqual,
+    /// Not equal comparison (!=)
+    NotEqual,
+    /// Less than or equal (<=)
+    LessEqual,
+    /// Greater than or equal (>=)
+    GreaterEqual,
+    /// Logical NOT (!)
+    Not,
     /// A comma
     Comma,
     /// A Colon
@@ -146,6 +156,10 @@ pub enum TokenKind {
     Step,
     /// ".." range operator
     DoubleDot,
+    /// "if" keyword
+    If,
+    /// "else" keyword
+    Else,
 }
 
 impl TokenKind {
@@ -204,6 +218,11 @@ impl fmt::Display for TokenKind {
             TokenKind::Sub => "-",
             TokenKind::Mul => "*",
             TokenKind::Mod => "%",
+            TokenKind::EqualEqual => "==",
+            TokenKind::NotEqual => "!=",
+            TokenKind::LessEqual => "<=",
+            TokenKind::GreaterEqual => ">=",
+            TokenKind::Not => "!",
             TokenKind::Colon => ":",
             TokenKind::Comma => ",",
             TokenKind::Pound => "#",
@@ -239,6 +258,8 @@ impl fmt::Display for TokenKind {
             TokenKind::In => "in",
             TokenKind::Step => "step",
             TokenKind::DoubleDot => "..",
+            TokenKind::If => "if",
+            TokenKind::Else => "else",
         };
 
         write!(f, "{x}")

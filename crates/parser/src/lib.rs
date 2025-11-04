@@ -707,6 +707,10 @@ impl Parser {
                     let for_loop = self.parse_for_loop(macro_name)?;
                     statements.push(for_loop);
                 }
+                TokenKind::If => {
+                    let if_statement = self.parse_if_statement(macro_name)?;
+                    statements.push(if_statement);
+                }
                 kind => {
                     tracing::error!(target: "parser", "TOKEN MISMATCH - MACRO BODY: {}", kind);
                     return Err(ParserError {
@@ -809,6 +813,115 @@ impl Parser {
                       variable, "start", "end", step, body.len());
 
         Ok(Statement { ty: StatementType::ForLoop { variable, start, end, step, body }, span: AstSpan(curr_spans) })
+    }
+
+    /// Parse a compile-time if statement
+    pub fn parse_if_statement(&mut self, macro_name: &str) -> Result<Statement, ParserError> {
+        let mut curr_spans = vec![];
+
+        // Match 'if' keyword
+        curr_spans.push(self.current_token.span.clone());
+        self.match_kind(TokenKind::If)?;
+
+        // Match '('
+        curr_spans.push(self.current_token.span.clone());
+        self.match_kind(TokenKind::OpenParen)?;
+
+        // Parse condition expression
+        let condition = self.parse_constant_expression()?;
+        curr_spans.extend_from_slice(condition.span().inner_ref());
+
+        // Match ')'
+        curr_spans.push(self.current_token.span.clone());
+        self.match_kind(TokenKind::CloseParen)?;
+
+        // Parse then branch body
+        curr_spans.push(self.current_token.span.clone());
+        let then_branch = self.parse_if_body(macro_name)?;
+        then_branch.iter().for_each(|s| curr_spans.extend_from_slice(s.span.inner_ref()));
+
+        // Capture '}' span
+        if let Some(close_brace_token) = self.peek_behind() {
+            curr_spans.push(close_brace_token.span);
+        }
+
+        // Parse else if clauses
+        let mut else_if_branches = Vec::new();
+        while self.check(TokenKind::Else) {
+            // Peek ahead to see if it's 'else if' or just 'else'
+            let next_is_if = self.peek().map(|t| matches!(t.kind, TokenKind::If)).unwrap_or(false);
+
+            if !next_is_if {
+                break; // This is an 'else' clause, not 'else if'
+            }
+
+            // Match 'else' keyword
+            curr_spans.push(self.current_token.span.clone());
+            self.match_kind(TokenKind::Else)?;
+
+            // Match 'if' keyword
+            curr_spans.push(self.current_token.span.clone());
+            self.match_kind(TokenKind::If)?;
+
+            // Match '('
+            curr_spans.push(self.current_token.span.clone());
+            self.match_kind(TokenKind::OpenParen)?;
+
+            // Parse else if condition
+            let else_if_condition = self.parse_constant_expression()?;
+            curr_spans.extend_from_slice(else_if_condition.span().inner_ref());
+
+            // Match ')'
+            curr_spans.push(self.current_token.span.clone());
+            self.match_kind(TokenKind::CloseParen)?;
+
+            // Parse else if body
+            curr_spans.push(self.current_token.span.clone());
+            let else_if_body = self.parse_if_body(macro_name)?;
+            else_if_body.iter().for_each(|s| curr_spans.extend_from_slice(s.span.inner_ref()));
+
+            // Capture '}' span
+            if let Some(close_brace_token) = self.peek_behind() {
+                curr_spans.push(close_brace_token.span);
+            }
+
+            else_if_branches.push((else_if_condition, else_if_body));
+        }
+
+        // Parse optional else clause
+        let else_branch = if self.check(TokenKind::Else) {
+            curr_spans.push(self.current_token.span.clone());
+            self.match_kind(TokenKind::Else)?;
+
+            // Parse else body
+            curr_spans.push(self.current_token.span.clone());
+            let else_body = self.parse_if_body(macro_name)?;
+            else_body.iter().for_each(|s| curr_spans.extend_from_slice(s.span.inner_ref()));
+
+            // Capture '}' span
+            if let Some(close_brace_token) = self.peek_behind() {
+                curr_spans.push(close_brace_token.span);
+            }
+
+            Some(else_body)
+        } else {
+            None
+        };
+
+        tracing::info!(target: "parser", "PARSED IF STATEMENT with {} else-if branches and else: {}",
+                      else_if_branches.len(), else_branch.is_some());
+
+        Ok(Statement {
+            ty: StatementType::IfStatement { condition, then_branch, else_if_branches, else_branch },
+            span: AstSpan(curr_spans),
+        })
+    }
+
+    /// Parse the body of an if statement (reuses for loop body parsing logic)
+    fn parse_if_body(&mut self, macro_name: &str) -> Result<Vec<Statement>, ParserError> {
+        // Reuse the for loop body parser since it handles all statement types
+        // If statements don't have loop variables, so loop variable handling won't trigger
+        self.parse_for_body(macro_name)
     }
 
     /// Parse the body of a for loop (similar to parse_body but handles interpolation)
@@ -936,6 +1049,11 @@ impl Parser {
                     // Support nested for loops
                     let nested_for_loop = self.parse_for_loop(macro_name)?;
                     statements.push(nested_for_loop);
+                }
+                TokenKind::If => {
+                    // Support if statements inside for loops
+                    let if_statement = self.parse_if_statement(macro_name)?;
+                    statements.push(if_statement);
                 }
                 kind => {
                     return Err(ParserError {
@@ -1855,14 +1973,51 @@ impl Parser {
     /// Parse an arithmetic expression (entry point for constant expressions).
     ///
     /// Implements operator precedence:
-    /// - Lowest: + -
-    /// - Higher: * / %
-    /// - Highest: unary -, literals, parentheses
+    /// - Lowest: ==, !=, <, >, <=, >= (comparison)
+    /// - Higher: + - (additive)
+    /// - Higher: * / % (multiplicative)
+    /// - Highest: unary -, !, literals, parentheses
     fn parse_constant_expression(&mut self) -> Result<Expression, ParserError> {
-        self.parse_additive_expression()
+        self.parse_comparison_expression()
     }
 
-    /// Parse addition and subtraction (lowest precedence binary operators).
+    /// Parse comparison operators (lowest precedence binary operators).
+    fn parse_comparison_expression(&mut self) -> Result<Expression, ParserError> {
+        let mut left = self.parse_additive_expression()?;
+
+        while matches!(
+            self.current_token.kind,
+            TokenKind::EqualEqual
+                | TokenKind::NotEqual
+                | TokenKind::LeftAngle
+                | TokenKind::RightAngle
+                | TokenKind::LessEqual
+                | TokenKind::GreaterEqual
+        ) {
+            let op = match self.current_token.kind {
+                TokenKind::EqualEqual => BinaryOp::Eq,
+                TokenKind::NotEqual => BinaryOp::NotEq,
+                TokenKind::LeftAngle => BinaryOp::Lt,
+                TokenKind::RightAngle => BinaryOp::Gt,
+                TokenKind::LessEqual => BinaryOp::LtEq,
+                TokenKind::GreaterEqual => BinaryOp::GtEq,
+                _ => unreachable!(),
+            };
+            let op_span = self.current_token.span.clone();
+            self.consume();
+            let right = self.parse_additive_expression()?;
+            // Span covers from the start of left to the end of right, including the operator
+            let mut spans = left.span().inner_ref().to_vec();
+            spans.push(op_span);
+            spans.extend_from_slice(right.span().inner_ref());
+            let span = AstSpan(spans);
+            left = Expression::Binary { left: Box::new(left), op, right: Box::new(right), span };
+        }
+
+        Ok(left)
+    }
+
+    /// Parse addition and subtraction.
     fn parse_additive_expression(&mut self) -> Result<Expression, ParserError> {
         let mut left = self.parse_multiplicative_expression()?;
 
@@ -1911,16 +2066,21 @@ impl Parser {
         Ok(left)
     }
 
-    /// Parse unary operators (negation).
+    /// Parse unary operators (negation and logical NOT).
     fn parse_unary_expression(&mut self) -> Result<Expression, ParserError> {
-        if matches!(self.current_token.kind, TokenKind::Sub) {
+        if matches!(self.current_token.kind, TokenKind::Sub | TokenKind::Not) {
+            let op = match self.current_token.kind {
+                TokenKind::Sub => UnaryOp::Neg,
+                TokenKind::Not => UnaryOp::Not,
+                _ => unreachable!(),
+            };
             let start_span = self.current_token.span.clone();
             self.consume();
             let expr = self.parse_unary_expression()?;
             // Span includes operator and the expression
             let end_span = expr.span().inner_ref().last().cloned().unwrap_or_else(|| start_span.clone());
             let span = AstSpan(vec![start_span, end_span]);
-            Ok(Expression::Unary { op: UnaryOp::Neg, expr: Box::new(expr), span })
+            Ok(Expression::Unary { op, expr: Box::new(expr), span })
         } else {
             self.parse_primary_expression()
         }
