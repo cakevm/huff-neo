@@ -3,11 +3,11 @@
 # Huff Neo Compiler changelog
 
 ## Unreleased
+
+## [1.5.1] - 2025-11-04
 - Throw error for circular constant dependencies to prevent infinite loops during constant evaluation.
   - Detects direct cycles (A = B, B = A), indirect cycles (A = B, B = C, C = A), and self-references (A = A + 1).
-- Fix `__NOOP` not working as a macro argument (fixes #118).
-  - `__NOOP` can now be passed as an argument to macros: `MACRO(__NOOP)`.
-  - Can be used in first-class macro patterns: `<m>(__NOOP)`.
+- Fix `__NOOP` not working as a macro argument (e.g. `MACRO(__NOOP)`, `<m>(__NOOP)`) (fixes #118).
 - Fix deadlock when compile-time evaluated constants are passed as macro arguments (fixes #119).
   - The compiler previously hung when passing constants (e.g., `#define constant C2 = [C1]`) as macro arguments.
 
