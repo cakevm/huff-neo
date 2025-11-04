@@ -1310,6 +1310,10 @@ impl Parser {
                 self.consume();
                 Ok(MacroArg::Opcode(o))
             }
+            TokenKind::Noop => {
+                self.consume();
+                Ok(MacroArg::Noop)
+            }
             TokenKind::Ident(ident) => {
                 if self.peek().is_some() && self.peek().unwrap().kind == TokenKind::OpenParen {
                     // It's a nested macro call
@@ -1368,7 +1372,7 @@ impl Parser {
             }
             arg => Err(ParserError {
                 kind: ParserErrorKind::InvalidMacroArgs(arg),
-                hint: Some("Expected literal, identifier, opcode, or argument call".to_string()),
+                hint: Some("Expected literal, identifier, opcode, __NOOP, or argument call".to_string()),
                 spans: AstSpan(vec![self.current_token.span.clone()]),
                 cursor: self.cursor,
             }),

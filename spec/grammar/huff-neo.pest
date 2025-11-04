@@ -255,7 +255,7 @@ macro_argument = {
     | invoke_macro           // NESTED_MACRO()
     | value_opcode           // add, mul, etc.
     | ref_constant_bare      // MY_CONST (no brackets!)
-    | special_noop
+    | special_noop           // __NOOP
 }
 
 // MACRO BODY STATEMENTS: What can appear inside macro bodies { ... }
@@ -273,6 +273,7 @@ statement = {
     | ref_argument
     | invoke_macro
     | ref_identifier            // label references
+    | special_noop              // __NOOP
 }
 
 // DECORATOR VALUES: Arguments to test decorators #[calldata(...), value(...)]

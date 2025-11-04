@@ -203,6 +203,8 @@ pub enum CodegenErrorKind {
     UsizeConversion(String),
     /// Invalid Arguments
     InvalidArguments(String),
+    /// Invalid Macro Argument Type (e.g., cannot invoke __NOOP as a macro)
+    InvalidMacroArgumentType(String),
     /// Invalid Hex String
     InvalidHex(String),
     /// Invalid Table Statement
@@ -302,6 +304,9 @@ impl<W: Write> Report<W> for CodegenError {
             }
             CodegenErrorKind::InvalidArguments(msg) => {
                 write!(f.out, "Invalid arguments: \"{msg}\"")
+            }
+            CodegenErrorKind::InvalidMacroArgumentType(msg) => {
+                write!(f.out, "Invalid macro argument type: {msg}")
             }
             CodegenErrorKind::InvalidHex(msg) => {
                 write!(f.out, "Invalid hex string: \"{msg}\"")
@@ -639,6 +644,9 @@ impl fmt::Display for CompilerError {
                 }
                 CodegenErrorKind::InvalidArguments(_) => {
                     write!(f, "\nError: Invalid Arguments\n{}\n", ce.span.error(None))
+                }
+                CodegenErrorKind::InvalidMacroArgumentType(msg) => {
+                    write!(f, "\nError: Invalid Macro Argument Type\n{}\n{}\n", msg, ce.span.error(None))
                 }
                 CodegenErrorKind::InvalidHex(_) => {
                     write!(f, "\nError: Invalid Hex\n{}\n", ce.span.error(None))

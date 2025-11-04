@@ -1139,3 +1139,105 @@ fn test_arg_properly_passed_to_nested_macro() {
     // Expected bytecode: ARG() expands to 0xff, which is PUSH1 0xff = 60ff
     assert_eq!(main_bytecode, "60ff");
 }
+
+#[test]
+fn test_noop_as_macro_arg() {
+    // Test passing __NOOP as a macro argument
+    let source = r#"
+        #define macro MACRO(arg) = takes(0) returns(0) {
+            <arg>
+            0x42
+        }
+
+        #define macro MAIN() = takes(0) returns(0) {
+            MACRO(__NOOP)
+        }
+    "#;
+
+    // Lex + Parse
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    let evm_version = EVMVersion::default();
+
+    // Create main bytecode
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
+
+    // Expected bytecode: __NOOP generates nothing, followed by PUSH1 0x42
+    let expected_bytecode = "6042";
+    assert_eq!(main_bytecode.to_lowercase(), expected_bytecode.to_lowercase());
+}
+
+#[test]
+fn test_noop_with_other_args() {
+    // Test __NOOP mixed with other arguments
+    let source = r#"
+        #define macro MACRO(arg1, arg2, arg3) = takes(0) returns(0) {
+            <arg1>
+            <arg2>
+            <arg3>
+        }
+
+        #define macro MAIN() = takes(0) returns(0) {
+            MACRO(0x01, __NOOP, 0x02)
+        }
+    "#;
+
+    // Lex + Parse
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    let evm_version = EVMVersion::default();
+
+    // Create main bytecode
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
+
+    // Expected bytecode: PUSH1 0x01, nothing (from __NOOP), PUSH1 0x02
+    let expected_bytecode = "60016002";
+    assert_eq!(main_bytecode.to_lowercase(), expected_bytecode.to_lowercase());
+}
+
+#[test]
+fn test_noop_in_first_class_macro_invocation() {
+    // Test __NOOP passed as argument in first-class macro invocation pattern
+    let source = r#"
+        #define macro PROCESS(arg) = takes(0) returns(0) {
+            <arg>
+            0x01
+        }
+
+        #define macro EXECUTOR(m) = takes(0) returns(0) {
+            <m>(__NOOP)
+        }
+
+        #define macro MAIN() = takes(0) returns(0) {
+            EXECUTOR(PROCESS)
+            0x42
+        }
+    "#;
+
+    // Lex + Parse
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    let evm_version = EVMVersion::default();
+
+    // Create main bytecode
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
+
+    // Expected bytecode: PROCESS(__NOOP) -> __NOOP (nothing) + PUSH1 0x01, then PUSH1 0x42
+    let expected_bytecode = "60016042";
+    assert_eq!(main_bytecode.to_lowercase(), expected_bytecode.to_lowercase());
+}
