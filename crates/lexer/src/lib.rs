@@ -254,7 +254,10 @@ impl<'a> Lexer<'a> {
 
                     // Check for __NOOP builtin constant
                     if word == "__NOOP"
-                        && matches!(self.context_stack.top(), &Context::MacroBody | &Context::ForLoopBody | &Context::Constant)
+                        && matches!(
+                            self.context_stack.top(),
+                            &Context::MacroBody | &Context::ForLoopBody | &Context::Constant | &Context::MacroArgs
+                        )
                     {
                         debug!(target: "lexer", "FOUND __NOOP");
                         found_kind = Some(TokenKind::Noop);

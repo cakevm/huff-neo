@@ -382,7 +382,7 @@ pub fn statement_gen<'a>(
             tracing::info!(target: "codegen", "Processing ArgMacroInvocation: <{}>()", arg_name);
 
             // Function to recursively resolve an argument through the invocation stack
-            fn resolve_argument(arg_name: &str, mis: &[(usize, MacroInvocation)], contract: &Contract) -> Option<String> {
+            fn resolve_argument(arg_name: &str, mis: &[(usize, MacroInvocation)], contract: &Contract) -> Result<String, CodegenErrorKind> {
                 // Search through the macro invocation stack
                 for (_, mi) in mis.iter().rev() {
                     // Find the macro definition
@@ -394,7 +394,7 @@ pub fn statement_gen<'a>(
                                 match arg_value {
                                     MacroArg::Ident(macro_name) => {
                                         // Direct macro name - we're done
-                                        return Some(macro_name.clone());
+                                        return Ok(macro_name.clone());
                                     }
                                     MacroArg::ArgCall(arg_call) => {
                                         // The argument is itself an argument reference - need to resolve it recursively
@@ -403,6 +403,13 @@ pub fn statement_gen<'a>(
                                     MacroArg::ArgCallMacroInvocation(inner_arg_name, _) => {
                                         // The argument is an invocation of another argument - resolve that argument
                                         return resolve_argument(inner_arg_name, mis, contract);
+                                    }
+                                    MacroArg::Noop => {
+                                        // __NOOP cannot be invoked as a macro
+                                        return Err(CodegenErrorKind::InvalidMacroArgumentType(format!(
+                                            "Cannot invoke __NOOP as a macro in argument '{}'",
+                                            arg_name
+                                        )));
                                     }
                                     _ => {
                                         // Other types of arguments not supported for macro invocation
@@ -413,46 +420,44 @@ pub fn statement_gen<'a>(
                         }
                     }
                 }
-                None
+                Err(CodegenErrorKind::MissingArgumentDefinition(arg_name.to_string()))
             }
 
             // Resolve the argument to get the actual macro name
-            let resolved_macro_name = resolve_argument(arg_name, mis, contract);
+            let macro_name = match resolve_argument(arg_name, mis, contract) {
+                Ok(name) => {
+                    tracing::info!(target: "codegen", "Resolved <{}> to macro: {}", arg_name, name);
+                    name
+                }
+                Err(error_kind) => {
+                    tracing::error!(target: "codegen", "Failed to resolve argument '{}': {:?}", arg_name, error_kind);
+                    return Err(CodegenError { kind: error_kind, span: s.span.clone_box(), token: None });
+                }
+            };
 
-            if let Some(macro_name) = resolved_macro_name {
-                tracing::info!(target: "codegen", "Resolved <{}> to macro: {}", arg_name, macro_name);
+            // Create a MacroInvocation with the resolved macro name
+            let resolved_invocation = MacroInvocation { macro_name, args: args.clone(), span: s.span.clone() };
 
-                // Create a MacroInvocation with the resolved macro name
-                let resolved_invocation = MacroInvocation { macro_name, args: args.clone(), span: s.span.clone() };
+            // Process it as a regular macro invocation
+            let macro_invocation_statement =
+                Statement { ty: StatementType::MacroInvocation(resolved_invocation.clone()), span: s.span.clone() };
 
-                // Process it as a regular macro invocation
-                let macro_invocation_statement =
-                    Statement { ty: StatementType::MacroInvocation(resolved_invocation.clone()), span: s.span.clone() };
-
-                // Recursively process the resolved macro invocation
-                return statement_gen(
-                    evm_version,
-                    &macro_invocation_statement,
-                    contract,
-                    macro_def,
-                    scope,
-                    offset,
-                    mis,
-                    jump_table,
-                    label_indices,
-                    table_instances,
-                    utilized_tables,
-                    circular_codesize_invocations,
-                    starting_offset,
-                );
-            } else {
-                tracing::error!(target: "codegen", "Failed to resolve argument '{}' to a macro name", arg_name);
-                return Err(CodegenError {
-                    kind: CodegenErrorKind::MissingArgumentDefinition(arg_name.clone()),
-                    span: s.span.clone_box(),
-                    token: None,
-                });
-            }
+            // Recursively process the resolved macro invocation
+            return statement_gen(
+                evm_version,
+                &macro_invocation_statement,
+                contract,
+                macro_def,
+                scope,
+                offset,
+                mis,
+                jump_table,
+                label_indices,
+                table_instances,
+                utilized_tables,
+                circular_codesize_invocations,
+                starting_offset,
+            );
         }
         sty => {
             tracing::error!(target: "codegen", "CURRENT MACRO DEF: {}", macro_def.name);

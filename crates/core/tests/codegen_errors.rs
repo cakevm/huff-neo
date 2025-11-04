@@ -320,3 +320,43 @@ fn test_unmatched_jump_label() {
         }
     }
 }
+
+#[test]
+fn test_noop_invocation_error() {
+    // Test that attempting to invoke __NOOP as a macro produces a clear error
+    let source = r#"
+        #define macro EXECUTOR(m) = takes(0) returns(0) {
+            <m>()
+        }
+
+        #define macro MAIN() = takes(0) returns(0) {
+            EXECUTOR(__NOOP)
+            0x01
+        }
+    "#;
+
+    let full_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(full_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    // Attempt to generate bytecode should fail
+    match Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None) {
+        Ok(_) => panic!("Expected error when invoking __NOOP as a macro"),
+        Err(e) => {
+            assert_eq!(
+                e,
+                CodegenError {
+                    kind: CodegenErrorKind::InvalidMacroArgumentType("Cannot invoke __NOOP as a macro in argument 'm'".to_string()),
+                    span: AstSpan(vec![
+                        Span { start: 71, end: 74, file: None }, // <m>
+                    ])
+                    .boxed(),
+                    token: None
+                }
+            )
+        }
+    }
+}
