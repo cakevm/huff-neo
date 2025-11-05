@@ -51,6 +51,9 @@ pub mod wasm;
 /// EVM Version Module
 pub mod evm_version;
 
+/// Builtin Function Evaluation Module
+pub mod builtin_eval;
+
 /// File operations
 pub mod file;
 

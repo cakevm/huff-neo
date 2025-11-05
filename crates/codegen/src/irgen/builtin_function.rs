@@ -1,6 +1,7 @@
 use crate::Codegen;
 use crate::irgen::constants::{constant_gen, evaluate_constant_value};
 use alloy_primitives::{B256, hex, keccak256};
+use huff_neo_utils::builtin_eval::{PadDirection, eval_builtin_bytes, eval_event_hash, eval_function_signature};
 use huff_neo_utils::bytecode::{BytecodeRes, Bytes, CircularCodeSizeIndices, Jump, Jumps};
 use huff_neo_utils::bytes_util::{bytes32_to_hex_string, format_even_bytes, pad_n_bytes};
 use huff_neo_utils::error::{CodegenError, CodegenErrorKind};
@@ -10,7 +11,6 @@ use huff_neo_utils::prelude::{
     Argument, AstSpan, BuiltinFunctionArg, BuiltinFunctionCall, BuiltinFunctionKind, Contract, MacroDefinition, MacroInvocation, PushValue,
     TableDefinition,
 };
-use std::fmt::Display;
 
 /// Creates a CodegenError for invalid arguments
 fn invalid_arguments_error(msg: impl Into<String>, span: &AstSpan) -> CodegenError {
@@ -139,13 +139,13 @@ pub fn builtin_function_gen<'a>(
             }
         }
         BuiltinFunctionKind::FunctionSignature => {
-            let push_value = function_signature(contract, bf)?;
+            let push_value = eval_function_signature(contract, bf)?;
             let push_bytes = push_value.to_hex_with_opcode(evm_version);
             *offset += push_bytes.len() / 2;
             bytes.push((starting_offset, Bytes(push_bytes)));
         }
         BuiltinFunctionKind::EventHash => {
-            let push_value = event_hash(contract, bf)?;
+            let push_value = eval_event_hash(contract, bf)?;
             let push_bytes = push_value.to_hex_with_opcode(evm_version);
             *offset += push_bytes.len() / 2;
             bytes.push((starting_offset, Bytes(push_bytes)));
@@ -231,7 +231,7 @@ pub fn builtin_function_gen<'a>(
             bytes.push((starting_offset, Bytes(push_bytes)));
         }
         BuiltinFunctionKind::Bytes => {
-            let push_value = builtin_bytes(bf)?;
+            let push_value = eval_builtin_bytes(bf)?;
             let push_bytes = push_value.to_hex_with_opcode(evm_version);
             *offset += push_bytes.len() / 2;
             bytes.push((starting_offset, Bytes(push_bytes)));
@@ -440,86 +440,15 @@ pub fn tablesize(contract: &Contract, bf: &BuiltinFunctionCall) -> Result<(Table
     Ok((ir_table, push_bytes))
 }
 
-/// Generates a PushValue for the __EVENT_HASH builtin function
-///
-/// Returns a PushValue containing the full keccak256 hash (32 bytes) of the event signature.
-/// Looks up event definitions in the contract or computes the hash via keccak256.
-pub fn event_hash(contract: &Contract, bf: &BuiltinFunctionCall) -> Result<PushValue, CodegenError> {
-    validate_arg_count(bf, 1, "__EVENT_HASH")?;
-    let first_arg = extract_single_argument(bf, "__EVENT_HASH")?;
-    let hash = if let Some(event) = contract.events.iter().find(|e| first_arg.name.as_ref().unwrap().eq(&e.name)) {
-        event.hash
-    } else if let Some(s) = &first_arg.name {
-        keccak256(s).0
-    } else {
-        tracing::error!(
-            target: "codegen",
-            "MISSING EVENT INTERFACE PASSED TO __EVENT_HASH: \"{}\"",
-            first_arg.name.as_ref().unwrap()
-        );
-        return Err(CodegenError {
-            kind: CodegenErrorKind::MissingEventInterface(first_arg.name.as_ref().unwrap().to_string()),
-            span: bf.span.clone_box(),
-            token: None,
-        });
-    };
-    Ok(PushValue::from(hash))
-}
-
-/// Generates a PushValue for the __FUNC_SIG builtin function
-///
-/// Returns a PushValue containing the 4-byte function selector (first 4 bytes of keccak256 hash).
-/// Looks up function/error definitions in the contract or computes the selector via keccak256.
-pub fn function_signature(contract: &Contract, bf: &BuiltinFunctionCall) -> Result<PushValue, CodegenError> {
-    validate_arg_count(bf, 1, "__FUNC_SIG")?;
-    let first_arg = extract_single_argument(bf, "__FUNC_SIG")?;
-    let selector = if let Some(func) = contract.functions.iter().find(|f| first_arg.name.as_ref().unwrap().eq(&f.name)) {
-        func.signature
-    } else if let Some(error) = contract.errors.iter().find(|e| first_arg.name.as_ref().unwrap().eq(&e.name)) {
-        error.selector
-    } else if let Some(s) = &first_arg.name {
-        keccak256(s)[..4].try_into().unwrap()
-    } else {
-        tracing::error!(
-            target: "codegen",
-            "MISSING FUNCTION INTERFACE PASSED TO __SIG: \"{}\"",
-            first_arg.name.as_ref().unwrap()
-        );
-        return Err(CodegenError {
-            kind: CodegenErrorKind::MissingFunctionInterface(first_arg.name.as_ref().unwrap().to_string()),
-            span: bf.span.clone_box(),
-            token: None,
-        });
-    };
-
-    // Left-pad the 4-byte selector to 32 bytes for B256
-    let mut bytes = [0u8; 32];
-    bytes[28..32].copy_from_slice(&selector);
-    Ok(PushValue::from(bytes))
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum PadDirection {
-    Left,
-    Right,
-}
-impl Display for PadDirection {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            PadDirection::Left => write!(f, "__LEFTPAD"),
-            PadDirection::Right => write!(f, "__RIGHTPAD"),
-        }
-    }
-}
-
 /// Generates a PushValue for left or right padding a byte string to 32 bytes
 pub fn builtin_pad(contract: &Contract, bf: &BuiltinFunctionCall, direction: PadDirection) -> Result<PushValue, CodegenError> {
     validate_arg_count(bf, 1, &direction.to_string())?;
     let first_arg = match &bf.args[0] {
         BuiltinFunctionArg::Argument(arg) => arg.name.clone().unwrap_or_default(),
         BuiltinFunctionArg::BuiltinFunctionCall(inner_call) => match inner_call.kind {
-            BuiltinFunctionKind::FunctionSignature => function_signature(contract, inner_call)?.to_hex_trimmed(),
-            BuiltinFunctionKind::Bytes => builtin_bytes(inner_call)?.to_hex_trimmed(),
+            BuiltinFunctionKind::FunctionSignature => eval_function_signature(contract, inner_call)?.to_hex_trimmed(),
+            BuiltinFunctionKind::Bytes => eval_builtin_bytes(inner_call)?.to_hex_trimmed(),
+            BuiltinFunctionKind::EventHash => eval_event_hash(contract, inner_call)?.to_hex_trimmed(),
             _ => {
                 tracing::error!(target: "codegen", "Invalid function call argument type passed to {direction}");
                 return Err(invalid_arguments_error(format!("Invalid argument type passed to {direction}"), &bf.span));
@@ -552,36 +481,5 @@ pub fn builtin_pad(contract: &Contract, bf: &BuiltinFunctionCall, direction: Pad
         bytes_array[..hex_bytes.len()].copy_from_slice(&hex_bytes);
     }
 
-    Ok(PushValue::new(B256::from(bytes_array)))
-}
-
-/// Validates and converts a string argument to a right-padded 32-byte array
-fn validate_and_pad_string(bf: &BuiltinFunctionCall) -> Result<[u8; 32], CodegenError> {
-    validate_arg_count(bf, 1, "__BYTES")?;
-    let first_arg = match bf.args[0] {
-        BuiltinFunctionArg::Argument(ref arg) => arg.name.clone().unwrap_or_default(),
-        _ => {
-            tracing::error!(target: "codegen", "Invalid argument type passed to __BYTES");
-            return Err(invalid_arguments_error("Invalid argument type passed to __BYTES", &bf.span));
-        }
-    };
-
-    if first_arg.is_empty() {
-        return Err(invalid_arguments_error("Empty string passed to __BYTES", &bf.span));
-    }
-
-    let bytes = first_arg.as_bytes();
-    if bytes.len() > 32 {
-        return Err(invalid_arguments_error("Encoded bytes length exceeds 32 bytes", &bf.span));
-    }
-
-    let mut bytes_array = [0u8; 32];
-    bytes_array[32 - bytes.len()..].copy_from_slice(bytes);
-    Ok(bytes_array)
-}
-
-/// Generates a PushValue for the __BYTES builtin function
-pub fn builtin_bytes(bf: &BuiltinFunctionCall) -> Result<PushValue, CodegenError> {
-    let bytes_array = validate_and_pad_string(bf)?;
     Ok(PushValue::new(B256::from(bytes_array)))
 }

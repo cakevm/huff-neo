@@ -3,7 +3,7 @@
 #![warn(unused_extern_crates)]
 #![forbid(unsafe_code)]
 
-use crate::irgen::builtin_function::{PadDirection, builtin_bytes, builtin_pad, function_signature};
+use crate::irgen::builtin_function::builtin_pad;
 use alloy_primitives::{U256, hex};
 use huff_neo_utils::ast::huff::*;
 use huff_neo_utils::ast::span::AstSpan;
@@ -429,9 +429,11 @@ impl Codegen {
     /// Generates bytecode for a builtin function call used for constants, code tables, etc.
     /// Returns a PushValue that can be converted to bytecode with or without opcode
     pub fn gen_builtin_bytecode(contract: &Contract, bf: &BuiltinFunctionCall, span: AstSpan) -> Result<PushValue, CodegenError> {
+        use huff_neo_utils::builtin_eval::{PadDirection, eval_builtin_bytes, eval_event_hash, eval_function_signature};
         match bf.kind {
-            BuiltinFunctionKind::FunctionSignature => function_signature(contract, bf),
-            BuiltinFunctionKind::Bytes => builtin_bytes(bf),
+            BuiltinFunctionKind::FunctionSignature => eval_function_signature(contract, bf),
+            BuiltinFunctionKind::Bytes => eval_builtin_bytes(bf),
+            BuiltinFunctionKind::EventHash => eval_event_hash(contract, bf),
             BuiltinFunctionKind::LeftPad => builtin_pad(contract, bf, PadDirection::Left),
             BuiltinFunctionKind::RightPad => builtin_pad(contract, bf, PadDirection::Right),
             _ => Err(CodegenError {
