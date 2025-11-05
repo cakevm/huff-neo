@@ -1310,3 +1310,47 @@ fn test_nested_evaluated_constants_as_macro_arg() {
     let expected_bytecode = "6010";
     assert_eq!(main_bytecode.to_lowercase(), expected_bytecode.to_lowercase());
 }
+
+#[test]
+fn test_nested_macro_invocation_with_arg_scoping() {
+    // Test nested macro invocation argument scoping
+    // When an ArgCallMacroInvocation like <arg1>(__NOOP) is passed as an argument to M2,
+    // the compiler should properly resolve arg1 through the entire invocation stack
+    let source = r#"
+        #define macro MAIN() = {
+            M1(IDENTITY)
+        }
+
+        #define macro M1(arg1) = {
+            M2(M3(<arg1>(__NOOP)))
+        }
+
+        #define macro M2(arg2) = {
+            <arg2>
+        }
+
+        #define macro M3(arg3) = {
+            <arg3>
+        }
+
+        #define macro IDENTITY(arg) = {
+            <arg>
+        }
+    "#;
+
+    // Lex + Parse
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    let evm_version = EVMVersion::default();
+
+    // This should compile successfully
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
+
+    // Expected bytecode: IDENTITY(__NOOP) should produce nothing (since __NOOP generates no bytecode)
+    assert!(main_bytecode.is_empty());
+}
