@@ -248,7 +248,8 @@ pub fn bubble_arg_call(
                                     format!("{:02x}{hex_literal}", 95 + hex_literal.len() / 2)
                                 }
                                 ConstVal::BuiltinFunctionCall(bf) => {
-                                    Codegen::gen_builtin_bytecode(evm_version, contract, bf, target_macro_invoc.1.span.clone())?
+                                    Codegen::gen_builtin_bytecode(contract, bf, target_macro_invoc.1.span.clone())?
+                                        .to_hex_with_opcode(evm_version)
                                 }
                                 ConstVal::Expression(expr) => {
                                     tracing::info!(target: "codegen", "EVALUATING CONSTANT EXPRESSION FOR \"{iden}\"");

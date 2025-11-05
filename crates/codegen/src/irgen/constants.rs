@@ -1,33 +1,32 @@
 use crate::Codegen;
 use alloy_primitives::U256;
 use huff_neo_utils::ast::span::AstSpan;
-use huff_neo_utils::prelude::{
-    CodegenError, CodegenErrorKind, ConstVal, ConstantDefinition, Contract, EVMVersion, literal_gen, str_to_bytes32,
-};
+use huff_neo_utils::prelude::{CodegenError, CodegenErrorKind, ConstVal, ConstantDefinition, Contract, PushValue, str_to_bytes32};
 
-/// Transforms a constant definition into it's respective bytecode
-pub fn constant_gen(evm_version: &EVMVersion, name: &str, contract: &Contract, ir_byte_span: &AstSpan) -> Result<String, CodegenError> {
+/// Transforms a constant definition into a PushValue
+/// Returns None for __NOOP constants (which generate no bytecode)
+pub fn constant_gen(name: &str, contract: &Contract, ir_byte_span: &AstSpan) -> Result<Option<PushValue>, CodegenError> {
     let constant = lookup_constant(name, contract, ir_byte_span)?;
 
     // Generate bytecode for the constant
     // Should always be a `Literal` if storage pointers were derived in the AST
     // prior to generating the IR bytes.
     tracing::info!(target: "codegen", "FOUND CONSTANT DEFINITION: {}", constant.name);
-    let push_bytes = match &constant.value {
+    let push_value = match &constant.value {
         ConstVal::Bytes(bytes) => {
             let hex_literal = str_to_bytes32(bytes.0.as_str());
-            literal_gen(evm_version, &hex_literal)
+            Some(PushValue::from(hex_literal))
         }
-        ConstVal::StoragePointer(sp) => literal_gen(evm_version, sp),
-        ConstVal::BuiltinFunctionCall(bf) => Codegen::gen_builtin_bytecode(evm_version, contract, bf, ir_byte_span.clone())?,
+        ConstVal::StoragePointer(sp) => Some(PushValue::from(sp)),
+        ConstVal::BuiltinFunctionCall(bf) => Some(Codegen::gen_builtin_bytecode(contract, bf, ir_byte_span.clone())?),
         ConstVal::Expression(expr) => {
             tracing::info!(target: "codegen", "EVALUATING CONSTANT EXPRESSION FOR \"{}\"", constant.name);
             let evaluated = contract.evaluate_constant_expression(expr)?;
-            literal_gen(evm_version, &evaluated)
+            Some(PushValue::from(evaluated))
         }
         ConstVal::Noop => {
             tracing::info!(target: "codegen", "CONSTANT \"{}\" IS __NOOP - GENERATING NO BYTECODE", constant.name);
-            String::new() // Generate no bytecode
+            None // Generate no bytecode
         }
         ConstVal::FreeStoragePointer(fsp) => {
             // If this is reached in codegen stage, the `derive_storage_pointers`
@@ -37,7 +36,7 @@ pub fn constant_gen(evm_version: &EVMVersion, name: &str, contract: &Contract, i
         }
     };
 
-    Ok(push_bytes)
+    Ok(push_value)
 }
 
 /// Looks up a constant definition by name
