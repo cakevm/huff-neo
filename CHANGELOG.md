@@ -5,6 +5,9 @@
 ## Unreleased
 - Add compile-time if/else if/else statements.
   - Example: `if ([MODE] == 0x01) { 0xAA } else if ([MODE] == 0x02) { 0xBB } else { 0xCC }`
+- Fix constant substitution failing when referencing builtin functions (fixes #122).
+  - Example: `#define constant C1 = __RIGHTPAD(0x)` and `#define constant C2 = [C1]` now works correctly.
+  - Applies to all builtin functions: `__FUNC_SIG`, `__EVENT_HASH`, `__RIGHTPAD`, `__LEFTPAD`, `__BYTES`.
 
 ## [1.5.1] - 2025-11-04
 - Throw error for circular constant dependencies to prevent infinite loops during constant evaluation.

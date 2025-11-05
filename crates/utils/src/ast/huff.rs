@@ -1,5 +1,6 @@
 use crate::ast::abi::{Argument, EventDefinition, FunctionDefinition};
 use crate::ast::span::AstSpan;
+use crate::builtin_eval::{PadDirection, eval_builtin_bytes, eval_builtin_pad_simple, eval_event_hash, eval_function_signature};
 use crate::{
     bytecode::*,
     bytes_util::*,
@@ -506,6 +507,25 @@ impl Contract {
                     ConstVal::StoragePointer(lit) => {
                         // Storage pointers are already resolved literals
                         Ok(*lit)
+                    }
+                    ConstVal::BuiltinFunctionCall(bf) => {
+                        // Evaluate builtin functions at compile time
+                        let push_value = match bf.kind {
+                            BuiltinFunctionKind::FunctionSignature => eval_function_signature(self, bf)?,
+                            BuiltinFunctionKind::EventHash => eval_event_hash(self, bf)?,
+                            BuiltinFunctionKind::Bytes => eval_builtin_bytes(bf)?,
+                            BuiltinFunctionKind::RightPad => eval_builtin_pad_simple(bf, PadDirection::Right)?,
+                            BuiltinFunctionKind::LeftPad => eval_builtin_pad_simple(bf, PadDirection::Left)?,
+                            _ => {
+                                return Err(CodegenError {
+                                    kind: CodegenErrorKind::UnsupportedBuiltinFunction(format!("{}", bf.kind)),
+                                    span: span.clone_box(),
+                                    token: None,
+                                });
+                            }
+                        };
+                        // Extract the [u8; 32] value from PushValue
+                        Ok(push_value.value.0)
                     }
                     _ => Err(CodegenError { kind: CodegenErrorKind::InvalidConstantExpression, span: span.clone_box(), token: None }),
                 };
