@@ -64,6 +64,7 @@ pub fn literal_gen(evm_version: &EVMVersion, l: &[u8; 32]) -> String {
     }
 }
 
+/// Formats a `PUSH0` opcode if supported by the EVM version, otherwise falls back to `PUSH1 0x00`
 fn format_push0(evm_version: &EVMVersion, hex_literal: String) -> String {
     if evm_version.has_push0() { Opcode::Push0.to_string() } else { format_literal(hex_literal) }
 }

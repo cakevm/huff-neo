@@ -244,8 +244,8 @@ impl TestRunner {
             .map_err(|e| RunnerError::CompilerError(CompilerError::CodegenError(e)))?;
 
         // Generate table bytecode for compiled test macro
-        let (bytecode, source_map) = Codegen::gen_table_bytecode(&evm_version, &contract, res)
-            .map_err(|e| RunnerError::CompilerError(CompilerError::CodegenError(e)))?;
+        let (bytecode, source_map) =
+            Codegen::gen_table_bytecode(&contract, res).map_err(|e| RunnerError::CompilerError(CompilerError::CodegenError(e)))?;
 
         // Deploy compiled test macro
         let address = match self.target_address {

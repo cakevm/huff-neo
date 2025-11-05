@@ -36,6 +36,9 @@ pub mod types;
 /// Bytes Util Module
 pub mod bytes_util;
 
+/// Push Value Module
+pub mod push_value;
+
 /// Solidity Interface Generator
 pub mod sol_interface;
 
@@ -64,7 +67,7 @@ pub mod prelude {
     pub use crate::file::unpack_files::*;
     pub use crate::file::{file_source::*, full_file_source::*};
     pub use crate::{
-        abi::*, artifact::*, bytecode::*, bytes_util::*, error::*, evm_version::*, opcodes::*, report::*, sol_interface::*, token::*,
-        types::*,
+        abi::*, artifact::*, bytecode::*, bytes_util::*, error::*, evm_version::*, opcodes::*, push_value::*, report::*, sol_interface::*,
+        token::*, types::*,
     };
 }
