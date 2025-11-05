@@ -2,7 +2,10 @@ use crate::Codegen;
 use crate::irgen::constants::{constant_gen, evaluate_constant_value};
 use alloy_primitives::{B256, hex, keccak256};
 use huff_neo_utils::builtin_eval::{PadDirection, eval_builtin_bytes, eval_event_hash, eval_function_signature};
-use huff_neo_utils::bytecode::{BytecodeRes, BytecodeSegments, Bytes, CircularCodeSizeIndices, Jump, Jumps};
+use huff_neo_utils::bytecode::{
+    BytecodeRes, BytecodeSegments, Bytes, CircularCodeSizeIndices, CircularCodesizePlaceholderData, DynConstructorArgPlaceholderData, Jump,
+    JumpPlaceholderData, Jumps,
+};
 use huff_neo_utils::bytes_util::{bytes32_to_hex_string, format_even_bytes, pad_n_bytes};
 use huff_neo_utils::error::{CodegenError, CodegenErrorKind};
 use huff_neo_utils::evm_version::EVMVersion;
@@ -88,7 +91,13 @@ pub fn builtin_function_gen<'a>(
 
             *offset += codesize_offset;
             // Check if this is a circular codesize placeholder
-            let bytes_variant = if push_bytes == "cccc" { Bytes::CircularCodesizePlaceholder(push_bytes) } else { Bytes::Raw(push_bytes) };
+            let bytes_variant = if push_bytes == "cccc" {
+                // Extract macro name from the builtin function argument
+                let first_arg = extract_single_argument(bf, "__codesize")?;
+                Bytes::CircularCodesizePlaceholder(CircularCodesizePlaceholderData::new(first_arg.name.as_ref().unwrap().to_string()))
+            } else {
+                Bytes::Raw(push_bytes)
+            };
             bytes.push_with_offset(starting_offset, bytes_variant);
         }
         BuiltinFunctionKind::Tablesize => {
@@ -125,7 +134,14 @@ pub fn builtin_function_gen<'a>(
                     utilized_tables.push(t);
                 }
 
-                bytes.push_with_offset(*offset, Bytes::JumpPlaceholder(format!("{}xxxx", Opcode::Push2)));
+                bytes.push_with_offset(
+                    *offset,
+                    Bytes::JumpPlaceholder(JumpPlaceholderData::new(
+                        first_arg.name.as_ref().unwrap().to_owned(),
+                        Opcode::Push2.to_string(),
+                        String::new(),
+                    )),
+                );
                 *offset += 3;
             } else {
                 tracing::error!(
@@ -201,11 +217,9 @@ pub fn builtin_function_gen<'a>(
             *offset += 17;
             bytes.push_with_offset(
                 starting_offset,
-                Bytes::DynConstructorArgPlaceholder(format!(
-                    "{}{}{}",
-                    "xx".repeat(14),
-                    first_arg.name.as_ref().unwrap(),
-                    pad_n_bytes(second_arg.name.as_ref().unwrap(), 2)
+                Bytes::DynConstructorArgPlaceholder(DynConstructorArgPlaceholderData::new(
+                    first_arg.name.as_ref().unwrap().to_string(),
+                    pad_n_bytes(second_arg.name.as_ref().unwrap(), 2),
                 )),
             );
         }

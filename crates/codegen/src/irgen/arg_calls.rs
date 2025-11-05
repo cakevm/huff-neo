@@ -1,6 +1,6 @@
 use crate::Codegen;
 use huff_neo_utils::ast::span::AstSpan;
-use huff_neo_utils::bytecode::BytecodeSegments;
+use huff_neo_utils::bytecode::{BytecodeSegments, JumpPlaceholderData};
 use huff_neo_utils::prelude::*;
 use std::str::FromStr;
 
@@ -357,7 +357,10 @@ pub fn bubble_arg_call(
                             tracing::debug!(target: "codegen", "Found Label Call: {}", iden);
 
                             // This should be equivalent to a label call.
-                            bytes.push_with_offset(*offset, Bytes::JumpPlaceholder(format!("{}xxxx", Opcode::Push2)));
+                            bytes.push_with_offset(
+                                *offset,
+                                Bytes::JumpPlaceholder(JumpPlaceholderData::new(iden.to_owned(), Opcode::Push2.to_string(), String::new())),
+                            );
 
                             let (scope_path, scope_depth) = calculate_label_scope(scope, mis);
                             jump_table.insert(
@@ -639,7 +642,10 @@ pub fn bubble_arg_call(
             mis.last().map(|mi| mi.0).unwrap_or_else(|| 0),
             vec![Jump { label: arg_name.to_owned(), bytecode_index: 0, span: new_span, scope_depth, scope_path }],
         );
-        bytes.push_with_offset(*offset, Bytes::JumpPlaceholder(format!("{}xxxx", Opcode::Push2)));
+        bytes.push_with_offset(
+            *offset,
+            Bytes::JumpPlaceholder(JumpPlaceholderData::new(arg_name.to_owned(), Opcode::Push2.to_string(), String::new())),
+        );
         *offset += 3;
     }
 

@@ -1,4 +1,4 @@
-use huff_neo_utils::bytecode::BytecodeSegments;
+use huff_neo_utils::bytecode::{BytecodeSegments, JumpPlaceholderData};
 use huff_neo_utils::prelude::*;
 
 use crate::Codegen;
@@ -123,7 +123,11 @@ pub fn statement_gen<'a>(
                 // Insert jump to outlined macro + jumpdest to return to
                 bytes.push_with_offset(
                     *offset + stack_swaps.len() + 3, // PUSH2 + 2 bytes + stack_swaps.len()
-                    Bytes::JumpPlaceholder(format!("{}xxxx{}{}", Opcode::Push2, Opcode::Jump, Opcode::Jumpdest)),
+                    Bytes::JumpPlaceholder(JumpPlaceholderData::new(
+                        format!("goto_{}", &ir_macro.name),
+                        Opcode::Push2.to_string(),
+                        format!("{}{}", Opcode::Jump, Opcode::Jumpdest),
+                    )),
                 );
                 spans.push(span_info);
                 // PUSH2 + 2 bytes + stack_swaps.len() + PUSH2 + 2 bytes + JUMP + JUMPDEST
@@ -329,7 +333,10 @@ pub fn statement_gen<'a>(
 
             jump_table
                 .insert(*offset, vec![Jump { label: label.to_string(), bytecode_index: 0, span: s.span.clone(), scope_depth, scope_path }]);
-            bytes.push_with_offset(*offset, Bytes::JumpPlaceholder(format!("{}xxxx", Opcode::Push2)));
+            bytes.push_with_offset(
+                *offset,
+                Bytes::JumpPlaceholder(JumpPlaceholderData::new(label.to_string(), Opcode::Push2.to_string(), String::new())),
+            );
             // Add span for the PUSH2
             let span_info = if !s.span.0.is_empty() {
                 s.span.0.first().and_then(|sp| {

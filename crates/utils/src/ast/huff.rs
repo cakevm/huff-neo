@@ -498,7 +498,7 @@ impl Contract {
                 let result = match &const_value {
                     ConstVal::Bytes(bytes) => {
                         // Parse hex string to [u8; 32]
-                        Ok(str_to_bytes32(bytes.as_str()))
+                        Ok(str_to_bytes32(&bytes.as_str()))
                     }
                     ConstVal::Expression(e) => {
                         // Recursively evaluate nested expressions

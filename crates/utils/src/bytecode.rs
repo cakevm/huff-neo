@@ -12,24 +12,91 @@ use std::{
     fmt::{self, Display},
 };
 
+/// Data for a jump placeholder that needs label resolution
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct JumpPlaceholderData {
+    /// The label name this jump references
+    pub label: String,
+    /// The opcode prefix (e.g., "60" for Push2)
+    pub prefix: String,
+    /// The opcode suffix (e.g., "565b" for Jump+Jumpdest, or "" for simple jumps)
+    pub suffix: String,
+}
+
+impl JumpPlaceholderData {
+    /// Create a new jump placeholder
+    pub fn new(label: String, prefix: String, suffix: String) -> Self {
+        Self { label, prefix, suffix }
+    }
+
+    /// Generate the placeholder string with "xxxx" pattern
+    pub fn placeholder_string(&self) -> String {
+        format!("{}xxxx{}", self.prefix, self.suffix)
+    }
+}
+
+/// Data for a circular codesize placeholder
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct CircularCodesizePlaceholderData {
+    /// The macro name that contains this circular reference
+    pub macro_name: String,
+}
+
+impl CircularCodesizePlaceholderData {
+    /// Create a new circular codesize placeholder
+    pub fn new(macro_name: String) -> Self {
+        Self { macro_name }
+    }
+
+    /// Generate the placeholder string with "cccc" pattern
+    pub fn placeholder_string(&self) -> String {
+        "cccc".to_string()
+    }
+}
+
+/// Data for a dynamic constructor argument placeholder
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct DynConstructorArgPlaceholderData {
+    /// The constructor argument name
+    pub arg_name: String,
+    /// The destination offset (as a padded hex string)
+    pub dest_offset: String,
+}
+
+impl DynConstructorArgPlaceholderData {
+    /// Create a new dynamic constructor arg placeholder
+    pub fn new(arg_name: String, dest_offset: String) -> Self {
+        Self { arg_name, dest_offset }
+    }
+
+    /// Generate the placeholder string
+    /// Format: 28 'x' characters + arg_name + dest_offset (pre-padded)
+    pub fn placeholder_string(&self) -> String {
+        format!("{}{}{}", "xx".repeat(14), self.arg_name, self.dest_offset)
+    }
+}
+
 /// Bytecode with different types for placeholders
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Bytes {
     /// Raw bytecode - ready to use
     Raw(String),
     /// Jump placeholder - "xxxx" needs label resolution
-    JumpPlaceholder(String),
+    JumpPlaceholder(JumpPlaceholderData),
     /// Circular codesize placeholder - "cccc" for self-referential __codesize
-    CircularCodesizePlaceholder(String),
+    CircularCodesizePlaceholder(CircularCodesizePlaceholderData),
     /// Dynamic constructor arg placeholder
-    DynConstructorArgPlaceholder(String),
+    DynConstructorArgPlaceholder(DynConstructorArgPlaceholderData),
 }
 
 impl Bytes {
-    /// Get the underlying hex string
-    pub fn as_str(&self) -> &str {
+    /// Get the underlying hex string (generates it for placeholders)
+    pub fn as_str(&self) -> String {
         match self {
-            Bytes::Raw(s) | Bytes::JumpPlaceholder(s) | Bytes::CircularCodesizePlaceholder(s) | Bytes::DynConstructorArgPlaceholder(s) => s,
+            Bytes::Raw(s) => s.clone(),
+            Bytes::JumpPlaceholder(data) => data.placeholder_string(),
+            Bytes::CircularCodesizePlaceholder(data) => data.placeholder_string(),
+            Bytes::DynConstructorArgPlaceholder(data) => data.placeholder_string(),
         }
     }
 
