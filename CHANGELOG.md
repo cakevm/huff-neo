@@ -3,6 +3,8 @@
 # Huff Neo Compiler changelog
 
 ## Unreleased
+
+## [1.5.2] - 2025-11-05
 - Add compile-time if/else if/else statements.
   - Example: `if ([MODE] == 0x01) { 0xAA } else if ([MODE] == 0x02) { 0xBB } else { 0xCC }`
 - Fix constant substitution failing when referencing builtin functions (fixes #122).
