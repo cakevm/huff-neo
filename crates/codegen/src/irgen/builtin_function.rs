@@ -7,9 +7,51 @@ use huff_neo_utils::error::{CodegenError, CodegenErrorKind};
 use huff_neo_utils::evm_version::EVMVersion;
 use huff_neo_utils::opcodes::Opcode;
 use huff_neo_utils::prelude::{
-    BuiltinFunctionArg, BuiltinFunctionCall, BuiltinFunctionKind, Contract, MacroDefinition, MacroInvocation, TableDefinition,
+    Argument, AstSpan, BuiltinFunctionArg, BuiltinFunctionCall, BuiltinFunctionKind, Contract, MacroDefinition, MacroInvocation,
+    TableDefinition,
 };
 use std::fmt::Display;
+
+/// Creates a CodegenError for invalid arguments
+fn invalid_arguments_error(msg: impl Into<String>, span: &AstSpan) -> CodegenError {
+    CodegenError { kind: CodegenErrorKind::InvalidArguments(msg.into()), span: span.clone_box(), token: None }
+}
+
+/// Creates a CodegenError for invalid hex strings
+fn invalid_hex_error(hex_str: impl Into<String>, span: &AstSpan) -> CodegenError {
+    CodegenError { kind: CodegenErrorKind::InvalidHex(hex_str.into()), span: span.clone_box(), token: None }
+}
+
+/// Validates that the builtin function call has exactly the expected number of arguments
+fn validate_arg_count(bf: &BuiltinFunctionCall, expected: usize, fn_name: &str) -> Result<(), CodegenError> {
+    if bf.args.len() != expected {
+        tracing::error!(
+            target: "codegen",
+            "Incorrect number of arguments passed to {}, should be {}: {}",
+            fn_name,
+            expected,
+            bf.args.len()
+        );
+        return Err(invalid_arguments_error(
+            format!("Incorrect number of arguments passed to {}, should be {}: {}", fn_name, expected, bf.args.len()),
+            &bf.span,
+        ));
+    }
+    Ok(())
+}
+
+/// Extracts a single Argument from the first position of a builtin function call
+fn extract_single_argument<'a>(bf: &'a BuiltinFunctionCall, fn_name: &str) -> Result<&'a Argument, CodegenError> {
+    match bf.args.first() {
+        Some(BuiltinFunctionArg::Argument(arg)) => Ok(arg),
+        _ => Err(invalid_arguments_error(format!("Incorrect arguments type passed to {}", fn_name), &bf.span)),
+    }
+}
+
+/// Validates that a string contains only hexadecimal characters
+fn validate_hex_string(s: &str, span: &AstSpan) -> Result<(), CodegenError> {
+    if s.chars().all(|c| c.is_ascii_hexdigit()) { Ok(()) } else { Err(invalid_hex_error(s, span)) }
+}
 
 // TODO: First step to refactor and split the function into smaller functions
 #[allow(clippy::too_many_arguments)]
@@ -48,13 +90,7 @@ pub fn builtin_function_gen<'a>(
             bytes.push((starting_offset, Bytes(push_bytes)));
         }
         BuiltinFunctionKind::Tablestart => {
-            let BuiltinFunctionArg::Argument(ref first_arg) = bf.args[0] else {
-                return Err(CodegenError {
-                    kind: CodegenErrorKind::InvalidArguments(String::from("Incorrect arguments type passed to __tablestart")),
-                    span: bf.span.clone_box(),
-                    token: None,
-                });
-            };
+            let first_arg = extract_single_argument(bf, "__tablestart")?;
             // Make sure the table exists
             if let Some(t) = contract.find_table_by_name(first_arg.name.as_ref().unwrap()) {
                 tracing::debug!(target: "codegen", "Creating table instance for {} at offset {}", first_arg.name.as_ref().unwrap(), *offset);
@@ -116,42 +152,16 @@ pub fn builtin_function_gen<'a>(
             bytes.push((starting_offset, Bytes(push_bytes)));
         }
         BuiltinFunctionKind::LeftPad => {
-            return Err(CodegenError {
-                kind: CodegenErrorKind::InvalidArguments(String::from("LeftPad is not supported in a function or macro")),
-                span: bf.span.clone_box(),
-                token: None,
-            });
+            return Err(invalid_arguments_error("LeftPad is not supported in a function or macro", &bf.span));
         }
         BuiltinFunctionKind::DynConstructorArg => {
-            if bf.args.len() != 2 {
-                tracing::error!(
-                    target = "codegen",
-                    "Incorrect number of arguments passed to __CODECOPY_DYN_ARG, should be 2: {}",
-                    bf.args.len()
-                );
-                return Err(CodegenError {
-                    kind: CodegenErrorKind::InvalidArguments(format!(
-                        "Incorrect number of arguments passed to __CODECOPY_DYN_ARG, should be 2: {}",
-                        bf.args.len()
-                    )),
-                    span: bf.span.clone_box(),
-                    token: None,
-                });
-            }
+            validate_arg_count(bf, 2, "__CODECOPY_DYN_ARG")?;
 
             let BuiltinFunctionArg::Argument(ref first_arg) = bf.args[0] else {
-                return Err(CodegenError {
-                    kind: CodegenErrorKind::InvalidArguments(String::from("Incorrect arguments type passed to __CODECOPY_DYN_ARG")),
-                    span: bf.span.clone_box(),
-                    token: None,
-                });
+                return Err(invalid_arguments_error("Incorrect arguments type passed to __CODECOPY_DYN_ARG", &bf.span));
             };
             let BuiltinFunctionArg::Argument(ref second_arg) = bf.args[1] else {
-                return Err(CodegenError {
-                    kind: CodegenErrorKind::InvalidArguments(String::from("Incorrect arguments type passed to __CODECOPY_DYN_ARG")),
-                    span: bf.span.clone_box(),
-                    token: None,
-                });
+                return Err(invalid_arguments_error("Incorrect arguments type passed to __CODECOPY_DYN_ARG", &bf.span));
             };
 
             let arg_index = first_arg.name.as_ref().unwrap();
@@ -164,13 +174,10 @@ pub fn builtin_function_gen<'a>(
                     target = "codegen",
                     "Incorrect number of bytes in argument passed to __CODECOPY_DYN_ARG. Should be (1 byte, <= 2 bytes)"
                 );
-                return Err(CodegenError {
-                    kind: CodegenErrorKind::InvalidArguments(String::from(
-                        "Incorrect number of bytes in argument passed to __CODECOPY_DYN_ARG. Should be (1 byte, <= 2 bytes)",
-                    )),
-                    span: bf.span.clone_box(),
-                    token: None,
-                });
+                return Err(invalid_arguments_error(
+                    "Incorrect number of bytes in argument passed to __CODECOPY_DYN_ARG. Should be (1 byte, <= 2 bytes)",
+                    &bf.span,
+                ));
             }
 
             // Insert a 17 byte placeholder- will be filled when constructor args are added
@@ -190,45 +197,19 @@ pub fn builtin_function_gen<'a>(
             ));
         }
         BuiltinFunctionKind::Verbatim => {
-            if bf.args.len() != 1 {
-                tracing::error!(target = "codegen", "Incorrect number of arguments passed to __VERBATIM, should be 1: {}", bf.args.len());
-                return Err(CodegenError {
-                    kind: CodegenErrorKind::InvalidArguments(format!(
-                        "Incorrect number of arguments passed to __VERBATIM, should be 1: {}",
-                        bf.args.len()
-                    )),
-                    span: bf.span.clone_box(),
-                    token: None,
-                });
-            }
+            validate_arg_count(bf, 1, "__VERBATIM")?;
 
-            let BuiltinFunctionArg::Argument(ref first_arg) = bf.args[0] else {
-                return Err(CodegenError {
-                    kind: CodegenErrorKind::InvalidArguments(String::from("Incorrect arguments type passed to __VERBATIM")),
-                    span: bf.span.clone_box(),
-                    token: None,
-                });
-            };
+            let first_arg = extract_single_argument(bf, "__VERBATIM")?;
             let verbatim_str = first_arg.name.as_ref().unwrap();
+
             // check if verbatim was passed a hex string
-            let mut is_hex = true;
-            for c in verbatim_str.chars() {
-                if !c.is_ascii_hexdigit() {
-                    is_hex = false;
-                    break;
-                }
-            }
-            if !is_hex {
+            if let Err(e) = validate_hex_string(verbatim_str, &bf.span) {
                 tracing::error!(
                     target: "codegen",
                     "INVALID HEX STRING PASSED TO __VERBATIM: \"{}\"",
-                    first_arg.name.as_ref().unwrap()
+                    verbatim_str
                 );
-                return Err(CodegenError {
-                    kind: CodegenErrorKind::InvalidHex(verbatim_str.to_string()),
-                    span: bf.span.clone_box(),
-                    token: None,
-                });
+                return Err(e);
             }
 
             tracing::debug!(target: "codegen", "INJECTING as verbatim: {}", verbatim_str);
@@ -244,44 +225,25 @@ pub fn builtin_function_gen<'a>(
             bytes.push((starting_offset, Bytes(push_bytes)));
         }
         BuiltinFunctionKind::AssertPc => {
-            if bf.args.len() != 1 {
-                tracing::error!(target = "codegen", "Incorrect number of arguments passed to __ASSERT_PC, should be 1: {}", bf.args.len());
-                return Err(CodegenError {
-                    kind: CodegenErrorKind::InvalidArguments(format!(
-                        "Incorrect number of arguments passed to __ASSERT_PC, should be 1: {}",
-                        bf.args.len()
-                    )),
-                    span: bf.span.clone_box(),
-                    token: None,
-                });
-            }
+            validate_arg_count(bf, 1, "__ASSERT_PC")?;
 
             // Extract the expected position from the argument
             let expected_position = match &bf.args[0] {
                 BuiltinFunctionArg::Literal(lit) => {
                     // Parse the literal value (lit is a &[u8; 32])
                     let hex_str = bytes32_to_hex_string(lit, false);
-                    usize::from_str_radix(&hex_str, 16).map_err(|_| CodegenError {
-                        kind: CodegenErrorKind::InvalidArguments(format!("Invalid literal value passed to __ASSERT_PC: 0x{}", hex_str)),
-                        span: bf.span.clone_box(),
-                        token: None,
+                    usize::from_str_radix(&hex_str, 16).map_err(|_| {
+                        invalid_arguments_error(format!("Invalid literal value passed to __ASSERT_PC: 0x{}", hex_str), &bf.span)
                     })?
                 }
                 BuiltinFunctionArg::Argument(arg) => {
                     // The parser may create an Argument with the hex value as the name
                     if let Some(name) = &arg.name {
                         // Try to parse as hex
-                        usize::from_str_radix(name, 16).map_err(|_| CodegenError {
-                            kind: CodegenErrorKind::InvalidArguments(format!("Invalid hex value passed to __ASSERT_PC: {}", name)),
-                            span: bf.span.clone_box(),
-                            token: None,
-                        })?
+                        usize::from_str_radix(name, 16)
+                            .map_err(|_| invalid_arguments_error(format!("Invalid hex value passed to __ASSERT_PC: {}", name), &bf.span))?
                     } else {
-                        return Err(CodegenError {
-                            kind: CodegenErrorKind::InvalidArguments(String::from("Argument has no name")),
-                            span: bf.span.clone_box(),
-                            token: None,
-                        });
+                        return Err(invalid_arguments_error("Argument has no name", &bf.span));
                     }
                 }
                 BuiltinFunctionArg::Constant(name, span) => {
@@ -289,13 +251,7 @@ pub fn builtin_function_gen<'a>(
                     evaluate_constant_value(name, contract, span)?
                 }
                 _ => {
-                    return Err(CodegenError {
-                        kind: CodegenErrorKind::InvalidArguments(String::from(
-                            "Expected literal or constant value as argument to __ASSERT_PC",
-                        )),
-                        span: bf.span.clone_box(),
-                        token: None,
-                    });
+                    return Err(invalid_arguments_error("Expected literal or constant value as argument to __ASSERT_PC", &bf.span));
                 }
             };
 
@@ -337,13 +293,7 @@ fn codesize<'a>(
     circular_codesize_invocations: &mut CircularCodeSizeIndices,
     bf: &BuiltinFunctionCall,
 ) -> Result<(usize, String), CodegenError> {
-    let BuiltinFunctionArg::Argument(ref first_arg) = bf.args[0] else {
-        return Err(CodegenError {
-            kind: CodegenErrorKind::InvalidArguments(String::from("Incorrect arguments type passed to __codesize")),
-            span: bf.span.clone_box(),
-            token: None,
-        });
-    };
+    let first_arg = extract_single_argument(bf, "__codesize")?;
     let ir_macro = if let Some(m) = contract.find_macro_by_name(first_arg.name.as_ref().unwrap()) {
         m
     } else {
@@ -410,28 +360,8 @@ fn codesize<'a>(
 }
 
 pub fn error(contract: &Contract, bf: &BuiltinFunctionCall) -> Result<String, CodegenError> {
-    if bf.args.len() != 1 {
-        tracing::error!(
-            target: "codegen",
-            "Incorrect number of arguments passed to __ERROR, should be 1: {}",
-            bf.args.len()
-        );
-        return Err(CodegenError {
-            kind: CodegenErrorKind::InvalidArguments(format!(
-                "Incorrect number of arguments passed to __ERROR, should be 1: {}",
-                bf.args.len()
-            )),
-            span: bf.span.clone_box(),
-            token: None,
-        });
-    }
-    let BuiltinFunctionArg::Argument(ref first_arg) = bf.args[0] else {
-        return Err(CodegenError {
-            kind: CodegenErrorKind::InvalidArguments(String::from("Incorrect arguments type passed to __ERROR")),
-            span: bf.span.clone_box(),
-            token: None,
-        });
-    };
+    validate_arg_count(bf, 1, "__ERROR")?;
+    let first_arg = extract_single_argument(bf, "__ERROR")?;
     let push_bytes = if let Some(error) = contract.errors.iter().find(|e| first_arg.name.as_ref().unwrap().eq(&e.name)) {
         // Add 28 bytes to left-pad the 4 byte selector
         let selector = format!("{}{}", hex::encode(error.selector), "00".repeat(28));
@@ -455,13 +385,7 @@ pub fn error(contract: &Contract, bf: &BuiltinFunctionCall) -> Result<String, Co
 }
 
 pub fn tablesize(contract: &Contract, bf: &BuiltinFunctionCall) -> Result<(TableDefinition, String), CodegenError> {
-    let BuiltinFunctionArg::Argument(ref first_arg) = bf.args[0] else {
-        return Err(CodegenError {
-            kind: CodegenErrorKind::InvalidArguments(String::from("Incorrect arguments type passed to __tablesize")),
-            span: bf.span.clone_box(),
-            token: None,
-        });
-    };
+    let first_arg = extract_single_argument(bf, "__tablesize")?;
     let ir_table = if let Some(t) = contract.find_table_by_name(first_arg.name.as_ref().unwrap()) {
         t
     } else {
@@ -489,28 +413,8 @@ pub fn tablesize(contract: &Contract, bf: &BuiltinFunctionCall) -> Result<(Table
 }
 
 pub fn event_hash(contract: &Contract, bf: &BuiltinFunctionCall) -> Result<String, CodegenError> {
-    if bf.args.len() != 1 {
-        tracing::error!(
-            target: "codegen",
-            "Incorrect number of arguments passed to __EVENT_HASH, should be 1: {}",
-            bf.args.len()
-        );
-        return Err(CodegenError {
-            kind: CodegenErrorKind::InvalidArguments(format!(
-                "Incorrect number of arguments passed to __EVENT_HASH, should be 1: {}",
-                bf.args.len()
-            )),
-            span: bf.span.clone_box(),
-            token: None,
-        });
-    }
-    let BuiltinFunctionArg::Argument(ref first_arg) = bf.args[0] else {
-        return Err(CodegenError {
-            kind: CodegenErrorKind::InvalidArguments(String::from("Incorrect argument type passed to __EVENT_HASH")),
-            span: bf.span.clone_box(),
-            token: None,
-        });
-    };
+    validate_arg_count(bf, 1, "__EVENT_HASH")?;
+    let first_arg = extract_single_argument(bf, "__EVENT_HASH")?;
     let push_bytes = if let Some(event) = contract.events.iter().find(|e| first_arg.name.as_ref().unwrap().eq(&e.name)) {
         let hash = bytes32_to_hex_string(&event.hash, false);
         format!("{}{hash}", Opcode::Push32)
@@ -533,28 +437,8 @@ pub fn event_hash(contract: &Contract, bf: &BuiltinFunctionCall) -> Result<Strin
 }
 
 pub fn function_signature(contract: &Contract, bf: &BuiltinFunctionCall) -> Result<String, CodegenError> {
-    if bf.args.len() != 1 {
-        tracing::error!(
-            target: "codegen",
-            "Incorrect number of arguments passed to __FUNC_SIG, should be 1: {}",
-            bf.args.len()
-        );
-        return Err(CodegenError {
-            kind: CodegenErrorKind::InvalidArguments(format!(
-                "Incorrect number of arguments passed to __FUNC_SIG, should be 1: {}",
-                bf.args.len()
-            )),
-            span: bf.span.clone_box(),
-            token: None,
-        });
-    }
-    let BuiltinFunctionArg::Argument(ref first_arg) = bf.args[0] else {
-        return Err(CodegenError {
-            kind: CodegenErrorKind::InvalidArguments(String::from("Incorrect argument type passed to __FUNC_SIG")),
-            span: bf.span.clone_box(),
-            token: None,
-        });
-    };
+    validate_arg_count(bf, 1, "__FUNC_SIG")?;
+    let first_arg = extract_single_argument(bf, "__FUNC_SIG")?;
     let push_bytes = if let Some(func) = contract.functions.iter().find(|f| first_arg.name.as_ref().unwrap().eq(&f.name)) {
         format!("{}{}", Opcode::Push4, hex::encode(func.signature))
     } else if let Some(error) = contract.errors.iter().find(|e| first_arg.name.as_ref().unwrap().eq(&e.name)) {
@@ -598,17 +482,7 @@ pub fn builtin_pad(
     bf: &BuiltinFunctionCall,
     direction: PadDirection,
 ) -> Result<String, CodegenError> {
-    if bf.args.len() != 1 {
-        tracing::error!(target = "codegen", "Incorrect number of arguments passed to {direction}, should be 1: {}", bf.args.len());
-        return Err(CodegenError {
-            kind: CodegenErrorKind::InvalidArguments(format!(
-                "Incorrect number of arguments passed to {direction}, should be 1: {}",
-                bf.args.len()
-            )),
-            span: bf.span.clone_box(),
-            token: None,
-        });
-    }
+    validate_arg_count(bf, 1, &direction.to_string())?;
     let first_arg = match &bf.args[0] {
         BuiltinFunctionArg::Argument(arg) => arg.name.clone().unwrap_or_default(),
         BuiltinFunctionArg::BuiltinFunctionCall(inner_call) => {
@@ -623,11 +497,7 @@ pub fn builtin_pad(
                 }
                 _ => {
                     tracing::error!(target: "codegen", "Invalid function call argument type passed to {direction}");
-                    return Err(CodegenError {
-                        kind: CodegenErrorKind::InvalidArguments(format!("Invalid argument type passed to {direction}")),
-                        span: bf.span.clone_box(),
-                        token: None,
-                    });
+                    return Err(invalid_arguments_error(format!("Invalid argument type passed to {direction}"), &bf.span));
                 }
             }
         }
@@ -637,11 +507,7 @@ pub fn builtin_pad(
         }
         _ => {
             tracing::error!(target: "codegen", "Invalid argument type passed to {direction}");
-            return Err(CodegenError {
-                kind: CodegenErrorKind::InvalidArguments(format!("Invalid argument type passed to {direction}")),
-                span: bf.span.clone_box(),
-                token: None,
-            });
+            return Err(invalid_arguments_error(format!("Invalid argument type passed to {direction}"), &bf.span));
         }
     };
     let hex = format_even_bytes(first_arg);
@@ -652,44 +518,22 @@ pub fn builtin_pad(
 }
 
 pub fn builtin_bytes(evm_version: &EVMVersion, bf: &BuiltinFunctionCall) -> Result<String, CodegenError> {
-    if bf.args.len() != 1 {
-        tracing::error!(target = "codegen", "Incorrect number of arguments passed to __BYTES, should be 1: {}", bf.args.len());
-        return Err(CodegenError {
-            kind: CodegenErrorKind::InvalidArguments(format!(
-                "Incorrect number of arguments passed to __BYTES, should be 1: {}",
-                bf.args.len()
-            )),
-            span: bf.span.clone_box(),
-            token: None,
-        });
-    }
+    validate_arg_count(bf, 1, "__BYTES")?;
     let first_arg = match bf.args[0] {
         BuiltinFunctionArg::Argument(ref arg) => arg.name.clone().unwrap_or_default(),
         _ => {
             tracing::error!(target: "codegen", "Invalid argument type passed to __BYTES");
-            return Err(CodegenError {
-                kind: CodegenErrorKind::InvalidArguments(String::from("Invalid argument type passed to __BYTES")),
-                span: bf.span.clone_box(),
-                token: None,
-            });
+            return Err(invalid_arguments_error("Invalid argument type passed to __BYTES", &bf.span));
         }
     };
 
     if first_arg.is_empty() {
-        return Err(CodegenError {
-            kind: CodegenErrorKind::InvalidArguments(String::from("Empty string passed to __BYTES")),
-            span: bf.span.clone_box(),
-            token: None,
-        });
+        return Err(invalid_arguments_error("Empty string passed to __BYTES", &bf.span));
     }
 
     let bytes = first_arg.as_bytes();
     if bytes.len() > 32 {
-        return Err(CodegenError {
-            kind: CodegenErrorKind::InvalidArguments(String::from("Encoded bytes length exceeds 32 bytes")),
-            span: bf.span.clone_box(),
-            token: None,
-        });
+        return Err(invalid_arguments_error("Encoded bytes length exceeds 32 bytes", &bf.span));
     }
     let mut bytes_array = [0u8; 32];
     bytes_array[32 - bytes.len()..].copy_from_slice(bytes);
