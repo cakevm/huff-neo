@@ -2,7 +2,7 @@ use crate::Codegen;
 use crate::irgen::constants::{constant_gen, evaluate_constant_value};
 use alloy_primitives::{B256, hex, keccak256};
 use huff_neo_utils::builtin_eval::{PadDirection, eval_builtin_bytes, eval_event_hash, eval_function_signature};
-use huff_neo_utils::bytecode::{BytecodeRes, Bytes, CircularCodeSizeIndices, Jump, Jumps};
+use huff_neo_utils::bytecode::{BytecodeRes, BytecodeSegments, Bytes, CircularCodeSizeIndices, Jump, Jumps};
 use huff_neo_utils::bytes_util::{bytes32_to_hex_string, format_even_bytes, pad_n_bytes};
 use huff_neo_utils::error::{CodegenError, CodegenErrorKind};
 use huff_neo_utils::evm_version::EVMVersion;
@@ -77,7 +77,7 @@ pub fn builtin_function_gen<'a>(
     utilized_tables: &mut Vec<TableDefinition>,
     circular_codesize_invocations: &mut CircularCodeSizeIndices,
     starting_offset: usize,
-    bytes: &mut Vec<(usize, Bytes)>,
+    bytes: &mut BytecodeSegments,
     bf: &BuiltinFunctionCall,
 ) -> Result<(), CodegenError> {
     tracing::info!(target: "codegen", "RECURSE BYTECODE GOT BUILTIN FUNCTION CALL: {:?}", bf);
@@ -87,7 +87,9 @@ pub fn builtin_function_gen<'a>(
                 codesize(evm_version, contract, macro_def, scope, offset, mis, circular_codesize_invocations, bf)?;
 
             *offset += codesize_offset;
-            bytes.push((starting_offset, Bytes(push_bytes)));
+            // Check if this is a circular codesize placeholder
+            let bytes_variant = if push_bytes == "cccc" { Bytes::CircularCodesizePlaceholder(push_bytes) } else { Bytes::Raw(push_bytes) };
+            bytes.push_with_offset(starting_offset, bytes_variant);
         }
         BuiltinFunctionKind::Tablesize => {
             let (ir_table, push_bytes) = tablesize(contract, bf)?;
@@ -97,7 +99,7 @@ pub fn builtin_function_gen<'a>(
             }
 
             *offset += push_bytes.len() / 2;
-            bytes.push((starting_offset, Bytes(push_bytes)));
+            bytes.push_with_offset(starting_offset, Bytes::Raw(push_bytes));
         }
         BuiltinFunctionKind::Tablestart => {
             let first_arg = extract_single_argument(bf, "__tablestart")?;
@@ -123,7 +125,7 @@ pub fn builtin_function_gen<'a>(
                     utilized_tables.push(t);
                 }
 
-                bytes.push((*offset, Bytes(format!("{}xxxx", Opcode::Push2))));
+                bytes.push_with_offset(*offset, Bytes::JumpPlaceholder(format!("{}xxxx", Opcode::Push2)));
                 *offset += 3;
             } else {
                 tracing::error!(
@@ -142,25 +144,25 @@ pub fn builtin_function_gen<'a>(
             let push_value = eval_function_signature(contract, bf)?;
             let push_bytes = push_value.to_hex_with_opcode(evm_version);
             *offset += push_bytes.len() / 2;
-            bytes.push((starting_offset, Bytes(push_bytes)));
+            bytes.push_with_offset(starting_offset, Bytes::Raw(push_bytes));
         }
         BuiltinFunctionKind::EventHash => {
             let push_value = eval_event_hash(contract, bf)?;
             let push_bytes = push_value.to_hex_with_opcode(evm_version);
             *offset += push_bytes.len() / 2;
-            bytes.push((starting_offset, Bytes(push_bytes)));
+            bytes.push_with_offset(starting_offset, Bytes::Raw(push_bytes));
         }
         BuiltinFunctionKind::Error => {
             let push_value = error(contract, bf)?;
             let push_bytes = push_value.to_hex_with_opcode(evm_version);
             *offset += push_bytes.len() / 2;
-            bytes.push((starting_offset, Bytes(push_bytes)));
+            bytes.push_with_offset(starting_offset, Bytes::Raw(push_bytes));
         }
         BuiltinFunctionKind::RightPad => {
             let push_value = builtin_pad(contract, bf, PadDirection::Right)?;
             let push_bytes = push_value.to_hex_with_opcode(evm_version);
             *offset += push_bytes.len() / 2;
-            bytes.push((starting_offset, Bytes(push_bytes)));
+            bytes.push_with_offset(starting_offset, Bytes::Raw(push_bytes));
         }
         BuiltinFunctionKind::LeftPad => {
             return Err(invalid_arguments_error("LeftPad is not supported in a function or macro", &bf.span));
@@ -197,15 +199,15 @@ pub fn builtin_function_gen<'a>(
             // <len (2 bytes)> <contents_code_ptr (2 bytes)> <dest_mem_ptr + 0x20 (2 bytes)>
             // codecopy
             *offset += 17;
-            bytes.push((
+            bytes.push_with_offset(
                 starting_offset,
-                Bytes(format!(
+                Bytes::DynConstructorArgPlaceholder(format!(
                     "{}{}{}",
                     "xx".repeat(14),
                     first_arg.name.as_ref().unwrap(),
                     pad_n_bytes(second_arg.name.as_ref().unwrap(), 2)
                 )),
-            ));
+            );
         }
         BuiltinFunctionKind::Verbatim => {
             validate_arg_count(bf, 1, "__VERBATIM")?;
@@ -228,13 +230,13 @@ pub fn builtin_function_gen<'a>(
             let push_bytes = hex.to_string();
             *offset += hex.len() / 2;
 
-            bytes.push((starting_offset, Bytes(push_bytes)));
+            bytes.push_with_offset(starting_offset, Bytes::Raw(push_bytes));
         }
         BuiltinFunctionKind::Bytes => {
             let push_value = eval_builtin_bytes(bf)?;
             let push_bytes = push_value.to_hex_with_opcode(evm_version);
             *offset += push_bytes.len() / 2;
-            bytes.push((starting_offset, Bytes(push_bytes)));
+            bytes.push_with_offset(starting_offset, Bytes::Raw(push_bytes));
         }
         BuiltinFunctionKind::AssertPc => {
             validate_arg_count(bf, 1, "__ASSERT_PC")?;
@@ -367,7 +369,7 @@ fn codesize<'a>(
             }
         };
 
-        let size = format_even_bytes(format!("{:02x}", (res.bytes.iter().map(|(_, b)| b.0.len()).sum::<usize>() / 2)));
+        let size = format_even_bytes(format!("{:02x}", (res.bytes.iter().map(|seg| seg.bytes.len()).sum::<usize>() / 2)));
         let push_bytes = format!("{:02x}{size}", 95 + size.len() / 2);
         let offset = push_bytes.len() / 2;
         (offset, push_bytes)

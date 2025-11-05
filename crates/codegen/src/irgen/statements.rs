@@ -1,10 +1,11 @@
+use huff_neo_utils::bytecode::BytecodeSegments;
 use huff_neo_utils::prelude::*;
 
 use crate::Codegen;
 use crate::irgen::builtin_function;
 
 /// Type alias for statement generation result: (bytes, spans)
-type StatementGenResult = (Vec<(usize, Bytes)>, Vec<Option<(usize, usize)>>);
+type StatementGenResult = (BytecodeSegments, Vec<Option<(usize, usize)>>);
 
 /// Generates the respective Bytecode for a given Statement
 /// Returns a tuple of (bytes, spans) where spans are optional source positions
@@ -24,7 +25,7 @@ pub fn statement_gen<'a>(
     circular_codesize_invocations: &mut CircularCodeSizeIndices,
     starting_offset: usize,
 ) -> Result<StatementGenResult, CodegenError> {
-    let mut bytes = vec![];
+    let mut bytes = BytecodeSegments::new();
     let mut spans = vec![];
 
     tracing::debug!(target: "codegen", "Got Statement: {}", s.ty);
@@ -114,13 +115,16 @@ pub fn statement_gen<'a>(
 
                 // Store return JUMPDEST PC on the stack and re-order the stack so that
                 // the return JUMPDEST PC is below the function's stack inputs
-                bytes.push((*offset, Bytes(format!("{}{:04x}{}", Opcode::Push2, *offset + stack_swaps.len() + 7, stack_swaps.join("")))));
+                bytes.push_with_offset(
+                    *offset,
+                    Bytes::Raw(format!("{}{:04x}{}", Opcode::Push2, *offset + stack_swaps.len() + 7, stack_swaps.join(""))),
+                );
                 spans.push(span_info);
                 // Insert jump to outlined macro + jumpdest to return to
-                bytes.push((
+                bytes.push_with_offset(
                     *offset + stack_swaps.len() + 3, // PUSH2 + 2 bytes + stack_swaps.len()
-                    Bytes(format!("{}xxxx{}{}", Opcode::Push2, Opcode::Jump, Opcode::Jumpdest)),
-                ));
+                    Bytes::JumpPlaceholder(format!("{}xxxx{}{}", Opcode::Push2, Opcode::Jump, Opcode::Jumpdest)),
+                );
                 spans.push(span_info);
                 // PUSH2 + 2 bytes + stack_swaps.len() + PUSH2 + 2 bytes + JUMP + JUMPDEST
                 *offset += stack_swaps.len() + 8;
@@ -256,9 +260,9 @@ pub fn statement_gen<'a>(
                 utilized_tables.extend(res_unique_tables);
 
                 // Increase offset by byte length of recursed macro
-                *offset += res.bytes.iter().map(|(_, b)| b.0.len()).sum::<usize>() / 2;
+                *offset += res.bytes.iter().map(|seg| seg.bytes.len()).sum::<usize>() / 2;
                 // Add the macro's bytecode and spans to the final result
-                bytes = [bytes, res.bytes].concat();
+                bytes.extend(res.bytes);
                 // Preserve the spans from the nested macro expansion
                 spans.extend(res.spans)
             }
@@ -289,7 +293,7 @@ pub fn statement_gen<'a>(
                 });
             }
 
-            bytes.push((*offset, Bytes(Opcode::Jumpdest.to_string())));
+            bytes.push_with_offset(*offset, Bytes::Raw(Opcode::Jumpdest.to_string()));
             // Add span for the JUMPDEST
             let span_info = if !s.span.0.is_empty() {
                 s.span.0.first().and_then(|sp| {
@@ -325,7 +329,7 @@ pub fn statement_gen<'a>(
 
             jump_table
                 .insert(*offset, vec![Jump { label: label.to_string(), bytecode_index: 0, span: s.span.clone(), scope_depth, scope_path }]);
-            bytes.push((*offset, Bytes(format!("{}xxxx", Opcode::Push2))));
+            bytes.push_with_offset(*offset, Bytes::JumpPlaceholder(format!("{}xxxx", Opcode::Push2)));
             // Add span for the PUSH2
             let span_info = if !s.span.0.is_empty() {
                 s.span.0.first().and_then(|sp| {

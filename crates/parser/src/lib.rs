@@ -397,7 +397,7 @@ impl Parser {
             // Simple hex literal without any operators - preserve original byte length
             TokenKind::Bytes(hex_str) if !self.is_expression_context() => {
                 self.consume();
-                ConstVal::Bytes(Bytes(hex_str))
+                ConstVal::Bytes(Bytes::Raw(hex_str))
             }
             // Handle arithmetic expressions (including hex literals that are part of expressions)
             TokenKind::Literal(_) | TokenKind::Bytes(_) | TokenKind::OpenParen | TokenKind::Sub | TokenKind::OpenBracket => {

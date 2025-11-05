@@ -47,7 +47,7 @@ pub fn parse_constant_overrides(constants: &[String]) -> Result<BTreeMap<&str, B
                 return Err(ConstantParseError::InvalidHexValue(value.to_string()));
             }
 
-            Ok((key, Bytes(hex_value.to_string())))
+            Ok((key, Bytes::Raw(hex_value.to_string())))
         })
         .collect()
 }
@@ -93,7 +93,7 @@ mod tests {
         assert!(result.is_ok());
         let map = result.unwrap();
         assert_eq!(map.len(), 1);
-        assert_eq!(map.get("TEST").unwrap().0, "ff");
+        assert_eq!(map.get("TEST").unwrap().as_str(), "ff");
     }
 
     #[test]
@@ -103,9 +103,9 @@ mod tests {
         assert!(result.is_ok());
         let map = result.unwrap();
         assert_eq!(map.len(), 3);
-        assert_eq!(map.get("FOO").unwrap().0, "42");
-        assert_eq!(map.get("BAR_123").unwrap().0, "abcd");
-        assert_eq!(map.get("_PRIVATE").unwrap().0, "00");
+        assert_eq!(map.get("FOO").unwrap().as_str(), "42");
+        assert_eq!(map.get("BAR_123").unwrap().as_str(), "abcd");
+        assert_eq!(map.get("_PRIVATE").unwrap().as_str(), "00");
     }
 
     #[test]

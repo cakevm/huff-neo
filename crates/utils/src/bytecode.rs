@@ -12,9 +12,120 @@ use std::{
     fmt::{self, Display},
 };
 
-/// A string of Bytes
+/// Bytecode with different types for placeholders
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Bytes(pub String);
+pub enum Bytes {
+    /// Raw bytecode - ready to use
+    Raw(String),
+    /// Jump placeholder - "xxxx" needs label resolution
+    JumpPlaceholder(String),
+    /// Circular codesize placeholder - "cccc" for self-referential __codesize
+    CircularCodesizePlaceholder(String),
+    /// Dynamic constructor arg placeholder
+    DynConstructorArgPlaceholder(String),
+}
+
+impl Bytes {
+    /// Get the underlying hex string
+    pub fn as_str(&self) -> &str {
+        match self {
+            Bytes::Raw(s) | Bytes::JumpPlaceholder(s) | Bytes::CircularCodesizePlaceholder(s) | Bytes::DynConstructorArgPlaceholder(s) => s,
+        }
+    }
+
+    /// Get the length of the hex string
+    pub fn len(&self) -> usize {
+        self.as_str().len()
+    }
+
+    /// Check if the hex string is empty
+    pub fn is_empty(&self) -> bool {
+        self.as_str().is_empty()
+    }
+}
+
+impl Display for Bytes {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
+/// A segment of bytecode with its offset
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct BytecodeSegment {
+    /// The bytecode offset where this segment starts
+    pub offset: usize,
+    /// The hex-encoded bytecode string
+    pub bytes: Bytes,
+}
+
+impl BytecodeSegment {
+    /// Create a new bytecode segment
+    pub fn new(offset: usize, bytes: Bytes) -> Self {
+        Self { offset, bytes }
+    }
+}
+
+/// Collection of bytecode segments with helper methods
+#[derive(Debug, Default, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct BytecodeSegments {
+    segments: Vec<BytecodeSegment>,
+}
+
+impl BytecodeSegments {
+    /// Create a new empty collection
+    pub fn new() -> Self {
+        Self { segments: Vec::new() }
+    }
+
+    /// Push a bytecode segment
+    pub fn push(&mut self, segment: BytecodeSegment) {
+        self.segments.push(segment);
+    }
+
+    /// Push a bytecode segment with an offset (without scope information)
+    pub fn push_with_offset(&mut self, offset: usize, bytes: Bytes) {
+        self.segments.push(BytecodeSegment::new(offset, bytes));
+    }
+
+    /// Extend with another collection
+    pub fn extend(&mut self, other: BytecodeSegments) {
+        self.segments.extend(other.segments);
+    }
+
+    /// Get an iterator over the segments
+    pub fn iter(&self) -> impl Iterator<Item = &BytecodeSegment> {
+        self.segments.iter()
+    }
+
+    /// Get the number of segments
+    pub fn len(&self) -> usize {
+        self.segments.len()
+    }
+
+    /// Check if the collection is empty
+    pub fn is_empty(&self) -> bool {
+        self.segments.is_empty()
+    }
+}
+
+impl IntoIterator for BytecodeSegments {
+    type Item = BytecodeSegment;
+    type IntoIter = std::vec::IntoIter<BytecodeSegment>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.segments.into_iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a BytecodeSegments {
+    type Item = &'a BytecodeSegment;
+    type IntoIter = std::slice::Iter<'a, BytecodeSegment>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.segments.iter()
+    }
+}
 
 /// Intermediate Bytecode Representation
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -65,7 +176,7 @@ pub trait ToBytecode<'a, E> {
 
 impl From<Vec<Bytes>> for Bytecode {
     fn from(b: Vec<Bytes>) -> Self {
-        Bytecode(b.iter().fold("".to_string(), |acc, b| format!("{acc}{}", b.0)))
+        Bytecode(b.iter().fold("".to_string(), |acc, b| format!("{acc}{}", b.as_str())))
     }
 }
 
@@ -74,7 +185,7 @@ impl From<Vec<Bytes>> for Bytecode {
 #[derive(Debug, Default, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct BytecodeRes {
     /// Resulting bytes
-    pub bytes: Vec<(usize, Bytes)>,
+    pub bytes: BytecodeSegments,
     /// Source spans for each bytecode segment (parallel to bytes vec)
     pub spans: Vec<Option<(usize, usize)>>,
     /// Jump Indices
@@ -97,7 +208,7 @@ impl Display for BytecodeRes {
             unmatched_jumps: {:?}
             table_instances: {:?}
         )"#,
-            self.bytes.iter().fold("".to_string(), |acc, b| format!("{acc}{}", b.0)),
+            self.bytes.iter().fold("".to_string(), |acc, b| format!("{acc}{}", b.bytes.as_str())),
             self.label_indices,
             self.unmatched_jumps,
             self.table_instances
