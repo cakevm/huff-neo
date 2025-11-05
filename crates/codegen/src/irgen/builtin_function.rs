@@ -4,12 +4,11 @@ use alloy_primitives::{B256, hex, keccak256};
 use huff_neo_utils::builtin_eval::{PadDirection, eval_builtin_bytes, eval_event_hash, eval_function_signature};
 use huff_neo_utils::bytecode::{
     BytecodeRes, BytecodeSegments, Bytes, CircularCodeSizeIndices, CircularCodesizePlaceholderData, DynConstructorArgPlaceholderData, Jump,
-    JumpPlaceholderData, Jumps,
+    JumpPlaceholderData, Jumps, PushOpcode,
 };
 use huff_neo_utils::bytes_util::{bytes32_to_hex_string, format_even_bytes, pad_n_bytes};
 use huff_neo_utils::error::{CodegenError, CodegenErrorKind};
 use huff_neo_utils::evm_version::EVMVersion;
-use huff_neo_utils::opcodes::Opcode;
 use huff_neo_utils::prelude::{
     Argument, AstSpan, BuiltinFunctionArg, BuiltinFunctionCall, BuiltinFunctionKind, Contract, MacroDefinition, MacroInvocation, PushValue,
     TableDefinition,
@@ -138,7 +137,7 @@ pub fn builtin_function_gen<'a>(
                     *offset,
                     Bytes::JumpPlaceholder(JumpPlaceholderData::new(
                         first_arg.name.as_ref().unwrap().to_owned(),
-                        Opcode::Push2.to_string(),
+                        PushOpcode::Push2,
                         String::new(),
                     )),
                 );
@@ -383,7 +382,7 @@ fn codesize<'a>(
             }
         };
 
-        let size = format_even_bytes(format!("{:02x}", (res.bytes.iter().map(|seg| seg.bytes.len()).sum::<usize>() / 2)));
+        let size = format_even_bytes(format!("{:02x}", res.bytes.iter().map(|seg| seg.bytes.len()).sum::<usize>()));
         let push_bytes = format!("{:02x}{size}", 95 + size.len() / 2);
         let offset = push_bytes.len() / 2;
         (offset, push_bytes)

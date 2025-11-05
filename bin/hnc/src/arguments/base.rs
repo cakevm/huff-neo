@@ -41,6 +41,13 @@ pub struct HuffArgs {
     #[clap(short = 'z', long = "optimize")]
     pub optimize: bool,
 
+    /// Apply branch relaxation to minimize deployment gas (use PUSH1 where possible)
+    ///
+    /// When enabled all pushes for jumps will be minimized to PUSH1 where possible.
+    /// This can reduce deployment gas costs, but has no effect on runtime gas costs.
+    #[clap(long = "relax-jumps")]
+    pub relax_jumps: bool,
+
     /// Generate solidity interface for a Huff artifact
     #[clap(short = 'g', num_args = 0.., long = "interface")]
     pub interface: Option<String>,

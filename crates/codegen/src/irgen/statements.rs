@@ -1,4 +1,4 @@
-use huff_neo_utils::bytecode::{BytecodeSegments, JumpPlaceholderData};
+use huff_neo_utils::bytecode::{BytecodeSegments, JumpPlaceholderData, PushOpcode};
 use huff_neo_utils::prelude::*;
 
 use crate::Codegen;
@@ -125,7 +125,7 @@ pub fn statement_gen<'a>(
                     *offset + stack_swaps.len() + 3, // PUSH2 + 2 bytes + stack_swaps.len()
                     Bytes::JumpPlaceholder(JumpPlaceholderData::new(
                         format!("goto_{}", &ir_macro.name),
-                        Opcode::Push2.to_string(),
+                        PushOpcode::Push2,
                         format!("{}{}", Opcode::Jump, Opcode::Jumpdest),
                     )),
                 );
@@ -264,7 +264,7 @@ pub fn statement_gen<'a>(
                 utilized_tables.extend(res_unique_tables);
 
                 // Increase offset by byte length of recursed macro
-                *offset += res.bytes.iter().map(|seg| seg.bytes.len()).sum::<usize>() / 2;
+                *offset += res.bytes.iter().map(|seg| seg.bytes.len()).sum::<usize>();
                 // Add the macro's bytecode and spans to the final result
                 bytes.extend(res.bytes);
                 // Preserve the spans from the nested macro expansion
@@ -335,7 +335,7 @@ pub fn statement_gen<'a>(
                 .insert(*offset, vec![Jump { label: label.to_string(), bytecode_index: 0, span: s.span.clone(), scope_depth, scope_path }]);
             bytes.push_with_offset(
                 *offset,
-                Bytes::JumpPlaceholder(JumpPlaceholderData::new(label.to_string(), Opcode::Push2.to_string(), String::new())),
+                Bytes::JumpPlaceholder(JumpPlaceholderData::new(label.to_string(), PushOpcode::Push2, String::new())),
             );
             // Add span for the PUSH2
             let span_info = if !s.span.0.is_empty() {

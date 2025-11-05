@@ -1,6 +1,6 @@
 use crate::Codegen;
 use huff_neo_utils::ast::span::AstSpan;
-use huff_neo_utils::bytecode::{BytecodeSegments, JumpPlaceholderData};
+use huff_neo_utils::bytecode::{BytecodeSegments, JumpPlaceholderData, PushOpcode};
 use huff_neo_utils::prelude::*;
 use std::str::FromStr;
 
@@ -183,7 +183,7 @@ pub fn bubble_arg_call(
                                     None,
                                 ) {
                                     Ok(expanded) => {
-                                        let byte_len: usize = expanded.bytes.iter().map(|seg| seg.bytes.len() / 2).sum();
+                                        let byte_len: usize = expanded.bytes.iter().map(|seg| seg.bytes.len()).sum();
                                         bytes.extend(expanded.bytes);
                                         *offset += byte_len;
 
@@ -234,7 +234,7 @@ pub fn bubble_arg_call(
                     MacroArg::Opcode(o) => {
                         tracing::info!(target: "codegen", "GOT \"{:?}\" OPCODE FROM MACRO INVOCATION", o);
                         let b = Bytes::Raw(o.to_string());
-                        *offset += b.len() / 2;
+                        *offset += b.len();
                         bytes.push_with_offset(starting_offset, b);
                     }
                     MacroArg::Noop => {
@@ -351,7 +351,7 @@ pub fn bubble_arg_call(
                         } else if let Ok(o) = Opcode::from_str(iden) {
                             tracing::debug!(target: "codegen", "Found Opcode: {}", o);
                             let b = Bytes::Raw(o.to_string());
-                            *offset += b.len() / 2;
+                            *offset += b.len();
                             bytes.push_with_offset(starting_offset, b);
                         } else {
                             tracing::debug!(target: "codegen", "Found Label Call: {}", iden);
@@ -359,7 +359,7 @@ pub fn bubble_arg_call(
                             // This should be equivalent to a label call.
                             bytes.push_with_offset(
                                 *offset,
-                                Bytes::JumpPlaceholder(JumpPlaceholderData::new(iden.to_owned(), Opcode::Push2.to_string(), String::new())),
+                                Bytes::JumpPlaceholder(JumpPlaceholderData::new(iden.to_owned(), PushOpcode::Push2, String::new())),
                             );
 
                             let (scope_path, scope_depth) = calculate_label_scope(scope, mis);
@@ -405,7 +405,7 @@ pub fn bubble_arg_call(
                                         None,
                                     ) {
                                         Ok(expanded_macro) => {
-                                            let byte_len: usize = expanded_macro.bytes.iter().map(|seg| seg.bytes.len() / 2).sum();
+                                            let byte_len: usize = expanded_macro.bytes.iter().map(|seg| seg.bytes.len()).sum();
                                             bytes.extend(expanded_macro.bytes);
                                             *offset += byte_len;
 
@@ -463,7 +463,7 @@ pub fn bubble_arg_call(
                                     None,
                                 ) {
                                     Ok(expanded_macro) => {
-                                        let byte_len: usize = expanded_macro.bytes.iter().map(|seg| seg.bytes.len() / 2).sum();
+                                        let byte_len: usize = expanded_macro.bytes.iter().map(|seg| seg.bytes.len()).sum();
                                         bytes.extend(expanded_macro.bytes);
                                         *offset += byte_len;
 
@@ -523,7 +523,7 @@ pub fn bubble_arg_call(
                                     None,
                                 ) {
                                     Ok(expanded_macro) => {
-                                        let byte_len: usize = expanded_macro.bytes.iter().map(|seg| seg.bytes.len() / 2).sum();
+                                        let byte_len: usize = expanded_macro.bytes.iter().map(|seg| seg.bytes.len()).sum();
                                         bytes.extend(expanded_macro.bytes);
                                         *offset += byte_len;
 
@@ -644,7 +644,7 @@ pub fn bubble_arg_call(
         );
         bytes.push_with_offset(
             *offset,
-            Bytes::JumpPlaceholder(JumpPlaceholderData::new(arg_name.to_owned(), Opcode::Push2.to_string(), String::new())),
+            Bytes::JumpPlaceholder(JumpPlaceholderData::new(arg_name.to_owned(), PushOpcode::Push2, String::new())),
         );
         *offset += 3;
     }

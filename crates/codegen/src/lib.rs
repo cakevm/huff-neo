@@ -523,7 +523,7 @@ impl Codegen {
         let mut program_counter = 0; // PC: byte offset in bytecode
 
         for (instruction_counter, seg) in res.bytes.iter().enumerate() {
-            let instruction_bytecode_length = seg.bytes.len() / 2; // Length in bytes (hex string has 2 chars per byte)
+            let instruction_bytecode_length = seg.bytes.len(); // Length in bytes
 
             // Create source map entry for this instruction
             // Use span information if available, otherwise use zeros (unmapped)
@@ -713,7 +713,7 @@ impl Codegen {
 
             match &ir_byte.ty {
                 IRByteType::Bytes(b) => {
-                    offset += b.len() / 2;
+                    offset += b.len(); // len() now returns byte count directly
                     bytes.push_with_offset(starting_offset, b.to_owned());
                     spans.push(span_info);
                 }
@@ -854,86 +854,60 @@ impl Codegen {
     /// On failure, returns a CodegenError.
     #[allow(clippy::type_complexity)]
     pub fn fill_unmatched(
-        bytes: BytecodeSegments,
+        mut bytes: BytecodeSegments,
         jump_table: &JumpTable,
         label_indices: &LabelIndices,
     ) -> Result<(BytecodeSegments, Vec<Jump>), CodegenError> {
-        let mut unmatched_jumps = Jumps::default();
-        let mut result_bytes = BytecodeSegments::new();
+        // Resolve all jumps using the new typed approach
+        let unmatched_jumps = bytes.resolve_jumps(jump_table, label_indices).map_err(|label_error| {
+            // Match on the typed error variants
+            match label_error {
+                LabelError::DuplicateLabelAcrossSiblings(label_name) => {
+                    // Find the first jump to get its span
+                    let span = jump_table
+                        .values()
+                        .flat_map(|jumps| jumps.iter())
+                        .find(|jump| jump.label == label_name)
+                        .map(|jump| jump.span.clone_box())
+                        .unwrap_or_else(|| Box::new(AstSpan::default()));
 
-        for segment in bytes {
-            let code_index = segment.offset;
-            let mut formatted_bytes = segment.bytes;
-            // Check if a jump table exists at `code_index` (starting offset of `b`)
-            if let Some(jt) = jump_table.get(&code_index) {
-                // Loop through jumps inside the found JumpTable
-                for jump in jt {
-                    // Check if the jump label has been defined. If not, add `jump` to the
-                    // unmatched jumps and define its `bytecode_index`
-                    // at `code_index`
-                    match label_indices.get(jump.label.as_str(), jump.scope_depth, &jump.scope_path) {
-                        Ok(Some(jump_index)) => {
-                            // Format the jump index as a 2 byte hex number
-                            let jump_value = format!("{jump_index:04x}");
+                    CodegenError { kind: CodegenErrorKind::DuplicateLabelAcrossSiblings(label_name), span, token: None }
+                }
+                LabelError::JumpTargetTooLarge { label, target, opcode } => {
+                    // Find the jump to get its span
+                    let span = jump_table
+                        .values()
+                        .flat_map(|jumps| jumps.iter())
+                        .find(|jump| jump.label == label)
+                        .map(|jump| jump.span.clone_box())
+                        .unwrap_or_else(|| Box::new(AstSpan::default()));
 
-                            let bytes_str = formatted_bytes.as_str();
-                            // Get the bytes before & after the placeholder
-                            let before = &bytes_str[0..jump.bytecode_index + 2];
-                            let after = &bytes_str[jump.bytecode_index + 6..];
+                    CodegenError { kind: CodegenErrorKind::JumpTargetTooLarge { label, target, opcode }, span, token: None }
+                }
+                LabelError::DuplicateLabelInScope(label_name) => {
+                    // This shouldn't happen during jump resolution, but handle it anyway
+                    let span = jump_table
+                        .values()
+                        .flat_map(|jumps| jumps.iter())
+                        .find(|jump| jump.label == label_name)
+                        .map(|jump| jump.span.clone_box())
+                        .unwrap_or_else(|| Box::new(AstSpan::default()));
 
-                            // Check if a jump dest placeholder is present
-                            if !&bytes_str[jump.bytecode_index + 2..jump.bytecode_index + 6].eq("xxxx") {
-                                tracing::error!(
-                                    target: "codegen",
-                                    "JUMP DESTINATION PLACEHOLDER NOT FOUND FOR JUMPLABEL {}",
-                                    jump.label
-                                );
-                            }
-
-                            // Replace the "xxxx" placeholder with the jump value
-                            formatted_bytes = Bytes::Raw(format!("{before}{jump_value}{after}"));
-                        }
-                        Ok(None) => {
-                            // The jump did not have a corresponding label index. Add it to the unmatched jumps vec.
-                            tracing::warn!(
-                                target: "codegen",
-                                "UNMATCHED JUMP LABEL \"{}\" AT BYTECODE INDEX {} (scope_depth={}, scope_path={:?})",
-                                jump.label, code_index, jump.scope_depth, jump.scope_path
-                            );
-                            unmatched_jumps.push(Jump {
-                                label: jump.label.clone(),
-                                bytecode_index: code_index,
-                                span: jump.span.clone(),
-                                scope_depth: jump.scope_depth,
-                                scope_path: jump.scope_path.clone(),
-                            });
-                        }
-                        Err(err_msg) => {
-                            // Check if this is a duplicate label across siblings error
-                            if err_msg.starts_with("DuplicateLabelAcrossSiblings:") {
-                                let label_name = err_msg.strip_prefix("DuplicateLabelAcrossSiblings:").unwrap_or(&jump.label);
-                                return Err(CodegenError {
-                                    kind: CodegenErrorKind::DuplicateLabelAcrossSiblings(label_name.to_string()),
-                                    span: jump.span.clone_box(),
-                                    token: None,
-                                });
-                            } else {
-                                // Other error
-                                return Err(CodegenError {
-                                    kind: CodegenErrorKind::InvalidMacroInvocation(err_msg),
-                                    span: jump.span.clone_box(),
-                                    token: None,
-                                });
-                            }
-                        }
-                    }
+                    CodegenError { kind: CodegenErrorKind::DuplicateLabelInScope(label_name), span, token: None }
                 }
             }
+        })?;
 
-            result_bytes.push_with_offset(code_index, formatted_bytes);
+        // Log unmatched jumps
+        for jump in &unmatched_jumps {
+            tracing::warn!(
+                target: "codegen",
+                "UNMATCHED JUMP LABEL \"{}\" AT BYTECODE INDEX {} (scope_depth={}, scope_path={:?})",
+                jump.label, jump.bytecode_index, jump.scope_depth, jump.scope_path
+            );
         }
 
-        Ok((result_bytes, unmatched_jumps))
+        Ok((bytes, unmatched_jumps))
     }
 
     /// Helper associated function to fill circular codesize invocations.
@@ -950,55 +924,49 @@ impl Codegen {
     /// On success, returns a tuple of generated bytes.
     /// On failure, returns a CodegenError.
     pub fn fill_circular_codesize_invocations(
-        bytes: BytecodeSegments,
+        mut bytes: BytecodeSegments,
         circular_codesize_invocations: &CircularCodeSizeIndices,
         macro_name: &str,
     ) -> Result<BytecodeSegments, CodegenError> {
-        // Get the length of the macro
+        // Get the number of circular codesize invocations
         let num_invocations = circular_codesize_invocations.len();
         if num_invocations == 0 {
             return Ok(bytes);
         }
 
         tracing::debug!(target: "codegen", "Circular Codesize Invocation: Bytes before expansion: {:#?}", bytes);
-        let length: usize = bytes.iter().map(|seg| seg.bytes.len()).sum::<usize>() / 2;
 
-        // If there are more than 256 opcodes in a macro, we need 2 bytes to represent it
-        // The next threshold is 65536 opcodes which is past the codesize limit
-        let mut offset_increase = 0;
-        if length > 255 {
-            offset_increase = 1;
-        }
-        // Codesize will increase by 1 byte for every codesize that exists
+        // Calculate initial size
+        let length: usize = bytes.iter().map(|seg| seg.bytes.len()).sum::<usize>();
+
+        // Determine if any placeholders will need to grow from PUSH1 to PUSH2
+        // This is needed to calculate the correct final size
+        let offset_increase = if length > 255 { 1 } else { 0 };
+        // Codesize will increase by 1 byte for every codesize that grows to PUSH2
         let extended_length = length + (offset_increase * num_invocations);
 
-        let push_size = format_even_bytes(format!("{extended_length:02x}"));
-        let push_bytes = format!("{:02x}{push_size}", 95 + push_size.len() / 2);
+        // Resolve all circular codesize placeholders with the calculated extended size
+        let growth_offsets = bytes.resolve_circular_codesize(circular_codesize_invocations, macro_name, extended_length);
 
-        // Track the number of bytes added if there is an offset increase with codesize
-        let mut running_increase = 0;
-        let bytes = bytes.into_iter().fold(BytecodeSegments::new(), |mut acc, mut seg| {
-            // Check if a jump table exists at `code_index` (starting offset of `b`)
-            if let Some((_, _index)) = circular_codesize_invocations.get(&(macro_name.to_string(), seg.offset)) {
-                // Check if a jump dest placeholder is present
-                if !seg.bytes.as_str().eq("cccc") {
-                    tracing::error!(
-                        target: "codegen",
-                        "CIRCULAR CODESIZE PLACEHOLDER NOT FOUND"
-                    );
-                }
+        // Apply offset adjustments for segments that come after grown placeholders
+        for segment in bytes.iter_mut() {
+            // Check if any growth happened before this segment
+            let growth_before: usize =
+                growth_offsets.iter().filter(|(growth_offset, _)| *growth_offset < segment.offset).map(|(_, growth)| growth).sum();
 
-                // Replace the "cccc" placeholder with the jump value
-                seg.bytes = Bytes::Raw(push_bytes.to_string());
-                running_increase += offset_increase;
-            } else {
-                // Increase the code index by the number of bytes added past the placeholder
-                seg.offset += running_increase;
+            if growth_before > 0 {
+                // This segment comes after some growth, adjust its offset
+                segment.offset += growth_before;
             }
+        }
 
-            acc.push(seg);
-            acc
-        });
+        tracing::debug!(
+            target: "codegen",
+            "Circular codesize resolution complete: {} placeholders resolved, {} bytes of growth, final size: {}",
+            num_invocations,
+            growth_offsets.iter().map(|(_, g)| g).sum::<usize>(),
+            extended_length
+        );
 
         Ok(bytes)
     }
@@ -1041,7 +1009,7 @@ impl Codegen {
             table_instances.extend(res.table_instances);
             label_indices.extend(res.label_indices);
 
-            let macro_code_len = res.bytes.iter().map(|seg| seg.bytes.len()).sum::<usize>() / 2;
+            let macro_code_len = res.bytes.iter().map(|seg| seg.bytes.len()).sum::<usize>();
 
             // Get necessary swap ops to reorder stack
             // PC of the return jumpdest should be above the function's outputs on the stack

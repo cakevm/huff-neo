@@ -226,6 +226,15 @@ pub enum CodegenErrorKind {
     /// Duplicate label defined in multiple sibling scopes
     /// When a label is not found in current scope, fallback searches siblings - but will always find the first definition, making subsequent ones unreachable
     DuplicateLabelAcrossSiblings(String),
+    /// Jump target is too large for the specified opcode
+    JumpTargetTooLarge {
+        /// The label name
+        label: String,
+        /// The target offset that was too large
+        target: usize,
+        /// The opcode that couldn't represent the target
+        opcode: String,
+    },
     /// Circular macro invocation detected
     CircularMacroInvocation(String),
     /// Circular constant dependency detected
@@ -337,6 +346,9 @@ impl<W: Write> Report<W> for CodegenError {
             }
             CodegenErrorKind::DuplicateLabelAcrossSiblings(label) => {
                 write!(f.out, "Duplicate label '{}' defined across siblings in same scope", label)
+            }
+            CodegenErrorKind::JumpTargetTooLarge { label, target, opcode } => {
+                write!(f.out, "Jump target {:#x} too large for {} in label \"{}\"", target, opcode, label)
             }
             CodegenErrorKind::CircularMacroInvocation(macro_name) => {
                 write!(f.out, "Circular macro invocation detected: '{}' is already in the call stack", macro_name)
@@ -677,6 +689,16 @@ impl fmt::Display for CompilerError {
                 }
                 CodegenErrorKind::DuplicateLabelAcrossSiblings(label) => {
                     write!(f, "\nError: Duplicate label '{}' defined across siblings in same scope\n{}\n", label, ce.span.error(None))
+                }
+                CodegenErrorKind::JumpTargetTooLarge { label, target, opcode } => {
+                    write!(
+                        f,
+                        "\nError: Jump target {:#x} too large for {} in label \"{}\"\n{}\n",
+                        target,
+                        opcode,
+                        label,
+                        ce.span.error(None)
+                    )
                 }
                 CodegenErrorKind::CircularMacroInvocation(macro_name) => {
                     write!(
