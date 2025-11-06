@@ -557,6 +557,18 @@ impl Parser {
         })?;
 
         let macro_name: String = self.match_kind(TokenKind::Ident("MACRO_NAME".to_string()))?.to_string();
+
+        // Check for reserved builtin function names
+        if BuiltinFunctionKind::is_reserved_name(&macro_name) {
+            tracing::error!(target: "parser", "RESERVED MACRO NAME: {}", macro_name);
+            return Err(ParserError {
+                kind: ParserErrorKind::InvalidMacroName,
+                hint: Some(format!("{} is a reserved built-in function name and cannot be used as a macro name.", macro_name)),
+                spans: AstSpan(self.spans.clone()),
+                cursor: self.cursor,
+            });
+        }
+
         tracing::info!(target: "parser", "PARSING MACRO: \"{}\"", macro_name);
 
         let macro_arguments = self.parse_args(true, false, false)?;
