@@ -251,6 +251,8 @@ pub enum CodegenErrorKind {
     ArithmeticUnderflow,
     /// Division by zero in constant expression
     DivisionByZero,
+    /// ArgCall in constant expression (requires macro invocation context)
+    ArgCallInConstantExpression(String),
     /// Invalid opcode for EVM version (opcode, required_version, current_version)
     InvalidOpcodeForEVMVersion(String, String, String),
     /// Invalid loop step value (step cannot be zero)
@@ -373,6 +375,9 @@ impl<W: Write> Report<W> for CodegenError {
             }
             CodegenErrorKind::DivisionByZero => {
                 write!(f.out, "Division by zero in constant expression")
+            }
+            CodegenErrorKind::ArgCallInConstantExpression(name) => {
+                write!(f.out, "Macro argument <{}> cannot be used in global constant expression - requires macro invocation context", name)
             }
             CodegenErrorKind::InvalidOpcodeForEVMVersion(opcode, required_version, current_version) => {
                 write!(
@@ -733,6 +738,14 @@ impl fmt::Display for CompilerError {
                 }
                 CodegenErrorKind::DivisionByZero => {
                     write!(f, "\nError: Division by zero in constant expression\n{}\n", ce.span.error(None))
+                }
+                CodegenErrorKind::ArgCallInConstantExpression(name) => {
+                    write!(
+                        f,
+                        "\nError: Macro argument <{}> cannot be used in global constant expression\nRequires macro invocation context\n{}\n",
+                        name,
+                        ce.span.error(None)
+                    )
                 }
                 CodegenErrorKind::InvalidOpcodeForEVMVersion(opcode, required_version, current_version) => {
                     write!(

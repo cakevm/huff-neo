@@ -13,6 +13,13 @@ Huff Neo is a production-ready compiler for the Huff language - a low-level prog
 - **NEVER**: Place `use` statements inside functions or methods
 - This ensures consistency, makes dependencies clear at a glance, and improves compilation performance
 
+### Documentation Strings
+- **Behavior-focused**: Describe what the code accomplishes, not how it's implemented
+- Focus on the "what" and "why" rather than the "how"
+- Explain the purpose, inputs, outputs, and any important side effects
+- Avoid implementation details that may change over time
+- Example: "Resolves a label to its bytecode offset" instead of "Searches the label map and returns the index"
+
 ## Build and Development Commands
 
 ### Essential Commands

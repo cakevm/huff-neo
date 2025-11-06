@@ -646,6 +646,13 @@ impl Contract {
                 // Grouped expressions just evaluate the inner expression
                 self.evaluate_constant_expression_internal(expr, evaluating)
             }
+
+            Expression::ArgCall { name, span, .. } => {
+                // ArgCall cannot be evaluated without macro invocation context
+                // This should only be reached during global expansion (before macro expansion)
+                // When if/for expansion moves to statement_gen, this won't be called
+                Err(CodegenError { kind: CodegenErrorKind::ArgCallInConstantExpression(name.clone()), span: span.clone_box(), token: None })
+            }
         }
     }
 }
@@ -779,10 +786,10 @@ impl MacroDefinition {
                 }
                 StatementType::MacroInvocation(mi) => {
                     inner_irbytes.push(IRBytes {
-                        ty: IRByteType::Statement(Statement {
+                        ty: IRByteType::Statement(Box::new(Statement {
                             ty: StatementType::MacroInvocation(mi.clone()),
                             span: statement.span.clone(),
-                        }),
+                        })),
                         span: &statement.span,
                     });
                 }
@@ -800,27 +807,30 @@ impl MacroDefinition {
                 StatementType::ArgMacroInvocation(parent_macro_name, arg_name, args) => {
                     // Arg macro invocation - will be resolved to actual macro invocation during codegen
                     inner_irbytes.push(IRBytes {
-                        ty: IRByteType::Statement(Statement {
+                        ty: IRByteType::Statement(Box::new(Statement {
                             ty: StatementType::ArgMacroInvocation(parent_macro_name.clone(), arg_name.clone(), args.clone()),
                             span: statement.span.clone(),
-                        }),
+                        })),
                         span: &statement.span,
                     });
                 }
                 StatementType::LabelCall(jump_to) => {
                     /* Jump To doesn't translate directly to bytecode */
                     inner_irbytes.push(IRBytes {
-                        ty: IRByteType::Statement(Statement {
+                        ty: IRByteType::Statement(Box::new(Statement {
                             ty: StatementType::LabelCall(jump_to.to_string()),
                             span: statement.span.clone(),
-                        }),
+                        })),
                         span: &statement.span,
                     });
                 }
                 StatementType::Label(l) => {
                     /* Jump Dests don't translate directly to bytecode */
                     inner_irbytes.push(IRBytes {
-                        ty: IRByteType::Statement(Statement { ty: StatementType::Label(l.clone()), span: statement.span.clone() }),
+                        ty: IRByteType::Statement(Box::new(Statement {
+                            ty: StatementType::Label(l.clone()),
+                            span: statement.span.clone(),
+                        })),
                         span: &statement.span,
                     });
 
@@ -829,20 +839,20 @@ impl MacroDefinition {
                 }
                 StatementType::BuiltinFunctionCall(builtin) => {
                     inner_irbytes.push(IRBytes {
-                        ty: IRByteType::Statement(Statement {
+                        ty: IRByteType::Statement(Box::new(Statement {
                             ty: StatementType::BuiltinFunctionCall(builtin.clone()),
                             span: statement.span.clone(),
-                        }),
+                        })),
                         span: &statement.span,
                     });
                 }
                 StatementType::ForLoop { .. } => {
-                    // ForLoop should have been expanded before bytecode generation
-                    panic!("ForLoop statement reached bytecode generation - loops should be expanded during the pre-codegen pass");
+                    // ForLoop will be expanded during statement_gen with macro invocation context
+                    inner_irbytes.push(IRBytes { ty: IRByteType::Statement(Box::new(statement.clone())), span: &statement.span });
                 }
                 StatementType::IfStatement { .. } => {
-                    // IfStatement should have been expanded before bytecode generation
-                    panic!("IfStatement reached bytecode generation - if statements should be expanded during the pre-codegen pass");
+                    // IfStatement will be expanded during statement_gen with macro invocation context
+                    inner_irbytes.push(IRBytes { ty: IRByteType::Statement(Box::new(statement.clone())), span: &statement.span });
                 }
             }
         }
@@ -954,6 +964,15 @@ pub enum Expression {
         /// The span of the grouped expression (including parentheses)
         span: AstSpan,
     },
+    /// Reference to a macro argument (e.g., `<arg>`)
+    ArgCall {
+        /// The parent macro name
+        macro_name: String,
+        /// The argument name
+        name: String,
+        /// The span of the arg call
+        span: AstSpan,
+    },
 }
 
 impl Expression {
@@ -965,6 +984,7 @@ impl Expression {
             Expression::Binary { span, .. } => span,
             Expression::Unary { span, .. } => span,
             Expression::Grouped { span, .. } => span,
+            Expression::ArgCall { span, .. } => span,
         }
     }
 }

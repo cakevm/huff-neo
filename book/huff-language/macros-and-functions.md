@@ -43,6 +43,8 @@ by the constructor.
 
 Macros can accept arguments, which can be used within the macro itself or passed as reference. These arguments can be labels, opcodes, literals, constants, or other macro calls. Since macros are inlined at compile time, their arguments are also inlined and not evaluated at runtime.
 
+Arguments can also be used in compile-time expressions within `if` conditions and `for` loop bounds using the `<arg>` syntax. See [Compile-Time Conditionals](./compile-time-conditionals.md#macro-arguments-in-conditions) and [Compile-Time Loops](./compile-time-loops.md#macro-arguments-in-bounds) for details.
+
 #### First-Class Macros
 
 Macros can be passed as arguments to other macros, allowing you to write more reusable and composable code. When a macro is passed as an argument, it can be invoked within the receiving macro using the `<arg>` syntax.

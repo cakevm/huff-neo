@@ -507,7 +507,7 @@ pub enum IRByteType {
     /// Bytes
     Bytes(Bytes),
     /// Macro Statement to be expanded
-    Statement(Statement),
+    Statement(Box<Statement>),
     /// A Constant to be referenced
     Constant(String),
     /// An Arg Call needs to use the calling macro context.

@@ -4,7 +4,7 @@
 #![forbid(unsafe_code)]
 
 use crate::irgen::builtin_function::builtin_pad;
-use alloy_primitives::{U256, hex};
+use alloy_primitives::hex;
 use huff_neo_utils::ast::huff::*;
 use huff_neo_utils::ast::span::AstSpan;
 use huff_neo_utils::bytes_util::str_to_bytes32;
@@ -24,9 +24,6 @@ use std::{cmp::Ordering, collections::HashMap, fs, path::Path, sync::Arc};
 
 mod irgen;
 use crate::irgen::prelude::*;
-
-/// Maximum allowed iterations for compile-time for loops to prevent infinite loops
-const MAX_LOOP_ITERATIONS: usize = 10_000;
 
 /// Maximum number of iterations allowed for the jump relaxation optimization algorithm.
 ///
@@ -85,11 +82,8 @@ impl Codegen {
         alternative_main: Option<String>,
         relax_jumps: bool,
     ) -> Result<(String, Vec<SourceMapEntry>), CodegenError> {
-        // Expand for loops before any other processing
-        let contract = Self::expand_for_loops(contract)?;
-        // Expand if statements before any other processing
-        let contract = Self::expand_if_statements(&contract)?;
-        let contract = Self::update_table_size(evm_version, &contract)?;
+        // Update table sizes
+        let contract = Self::update_table_size(evm_version, contract)?;
 
         // If an alternative main is provided, then use it as the compilation target
         let main_macro = alternative_main.unwrap_or_else(|| String::from("MAIN"));
@@ -135,11 +129,8 @@ impl Codegen {
         alternative_constructor: Option<String>,
         relax_jumps: bool,
     ) -> Result<((String, Vec<SourceMapEntry>), bool), CodegenError> {
-        // Expand for loops before any other processing
-        let contract = Self::expand_for_loops(contract)?;
-        // Expand if statements before any other processing
-        let contract = Self::expand_if_statements(&contract)?;
-        let contract = Self::update_table_size(evm_version, &contract)?;
+        // Update table sizes
+        let contract = Self::update_table_size(evm_version, contract)?;
 
         // If an alternative constructor macro is provided, then use it as the compilation target
         let constructor_macro = alternative_constructor.unwrap_or_else(|| String::from("CONSTRUCTOR"));
@@ -189,255 +180,6 @@ impl Codegen {
         let mut contract = contract.clone();
         contract.tables = updated;
         Ok(contract)
-    }
-
-    /// Expand all for loops in the contract at compile-time
-    /// This must be called before bytecode generation
-    pub fn expand_for_loops(contract: &Contract) -> Result<Contract, CodegenError> {
-        let mut contract = contract.clone();
-
-        // Expand loops in all macros
-        let mut expanded_macros = indexmap::IndexMap::new();
-        for (name, macro_def) in contract.macros.iter() {
-            let expanded_statements = Self::expand_statements_for_loops(&macro_def.statements, &contract)?;
-            let mut new_macro = macro_def.clone();
-            new_macro.statements = expanded_statements;
-            expanded_macros.insert(name.clone(), new_macro);
-        }
-        contract.macros = expanded_macros;
-
-        // Expand loops in tables
-        let mut expanded_tables = Vec::new();
-        for table in contract.tables.iter() {
-            let expanded_statements = Self::expand_statements_for_loops(&table.statements, &contract)?;
-            let mut new_table = table.clone();
-            new_table.statements = expanded_statements;
-            expanded_tables.push(new_table);
-        }
-        contract.tables = expanded_tables;
-
-        Ok(contract)
-    }
-
-    /// Recursively expand for loops in a list of statements
-    fn expand_statements_for_loops(statements: &[Statement], contract: &Contract) -> Result<Vec<Statement>, CodegenError> {
-        let mut expanded = Vec::new();
-
-        for statement in statements {
-            match &statement.ty {
-                StatementType::ForLoop { variable, start, end, step, body } => {
-                    // Evaluate loop bounds at compile-time
-                    let start_val = contract.evaluate_constant_expression(start)?;
-                    let end_val = contract.evaluate_constant_expression(end)?;
-                    let step_val = if let Some(step_expr) = step {
-                        contract.evaluate_constant_expression(step_expr)?
-                    } else {
-                        // Default step is 1
-                        str_to_bytes32("1")
-                    };
-
-                    // Convert to U256 for iteration (supports full u256 range)
-                    let start = U256::from_be_bytes(start_val);
-                    let end = U256::from_be_bytes(end_val);
-                    let step = U256::from_be_bytes(step_val);
-
-                    if step.is_zero() {
-                        return Err(CodegenError {
-                            kind: CodegenErrorKind::InvalidLoopStep,
-                            span: statement.span.clone_box(),
-                            token: None,
-                        });
-                    }
-
-                    // Generate iterations with safety limit
-                    let mut current = start;
-                    let mut iteration_count = 0;
-
-                    while current < end {
-                        if iteration_count >= MAX_LOOP_ITERATIONS {
-                            return Err(CodegenError {
-                                kind: CodegenErrorKind::LoopIterationLimitExceeded(MAX_LOOP_ITERATIONS),
-                                span: statement.span.clone_box(),
-                                token: None,
-                            });
-                        }
-
-                        // Clone body and substitute loop variable
-                        let current_bytes = current.to_be_bytes::<32>();
-                        let iteration_body = Self::substitute_loop_variable(body, variable, &current_bytes)?;
-                        // Recursively expand in case of nested loops
-                        let expanded_body = Self::expand_statements_for_loops(&iteration_body, contract)?;
-                        expanded.extend(expanded_body);
-
-                        current = current.saturating_add(step);
-                        iteration_count += 1;
-                    }
-                }
-                StatementType::Label(label) => {
-                    // Recursively expand loops inside labels
-                    let expanded_inner = Self::expand_statements_for_loops(&label.inner, contract)?;
-                    let mut new_label = label.clone();
-                    new_label.inner = expanded_inner;
-                    expanded.push(Statement { ty: StatementType::Label(new_label), span: statement.span.clone() });
-                }
-                _ => {
-                    // Keep other statements as-is
-                    expanded.push(statement.clone());
-                }
-            }
-        }
-
-        Ok(expanded)
-    }
-
-    /// Substitute loop variable in statement body
-    fn substitute_loop_variable(statements: &[Statement], var_name: &str, value: &[u8; 32]) -> Result<Vec<Statement>, CodegenError> {
-        let mut substituted = Vec::new();
-        let var_literal = *value;
-
-        for statement in statements {
-            let new_statement = match &statement.ty {
-                StatementType::Constant(name) => {
-                    // Check if this is a loop variable placeholder
-                    if name == &format!("__LOOP_VAR_{}", var_name) {
-                        // Replace with literal
-                        Statement { ty: StatementType::Literal(var_literal), span: statement.span.clone() }
-                    } else {
-                        statement.clone()
-                    }
-                }
-                StatementType::Label(label) => {
-                    // Recursively substitute in label body
-                    let substituted_inner = Self::substitute_loop_variable(&label.inner, var_name, value)?;
-                    let mut new_label = label.clone();
-                    new_label.inner = substituted_inner;
-                    // Rename label to prevent collisions in different iterations
-                    let iter_value = U256::from_be_bytes(*value);
-                    new_label.name = format!("{}_{}", label.name, iter_value);
-                    Statement { ty: StatementType::Label(new_label), span: statement.span.clone() }
-                }
-                StatementType::LabelCall(label_name) => {
-                    // Update label references to match renamed labels. Wwe rename based on the current iteration.
-                    let iter_value = U256::from_be_bytes(*value);
-                    Statement { ty: StatementType::LabelCall(format!("{}_{}", label_name, iter_value)), span: statement.span.clone() }
-                }
-                StatementType::ForLoop { variable: loop_var, start, end, step, body } => {
-                    // Recursively substitute in nested for loop body
-                    let substituted_body = Self::substitute_loop_variable(body, var_name, value)?;
-                    Statement {
-                        ty: StatementType::ForLoop {
-                            variable: loop_var.clone(),
-                            start: start.clone(),
-                            end: end.clone(),
-                            step: step.clone(),
-                            body: substituted_body,
-                        },
-                        span: statement.span.clone(),
-                    }
-                }
-                _ => statement.clone(),
-            };
-            substituted.push(new_statement);
-        }
-
-        Ok(substituted)
-    }
-
-    /// Expand all if statements in the contract at compile-time
-    /// This must be called before bytecode generation
-    pub fn expand_if_statements(contract: &Contract) -> Result<Contract, CodegenError> {
-        let mut contract = contract.clone();
-
-        // Expand if statements in all macros
-        let mut expanded_macros = indexmap::IndexMap::new();
-        for (name, macro_def) in contract.macros.iter() {
-            let expanded_statements = Self::expand_statements_if_statements(&macro_def.statements, &contract)?;
-            let mut new_macro = macro_def.clone();
-            new_macro.statements = expanded_statements;
-            expanded_macros.insert(name.clone(), new_macro);
-        }
-        contract.macros = expanded_macros;
-
-        // Expand if statements in tables
-        let mut expanded_tables = Vec::new();
-        for table in contract.tables.iter() {
-            let expanded_statements = Self::expand_statements_if_statements(&table.statements, &contract)?;
-            let mut new_table = table.clone();
-            new_table.statements = expanded_statements;
-            expanded_tables.push(new_table);
-        }
-        contract.tables = expanded_tables;
-
-        Ok(contract)
-    }
-
-    /// Recursively expand if statements in a list of statements
-    fn expand_statements_if_statements(statements: &[Statement], contract: &Contract) -> Result<Vec<Statement>, CodegenError> {
-        let mut expanded = Vec::new();
-
-        for statement in statements {
-            match &statement.ty {
-                StatementType::IfStatement { condition, then_branch, else_if_branches, else_branch } => {
-                    // Evaluate condition at compile-time
-                    let condition_val = contract.evaluate_constant_expression(condition)?;
-                    let condition_true = !U256::from_be_bytes(condition_val).is_zero();
-
-                    if condition_true {
-                        // Include then branch
-                        let expanded_then = Self::expand_statements_if_statements(then_branch, contract)?;
-                        expanded.extend(expanded_then);
-                    } else {
-                        // Check else if branches
-                        let mut matched = false;
-                        for (else_if_condition, else_if_body) in else_if_branches {
-                            let else_if_val = contract.evaluate_constant_expression(else_if_condition)?;
-                            let else_if_true = !U256::from_be_bytes(else_if_val).is_zero();
-
-                            if else_if_true {
-                                // Include this else if branch
-                                let expanded_else_if = Self::expand_statements_if_statements(else_if_body, contract)?;
-                                expanded.extend(expanded_else_if);
-                                matched = true;
-                                break;
-                            }
-                        }
-
-                        // If no else if matched, include else branch if present
-                        if !matched && let Some(else_body) = else_branch {
-                            let expanded_else = Self::expand_statements_if_statements(else_body, contract)?;
-                            expanded.extend(expanded_else);
-                        }
-                    }
-                }
-                StatementType::Label(label) => {
-                    // Recursively expand if statements inside labels
-                    let expanded_inner = Self::expand_statements_if_statements(&label.inner, contract)?;
-                    let mut new_label = label.clone();
-                    new_label.inner = expanded_inner;
-                    expanded.push(Statement { ty: StatementType::Label(new_label), span: statement.span.clone() });
-                }
-                StatementType::ForLoop { variable, start, end, step, body } => {
-                    // Recursively expand if statements inside for loop bodies
-                    let expanded_body = Self::expand_statements_if_statements(body, contract)?;
-                    expanded.push(Statement {
-                        ty: StatementType::ForLoop {
-                            variable: variable.clone(),
-                            start: start.clone(),
-                            end: end.clone(),
-                            step: step.clone(),
-                            body: expanded_body,
-                        },
-                        span: statement.span.clone(),
-                    });
-                }
-                _ => {
-                    // Keep other statements as-is
-                    expanded.push(statement.clone());
-                }
-            }
-        }
-
-        Ok(expanded)
     }
 
     /// Helper function to find a macro or generate a CodegenError

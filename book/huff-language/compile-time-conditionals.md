@@ -201,6 +201,80 @@ if (FLAG) { }
 
 This follows the Huff language convention for constant values.
 
+## Macro Arguments in Conditions
+
+Macro arguments can be used in if conditions using `<arg>` syntax. The arguments are evaluated at compile-time during macro expansion.
+
+### Basic Usage
+
+```javascript
+#define macro CHECK(threshold) = takes(0) returns(0) {
+    if (<threshold>) {
+        0x42
+    } else {
+        0x10
+    }
+}
+
+#define macro MAIN() = takes(0) returns(0) {
+    CHECK(0x01)  // Expands to: 0x42
+}
+```
+
+### With Comparisons
+
+```javascript
+#define macro VALIDATE(value, max) = takes(0) returns(0) {
+    if (<value> <= <max>) {
+        0xFF  // Valid
+    } else {
+        0x00  // Invalid
+    }
+}
+
+#define macro MAIN() = takes(0) returns(0) {
+    VALIDATE(0x05, 0x0A)  // Expands to: 0xFF
+}
+```
+
+### With Arithmetic
+
+```javascript
+#define macro COMPUTE(a, b) = takes(0) returns(0) {
+    if (<a> + <b> > 0x10) {
+        0xAA
+    } else {
+        0xBB
+    }
+}
+
+#define macro MAIN() = takes(0) returns(0) {
+    COMPUTE(0x08, 0x0C)  // 0x08 + 0x0C = 0x14 > 0x10
+    // Expands to: 0xAA
+}
+```
+
+### Mixed with Constants
+
+Arguments can be combined with constants in expressions:
+
+```javascript
+#define constant BASE = 0x10
+
+#define macro ADD_OFFSET(offset) = takes(0) returns(0) {
+    if ([BASE] + <offset> > 0x20) {
+        0x01
+    } else {
+        0x00
+    }
+}
+
+#define macro MAIN() = takes(0) returns(0) {
+    ADD_OFFSET(0x15)  // 0x10 + 0x15 = 0x25 > 0x20
+    // Expands to: 0x01
+}
+```
+
 ## Use Cases
 
 ### Feature Flags
