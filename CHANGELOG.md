@@ -3,6 +3,8 @@
 # Huff Neo Compiler changelog
 
 ## Unreleased
+
+## [1.5.3] - 2025-11-06
 - Introducing `--relax-jumps` CLI flag to optimize jump instructions from PUSH2 to PUSH1.
   - Optimizes jump instructions from PUSH2 to PUSH1 when jump targets are 0-255.
   - Reduces deployment gas costs, but will not affect runtime gas costs.
@@ -17,6 +19,7 @@
 - Reject macros names that are equal to reserved builtin function names (fixes #131).
 - Fix stack overflow and argument resolution errors in nested macro invocations with labels (fixes #133).
   - Example: `M2(M3(<arg>))` followed by a label now compiles without errors.
+- Add Windows ARM64 (`aarch64-pc-windows-msvc`) binary to release targets.
 
 ## [1.5.2] - 2025-11-05
 - Add compile-time if/else if/else statements.
