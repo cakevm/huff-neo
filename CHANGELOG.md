@@ -14,6 +14,7 @@
 - Add support for builtin functions as macro arguments (fixes #130).
   - Builtin functions can now be passed as macro arguments: `__FUNC_SIG`, `__EVENT_HASH`, `__BYTES`, `__RIGHTPAD`.
   - Example: `MACRO(__FUNC_SIG(transfer))`
+- Reject macros names that are equal to reserved builtin function names (fixes #131).
 
 ## [1.5.2] - 2025-11-05
 - Add compile-time if/else if/else statements.

@@ -1213,6 +1213,28 @@ impl Display for BuiltinFunctionKind {
     }
 }
 
+impl BuiltinFunctionKind {
+    /// Checks if a string matches any reserved builtin function name
+    pub fn is_reserved_name(name: &str) -> bool {
+        matches!(
+            name,
+            "__tablesize"
+                | "__codesize"
+                | "__tablestart"
+                | "__FUNC_SIG"
+                | "__EVENT_HASH"
+                | "__ERROR"
+                | "__RIGHTPAD"
+                | "__LEFTPAD"
+                | "__CODECOPY_DYN_ARG"
+                | "__VERBATIM"
+                | "__BYTES"
+                | "__ASSERT_PC"
+                | "__NOOP"
+        )
+    }
+}
+
 /// A Statement
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Statement {

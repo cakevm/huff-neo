@@ -37,6 +37,8 @@ pub enum ParserErrorKind {
     InvalidConstantValue(TokenKind),
     /// Invalid constant name (reserved name)
     InvalidConstantName,
+    /// Invalid macro name (reserved builtin function name)
+    InvalidMacroName,
     /// Unexpected token in macro body
     InvalidTokenInMacroBody(TokenKind),
     /// Unexpected token in label definition
@@ -487,6 +489,9 @@ impl fmt::Display for CompilerError {
                 }
                 ParserErrorKind::InvalidConstantName => {
                     write!(f, "\nError at token {}: Invalid Constant Name \n{}\n", pe.cursor, pe.spans.error(pe.hint.as_ref()))
+                }
+                ParserErrorKind::InvalidMacroName => {
+                    write!(f, "\nError at token {}: Invalid Macro Name \n{}\n", pe.cursor, pe.spans.error(pe.hint.as_ref()))
                 }
                 ParserErrorKind::InvalidTokenInMacroBody(tmb) => {
                     write!(
