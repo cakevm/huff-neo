@@ -28,7 +28,7 @@ fn test_alternative_constructor_macro_provided() {
     let alternative_constructor_label = Some(String::from("ALT_CONSTRUCTOR"));
 
     // Create constructor bytecode
-    match Codegen::generate_constructor_bytecode(&EVMVersion::default(), &contract, alternative_constructor_label) {
+    match Codegen::generate_constructor_bytecode(&EVMVersion::default(), &contract, alternative_constructor_label, false) {
         Ok((mb, _)) => assert_eq!(mb, "6004355f602435".to_string()),
         Err(e) => panic!("{e:?}"),
     }

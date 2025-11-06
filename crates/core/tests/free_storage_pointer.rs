@@ -33,6 +33,6 @@ fn test_set_free_storage_pointers() {
     contract.derive_storage_pointers();
 
     // Assert the Free storage pointer has been set to 0
-    let mbytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+    let mbytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
     assert!(mbytes.starts_with("6000"));
 }

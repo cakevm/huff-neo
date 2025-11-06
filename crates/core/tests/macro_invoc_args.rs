@@ -26,7 +26,7 @@ fn test_undefined_macro_arg() {
     contract.derive_storage_pointers();
 
     // Codegen should fail with an error
-    let codegen_result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None);
+    let codegen_result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false);
 
     assert!(codegen_result.is_err());
     assert_eq!(codegen_result.unwrap_err().kind, CodegenErrorKind::MissingArgumentDefinition(String::from("undefined")));
@@ -56,7 +56,7 @@ fn test_opcode_macro_args() {
     let evm_version = EVMVersion::default();
 
     // Create main and constructor bytecode
-    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None, false).unwrap();
 
     // Full expected bytecode output (generated from huff-neo) (placed here as a reference)
     let expected_bytecode = "60088060093d393df360ff3d5260203df3";
@@ -96,7 +96,7 @@ fn test_arg_call_macro_invocation() {
     let evm_version = EVMVersion::default();
 
     // Create main bytecode
-    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None, false).unwrap();
 
     // Expected bytecode: PUSH1 0x42
     let expected_bytecode = "6042";
@@ -131,7 +131,7 @@ fn test_arg_call_macro_invocation_with_args() {
     let evm_version = EVMVersion::default();
 
     // Create main bytecode
-    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None, false).unwrap();
 
     // Expected bytecode: PUSH1 0x01 PUSH1 0x02 ADD
     let expected_bytecode = "6001600201";
@@ -170,7 +170,7 @@ fn test_nested_arg_call_macro_invocation() {
     let evm_version = EVMVersion::default();
 
     // Create main bytecode
-    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None, false).unwrap();
 
     // Expected bytecode: PUSH1 0x01
     let expected_bytecode = "6001";
@@ -209,7 +209,7 @@ fn test_arg_call_macro_invocation_passed_with_args() {
     let evm_version = EVMVersion::default();
 
     // Create main bytecode
-    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None, false).unwrap();
 
     // Expected bytecode: PUSH1 0x03 PUSH1 0x04 MUL
     let expected_bytecode = "6003600402";
@@ -244,7 +244,7 @@ fn test_arg_call_with_literal_and_arg_arguments() {
     let evm_version = EVMVersion::default();
 
     // Create main bytecode
-    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None, false).unwrap();
 
     // Expected bytecode: PUSH1 0x10 PUSH1 0x05 SUB
     let expected_bytecode = "6010600503";
@@ -284,7 +284,7 @@ fn test_multiple_arg_call_invocations() {
     let evm_version = EVMVersion::default();
 
     // Create main bytecode
-    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None, false).unwrap();
 
     // Expected bytecode: PUSH1 0x08 PUSH1 0x03 ADD PUSH1 0x08 PUSH1 0x03 SUB
     let expected_bytecode = "60086003016008600303";
@@ -319,7 +319,7 @@ fn test_arg_call_with_opcode_arguments() {
     let evm_version = EVMVersion::default();
 
     // Create main bytecode
-    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None, false).unwrap();
 
     // Expected bytecode: CALLER ORIGIN EQ
     let expected_bytecode = "333214";
@@ -362,7 +362,7 @@ fn test_deeply_nested_arg_call_with_args() {
     let evm_version = EVMVersion::default();
 
     // Create main bytecode
-    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None, false).unwrap();
 
     // Expected bytecode: PUSH1 0x02 DUP1 MUL PUSH1 0x03 ADD
     let expected_bytecode = "60028002600301";
@@ -395,7 +395,7 @@ fn test_all_opcodes_in_macro_args() {
         let evm_version = EVMVersion::default();
 
         // Create main and constructor bytecode
-        let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
+        let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None, false).unwrap();
 
         // Full expected bytecode output (generated from huff-neo) (placed here as a reference)
         let expected_bytecode = format!("60088060093d393df360ff{}", Opcode::from_str(o).unwrap());
@@ -433,7 +433,7 @@ fn test_constant_macro_arg() {
     let evm_version = EVMVersion::default();
 
     // Create main and constructor bytecode
-    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None, false).unwrap();
 
     // Full expected bytecode output (generated from huff-neo) (placed here as a reference)
     let expected_bytecode = "60088060093d393df360ff6002";
@@ -473,7 +473,7 @@ fn test_bubbled_label_call_macro_arg() {
     let evm_version = EVMVersion::default();
 
     // Create main and constructor bytecode
-    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None, false).unwrap();
 
     // Full expected bytecode output (generated from huff-neo) (placed here as a reference)
     let expected_bytecode = "60088060093d393df360ff5b610000";
@@ -512,7 +512,7 @@ fn test_bubbled_literal_macro_arg() {
     let evm_version = EVMVersion::default();
 
     // Create main and constructor bytecode
-    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None, false).unwrap();
 
     // Full expected bytecode output (generated from huff-neo) (placed here as a reference)
     let expected_bytecode = "60088060093d393df360ff610420";
@@ -551,7 +551,7 @@ fn test_bubbled_opcode_macro_arg() {
     let evm_version = EVMVersion::default();
 
     // Create main and constructor bytecode
-    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None, false).unwrap();
 
     // Full expected bytecode output (generated from huff-neo) (placed here as a reference)
     let expected_bytecode = "60088060093d393df360ff3d";
@@ -592,7 +592,7 @@ fn test_bubbled_constant_macro_arg() {
     let evm_version = EVMVersion::default();
 
     // Create main and constructor bytecode
-    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None, false).unwrap();
 
     // Full expected bytecode output (generated from huff-neo) (placed here as a reference)
     let expected_bytecode = "60088060093d393df360ff6002";
@@ -629,7 +629,7 @@ fn test_bubbled_arg_with_different_name() {
     let evm_version = EVMVersion::default();
 
     // Create main and constructor bytecode
-    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None, false).unwrap();
 
     // Full expected bytecode output (generated from huff-neo) (placed here as a reference)
     let expected_bytecode = "6001";
@@ -672,7 +672,7 @@ fn test_nested_macro_call_no_args() {
     let evm_version = EVMVersion::default();
 
     // Create main and constructor bytecode
-    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None, false).unwrap();
 
     // Full expected bytecode output (generated from huff-neo) (placed here as a reference)
     let expected_bytecode = "60016001016001600103";
@@ -714,7 +714,7 @@ fn test_nested_macro_calls() {
     let evm_version = EVMVersion::default();
 
     // Create main and constructor bytecode
-    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None, false).unwrap();
 
     // Full expected bytecode output (generated from huff-neo) (placed here as a reference)
     let expected_bytecode = "60056006015f526005600603602052";
@@ -754,7 +754,7 @@ fn test_very_nested_macro_calls() {
     let evm_version = EVMVersion::default();
 
     // Create main and constructor bytecode
-    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None, false).unwrap();
 
     // COMPUTE_AND_STORE(ADD(0x05, SUB(0x05, ADD(ADD(0x0a, 0x16), 0x04))), 0x00)
     // Results in: 0x05, 0x05, 0x0a, 0x16, add, 0x04, add, sub, add, 0x00, mstore
@@ -808,7 +808,7 @@ fn test_nested_macro_call_missing_macro_definition() {
     contract.derive_storage_pointers();
 
     // Codegen should fail with an error
-    let codegen_result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None);
+    let codegen_result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false);
 
     assert!(codegen_result.is_err());
     assert_eq!(codegen_result.unwrap_err().kind, CodegenErrorKind::MissingMacroDefinition(String::from("MISSING_MACRO")));
@@ -846,7 +846,7 @@ fn test_push0_arg() {
     assert!(cg.artifact.is_none());
 
     // Have Codegen create the runtime bytecode
-    let r_bytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+    let r_bytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
     // 2x 5f = PUSH0
     assert_eq!(&r_bytes, "5f5f");
 }
@@ -875,7 +875,7 @@ fn test_unexpected_argument_none_expected() {
     contract.derive_storage_pointers();
 
     // Codegen should fail with an error
-    let codegen_result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None);
+    let codegen_result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false);
 
     assert!(codegen_result.is_err());
     assert_eq!(codegen_result.unwrap_err().kind, CodegenErrorKind::InvalidArgumentCount(String::from("TEST"), 0, 1));
@@ -906,7 +906,7 @@ fn test_unexpected_arguments() {
     contract.derive_storage_pointers();
 
     // Codegen should fail with an error
-    let codegen_result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None);
+    let codegen_result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false);
 
     assert!(codegen_result.is_err());
     assert_eq!(codegen_result.unwrap_err().kind, CodegenErrorKind::InvalidArgumentCount(String::from("TEST"), 1, 2));
@@ -947,7 +947,7 @@ fn test_second_opcode_parameter() {
     assert!(cg.artifact.is_none());
 
     // Have Codegen create the runtime bytecode
-    let r_bytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+    let r_bytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
     // 80 = DUP1
     assert_eq!(&r_bytes, "80");
 }
@@ -982,7 +982,7 @@ fn test_verbatim_before_macro_expansion() {
     let evm_version = EVMVersion::default();
 
     // Create main bytecode
-    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None, false).unwrap();
 
     // Expected bytecode:
     // __VERBATIM(0x1234) produces: 1234
@@ -1019,7 +1019,7 @@ fn test_nested_first_class_macro_invocation() {
     let evm_version = EVMVersion::default();
 
     // Create main bytecode - should not hang or stack overflow
-    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None, false).unwrap();
 
     // NO_OP macro is empty, so the bytecode should be empty
     assert_eq!(main_bytecode, "");
@@ -1056,7 +1056,7 @@ fn test_nested_first_class_macro_with_bytecode() {
     let evm_version = EVMVersion::default();
 
     // Create main bytecode
-    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None, false).unwrap();
 
     // Expected bytecode:
     // APPLY expands to: UNARY(NO_OP()) + 0x02
@@ -1096,7 +1096,7 @@ fn test_arg_not_passed_to_nested_macro() {
     contract.derive_storage_pointers();
 
     // Codegen should fail because M2 tries to use <arg> which was not passed to it
-    let codegen_result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None);
+    let codegen_result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false);
 
     assert!(codegen_result.is_err());
     assert_eq!(codegen_result.unwrap_err().kind, CodegenErrorKind::MissingArgumentDefinition(String::from("arg")));
@@ -1134,7 +1134,7 @@ fn test_arg_properly_passed_to_nested_macro() {
     let evm_version = EVMVersion::default();
 
     // This should succeed because M1 properly passes <arg> to M2
-    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None, false).unwrap();
 
     // Expected bytecode: ARG() expands to 0xff, which is PUSH1 0xff = 60ff
     assert_eq!(main_bytecode, "60ff");
@@ -1165,7 +1165,7 @@ fn test_noop_as_macro_arg() {
     let evm_version = EVMVersion::default();
 
     // Create main bytecode
-    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None, false).unwrap();
 
     // Expected bytecode: __NOOP generates nothing, followed by PUSH1 0x42
     let expected_bytecode = "6042";
@@ -1198,7 +1198,7 @@ fn test_noop_with_other_args() {
     let evm_version = EVMVersion::default();
 
     // Create main bytecode
-    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None, false).unwrap();
 
     // Expected bytecode: PUSH1 0x01, nothing (from __NOOP), PUSH1 0x02
     let expected_bytecode = "60016002";
@@ -1235,7 +1235,7 @@ fn test_noop_in_first_class_macro_invocation() {
     let evm_version = EVMVersion::default();
 
     // Create main bytecode
-    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None, false).unwrap();
 
     // Expected bytecode: PROCESS(__NOOP) -> __NOOP (nothing) + PUSH1 0x01, then PUSH1 0x42
     let expected_bytecode = "60016042";
@@ -1269,7 +1269,7 @@ fn test_compile_time_evaluated_constant_as_macro_arg() {
     let evm_version = EVMVersion::default();
 
     // This should compile without hanging (previously caused a deadlock)
-    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None, false).unwrap();
 
     // Expected bytecode: C2 evaluates to C1 which is 0x1, so PUSH1 0x01
     let expected_bytecode = "6001";
@@ -1304,7 +1304,7 @@ fn test_nested_evaluated_constants_as_macro_arg() {
     let evm_version = EVMVersion::default();
 
     // This should compile without hanging
-    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None, false).unwrap();
 
     // Expected bytecode: FINAL evaluates to DERIVED which evaluates to BASE which is 0x10
     let expected_bytecode = "6010";
@@ -1349,7 +1349,7 @@ fn test_nested_macro_invocation_with_arg_scoping() {
     let evm_version = EVMVersion::default();
 
     // This should compile successfully
-    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None).unwrap();
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None, false).unwrap();
 
     // Expected bytecode: IDENTITY(__NOOP) should produce nothing (since __NOOP generates no bytecode)
     assert!(main_bytecode.is_empty());

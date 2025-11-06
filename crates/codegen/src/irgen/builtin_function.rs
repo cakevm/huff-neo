@@ -2,11 +2,13 @@ use crate::Codegen;
 use crate::irgen::constants::{constant_gen, evaluate_constant_value};
 use alloy_primitives::{B256, hex, keccak256};
 use huff_neo_utils::builtin_eval::{PadDirection, eval_builtin_bytes, eval_event_hash, eval_function_signature};
-use huff_neo_utils::bytecode::{BytecodeRes, Bytes, CircularCodeSizeIndices, Jump, Jumps};
+use huff_neo_utils::bytecode::{
+    BytecodeRes, BytecodeSegments, Bytes, CircularCodeSizeIndices, CircularCodesizePlaceholderData, DynConstructorArgPlaceholderData, Jump,
+    JumpPlaceholderData, Jumps, PushOpcode,
+};
 use huff_neo_utils::bytes_util::{bytes32_to_hex_string, format_even_bytes, pad_n_bytes};
 use huff_neo_utils::error::{CodegenError, CodegenErrorKind};
 use huff_neo_utils::evm_version::EVMVersion;
-use huff_neo_utils::opcodes::Opcode;
 use huff_neo_utils::prelude::{
     Argument, AstSpan, BuiltinFunctionArg, BuiltinFunctionCall, BuiltinFunctionKind, Contract, MacroDefinition, MacroInvocation, PushValue,
     TableDefinition,
@@ -77,17 +79,18 @@ pub fn builtin_function_gen<'a>(
     utilized_tables: &mut Vec<TableDefinition>,
     circular_codesize_invocations: &mut CircularCodeSizeIndices,
     starting_offset: usize,
-    bytes: &mut Vec<(usize, Bytes)>,
+    bytes: &mut BytecodeSegments,
     bf: &BuiltinFunctionCall,
+    relax_jumps: bool,
 ) -> Result<(), CodegenError> {
     tracing::info!(target: "codegen", "RECURSE BYTECODE GOT BUILTIN FUNCTION CALL: {:?}", bf);
     match bf.kind {
         BuiltinFunctionKind::Codesize => {
-            let (codesize_offset, push_bytes) =
-                codesize(evm_version, contract, macro_def, scope, offset, mis, circular_codesize_invocations, bf)?;
+            let (codesize_offset, bytes_variant) =
+                codesize(evm_version, contract, macro_def, scope, offset, mis, circular_codesize_invocations, bf, relax_jumps)?;
 
             *offset += codesize_offset;
-            bytes.push((starting_offset, Bytes(push_bytes)));
+            bytes.push_with_offset(starting_offset, bytes_variant);
         }
         BuiltinFunctionKind::Tablesize => {
             let (ir_table, push_bytes) = tablesize(contract, bf)?;
@@ -97,7 +100,7 @@ pub fn builtin_function_gen<'a>(
             }
 
             *offset += push_bytes.len() / 2;
-            bytes.push((starting_offset, Bytes(push_bytes)));
+            bytes.push_with_offset(starting_offset, Bytes::Raw(push_bytes));
         }
         BuiltinFunctionKind::Tablestart => {
             let first_arg = extract_single_argument(bf, "__tablestart")?;
@@ -123,7 +126,14 @@ pub fn builtin_function_gen<'a>(
                     utilized_tables.push(t);
                 }
 
-                bytes.push((*offset, Bytes(format!("{}xxxx", Opcode::Push2))));
+                bytes.push_with_offset(
+                    *offset,
+                    Bytes::JumpPlaceholder(JumpPlaceholderData::new(
+                        first_arg.name.as_ref().unwrap().to_owned(),
+                        PushOpcode::Push2,
+                        String::new(),
+                    )),
+                );
                 *offset += 3;
             } else {
                 tracing::error!(
@@ -142,25 +152,25 @@ pub fn builtin_function_gen<'a>(
             let push_value = eval_function_signature(contract, bf)?;
             let push_bytes = push_value.to_hex_with_opcode(evm_version);
             *offset += push_bytes.len() / 2;
-            bytes.push((starting_offset, Bytes(push_bytes)));
+            bytes.push_with_offset(starting_offset, Bytes::Raw(push_bytes));
         }
         BuiltinFunctionKind::EventHash => {
             let push_value = eval_event_hash(contract, bf)?;
             let push_bytes = push_value.to_hex_with_opcode(evm_version);
             *offset += push_bytes.len() / 2;
-            bytes.push((starting_offset, Bytes(push_bytes)));
+            bytes.push_with_offset(starting_offset, Bytes::Raw(push_bytes));
         }
         BuiltinFunctionKind::Error => {
             let push_value = error(contract, bf)?;
             let push_bytes = push_value.to_hex_with_opcode(evm_version);
             *offset += push_bytes.len() / 2;
-            bytes.push((starting_offset, Bytes(push_bytes)));
+            bytes.push_with_offset(starting_offset, Bytes::Raw(push_bytes));
         }
         BuiltinFunctionKind::RightPad => {
             let push_value = builtin_pad(contract, bf, PadDirection::Right)?;
             let push_bytes = push_value.to_hex_with_opcode(evm_version);
             *offset += push_bytes.len() / 2;
-            bytes.push((starting_offset, Bytes(push_bytes)));
+            bytes.push_with_offset(starting_offset, Bytes::Raw(push_bytes));
         }
         BuiltinFunctionKind::LeftPad => {
             return Err(invalid_arguments_error("LeftPad is not supported in a function or macro", &bf.span));
@@ -197,15 +207,13 @@ pub fn builtin_function_gen<'a>(
             // <len (2 bytes)> <contents_code_ptr (2 bytes)> <dest_mem_ptr + 0x20 (2 bytes)>
             // codecopy
             *offset += 17;
-            bytes.push((
+            bytes.push_with_offset(
                 starting_offset,
-                Bytes(format!(
-                    "{}{}{}",
-                    "xx".repeat(14),
-                    first_arg.name.as_ref().unwrap(),
-                    pad_n_bytes(second_arg.name.as_ref().unwrap(), 2)
+                Bytes::DynConstructorArgPlaceholder(DynConstructorArgPlaceholderData::new(
+                    first_arg.name.as_ref().unwrap().to_string(),
+                    pad_n_bytes(second_arg.name.as_ref().unwrap(), 2),
                 )),
-            ));
+            );
         }
         BuiltinFunctionKind::Verbatim => {
             validate_arg_count(bf, 1, "__VERBATIM")?;
@@ -228,13 +236,13 @@ pub fn builtin_function_gen<'a>(
             let push_bytes = hex.to_string();
             *offset += hex.len() / 2;
 
-            bytes.push((starting_offset, Bytes(push_bytes)));
+            bytes.push_with_offset(starting_offset, Bytes::Raw(push_bytes));
         }
         BuiltinFunctionKind::Bytes => {
             let push_value = eval_builtin_bytes(bf)?;
             let push_bytes = push_value.to_hex_with_opcode(evm_version);
             *offset += push_bytes.len() / 2;
-            bytes.push((starting_offset, Bytes(push_bytes)));
+            bytes.push_with_offset(starting_offset, Bytes::Raw(push_bytes));
         }
         BuiltinFunctionKind::AssertPc => {
             validate_arg_count(bf, 1, "__ASSERT_PC")?;
@@ -296,8 +304,8 @@ pub fn builtin_function_gen<'a>(
 
 /// Generates bytecode for the __codesize builtin function
 ///
-/// Returns a tuple of (byte_offset, bytecode_string) containing the size of the specified macro.
-/// Handles circular references by inserting a placeholder ("cccc") that's filled in later.
+/// Returns a tuple of (byte_offset, Bytes variant) containing the size of the specified macro.
+/// Handles circular references by creating a CircularCodesizePlaceholder that's filled in later.
 #[allow(clippy::too_many_arguments)]
 fn codesize<'a>(
     evm_version: &EVMVersion,
@@ -308,7 +316,8 @@ fn codesize<'a>(
     mis: &mut Vec<(usize, MacroInvocation)>,
     circular_codesize_invocations: &mut CircularCodeSizeIndices,
     bf: &BuiltinFunctionCall,
-) -> Result<(usize, String), CodegenError> {
+    relax_jumps: bool,
+) -> Result<(usize, Bytes), CodegenError> {
     let first_arg = extract_single_argument(bf, "__codesize")?;
     let ir_macro = if let Some(m) = contract.find_macro_by_name(first_arg.name.as_ref().unwrap()) {
         m
@@ -336,14 +345,15 @@ fn codesize<'a>(
     // we have adequate information about the macros eventual size.
     // We also need to avoid if the codesize arg is any of the previous macros to
     // avoid a circular reference
-    let (codesize_offset, push_bytes) = if is_previous_parent || macro_def.name.eq(codesize_arg) {
+    let (codesize_offset, bytes_variant) = if is_previous_parent || macro_def.name.eq(codesize_arg) {
         tracing::debug!(target: "codegen", "CIRCULAR CODESIZE INVOCATION DETECTED INJECTING PLACEHOLDER | macro: {}", ir_macro.name);
 
         // Save the invocation for later
         circular_codesize_invocations.insert((codesize_arg.to_string(), *offset));
 
-        // Progress offset by placeholder size
-        (2, "cccc".to_string())
+        // Create a CircularCodesizePlaceholder variant (starts as PUSH1, 2 bytes)
+        let placeholder = Bytes::CircularCodesizePlaceholder(CircularCodesizePlaceholderData::new(codesize_arg.to_string()));
+        (2, placeholder)
     } else {
         // We will still need to recurse to get accurate values
         let res: BytecodeRes = match Codegen::macro_to_bytecode(
@@ -355,6 +365,7 @@ fn codesize<'a>(
             mis,
             ir_macro.name.eq("CONSTRUCTOR"),
             Some(circular_codesize_invocations),
+            relax_jumps,
         ) {
             Ok(r) => r,
             Err(e) => {
@@ -367,12 +378,12 @@ fn codesize<'a>(
             }
         };
 
-        let size = format_even_bytes(format!("{:02x}", (res.bytes.iter().map(|(_, b)| b.0.len()).sum::<usize>() / 2)));
+        let size = format_even_bytes(format!("{:02x}", res.bytes.iter().map(|seg| seg.bytes.len()).sum::<usize>()));
         let push_bytes = format!("{:02x}{size}", 95 + size.len() / 2);
         let offset = push_bytes.len() / 2;
-        (offset, push_bytes)
+        (offset, Bytes::Raw(push_bytes))
     };
-    Ok((codesize_offset, push_bytes))
+    Ok((codesize_offset, bytes_variant))
 }
 
 /// Generates a PushValue for the __ERROR builtin function

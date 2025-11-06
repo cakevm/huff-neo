@@ -498,7 +498,7 @@ impl Contract {
                 let result = match &const_value {
                     ConstVal::Bytes(bytes) => {
                         // Parse hex string to [u8; 32]
-                        Ok(str_to_bytes32(&bytes.0))
+                        Ok(str_to_bytes32(&bytes.as_str()))
                     }
                     ConstVal::Expression(e) => {
                         // Recursively evaluate nested expressions
@@ -751,11 +751,11 @@ impl MacroDefinition {
             match &statement.ty {
                 StatementType::Literal(l) => {
                     let push_bytes = literal_gen(evm_version, l);
-                    inner_irbytes.push(IRBytes { ty: IRByteType::Bytes(Bytes(push_bytes)), span: &statement.span });
+                    inner_irbytes.push(IRBytes { ty: IRByteType::Bytes(Bytes::Raw(push_bytes)), span: &statement.span });
                 }
                 StatementType::Opcode(o) => {
                     let opcode_str = o.string();
-                    inner_irbytes.push(IRBytes { ty: IRByteType::Bytes(Bytes(opcode_str)), span: &statement.span });
+                    inner_irbytes.push(IRBytes { ty: IRByteType::Bytes(Bytes::Raw(opcode_str)), span: &statement.span });
                     // If the opcode is a push that takes a literal value, we need to consume the
                     // next statement, which must be a literal as checked in the parser
                     if o.is_value_push() {
@@ -763,7 +763,8 @@ impl MacroDefinition {
                             Some(Statement { ty: StatementType::Literal(l), span: _ }) => {
                                 let hex_literal: String = bytes32_to_hex_string(l, false);
                                 let prefixed_hex_literal = o.prefix_push_literal(&hex_literal);
-                                inner_irbytes.push(IRBytes { ty: IRByteType::Bytes(Bytes(prefixed_hex_literal)), span: &statement.span });
+                                inner_irbytes
+                                    .push(IRBytes { ty: IRByteType::Bytes(Bytes::Raw(prefixed_hex_literal)), span: &statement.span });
                             }
                             _ => {
                                 // We have a push without a literal - this should be caught by the
@@ -774,7 +775,7 @@ impl MacroDefinition {
                     }
                 }
                 StatementType::Code(c) => {
-                    inner_irbytes.push(IRBytes { ty: IRByteType::Bytes(Bytes(c.to_owned())), span: &statement.span });
+                    inner_irbytes.push(IRBytes { ty: IRByteType::Bytes(Bytes::Raw(c.to_owned())), span: &statement.span });
                 }
                 StatementType::MacroInvocation(mi) => {
                     inner_irbytes.push(IRBytes {

@@ -41,7 +41,7 @@ fn test_jump_table_in_nested_macro() {
     let cg = Codegen::new();
     assert!(cg.artifact.is_none());
 
-    let mbytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+    let mbytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
 
     // PUSH2 0x0007 JUMPDEST PUSH0 PUSH0 RETURN -> 32 bytes, jump dest 3
     // table start is 0x0007
@@ -86,7 +86,7 @@ fn test_tablesize_in_nested_macro() {
     let cg = Codegen::new();
     assert!(cg.artifact.is_none());
 
-    let mbytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+    let mbytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
 
     // PUSH1 0x40 JUMPDEST PUSH1 0x01 RETURN JUMPDEST PUSH1 0x02 RETURN
     // table size is 0x40 = 64 bytes
@@ -130,7 +130,7 @@ fn test_jump_table_nested_args() {
     let cg = Codegen::new();
     assert!(cg.artifact.is_none());
 
-    let mbytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+    let mbytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
 
     // PUSH2 0x0007 JUMPDEST PUSH1 0x01 RETURN -> 32 bytes, jump dest 3
     // table start is 0x0007

@@ -48,7 +48,7 @@ fn test_parses_literal_constant() {
         fsp_constant,
         ConstantDefinition {
             name: "LITERAL".to_string(),
-            value: ConstVal::Bytes(Bytes("0000e1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925".to_string())),
+            value: ConstVal::Bytes(Bytes::Raw("0000e1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925".to_string())),
             span: AstSpan(vec![
                 Span { start: 0, end: 7, file: None },
                 Span { start: 8, end: 16, file: None },

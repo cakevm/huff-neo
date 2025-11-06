@@ -1023,7 +1023,7 @@ fn test_parse_literal_only() {
     let constant = contract.constants.lock().unwrap()[0].clone();
     let expected = ConstantDefinition {
         name: "RESULT".to_string(),
-        value: ConstVal::Bytes(Bytes("10".to_string())),
+        value: ConstVal::Bytes(Bytes::Raw("10".to_string())),
         span: AstSpan(vec![
             Span { start: 0, end: 7, file: None },
             Span { start: 8, end: 16, file: None },

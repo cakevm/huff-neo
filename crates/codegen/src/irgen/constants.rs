@@ -14,7 +14,7 @@ pub fn constant_gen(name: &str, contract: &Contract, ir_byte_span: &AstSpan) -> 
     tracing::info!(target: "codegen", "FOUND CONSTANT DEFINITION: {}", constant.name);
     let push_value = match &constant.value {
         ConstVal::Bytes(bytes) => {
-            let hex_literal = str_to_bytes32(bytes.0.as_str());
+            let hex_literal = str_to_bytes32(&bytes.as_str());
             Some(PushValue::from(hex_literal))
         }
         ConstVal::StoragePointer(sp) => Some(PushValue::from(sp)),
@@ -71,7 +71,7 @@ pub fn evaluate_constant_value(name: &str, contract: &Contract, span: &AstSpan) 
     let constant = lookup_constant(name, contract, span)?;
 
     let literal = match &constant.value {
-        ConstVal::Bytes(bytes) => str_to_bytes32(&bytes.0),
+        ConstVal::Bytes(bytes) => str_to_bytes32(&bytes.as_str()),
         ConstVal::Expression(expr) => {
             tracing::info!(target: "codegen", "EVALUATING CONSTANT EXPRESSION \"{}\" FOR NUMERIC VALUE", constant.name);
             contract.evaluate_constant_expression(expr)?

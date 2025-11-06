@@ -32,7 +32,7 @@ fn test_gracefully_pads_push_override() {
     assert!(cg.artifact.is_none());
 
     // Have the Codegen create the constructor bytecode
-    let (cbytes, has_custom_bootstrap) = Codegen::generate_constructor_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+    let (cbytes, has_custom_bootstrap) = Codegen::generate_constructor_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
     assert_eq!(cbytes, String::from("7f0000000000000000000000000000000000000000000000000000000000000234"));
     assert!(!has_custom_bootstrap);
 }
@@ -65,7 +65,7 @@ fn test_constructs_exact_push_override() {
     assert!(cg.artifact.is_none());
 
     // Have the Codegen create the constructor bytecode
-    let (cbytes, has_custom_bootstrap) = Codegen::generate_constructor_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+    let (cbytes, has_custom_bootstrap) = Codegen::generate_constructor_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
     assert_eq!(cbytes, String::from("6034"));
     assert!(!has_custom_bootstrap);
 }
@@ -98,7 +98,7 @@ fn test_no_push0_override() {
     assert!(cg.artifact.is_none());
 
     // Have the Codegen create the constructor bytecode
-    let (cbytes, has_custom_bootstrap) = Codegen::generate_constructor_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+    let (cbytes, has_custom_bootstrap) = Codegen::generate_constructor_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
     assert_eq!(cbytes, String::from("5f"));
     assert!(!has_custom_bootstrap);
 }
@@ -153,6 +153,6 @@ fn test_literal_to_push0() {
     assert!(cg.artifact.is_none());
 
     // Have the Codegen create the constructor bytecode
-    let cbytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+    let cbytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
     assert_eq!(cbytes, String::from("5f5f5f60005f6001"));
 }

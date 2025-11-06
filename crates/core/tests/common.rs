@@ -16,7 +16,7 @@ pub fn compile_to_bytecode(source: &str) -> Result<String, CodegenError> {
     let mut parser = Parser::new(tokens, None);
     let mut contract = parser.parse().unwrap();
     contract.derive_storage_pointers();
-    Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None)
+    Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false)
 }
 
 /// Compile a Huff source string and return the constructor bytecode
@@ -27,7 +27,7 @@ pub fn compile_to_constructor_bytecode(source: &str) -> Result<(String, bool), C
     let mut parser = Parser::new(tokens, None);
     let mut contract = parser.parse().unwrap();
     contract.derive_storage_pointers();
-    Codegen::generate_constructor_bytecode(&EVMVersion::default(), &contract, None)
+    Codegen::generate_constructor_bytecode(&EVMVersion::default(), &contract, None, false)
 }
 
 /// Compile a Huff source and assert it produces an error of the expected kind

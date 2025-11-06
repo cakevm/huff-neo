@@ -28,6 +28,12 @@ use crate::irgen::prelude::*;
 /// Maximum allowed iterations for compile-time for loops to prevent infinite loops
 const MAX_LOOP_ITERATIONS: usize = 10_000;
 
+/// Maximum number of iterations allowed for the jump relaxation optimization algorithm.
+///
+/// This limit prevents infinite loops in pathological cases where convergence fails,
+/// though typical contracts converge in a few iterations.
+const JUMP_RELAXATION_MAX_ITERATIONS: usize = 20;
+
 /// ### Codegen
 ///
 /// Code Generation Manager responsible for generating bytecode from a
@@ -66,8 +72,9 @@ impl Codegen {
         evm_version: &EVMVersion,
         contract: &Contract,
         alternative_main: Option<String>,
+        relax_jumps: bool,
     ) -> Result<String, CodegenError> {
-        let (bytecode, _source_map) = Self::generate_main_bytecode_with_sourcemap(evm_version, contract, alternative_main)?;
+        let (bytecode, _source_map) = Self::generate_main_bytecode_with_sourcemap(evm_version, contract, alternative_main, relax_jumps)?;
         Ok(bytecode)
     }
 
@@ -76,6 +83,7 @@ impl Codegen {
         evm_version: &EVMVersion,
         contract: &Contract,
         alternative_main: Option<String>,
+        relax_jumps: bool,
     ) -> Result<(String, Vec<SourceMapEntry>), CodegenError> {
         // Expand for loops before any other processing
         let contract = Self::expand_for_loops(contract)?;
@@ -90,8 +98,17 @@ impl Codegen {
         let m_macro = Codegen::get_macro_by_name(&main_macro, &contract)?;
 
         // For each MacroInvocation Statement, recurse into bytecode
-        let bytecode_res: BytecodeRes =
-            Codegen::macro_to_bytecode(evm_version, m_macro, &contract, &mut vec![m_macro], 0, &mut Vec::default(), false, None)?;
+        let bytecode_res: BytecodeRes = Codegen::macro_to_bytecode(
+            evm_version,
+            m_macro,
+            &contract,
+            &mut vec![m_macro],
+            0,
+            &mut Vec::default(),
+            false,
+            None,
+            relax_jumps,
+        )?;
 
         tracing::debug!(target: "codegen", "Generated main bytecode. Appending table bytecode...");
 
@@ -104,9 +121,10 @@ impl Codegen {
         evm_version: &EVMVersion,
         contract: &Contract,
         alternative_constructor: Option<String>,
+        relax_jumps: bool,
     ) -> Result<(String, bool), CodegenError> {
         let ((bytecode, _source_map), has_custom) =
-            Self::generate_constructor_bytecode_with_sourcemap(evm_version, contract, alternative_constructor)?;
+            Self::generate_constructor_bytecode_with_sourcemap(evm_version, contract, alternative_constructor, relax_jumps)?;
         Ok((bytecode, has_custom))
     }
 
@@ -115,6 +133,7 @@ impl Codegen {
         evm_version: &EVMVersion,
         contract: &Contract,
         alternative_constructor: Option<String>,
+        relax_jumps: bool,
     ) -> Result<((String, Vec<SourceMapEntry>), bool), CodegenError> {
         // Expand for loops before any other processing
         let contract = Self::expand_for_loops(contract)?;
@@ -129,11 +148,20 @@ impl Codegen {
         let c_macro = Codegen::get_macro_by_name(&constructor_macro, &contract)?;
 
         // For each MacroInvocation Statement, recurse into bytecode
-        let bytecode_res: BytecodeRes =
-            Codegen::macro_to_bytecode(evm_version, c_macro, &contract, &mut vec![c_macro], 0, &mut Vec::default(), false, None)?;
+        let bytecode_res: BytecodeRes = Codegen::macro_to_bytecode(
+            evm_version,
+            c_macro,
+            &contract,
+            &mut vec![c_macro],
+            0,
+            &mut Vec::default(),
+            false,
+            None,
+            relax_jumps,
+        )?;
 
         // Check if the constructor performs its own code generation
-        let has_custom_bootstrap = bytecode_res.bytes.iter().any(|bytes| bytes.1.0 == *"f3");
+        let has_custom_bootstrap = bytecode_res.bytes.iter().any(|seg| seg.bytes.as_str() == "f3");
 
         tracing::info!(target: "codegen", "Constructor is self-generating: {}", has_custom_bootstrap);
 
@@ -467,7 +495,7 @@ impl Codegen {
                         ConstVal::Bytes(bytes) => bytes.clone(),
                         ConstVal::Expression(expr) => {
                             let literal = contract.evaluate_constant_expression(expr)?;
-                            Bytes(bytes_util::bytes32_to_hex_string(&literal, false))
+                            Bytes::Raw(bytes_util::bytes32_to_hex_string(&literal, false))
                         }
                         _ => {
                             return Err(CodegenError {
@@ -477,7 +505,7 @@ impl Codegen {
                             });
                         }
                     };
-                    byte_code = format!("{byte_code}{}", bytes.0);
+                    byte_code = format!("{byte_code}{}", bytes.as_str());
                 }
                 _ => {
                     return Err(CodegenError {
@@ -522,8 +550,8 @@ impl Codegen {
         let mut source_map = Vec::new();
         let mut program_counter = 0; // PC: byte offset in bytecode
 
-        for (instruction_counter, (_opcode, bytes)) in res.bytes.iter().enumerate() {
-            let instruction_bytecode_length = bytes.0.len() / 2; // Length in bytes (hex string has 2 chars per byte)
+        for (instruction_counter, seg) in res.bytes.iter().enumerate() {
+            let instruction_bytecode_length = seg.bytes.len(); // Length in bytes
 
             // Create source map entry for this instruction
             // Use span information if available, otherwise use zeros (unmapped)
@@ -531,8 +559,8 @@ impl Codegen {
                 // Use the Contract's helper method to map flattened positions to original file positions
                 let (file_id, original_start, original_end) = contract.map_flattened_position_to_source(*start, *end);
 
-                tracing::debug!(target: "codegen", "Source map entry: IC={}, flattened_pos={}..{}, mapped_pos={}..{}, file={}, bytes={}, PC={}, bytecode_len={}, source_len={}", 
-                    instruction_counter, start, end, original_start, original_end, file_id, bytes.0, program_counter, instruction_bytecode_length, original_end - original_start);
+                tracing::debug!(target: "codegen", "Source map entry: IC={}, flattened_pos={}..{}, mapped_pos={}..{}, file={}, bytes={}, PC={}, bytecode_len={}, source_len={}",
+                    instruction_counter, start, end, original_start, original_end, file_id, seg.bytes.as_str(), program_counter, instruction_bytecode_length, original_end - original_start);
                 (original_start, original_end, file_id)
             } else {
                 // No source mapping for this instruction
@@ -552,7 +580,7 @@ impl Codegen {
             program_counter += instruction_bytecode_length; // Advance PC by the bytecode length
         }
 
-        let mut bytecode = res.bytes.into_iter().map(|(_, b)| b.0).collect::<String>();
+        let mut bytecode = res.bytes.into_iter().map(|seg| seg.bytes.as_str().to_string()).collect::<String>();
         let mut table_offsets: HashMap<String, usize> = HashMap::new(); // table name -> bytecode offset
         let mut table_offset = bytecode.len() / 2;
 
@@ -678,9 +706,10 @@ impl Codegen {
         mis: &mut Vec<(usize, MacroInvocation)>,
         recursing_constructor: bool,
         circular_codesize_invocations: Option<&mut CircularCodeSizeIndices>,
+        relax_jumps: bool,
     ) -> Result<BytecodeRes, CodegenError> {
         // Get intermediate bytecode representation of the macro definition
-        let mut bytes: Vec<(usize, Bytes)> = Vec::default();
+        let mut bytes = BytecodeSegments::new();
         let mut spans: Vec<Option<(usize, usize)>> = Vec::default();
         let ir_bytes = macro_def.to_irbytecode(evm_version)?.0;
 
@@ -713,8 +742,8 @@ impl Codegen {
 
             match &ir_byte.ty {
                 IRByteType::Bytes(b) => {
-                    offset += b.0.len() / 2;
-                    bytes.push((starting_offset, b.to_owned()));
+                    offset += b.len(); // len() now returns byte count directly
+                    bytes.push_with_offset(starting_offset, b.to_owned());
                     spans.push(span_info);
                 }
                 IRByteType::Constant(name) => {
@@ -722,7 +751,7 @@ impl Codegen {
                         let push_bytes = push_value.to_hex_with_opcode(evm_version);
                         offset += push_bytes.len() / 2;
                         tracing::debug!(target: "codegen", "OFFSET: {}, PUSH BYTES: {:?}", offset, push_bytes);
-                        bytes.push((starting_offset, Bytes(push_bytes)));
+                        bytes.push_with_offset(starting_offset, Bytes::Raw(push_bytes));
                         spans.push(span_info);
                     } // __NOOP generates no bytecode
                 }
@@ -732,7 +761,7 @@ impl Codegen {
                     if recursing_constructor {
                         continue;
                     }
-                    let (mut push_bytes, mut push_spans) = statement_gen(
+                    let (push_bytes, mut push_spans) = statement_gen(
                         evm_version,
                         s,
                         contract,
@@ -746,11 +775,12 @@ impl Codegen {
                         &mut utilized_tables,
                         circular_codesize_invocations,
                         starting_offset,
+                        relax_jumps,
                     )?;
                     // Use the spans from statement_gen (which preserves nested macro spans)
                     // instead of duplicating the parent's span
                     spans.append(&mut push_spans);
-                    bytes.append(&mut push_bytes);
+                    bytes.extend(push_bytes);
                 }
                 IRByteType::ArgCall(parent_macro_name, arg_name) => {
                     let bytes_before = bytes.len();
@@ -770,6 +800,7 @@ impl Codegen {
                         &mut table_instances,
                         &mut utilized_tables,
                         ir_byte.span,
+                        relax_jumps,
                     )?;
                     // Add span for each byte segment added by bubble_arg_call
                     let bytes_added = bytes.len() - bytes_before;
@@ -812,7 +843,7 @@ impl Codegen {
         }
 
         // Fill JUMPDEST placeholders
-        let (new_bytes, unmatched_jumps) = Codegen::fill_unmatched(bytes.clone(), &jump_table, &label_indices)?;
+        let (new_bytes, unmatched_jumps) = Codegen::fill_unmatched(bytes.clone(), &jump_table, &label_indices, relax_jumps)?;
 
         // Adjust spans if bytes changed
         if new_bytes.len() != bytes.len() {
@@ -841,96 +872,215 @@ impl Codegen {
         Ok(BytecodeRes { bytes, spans, label_indices, unmatched_jumps, table_instances, utilized_tables })
     }
 
-    /// Helper associated function to fill unmatched jump dests.
+    /// Optimize PUSH2 (2-byte) jumps to PUSH1 (1-byte) jumps where possible.
     ///
     /// ## Overview
     ///
-    /// Iterates over the vec of generated bytes. At each index, check if a jump is tracked.
-    /// If one is, find the index of label and inplace the formatted location.
-    /// If there is no label matching the jump, we append the jump to a list of unmatched jumps,
-    /// updating the jump's bytecode index.
+    /// Implements Szymanski's "Start Big and Shrink" algorithm for jump relaxation.
+    /// Iteratively attempts to shrink PUSH2 (2-byte) jumps to PUSH1 (1-byte) jumps
+    /// when the target label is within 0-255 byte range.
     ///
-    /// On success, returns a tuple of generated bytes and unmatched jumps.
-    /// On failure, returns a CodegenError.
-    #[allow(clippy::type_complexity)]
-    pub fn fill_unmatched(
-        bytes: Vec<(usize, Bytes)>,
+    /// The algorithm:
+    /// 1. Starts with all jumps as PUSH2 (2 bytes)
+    /// 2. Reads existing label positions from `label_indices` (populated during codegen)
+    /// 3. Attempts to shrink PUSH2 → PUSH1 where target ≤ 0xFF
+    /// 4. Updates segment byte offsets and repeats until convergence or max iterations
+    ///
+    /// Jump relaxation using iterative offset recalculation ("Start big and shrink" approach)
+    /// for span-dependent instructions. Based on techniques described in:
+    /// Thomas G. Szymanski, "Assembling Code for Machines with Span-Dependent Instructions",
+    /// CACM 21(4), 1978, p. 300-308.
+    /// See also: <https://www.complang.tuwien.ac.at/anton/assembling-span-dependent.html>
+    ///
+    /// This is a simpler iterative variant of Szymanski's original graph-based algorithm.
+    /// It iteratively optimizes jump instructions from PUSH2 to PUSH1 when targets fit
+    /// within 0-255 bytes. Each iteration updates segment byte offsets since shrinking one
+    /// jump affects the position of all subsequent segments.
+    ///
+    /// ## Arguments
+    /// * `bytes` - The bytecode segments containing jump placeholders
+    /// * `jump_table` - Table mapping offsets to Jump metadata
+    /// * `label_indices` - Scoped label positions
+    ///
+    /// ## Returns
+    /// * `Ok(BytecodeSegments)` - Optimized bytecode with relaxed jumps
+    /// * `Err(CodegenError)` - If optimization fails
+    pub fn relax_jump_offsets(
+        mut bytes: BytecodeSegments,
         jump_table: &JumpTable,
         label_indices: &LabelIndices,
-    ) -> Result<(Vec<(usize, Bytes)>, Vec<Jump>), CodegenError> {
-        let mut unmatched_jumps = Jumps::default();
-        let mut result_bytes = Vec::new();
+    ) -> Result<BytecodeSegments, CodegenError> {
+        let mut iteration = 0;
+        let mut changed = true; // Did any changes occur in the last iteration?
 
-        for (code_index, mut formatted_bytes) in bytes {
-            // Check if a jump table exists at `code_index` (starting offset of `b`)
-            if let Some(jt) = jump_table.get(&code_index) {
-                // Loop through jumps inside the found JumpTable
-                for jump in jt {
-                    // Check if the jump label has been defined. If not, add `jump` to the
-                    // unmatched jumps and define its `bytecode_index`
-                    // at `code_index`
-                    match label_indices.get(jump.label.as_str(), jump.scope_depth, &jump.scope_path) {
-                        Ok(Some(jump_index)) => {
-                            // Format the jump index as a 2 byte hex number
-                            let jump_value = format!("{jump_index:04x}");
+        tracing::info!(target: "codegen", "Starting jump relaxation optimization");
 
-                            // Get the bytes before & after the placeholder
-                            let before = &formatted_bytes.0[0..jump.bytecode_index + 2];
-                            let after = &formatted_bytes.0[jump.bytecode_index + 6..];
+        while changed && iteration < JUMP_RELAXATION_MAX_ITERATIONS {
+            changed = false;
+            iteration += 1;
 
-                            // Check if a jump dest placeholder is present
-                            if !&formatted_bytes.0[jump.bytecode_index + 2..jump.bytecode_index + 6].eq("xxxx") {
-                                tracing::error!(
-                                    target: "codegen",
-                                    "JUMP DESTINATION PLACEHOLDER NOT FOUND FOR JUMPLABEL {}",
-                                    jump.label
-                                );
-                            }
+            // Calculate current segment byte offsets (accounting for any size changes)
+            let offsets = bytes.calculate_offsets();
 
-                            // Replace the "xxxx" placeholder with the jump value
-                            formatted_bytes = Bytes(format!("{before}{jump_value}{after}"));
-                        }
-                        Ok(None) => {
-                            // The jump did not have a corresponding label index. Add it to the unmatched jumps vec.
-                            tracing::warn!(
-                                target: "codegen",
-                                "UNMATCHED JUMP LABEL \"{}\" AT BYTECODE INDEX {} (scope_depth={}, scope_path={:?})",
-                                jump.label, code_index, jump.scope_depth, jump.scope_path
-                            );
-                            unmatched_jumps.push(Jump {
-                                label: jump.label.clone(),
-                                bytecode_index: code_index,
-                                span: jump.span.clone(),
-                                scope_depth: jump.scope_depth,
-                                scope_path: jump.scope_path.clone(),
-                            });
-                        }
-                        Err(err_msg) => {
-                            // Check if this is a duplicate label across siblings error
-                            if err_msg.starts_with("DuplicateLabelAcrossSiblings:") {
-                                let label_name = err_msg.strip_prefix("DuplicateLabelAcrossSiblings:").unwrap_or(&jump.label);
-                                return Err(CodegenError {
-                                    kind: CodegenErrorKind::DuplicateLabelAcrossSiblings(label_name.to_string()),
-                                    span: jump.span.clone_box(),
-                                    token: None,
-                                });
-                            } else {
-                                // Other error
-                                return Err(CodegenError {
-                                    kind: CodegenErrorKind::InvalidMacroInvocation(err_msg),
-                                    span: jump.span.clone_box(),
-                                    token: None,
-                                });
+            tracing::debug!(target: "codegen", "Relaxation iteration {} - checking {} segments", iteration, bytes.len());
+
+            // Iterate through all segments looking for jump placeholders
+            for (segment_idx, segment) in bytes.iter_mut().enumerate() {
+                if let Bytes::JumpPlaceholder(ref mut placeholder) = segment.bytes {
+                    // Only optimize if currently PUSH2
+                    if placeholder.push_opcode != PushOpcode::Push2 {
+                        continue;
+                    }
+
+                    // Get the current bytecode offset for this segment
+                    let current_offset = offsets[segment_idx];
+
+                    // Find the corresponding jump in the jump table
+                    if let Some(jumps) = jump_table.get(&segment.offset) {
+                        // Use the first jump (typically there's only one per offset)
+                        if let Some(jump) = jumps.first() {
+                            // Look up the target label's offset
+                            match label_indices.get(&placeholder.label, jump.scope_depth, &jump.scope_path) {
+                                Ok(Some(target_offset)) => {
+                                    // Check if target fits in PUSH1 (0-255)
+                                    if target_offset <= 0xFF {
+                                        tracing::debug!(
+                                            target: "codegen",
+                                            "Shrinking jump to '{}' at offset {} from PUSH2 to PUSH1 (target={})",
+                                            placeholder.label,
+                                            current_offset,
+                                            target_offset
+                                        );
+
+                                        // Shrink from PUSH2 to PUSH1
+                                        placeholder.push_opcode = PushOpcode::Push1;
+                                        changed = true;
+                                    } else {
+                                        tracing::trace!(
+                                            target: "codegen",
+                                            "Jump to '{}' at offset {} remains PUSH2 (target={})",
+                                            placeholder.label,
+                                            current_offset,
+                                            target_offset
+                                        );
+                                    }
+                                }
+                                Ok(None) => {
+                                    // Label not found - will be handled by fill_unmatched later
+                                    tracing::trace!(
+                                        target: "codegen",
+                                        "Label '{}' not found during relaxation, will be resolved later",
+                                        placeholder.label
+                                    );
+                                }
+                                Err(e) => {
+                                    // Error looking up label - will be handled by fill_unmatched later
+                                    tracing::trace!(
+                                        target: "codegen",
+                                        "Error looking up label '{}' during relaxation: {:?}",
+                                        placeholder.label,
+                                        e
+                                    );
+                                }
                             }
                         }
                     }
                 }
             }
 
-            result_bytes.push((code_index, formatted_bytes));
+            if changed {
+                tracing::debug!(target: "codegen", "Iteration {} made changes, will recalculate segment offsets", iteration);
+            }
         }
 
-        Ok((result_bytes, unmatched_jumps))
+        if iteration >= JUMP_RELAXATION_MAX_ITERATIONS {
+            tracing::warn!(target: "codegen", "Jump relaxation hit max iterations ({})", JUMP_RELAXATION_MAX_ITERATIONS);
+        } else {
+            tracing::info!(target: "codegen", "Jump relaxation converged after {} iterations", iteration);
+        }
+
+        Ok(bytes)
+    }
+
+    /// Resolves jump placeholders to their target offsets with optional size optimization.
+    ///
+    /// Replaces jump placeholders with actual bytecode offsets by looking up labels in the
+    /// label index. When `relax_jumps` is enabled, optimizes PUSH2 jumps to PUSH1 where
+    /// targets fit within a single byte (0-255).
+    ///
+    /// ## Arguments
+    ///
+    /// * `bytes` - Bytecode segments with jump placeholders
+    /// * `jump_table` - Jump metadata indexed by bytecode offset
+    /// * `label_indices` - Scoped label positions
+    /// * `relax_jumps` - Enable jump size optimization
+    ///
+    /// ## Returns
+    ///
+    /// Returns resolved bytecode and any unmatched jumps, or an error for label conflicts
+    /// or invalid jump targets.
+    pub fn fill_unmatched(
+        mut bytes: BytecodeSegments,
+        jump_table: &JumpTable,
+        label_indices: &LabelIndices,
+        relax_jumps: bool,
+    ) -> Result<(BytecodeSegments, Vec<Jump>), CodegenError> {
+        // Apply jump relaxation optimization if enabled
+        // This will replace PUSH2 jumps with PUSH1 where possible, before final resolution
+        if relax_jumps {
+            bytes = Self::relax_jump_offsets(bytes, jump_table, label_indices)?;
+        }
+
+        // Resolve all jumps using the new typed approach
+        let unmatched_jumps = bytes.resolve_jumps(jump_table, label_indices).map_err(|label_error| {
+            // Match on the typed error variants
+            match label_error {
+                LabelError::DuplicateLabelAcrossSiblings(label_name) => {
+                    // Find the first jump to get its span
+                    let span = jump_table
+                        .values()
+                        .flat_map(|jumps| jumps.iter())
+                        .find(|jump| jump.label == label_name)
+                        .map(|jump| jump.span.clone_box())
+                        .unwrap_or_else(|| Box::new(AstSpan::default()));
+
+                    CodegenError { kind: CodegenErrorKind::DuplicateLabelAcrossSiblings(label_name), span, token: None }
+                }
+                LabelError::JumpTargetTooLarge { label, target, opcode } => {
+                    // Find the jump to get its span
+                    let span = jump_table
+                        .values()
+                        .flat_map(|jumps| jumps.iter())
+                        .find(|jump| jump.label == label)
+                        .map(|jump| jump.span.clone_box())
+                        .unwrap_or_else(|| Box::new(AstSpan::default()));
+
+                    CodegenError { kind: CodegenErrorKind::JumpTargetTooLarge { label, target, opcode }, span, token: None }
+                }
+                LabelError::DuplicateLabelInScope(label_name) => {
+                    // This shouldn't happen during jump resolution, but handle it anyway
+                    let span = jump_table
+                        .values()
+                        .flat_map(|jumps| jumps.iter())
+                        .find(|jump| jump.label == label_name)
+                        .map(|jump| jump.span.clone_box())
+                        .unwrap_or_else(|| Box::new(AstSpan::default()));
+
+                    CodegenError { kind: CodegenErrorKind::DuplicateLabelInScope(label_name), span, token: None }
+                }
+            }
+        })?;
+
+        // Log unmatched jumps
+        for jump in &unmatched_jumps {
+            tracing::warn!(
+                target: "codegen",
+                "UNMATCHED JUMP LABEL \"{}\" AT BYTECODE INDEX {} (scope_depth={}, scope_path={:?})",
+                jump.label, jump.bytecode_index, jump.scope_depth, jump.scope_path
+            );
+        }
+
+        Ok((bytes, unmatched_jumps))
     }
 
     /// Helper associated function to fill circular codesize invocations.
@@ -947,55 +1097,49 @@ impl Codegen {
     /// On success, returns a tuple of generated bytes.
     /// On failure, returns a CodegenError.
     pub fn fill_circular_codesize_invocations(
-        bytes: Vec<(usize, Bytes)>,
+        mut bytes: BytecodeSegments,
         circular_codesize_invocations: &CircularCodeSizeIndices,
         macro_name: &str,
-    ) -> Result<Vec<(usize, Bytes)>, CodegenError> {
-        // Get the length of the macro
+    ) -> Result<BytecodeSegments, CodegenError> {
+        // Get the number of circular codesize invocations
         let num_invocations = circular_codesize_invocations.len();
         if num_invocations == 0 {
             return Ok(bytes);
         }
 
         tracing::debug!(target: "codegen", "Circular Codesize Invocation: Bytes before expansion: {:#?}", bytes);
-        let length: usize = bytes.iter().map(|(_, b)| b.0.len()).sum::<usize>() / 2;
 
-        // If there are more than 256 opcodes in a macro, we need 2 bytes to represent it
-        // The next threshold is 65536 opcodes which is past the codesize limit
-        let mut offset_increase = 0;
-        if length > 255 {
-            offset_increase = 1;
-        }
-        // Codesize will increase by 1 byte for every codesize that exists
+        // Calculate initial size
+        let length: usize = bytes.iter().map(|seg| seg.bytes.len()).sum::<usize>();
+
+        // Determine if any placeholders will need to grow from PUSH1 to PUSH2
+        // This is needed to calculate the correct final size
+        let offset_increase = if length > 255 { 1 } else { 0 };
+        // Codesize will increase by 1 byte for every codesize that grows to PUSH2
         let extended_length = length + (offset_increase * num_invocations);
 
-        let push_size = format_even_bytes(format!("{extended_length:02x}"));
-        let push_bytes = format!("{:02x}{push_size}", 95 + push_size.len() / 2);
+        // Resolve all circular codesize placeholders with the calculated extended size
+        let growth_offsets = bytes.resolve_circular_codesize(circular_codesize_invocations, macro_name, extended_length);
 
-        // Track the number of bytes added if there is an offset increase with codesize
-        let mut running_increase = 0;
-        let bytes = bytes.into_iter().fold(Vec::default(), |mut acc, (mut code_index, mut formatted_bytes)| {
-            // Check if a jump table exists at `code_index` (starting offset of `b`)
-            if let Some((_, _index)) = circular_codesize_invocations.get(&(macro_name.to_string(), code_index)) {
-                // Check if a jump dest placeholder is present
-                if !&formatted_bytes.0.eq("cccc") {
-                    tracing::error!(
-                        target: "codegen",
-                        "CIRCULAR CODESIZE PLACEHOLDER NOT FOUND"
-                    );
-                }
+        // Apply offset adjustments for segments that come after grown placeholders
+        for segment in bytes.iter_mut() {
+            // Check if any growth happened before this segment
+            let growth_before: usize =
+                growth_offsets.iter().filter(|(growth_offset, _)| *growth_offset < segment.offset).map(|(_, growth)| growth).sum();
 
-                // Replace the "cccc" placeholder with the jump value
-                formatted_bytes = Bytes(push_bytes.to_string());
-                running_increase += offset_increase;
-            } else {
-                // Increase the code index by the number of bytes added past the placeholder
-                code_index += running_increase;
+            if growth_before > 0 {
+                // This segment comes after some growth, adjust its offset
+                segment.offset += growth_before;
             }
+        }
 
-            acc.push((code_index, formatted_bytes));
-            acc
-        });
+        tracing::debug!(
+            target: "codegen",
+            "Circular codesize resolution complete: {} placeholders resolved, {} bytes of growth, final size: {}",
+            num_invocations,
+            growth_offsets.iter().map(|(_, g)| g).sum::<usize>(),
+            extended_length
+        );
 
         Ok(bytes)
     }
@@ -1019,14 +1163,14 @@ impl Codegen {
         jump_table: &mut JumpTable,
         label_indices: &mut LabelIndices,
         table_instances: &mut Jumps,
-        mut bytes: Vec<(usize, Bytes)>,
-    ) -> Result<Vec<(usize, Bytes)>, CodegenError> {
+        mut bytes: BytecodeSegments,
+    ) -> Result<BytecodeSegments, CodegenError> {
         for macro_def in contract.macros.values().filter(|m| m.outlined) {
             // Push the function to the scope
             scope.push(macro_def);
 
             // Add 1 to starting offset to account for the JUMPDEST opcode
-            let mut res = Codegen::macro_to_bytecode(evm_version, macro_def, contract, scope, *offset + 1, mis, false, None)?;
+            let mut res = Codegen::macro_to_bytecode(evm_version, macro_def, contract, scope, *offset + 1, mis, false, None, false)?;
 
             for j in res.unmatched_jumps.iter_mut() {
                 let new_index = j.bytecode_index;
@@ -1038,16 +1182,16 @@ impl Codegen {
             table_instances.extend(res.table_instances);
             label_indices.extend(res.label_indices);
 
-            let macro_code_len = res.bytes.iter().map(|(_, b)| b.0.len()).sum::<usize>() / 2;
+            let macro_code_len = res.bytes.iter().map(|seg| seg.bytes.len()).sum::<usize>();
 
             // Get necessary swap ops to reorder stack
             // PC of the return jumpdest should be above the function's outputs on the stack
             let stack_swaps = (0..macro_def.returns).map(|i| format!("{:02x}", 0x90 + i)).collect::<Vec<_>>();
 
             // Insert JUMPDEST, stack swaps, and final JUMP back to the location of invocation.
-            bytes.push((*offset, Bytes(Opcode::Jumpdest.to_string())));
-            res.bytes.push((*offset + macro_code_len + 1, Bytes(format!("{}{}", stack_swaps.join(""), Opcode::Jump))));
-            bytes = [bytes, res.bytes].concat();
+            bytes.push_with_offset(*offset, Bytes::Raw(Opcode::Jumpdest.to_string()));
+            res.bytes.push_with_offset(*offset + macro_code_len + 1, Bytes::Raw(format!("{}{}", stack_swaps.join(""), Opcode::Jump)));
+            bytes.extend(res.bytes);
             // Add the jumpdest to the beginning of the outlined macro.
             // Outlined macros are at the top-level scope
             let scope_path: Vec<String> = vec![];

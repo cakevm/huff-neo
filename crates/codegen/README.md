@@ -106,7 +106,7 @@ fn example() {
     };
     
     // Generate the main bytecode
-    let main_bytecode: String = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+    let main_bytecode: String = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
     
     // Validate the output bytecode
     assert_eq!(main_bytecode, "5f3560e01c");
@@ -169,7 +169,7 @@ fn example() {
     };
 
     // Generate the constructor bytecode
-    let (constructor_bytecode, has_custom_bootstrap): (String, bool) = Codegen::generate_constructor_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+    let (constructor_bytecode, has_custom_bootstrap): (String, bool) = Codegen::generate_constructor_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
 
     // Validate the output bytecode
     assert_eq!(constructor_bytecode, "5f3560e01c");

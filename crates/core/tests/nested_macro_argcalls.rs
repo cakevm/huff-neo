@@ -36,7 +36,7 @@ fn test_simple_argcall_in_nested_macrocall() {
     let mut contract = parser.parse().unwrap();
     contract.derive_storage_pointers();
 
-    let main_bytecode = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+    let main_bytecode = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
 
     // Expected: PUSH1 0x01
     assert_eq!(main_bytecode.to_lowercase(), "6001");
@@ -71,7 +71,7 @@ fn test_argcall_in_macrocall_with_multiple_args() {
     let mut contract = parser.parse().unwrap();
     contract.derive_storage_pointers();
 
-    let main_bytecode = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+    let main_bytecode = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
 
     // Expected: PUSH1 0x01, PUSH1 0x02, ADD
     assert_eq!(main_bytecode.to_lowercase(), "6001600201");
@@ -106,7 +106,7 @@ fn test_multiple_argcalls_in_macrocall() {
     let mut contract = parser.parse().unwrap();
     contract.derive_storage_pointers();
 
-    let main_bytecode = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+    let main_bytecode = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
 
     // Expected: PUSH1 0x01, PUSH1 0x02, ADD
     assert_eq!(main_bytecode.to_lowercase(), "6001600201");
@@ -145,7 +145,7 @@ fn test_deeply_nested_argcalls() {
     let mut contract = parser.parse().unwrap();
     contract.derive_storage_pointers();
 
-    let main_bytecode = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+    let main_bytecode = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
 
     // Expected: PUSH1 0x01, PUSH1 0x02, ADD, PUSH1 0x00, MSTORE
     assert_eq!(main_bytecode.to_lowercase(), "60016002015f52");
@@ -180,7 +180,7 @@ fn test_argcall_scope_chain_traversal() {
     let mut contract = parser.parse().unwrap();
     contract.derive_storage_pointers();
 
-    let main_bytecode = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+    let main_bytecode = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
 
     // Expected: PUSH1 0x42
     assert_eq!(main_bytecode.to_lowercase(), "6042");
@@ -210,7 +210,7 @@ fn test_undefined_argcall_in_macrocall_errors() {
     let mut contract = parser.parse().unwrap();
     contract.derive_storage_pointers();
 
-    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None);
+    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false);
 
     assert!(result.is_err());
     assert_eq!(result.unwrap_err().kind, CodegenErrorKind::MissingArgumentDefinition(String::from("undefined_arg")));
@@ -244,7 +244,7 @@ fn test_nested_macro_call_with_argcall() {
     let mut contract = parser.parse().unwrap();
     contract.derive_storage_pointers();
 
-    let main_bytecode = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+    let main_bytecode = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
 
     // Expected: PUSH1 0x05, PUSH1 0x02, ADD, PUSH1 0x03, MUL
     assert_eq!(main_bytecode.to_lowercase(), "6005600201600302");
@@ -277,7 +277,7 @@ fn test_nested_macro_with_label_argument() {
     let mut contract = parser.parse().unwrap();
     contract.derive_storage_pointers();
 
-    let main_bytecode = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+    let main_bytecode = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
 
     // Expected: JUMPDEST, PUSH2 0x0000, JUMP, PUSH0, PUSH0, REVERT
     assert_eq!(main_bytecode.to_lowercase(), "5b610000565f5ffd");
@@ -310,7 +310,7 @@ fn test_label_before_nested_macro_invocation() {
     let mut contract = parser.parse().unwrap();
     contract.derive_storage_pointers();
 
-    let main_bytecode = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+    let main_bytecode = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
 
     // Expected: JUMPDEST, PUSH1 0x01, PUSH2 0x0000, JUMP
     assert_eq!(main_bytecode.to_lowercase(), "5b600161000056");
@@ -347,7 +347,7 @@ fn test_deeply_nested_macro_with_label_argument() {
     let mut contract = parser.parse().unwrap();
     contract.derive_storage_pointers();
 
-    let main_bytecode = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+    let main_bytecode = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
 
     // Expected: JUMPDEST, PUSH2 0x0000, JUMP, PUSH0, PUSH0, REVERT
     assert_eq!(main_bytecode.to_lowercase(), "5b610000565f5ffd");

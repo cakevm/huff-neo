@@ -1,5 +1,6 @@
 use crate::Codegen;
 use huff_neo_utils::ast::span::AstSpan;
+use huff_neo_utils::bytecode::{BytecodeSegments, JumpPlaceholderData, PushOpcode};
 use huff_neo_utils::prelude::*;
 use std::str::FromStr;
 
@@ -109,7 +110,7 @@ pub fn bubble_arg_call(
     evm_version: &EVMVersion,
     arg_parent_macro_name: String,
     arg_name: String,
-    bytes: &mut Vec<(usize, Bytes)>,
+    bytes: &mut BytecodeSegments,
     macro_def: &MacroDefinition,
     contract: &Contract,
     scope: &mut [&MacroDefinition],
@@ -120,6 +121,7 @@ pub fn bubble_arg_call(
     table_instances: &mut Jumps,
     utilized_tables: &mut Vec<TableDefinition>,
     span: &AstSpan,
+    relax_jumps: bool,
 ) -> Result<(), CodegenError> {
     tracing::debug!(
         target: "codegen",
@@ -180,9 +182,10 @@ pub fn bubble_arg_call(
                                     &mut new_mis,
                                     false,
                                     None,
+                                    relax_jumps,
                                 ) {
                                     Ok(expanded) => {
-                                        let byte_len: usize = expanded.bytes.iter().map(|(_, b)| b.0.len() / 2).sum();
+                                        let byte_len: usize = expanded.bytes.iter().map(|seg| seg.bytes.len()).sum();
                                         bytes.extend(expanded.bytes);
                                         *offset += byte_len;
 
@@ -228,13 +231,13 @@ pub fn bubble_arg_call(
                         tracing::info!(target: "codegen", "GOT LITERAL {} ARG FROM MACRO INVOCATION", bytes32_to_hex_string(l, false));
                         let push_bytes = literal_gen(evm_version, l);
                         *offset += push_bytes.len() / 2;
-                        bytes.push((starting_offset, Bytes(push_bytes)));
+                        bytes.push_with_offset(starting_offset, Bytes::Raw(push_bytes));
                     }
                     MacroArg::Opcode(o) => {
                         tracing::info!(target: "codegen", "GOT \"{:?}\" OPCODE FROM MACRO INVOCATION", o);
-                        let b = Bytes(o.to_string());
-                        *offset += b.0.len() / 2;
-                        bytes.push((starting_offset, b));
+                        let b = Bytes::Raw(o.to_string());
+                        *offset += b.len();
+                        bytes.push_with_offset(starting_offset, b);
                     }
                     MacroArg::Noop => {
                         tracing::info!(target: "codegen", "GOT __NOOP ARG FROM MACRO INVOCATION - GENERATING NO BYTECODE");
@@ -277,6 +280,7 @@ pub fn bubble_arg_call(
                                 table_instances,
                                 utilized_tables,
                                 arg_span,
+                                relax_jumps,
                             )
                         } else {
                             bubble_arg_call(
@@ -293,6 +297,7 @@ pub fn bubble_arg_call(
                                 table_instances,
                                 utilized_tables,
                                 span,
+                                relax_jumps,
                             )
                         };
                     }
@@ -312,7 +317,7 @@ pub fn bubble_arg_call(
                             tracing::info!(target: "codegen", "ARGCALL IS CONSTANT: {:?}", const_value);
                             let push_bytes = match &const_value {
                                 ConstVal::Bytes(bytes) => {
-                                    let hex_literal: String = bytes.clone().0;
+                                    let hex_literal: String = bytes.as_str().to_string();
                                     format!("{:02x}{hex_literal}", 95 + hex_literal.len() / 2)
                                 }
                                 ConstVal::StoragePointer(sp) => {
@@ -346,17 +351,20 @@ pub fn bubble_arg_call(
                             };
                             *offset += push_bytes.len() / 2;
                             tracing::info!(target: "codegen", "OFFSET: {}, PUSH BYTES: {:?}", offset, push_bytes);
-                            bytes.push((starting_offset, Bytes(push_bytes)));
+                            bytes.push_with_offset(starting_offset, Bytes::Raw(push_bytes));
                         } else if let Ok(o) = Opcode::from_str(iden) {
                             tracing::debug!(target: "codegen", "Found Opcode: {}", o);
-                            let b = Bytes(o.to_string());
-                            *offset += b.0.len() / 2;
-                            bytes.push((starting_offset, b));
+                            let b = Bytes::Raw(o.to_string());
+                            *offset += b.len();
+                            bytes.push_with_offset(starting_offset, b);
                         } else {
                             tracing::debug!(target: "codegen", "Found Label Call: {}", iden);
 
                             // This should be equivalent to a label call.
-                            bytes.push((*offset, Bytes(format!("{}xxxx", Opcode::Push2))));
+                            bytes.push_with_offset(
+                                *offset,
+                                Bytes::JumpPlaceholder(JumpPlaceholderData::new(iden.to_owned(), PushOpcode::Push2, String::new())),
+                            );
 
                             let (scope_path, scope_depth) = calculate_label_scope(scope, mis);
                             jump_table.insert(
@@ -399,9 +407,10 @@ pub fn bubble_arg_call(
                                         &mut new_mis,
                                         false,
                                         None,
+                                        relax_jumps,
                                     ) {
                                         Ok(expanded_macro) => {
-                                            let byte_len: usize = expanded_macro.bytes.iter().map(|(_, b)| b.0.len() / 2).sum();
+                                            let byte_len: usize = expanded_macro.bytes.iter().map(|seg| seg.bytes.len()).sum();
                                             bytes.extend(expanded_macro.bytes);
                                             *offset += byte_len;
 
@@ -457,9 +466,10 @@ pub fn bubble_arg_call(
                                     &mut new_mis,
                                     false,
                                     None,
+                                    relax_jumps,
                                 ) {
                                     Ok(expanded_macro) => {
-                                        let byte_len: usize = expanded_macro.bytes.iter().map(|(_, b)| b.0.len() / 2).sum();
+                                        let byte_len: usize = expanded_macro.bytes.iter().map(|seg| seg.bytes.len()).sum();
                                         bytes.extend(expanded_macro.bytes);
                                         *offset += byte_len;
 
@@ -517,9 +527,10 @@ pub fn bubble_arg_call(
                                     &mut new_mis,
                                     false,
                                     None,
+                                    relax_jumps,
                                 ) {
                                     Ok(expanded_macro) => {
-                                        let byte_len: usize = expanded_macro.bytes.iter().map(|(_, b)| b.0.len() / 2).sum();
+                                        let byte_len: usize = expanded_macro.bytes.iter().map(|seg| seg.bytes.len()).sum();
                                         bytes.extend(expanded_macro.bytes);
                                         *offset += byte_len;
 
@@ -615,6 +626,7 @@ pub fn bubble_arg_call(
                     table_instances,
                     utilized_tables,
                     span,
+                    relax_jumps,
                 );
             } else {
                 // No parent scope or at the top level - this is truly an undefined argument
@@ -638,7 +650,10 @@ pub fn bubble_arg_call(
             mis.last().map(|mi| mi.0).unwrap_or_else(|| 0),
             vec![Jump { label: arg_name.to_owned(), bytecode_index: 0, span: new_span, scope_depth, scope_path }],
         );
-        bytes.push((*offset, Bytes(format!("{}xxxx", Opcode::Push2))));
+        bytes.push_with_offset(
+            *offset,
+            Bytes::JumpPlaceholder(JumpPlaceholderData::new(arg_name.to_owned(), PushOpcode::Push2, String::new())),
+        );
         *offset += 3;
     }
 

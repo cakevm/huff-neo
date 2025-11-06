@@ -65,7 +65,7 @@ fn test_tablestart_builtin() {
     assert!(cg.artifact.is_none());
 
     // Have the Codegen create the constructor bytecode
-    let (cbytes, custom_bootstrap) = Codegen::generate_constructor_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+    let (cbytes, custom_bootstrap) = Codegen::generate_constructor_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
     assert_eq!(
         cbytes,
         String::from(
@@ -134,7 +134,7 @@ fn test_jump_table_exhaustive_usage() {
     assert!(cg.artifact.is_none());
 
     // Have the Codegen create the constructor bytecode
-    let mbytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+    let mbytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
     assert_eq!(
         mbytes,
         String::from(
@@ -199,7 +199,7 @@ fn test_jump_table_packed_exhaustive_usage() {
     assert!(cg.artifact.is_none());
 
     // Have the Codegen create the main macro bytecode
-    let mbytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+    let mbytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
     assert_eq!(
         mbytes,
         String::from(
@@ -271,7 +271,7 @@ fn test_label_clashing() {
     assert!(cg.artifact.is_none());
 
     // Have the Codegen create the main macro bytecode
-    let mbytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+    let mbytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
     assert_eq!(
         mbytes,
         String::from(

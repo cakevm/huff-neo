@@ -34,16 +34,16 @@ fn test_erc721_compile() {
     // Create main and constructor bytecode using the paris compatible evm version
     let paris_evm = EVMVersion::new(SupportedEVMVersions::Paris);
 
-    let paris_main_bytecode = Codegen::generate_main_bytecode(&paris_evm, &contract, None).unwrap();
+    let paris_main_bytecode = Codegen::generate_main_bytecode(&paris_evm, &contract, None, false).unwrap();
     let (paris_constructor_bytecode, paris_has_custom_bootstrap) =
-        Codegen::generate_constructor_bytecode(&paris_evm, &contract, None).unwrap();
+        Codegen::generate_constructor_bytecode(&paris_evm, &contract, None, false).unwrap();
 
     // Create main and constructor bytecode using the shanghai compatible evm version
     let shanghai_evm = EVMVersion::new(SupportedEVMVersions::Shanghai);
 
-    let shanghai_main_bytecode = Codegen::generate_main_bytecode(&shanghai_evm, &contract, None).unwrap();
+    let shanghai_main_bytecode = Codegen::generate_main_bytecode(&shanghai_evm, &contract, None, false).unwrap();
     let (shanghai_constructor_bytecode, has_custom_bootstrap) =
-        Codegen::generate_constructor_bytecode(&shanghai_evm, &contract, None).unwrap();
+        Codegen::generate_constructor_bytecode(&shanghai_evm, &contract, None, false).unwrap();
 
     // Churn
     let mut cg = Codegen::new();

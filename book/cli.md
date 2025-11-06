@@ -30,7 +30,6 @@ OPTIONS:
     -s, --source-path <SOURCE>            The contracts source path [default: ./contracts]
     -v, --verbose                         Verbose output
     -V, --version                         Print version information
-    -z, --optimize                        Optimize compilation [WIP]
 
 SUBCOMMANDS:
     help    Print this message or the help of the given subcommand(s)
@@ -165,10 +164,6 @@ Example:
 ```shell
 hnc ./src/ERC20.huff -v
 ```
-
-### `-z` Optimize
-
-Not yet implemented in [the compiler](https://github.com/cakevm/huff-neo).
 
 ## Subcommands
 

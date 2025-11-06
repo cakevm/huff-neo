@@ -38,7 +38,7 @@ fn test_code_table_multiple_linex() {
     assert!(cg.artifact.is_none());
 
     // Have the Codegen create the constructor bytecode
-    let mbytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+    let mbytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
 
     // 60 = PUSH1, 06 = 6 bytes table size, 61 = PUSH2, 0005 = 5 bytes table start
     assert_eq!(mbytes, "60 06 61 0005 1234 deadbeef".replace(" ", ""));
@@ -77,7 +77,7 @@ fn test_code_table_with_func_sig() {
     assert!(cg.artifact.is_none());
 
     // Have the Codegen create the constructor bytecode
-    let mbytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+    let mbytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
 
     // 60 = PUSH1, 08 = 8 bytes table size, 61 = PUSH2, 0005 = 5 bytes table start, a9059cbb = transfer(address,uint256)
     assert_eq!(mbytes, "60 08 61 0005 a9059cbb deadbeef".replace(" ", ""));
@@ -116,7 +116,7 @@ fn test_code_table_constant() {
     assert!(cg.artifact.is_none());
 
     // Have the Codegen create the constructor bytecode
-    let mbytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+    let mbytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
 
     // 60 = PUSH1, 14 = 20 bytes table size, 61 = PUSH2, 0005 = 5 bytes table start
     assert_eq!(mbytes, "60 14 61 0005 0101010101010101010101010101010101010101".replace(" ", ""));
@@ -154,7 +154,7 @@ fn test_code_table_leftpad() {
     assert!(cg.artifact.is_none());
 
     // Have the Codegen create the constructor bytecode
-    let mbytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+    let mbytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
 
     // 60 = PUSH1, 20 = 32 bytes table size, 61 = PUSH2, 0005 = 5 bytes table start
     assert_eq!(mbytes, "60 20 61 0005 0000000000000000000000000000000000000000000000000000000000000123".replace(" ", ""));
@@ -193,7 +193,7 @@ fn test_code_table_constant_with_leading_zeros() {
     assert!(cg.artifact.is_none());
 
     // Have the Codegen create the constructor bytecode
-    let mbytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+    let mbytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
 
     // 60 = PUSH1, 04 = 4 bytes table size, 61 = PUSH2, 0005 = 5 bytes table start
     assert_eq!(mbytes, "60 04 61 0005 00000001".replace(" ", ""));
@@ -231,7 +231,7 @@ fn test_code_table_with_right_pad_func_sig() {
     assert!(cg.artifact.is_none());
 
     // Have the Codegen create the constructor bytecode
-    let mbytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+    let mbytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
 
     // 60 = PUSH1, 20 = 32 bytes table size, 61 = PUSH2, 0005 = 5 bytes table start, a9059cbb = transfer(address,uint256)
     assert_eq!(mbytes, "60 20 61 0005 a9059cbb00000000000000000000000000000000000000000000000000000000".replace(" ", ""));
@@ -274,7 +274,7 @@ fn test_code_table_all_features() {
     assert!(cg.artifact.is_none());
 
     // Have the Codegen create the constructor bytecode
-    let mbytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+    let mbytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
 
     // 60 = PUSH1, 78 = 120 bytes table size (32 + 4 + 20), 61 = PUSH2, 0005 = 5 bytes table start, a9059cbb = transfer(address,uint256)
     assert_eq!(
@@ -322,7 +322,7 @@ fn test_reuse_code_table_multiple_times() {
     assert!(cg.artifact.is_none());
 
     // Have the Codegen create the constructor bytecode
-    let mbytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+    let mbytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
 
     // Two times: 60 = PUSH1, 02 = 2 bytes table size, 61 = PUSH2, 000a = 10 bytes table start
     // Plus the 0x1234
@@ -366,7 +366,7 @@ fn test_reuse_code_table_multiple_times_macro() {
     assert!(cg.artifact.is_none());
 
     // Have the Codegen create the constructor bytecode
-    let mbytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+    let mbytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
 
     // Two times: 60 = PUSH1, 02 = 2 bytes table size, 61 = PUSH2, 000a = 10 bytes table start
     // Plus the 0x1234

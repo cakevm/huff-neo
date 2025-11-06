@@ -29,7 +29,7 @@ fn test_simple_macro_as_argument() {
     let mut contract = parser.parse().unwrap();
     contract.derive_storage_pointers();
 
-    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None);
+    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false);
 
     assert!(result.is_ok());
 
@@ -72,7 +72,7 @@ fn test_multiple_macro_arguments() {
     let mut contract = parser.parse().unwrap();
     contract.derive_storage_pointers();
 
-    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None);
+    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false);
 
     assert!(result.is_ok());
 
@@ -108,7 +108,7 @@ fn test_macro_arg_with_parameters() {
     let mut contract = parser.parse().unwrap();
     contract.derive_storage_pointers();
 
-    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None);
+    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false);
 
     assert!(result.is_ok());
 
@@ -148,7 +148,7 @@ fn test_nested_macro_as_arg() {
     let mut contract = parser.parse().unwrap();
     contract.derive_storage_pointers();
 
-    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None);
+    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false);
 
     assert!(result.is_ok());
 
@@ -198,7 +198,7 @@ fn test_conditional_macro_selection() {
     let mut contract = parser.parse().unwrap();
     contract.derive_storage_pointers();
 
-    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None);
+    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false);
 
     assert!(result.is_ok());
 

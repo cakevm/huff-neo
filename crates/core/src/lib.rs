@@ -76,14 +76,14 @@ pub struct Compiler<'a, 'l> {
     pub construct_args: Option<Vec<String>>,
     /// Constant Overrides
     pub constant_overrides: Option<BTreeMap<&'a str, Bytes>>,
-    /// Whether to optimize compilation or not.
-    pub optimize: bool,
     /// Generate and log bytecode
     pub bytecode: bool,
     /// Whether to check cached artifacts
     pub cached: bool,
     /// The implementation of a FileReader
     pub file_provider: Arc<dyn FileProvider>,
+    /// Whether to apply jump relaxation optimization
+    pub relax_jumps: bool,
 }
 
 impl<'a, 'l> Compiler<'a, 'l> {
@@ -111,10 +111,10 @@ impl<'a, 'l> Compiler<'a, 'l> {
             alternative_constructor,
             construct_args,
             constant_overrides,
-            optimize: false,
             bytecode: false,
             cached,
             file_provider: Arc::new(FileSystemFileProvider {}),
+            relax_jumps: false,
         }
     }
 
@@ -142,10 +142,10 @@ impl<'a, 'l> Compiler<'a, 'l> {
             alternative_constructor,
             construct_args,
             constant_overrides,
-            optimize: false,
             bytecode: false,
             cached: false,
             file_provider: Arc::new(InMemoryFileProvider::new(file_sources)),
+            relax_jumps: false,
         }
     }
 
@@ -478,35 +478,44 @@ impl<'a, 'l> Compiler<'a, 'l> {
 
         // Primary Bytecode Generation
         let mut cg = Codegen::new();
-        let (main_bytecode, main_source_map) =
-            match Codegen::generate_main_bytecode_with_sourcemap(self.evm_version, &contract, self.alternative_main.clone()) {
-                Ok(result) => result,
-                Err(mut e) => {
-                    tracing::error!(target: "core", "FAILED TO GENERATE MAIN BYTECODE FOR CONTRACT");
-                    // Add File Source to Span
-                    e.span = AstSpan(
-                        e.span
-                            .0
-                            .into_iter()
-                            .map(|mut s| {
-                                if s.file.is_none() {
-                                    s.file = Some(Arc::clone(&file));
-                                }
-                                s
-                            })
-                            .collect::<Vec<Span>>(),
-                    )
-                    .boxed();
-                    tracing::error!(target: "core", "Roll Failed with CodegenError: {:?}", e.kind);
-                    return Err(CompilerError::CodegenError(e));
-                }
-            };
+        let (main_bytecode, main_source_map) = match Codegen::generate_main_bytecode_with_sourcemap(
+            self.evm_version,
+            &contract,
+            self.alternative_main.clone(),
+            self.relax_jumps,
+        ) {
+            Ok(result) => result,
+            Err(mut e) => {
+                tracing::error!(target: "core", "FAILED TO GENERATE MAIN BYTECODE FOR CONTRACT");
+                // Add File Source to Span
+                e.span = AstSpan(
+                    e.span
+                        .0
+                        .into_iter()
+                        .map(|mut s| {
+                            if s.file.is_none() {
+                                s.file = Some(Arc::clone(&file));
+                            }
+                            s
+                        })
+                        .collect::<Vec<Span>>(),
+                )
+                .boxed();
+                tracing::error!(target: "core", "Roll Failed with CodegenError: {:?}", e.kind);
+                return Err(CompilerError::CodegenError(e));
+            }
+        };
         tracing::info!(target: "core", "MAIN BYTECODE GENERATED [{}]", main_bytecode);
 
         // Generate Constructor Bytecode
         let inputs = self.get_constructor_args();
         let ((constructor_bytecode, constructor_source_map), has_custom_bootstrap) =
-            match Codegen::generate_constructor_bytecode_with_sourcemap(self.evm_version, &contract, self.alternative_constructor.clone()) {
+            match Codegen::generate_constructor_bytecode_with_sourcemap(
+                self.evm_version,
+                &contract,
+                self.alternative_constructor.clone(),
+                self.relax_jumps,
+            ) {
                 Ok(result) => result,
                 Err(mut e) => {
                     // Return any errors except if the inputs is empty and the constructor

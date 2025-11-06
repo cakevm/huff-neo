@@ -37,7 +37,7 @@ fn test_same_named_args_simple() {
     let mut contract = parser.parse().unwrap();
     contract.derive_storage_pointers();
 
-    let main_bytecode = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+    let main_bytecode = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
 
     // MUL processes <b> first (0x02), then <a> (which evaluates ADD)
     // Result: PUSH1 0x02, PUSH1 0x03, PUSH1 0x01, ADD, MUL
@@ -75,7 +75,7 @@ fn test_same_named_args_complex_nesting() {
     let mut contract = parser.parse().unwrap();
     contract.derive_storage_pointers();
 
-    let main_bytecode = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+    let main_bytecode = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
 
     // EQUAL processes <b> first (0x03), then <a> (which evaluates ADD)
     // Result: PUSH1 0x03, PUSH1 0x02, PUSH1 0x01, ADD, EQ
@@ -114,7 +114,7 @@ fn test_different_named_args_equivalent() {
     let mut contract = parser.parse().unwrap();
     contract.derive_storage_pointers();
 
-    let main_bytecode = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+    let main_bytecode = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
 
     // Should produce the exact same bytecode as the same-named version
     assert_eq!(main_bytecode.to_lowercase(), "6003600260010114");
@@ -152,7 +152,7 @@ fn test_mixed_same_and_different_names() {
     let mut contract = parser.parse().unwrap();
     contract.derive_storage_pointers();
 
-    let main_bytecode = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+    let main_bytecode = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
 
     // SUB(<a>, <b>) processes <a> first (ADD expression), then <b> (LOAD(0x02))
     // Result: PUSH1 0x05, PUSH1 0x10, ADD, PUSH1 0x02, SUB
@@ -187,7 +187,7 @@ fn test_deeply_nested_same_names() {
     let mut contract = parser.parse().unwrap();
     contract.derive_storage_pointers();
 
-    let main_bytecode = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+    let main_bytecode = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
 
     // Expected: PUSH1 0x07, PUSH1 0x08, ADD
     assert_eq!(main_bytecode.to_lowercase(), "6007600801");

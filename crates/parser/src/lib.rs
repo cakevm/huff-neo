@@ -397,7 +397,7 @@ impl Parser {
             // Simple hex literal without any operators - preserve original byte length
             TokenKind::Bytes(hex_str) if !self.is_expression_context() => {
                 self.consume();
-                ConstVal::Bytes(Bytes(hex_str))
+                ConstVal::Bytes(Bytes::Raw(hex_str))
             }
             // Handle arithmetic expressions (including hex literals that are part of expressions)
             TokenKind::Literal(_) | TokenKind::Bytes(_) | TokenKind::OpenParen | TokenKind::Sub | TokenKind::OpenBracket => {
@@ -661,6 +661,23 @@ impl Parser {
                             statements.push(Statement { ty: StatementType::LabelCall(ident_str), span: AstSpan(curr_spans) });
                         }
                     }
+                }
+                // Allow keywords (if/else/for) to be used as label names
+                // Only match when NOT followed by control flow syntax '(' or '{'
+                TokenKind::If | TokenKind::Else | TokenKind::For if !matches!(self.peek(), Some(t) if matches!(t.kind, TokenKind::OpenParen | TokenKind::OpenBrace)) =>
+                {
+                    let keyword_str = match &self.current_token.kind {
+                        TokenKind::If => "if",
+                        TokenKind::Else => "else",
+                        TokenKind::For => "for",
+                        _ => unreachable!(),
+                    };
+                    let curr_spans = vec![self.current_token.span.clone()];
+                    tracing::info!(target: "parser", "PARSING MACRO BODY: [KEYWORD AS LABEL: {}]", keyword_str);
+                    self.consume();
+                    // These are treated as label calls (not control flow) when used as identifiers
+                    tracing::info!(target: "parser", "LABEL CALL TO: {}", keyword_str);
+                    statements.push(Statement { ty: StatementType::LabelCall(keyword_str.to_string()), span: AstSpan(curr_spans) });
                 }
                 TokenKind::Label(l) => {
                     let mut curr_spans = vec![self.current_token.span.clone()];
@@ -1084,7 +1101,11 @@ impl Parser {
     pub fn parse_label(&mut self, parent_macro_name: String) -> Result<Vec<Statement>, ParserError> {
         let mut statements: Vec<Statement> = Vec::new();
         self.match_kind(TokenKind::Colon)?;
-        while !self.check(TokenKind::Label("NEXT_LABEL".to_string())) && !self.check(TokenKind::CloseBrace) {
+        while !self.check(TokenKind::Label("NEXT_LABEL".to_string()))
+            && !self.check(TokenKind::CloseBrace)
+            && !self.check(TokenKind::For)
+            && !self.check(TokenKind::If)
+        {
             match self.current_token.kind.clone() {
                 TokenKind::Literal(val) => {
                     let curr_spans = vec![self.current_token.span.clone()];
@@ -1176,6 +1197,23 @@ impl Parser {
                     tracing::info!(target: "parser", "PARSING LABEL BODY: [__NOOP] - Skipping (no bytecode)");
                     self.consume();
                     // Don't push any statement - __NOOP generates no bytecode
+                }
+                // Allow keywords (if/else/for) to be used as label names in label bodies
+                // Only match when NOT followed by control flow syntax '(' or '{'
+                TokenKind::If | TokenKind::Else | TokenKind::For if !matches!(self.peek(), Some(t) if matches!(t.kind, TokenKind::OpenParen | TokenKind::OpenBrace)) =>
+                {
+                    let keyword_str = match &self.current_token.kind {
+                        TokenKind::If => "if",
+                        TokenKind::Else => "else",
+                        TokenKind::For => "for",
+                        _ => unreachable!(),
+                    };
+                    let curr_spans = vec![self.current_token.span.clone()];
+                    tracing::info!(target: "parser", "PARSING LABEL BODY: [KEYWORD AS LABEL: {}]", keyword_str);
+                    self.consume();
+                    // These are treated as label calls (not control flow) when used as identifiers
+                    tracing::info!(target: "parser", "LABEL CALL TO: {}", keyword_str);
+                    statements.push(Statement { ty: StatementType::LabelCall(keyword_str.to_string()), span: AstSpan(curr_spans) });
                 }
                 kind => {
                     tracing::error!(target: "parser", "TOKEN MISMATCH - LABEL BODY: {}", kind);

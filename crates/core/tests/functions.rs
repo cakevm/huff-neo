@@ -112,7 +112,7 @@ fn test_function() {
     assert!(cg.artifact.is_none());
 
     // Have the Codegen create the runtime bytecode
-    let rbytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+    let rbytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
     // Churn
     let mut cg = Codegen::new();
     let artifact = cg.churn(Arc::clone(&Arc::new(FileSource::default())), vec![], &rbytes, "", false, None, None).unwrap();
@@ -210,7 +210,7 @@ fn test_nested_function() {
     assert!(cg.artifact.is_none());
 
     // Have the Codegen create the runtime bytecode
-    let rbytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+    let rbytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
     // Churn
     let mut cg = Codegen::new();
     let artifact = cg.churn(Arc::clone(&Arc::new(FileSource::default())), vec![], &rbytes, "", false, None, None).unwrap();

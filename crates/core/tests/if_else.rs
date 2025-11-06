@@ -624,3 +624,69 @@ fn test_if_with_constant_arithmetic() {
     let expected = "60ff";
     assert_eq!(bytecode.to_lowercase(), expected.to_lowercase());
 }
+
+#[test]
+fn test_if_else_after_label() {
+    // Test that if/else can appear at macro body level after labels
+    let source = r#"
+        #define constant CONDITION = 0x01
+
+        #define macro MAIN() = takes(0) returns(0) {
+            start:
+                0x01
+                if ([CONDITION]) {
+                    0xaa
+                } else {
+                    0xbb
+                }
+            end:
+                0xff
+        }
+    "#;
+
+    let bytecode = compile_to_bytecode(source).unwrap();
+
+    // Expected bytecode: JUMPDEST (start label), PUSH1 0x01, PUSH1 0xaa (true branch), JUMPDEST (end label), PUSH1 0xff
+    // Since CONDITION = 0x01 (true), should compile the true branch
+    let expected = "5b 6001 60aa 5b 60ff";
+    assert_eq!(bytecode.to_lowercase().replace(" ", ""), expected.to_lowercase().replace(" ", ""));
+}
+
+#[test]
+fn test_keywords_as_labels() {
+    // Test that if, else, and for can be used as label names
+    // with jumps to each, alongside control flow statements
+    let source = r#"
+        #define constant CONDITION = 0x01
+
+        #define macro MAIN() = takes(0) returns(0) {
+            // Jump to 'for' label unconditionally
+            for jump
+
+            if:                     // 'if' label definition
+                0xAA
+                // Jump to 'else' label if condition
+                [CONDITION] else jumpi
+                stop
+
+            else:                   // 'else' label definition
+                0xBB
+                stop
+
+            for:                    // 'for' label definition
+                0xCC
+                // Jump to 'if' label
+                if jump
+        }
+    "#;
+
+    let bytecode = compile_to_bytecode(source).unwrap();
+
+    // Expected bytecode breakdown:
+    // PUSH2 0x0012 (for label address), JUMP
+    // JUMPDEST (if:), PUSH1 0xAA, PUSH1 0x01 (CONDITION), PUSH2 0x000e (else label), JUMPI, STOP
+    // JUMPDEST (else:), PUSH1 0xBB, STOP
+    // JUMPDEST (for:), PUSH1 0xCC, PUSH2 0x0004 (if label), JUMP
+    let expected = "610012565b60aa600161000e57005b60bb005b60cc61000456";
+    assert_eq!(bytecode.to_lowercase(), expected.to_lowercase());
+}

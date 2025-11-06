@@ -35,7 +35,7 @@ fn test_builtin_rightpad_bytes() {
     assert!(cg.artifact.is_none());
 
     // Have Codegen create the runtime bytecode
-    let r_bytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+    let r_bytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
     // PUSH4 = 0x63, `transfer(address,uint256) signature = 0xa9059cbb
     assert_eq!(&r_bytes, "63a9059cbb");
 }
@@ -60,7 +60,7 @@ fn test_direct_circular_constant_dependency() {
 
     contract.derive_storage_pointers();
 
-    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None);
+    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false);
 
     // Should fail with circular constant dependency error
     assert!(result.is_err());
@@ -89,7 +89,7 @@ fn test_indirect_circular_constant_dependency() {
 
     contract.derive_storage_pointers();
 
-    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None);
+    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false);
 
     // Should fail with circular constant dependency error
     assert!(result.is_err());
@@ -116,7 +116,7 @@ fn test_self_referencing_constant() {
 
     contract.derive_storage_pointers();
 
-    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None);
+    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false);
 
     // Should fail with circular constant dependency error
     assert!(result.is_err());
@@ -145,7 +145,7 @@ fn test_valid_constant_references() {
 
     contract.derive_storage_pointers();
 
-    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None);
+    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false);
 
     // Should succeed
     assert!(result.is_ok());
@@ -178,7 +178,7 @@ fn test_circular_dependency_in_constructor() {
 
     contract.derive_storage_pointers();
 
-    let result = Codegen::generate_constructor_bytecode(&EVMVersion::default(), &contract, None);
+    let result = Codegen::generate_constructor_bytecode(&EVMVersion::default(), &contract, None, false);
 
     // Should fail with circular constant dependency error
     assert!(result.is_err());
