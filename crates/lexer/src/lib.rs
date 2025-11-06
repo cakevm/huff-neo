@@ -269,7 +269,7 @@ impl<'a> Lexer<'a> {
                     }
 
                     // Syntax sugar: true evaluates to 0x01, false evaluates to 0x00
-                    if matches!(self.context_stack.top(), &Context::MacroBody | &Context::ForLoopBody | &Context::Constant)
+                    if matches!(self.context_stack.top(), &Context::MacroBody | &Context::ForLoopBody | &Context::Constant | &Context::MacroArgs)
                         && !self.checked_lookback(TokenKind::Constant) // allow to use `true` and `false` as identifiers
                         && matches!(word.as_str(), "true" | "false")
                     {

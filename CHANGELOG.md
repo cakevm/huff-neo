@@ -3,6 +3,9 @@
 # Huff Neo Compiler changelog
 
 ## Unreleased
+- Add support for `true` and `false` boolean literals in if conditions and macro arguments.
+  - `true` evaluates to `0x01`, `false` evaluates to `0x00`.
+  - Example: `if (true) { 0xAA } else { 0xBB }`
 
 ## [1.5.3] - 2025-11-06
 - Introducing `--relax-jumps` CLI flag to optimize jump instructions from PUSH2 to PUSH1.

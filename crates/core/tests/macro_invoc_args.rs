@@ -1488,3 +1488,73 @@ fn test_nested_argcall_in_macrocall_with_label() {
     let expected_bytecode = "5b";
     assert_eq!(main_bytecode.to_lowercase(), expected_bytecode.to_lowercase());
 }
+
+#[test]
+fn test_true_false_as_macro_args() {
+    // Test passing true and false boolean literals as macro arguments
+    let source = r#"
+        #define macro USE_VALUE(val) = takes(0) returns(0) {
+            <val>
+        }
+
+        #define macro MAIN() = takes(0) returns(0) {
+            USE_VALUE(true)
+            USE_VALUE(false)
+        }
+    "#;
+
+    // Lex + Parse
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    let evm_version = EVMVersion::default();
+
+    // Create main bytecode
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None, false).unwrap();
+
+    // Expected bytecode: PUSH1 0x01 (true), PUSH0 (false - optimized to 5f)
+    let expected_bytecode = "60015f";
+    assert_eq!(main_bytecode.to_lowercase(), expected_bytecode.to_lowercase());
+}
+
+#[test]
+fn test_true_false_in_macro_arg_if_condition() {
+    // Test passing true/false as macro arguments used in if conditions
+    let source = r#"
+        #define macro CONDITIONAL(cond) = takes(0) returns(0) {
+            if (<cond>) {
+                0xAA
+            } else {
+                0xBB
+            }
+        }
+
+        #define macro MAIN() = takes(0) returns(0) {
+            CONDITIONAL(true)
+            CONDITIONAL(false)
+        }
+    "#;
+
+    // Lex + Parse
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    let evm_version = EVMVersion::default();
+
+    // Create main bytecode
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None, false).unwrap();
+
+    // Expected bytecode:
+    // CONDITIONAL(true) -> 0xAA (PUSH1 0xAA = 60aa)
+    // CONDITIONAL(false) -> 0xBB (PUSH1 0xBB = 60bb)
+    let expected_bytecode = "60aa60bb";
+    assert_eq!(main_bytecode.to_lowercase(), expected_bytecode.to_lowercase());
+}
