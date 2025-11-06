@@ -151,7 +151,7 @@ fn test_breaking_jump_table() {
     assert!(cg.artifact.is_none());
 
     // Have the Codegen create the main macro bytecode
-    let mbytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+    let mbytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
     assert_eq!(
         mbytes,
         String::from(

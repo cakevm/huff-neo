@@ -24,6 +24,7 @@ pub fn statement_gen<'a>(
     utilized_tables: &mut Vec<TableDefinition>,
     circular_codesize_invocations: &mut CircularCodeSizeIndices,
     starting_offset: usize,
+    relax_jumps: bool,
 ) -> Result<StatementGenResult, CodegenError> {
     let mut bytes = BytecodeSegments::new();
     let mut spans = vec![];
@@ -234,6 +235,7 @@ pub fn statement_gen<'a>(
                     mis,
                     false,
                     Some(circular_codesize_invocations),
+                    relax_jumps,
                 ) {
                     Ok(r) => r,
                     Err(e) => {
@@ -368,6 +370,7 @@ pub fn statement_gen<'a>(
                 starting_offset,
                 &mut bytes,
                 bf,
+                relax_jumps,
             )?;
             // Add spans for the bytes added by builtin function
             let bytes_added = bytes.len() - bytes_before;
@@ -468,6 +471,7 @@ pub fn statement_gen<'a>(
                 utilized_tables,
                 circular_codesize_invocations,
                 starting_offset,
+                relax_jumps,
             );
         }
         sty => {

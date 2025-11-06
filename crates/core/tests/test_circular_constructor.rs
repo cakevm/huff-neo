@@ -45,7 +45,7 @@ fn test_circular_large_constructors() {
     contract.derive_storage_pointers();
 
     // Create constructor bytecode
-    match Codegen::generate_constructor_bytecode(&EVMVersion::default(),&contract, None) {
+    match Codegen::generate_constructor_bytecode(&EVMVersion::default(),&contract, None, false) {
         Ok((mb, _)) => assert_eq!("60ff58585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858".to_string(), mb), 
         Err(_) => panic!("moose"),
     }
@@ -93,7 +93,7 @@ fn test_circular_constructor_at_word_boundry() {
     contract.derive_storage_pointers();
 
     // Create constructor bytecode
-    match Codegen::generate_constructor_bytecode(&EVMVersion::default(), &contract, None) {
+    match Codegen::generate_constructor_bytecode(&EVMVersion::default(), &contract, None, false) {
         Ok((mb, _)) => assert_eq!("61010358585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858610103".to_string(), mb), 
         Err(_) => panic!("moose"),
     }
@@ -126,7 +126,7 @@ fn test_double_circular_constructor_multiple_macro_invocations() {
     contract.derive_storage_pointers();
 
     // Create constructor bytecode
-    match Codegen::generate_constructor_bytecode(&EVMVersion::default(), &contract, None) {
+    match Codegen::generate_constructor_bytecode(&EVMVersion::default(), &contract, None, false) {
         Ok((mb, _)) => assert_eq!("60075860076007".to_string(), mb),
         Err(_) => panic!("moose"),
     }
@@ -163,7 +163,7 @@ fn test_double_circular_constructor_nested_macro_invocations() {
     contract.derive_storage_pointers();
 
     // Create constructor bytecode
-    match Codegen::generate_constructor_bytecode(&EVMVersion::default(), &contract, None) {
+    match Codegen::generate_constructor_bytecode(&EVMVersion::default(), &contract, None, false) {
         Ok((mb, _)) => assert_eq!("600a58600a586003600a".to_string(), mb),
         Err(_) => panic!("moose"),
     }

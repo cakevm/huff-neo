@@ -23,7 +23,7 @@ fn test_direct_circular_recursion_in_codegen() {
     contract.derive_storage_pointers(); // Should not panic anymore
 
     // The actual codegen should also detect circular recursion
-    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None);
+    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false);
 
     // Should fail with circular macro invocation error
     assert!(result.is_err());
@@ -57,7 +57,7 @@ fn test_indirect_circular_recursion() {
     // derive_storage_pointers should handle circular recursion gracefully
     contract.derive_storage_pointers(); // Should not panic anymore
 
-    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None);
+    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false);
 
     // Should fail with circular macro invocation error
     assert!(result.is_err());
@@ -91,7 +91,7 @@ fn test_valid_non_circular_recursion() {
 
     contract.derive_storage_pointers();
 
-    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None);
+    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false);
 
     // Should succeed
     assert!(result.is_ok());
@@ -123,7 +123,7 @@ fn test_constructor_circular_recursion() {
     contract.derive_storage_pointers(); // Should not panic
 
     // Constructor bytecode generation should also handle it
-    let result = Codegen::generate_constructor_bytecode(&EVMVersion::default(), &contract, None);
+    let result = Codegen::generate_constructor_bytecode(&EVMVersion::default(), &contract, None, false);
 
     // Should fail with circular macro invocation error
     assert!(result.is_err());
@@ -160,7 +160,7 @@ fn test_deep_recursion_limit() {
 
     contract.derive_storage_pointers();
 
-    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None);
+    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false);
 
     // This should succeed as it's not circular, just deep
     assert!(result.is_ok());

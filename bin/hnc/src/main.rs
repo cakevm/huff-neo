@@ -116,6 +116,7 @@ fn main() {
         bytecode: cli.bytecode,
         cached: use_cache,
         file_provider: Arc::new(FileSystemFileProvider {}),
+        relax_jumps: cli.relax_jumps,
     };
 
     // Handle flattened source output
@@ -170,9 +171,18 @@ fn main() {
             });
 
             // Recurse through the macro and generate bytecode
-            let bytecode_res: BytecodeRes =
-                Codegen::macro_to_bytecode(&evm_version, macro_def, contract, &mut vec![macro_def], 0, &mut Vec::default(), false, None)
-                    .unwrap();
+            let bytecode_res: BytecodeRes = Codegen::macro_to_bytecode(
+                &evm_version,
+                macro_def,
+                contract,
+                &mut vec![macro_def],
+                0,
+                &mut Vec::default(),
+                false,
+                None,
+                false,
+            )
+            .unwrap();
 
             if bytecode_res.label_indices.is_empty() {
                 eprintln!(

@@ -302,3 +302,25 @@ fn test_for_loop_deeply_nested() {
     let expected = "5f5f5f01015f5f600101015f60015f01015f60016001010160015f5f010160015f60010101600160015f01016001600160010101";
     assert_eq!(bytecode.to_lowercase(), expected.to_lowercase());
 }
+
+#[test]
+fn test_for_loop_after_label() {
+    // Test that for loops can appear at macro body level after labels
+    let source = r#"
+        #define macro MAIN() = takes(0) returns(0) {
+            start:
+                0x01
+            for(i in 0..3) {
+                <i>
+            }
+            end:
+                0xff
+        }
+    "#;
+
+    let bytecode = compile_to_bytecode(source).unwrap();
+
+    // Expected bytecode: JUMPDEST (start label), PUSH1 0x01, loop (PUSH0, PUSH1 0x01, PUSH1 0x02), JUMPDEST (end label), PUSH1 0xff
+    let expected = "5b 6001 5f 6001 6002 5b 60ff";
+    assert_eq!(bytecode.to_lowercase().replace(" ", ""), expected.to_lowercase().replace(" ", ""));
+}

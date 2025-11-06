@@ -121,6 +121,7 @@ pub fn bubble_arg_call(
     table_instances: &mut Jumps,
     utilized_tables: &mut Vec<TableDefinition>,
     span: &AstSpan,
+    relax_jumps: bool,
 ) -> Result<(), CodegenError> {
     tracing::debug!(
         target: "codegen",
@@ -181,6 +182,7 @@ pub fn bubble_arg_call(
                                     &mut new_mis,
                                     false,
                                     None,
+                                    relax_jumps,
                                 ) {
                                     Ok(expanded) => {
                                         let byte_len: usize = expanded.bytes.iter().map(|seg| seg.bytes.len()).sum();
@@ -278,6 +280,7 @@ pub fn bubble_arg_call(
                                 table_instances,
                                 utilized_tables,
                                 arg_span,
+                                relax_jumps,
                             )
                         } else {
                             bubble_arg_call(
@@ -294,6 +297,7 @@ pub fn bubble_arg_call(
                                 table_instances,
                                 utilized_tables,
                                 span,
+                                relax_jumps,
                             )
                         };
                     }
@@ -403,6 +407,7 @@ pub fn bubble_arg_call(
                                         &mut new_mis,
                                         false,
                                         None,
+                                        relax_jumps,
                                     ) {
                                         Ok(expanded_macro) => {
                                             let byte_len: usize = expanded_macro.bytes.iter().map(|seg| seg.bytes.len()).sum();
@@ -461,6 +466,7 @@ pub fn bubble_arg_call(
                                     &mut new_mis,
                                     false,
                                     None,
+                                    relax_jumps,
                                 ) {
                                     Ok(expanded_macro) => {
                                         let byte_len: usize = expanded_macro.bytes.iter().map(|seg| seg.bytes.len()).sum();
@@ -521,6 +527,7 @@ pub fn bubble_arg_call(
                                     &mut new_mis,
                                     false,
                                     None,
+                                    relax_jumps,
                                 ) {
                                     Ok(expanded_macro) => {
                                         let byte_len: usize = expanded_macro.bytes.iter().map(|seg| seg.bytes.len()).sum();
@@ -619,6 +626,7 @@ pub fn bubble_arg_call(
                     table_instances,
                     utilized_tables,
                     span,
+                    relax_jumps,
                 );
             } else {
                 // No parent scope or at the top level - this is truly an undefined argument

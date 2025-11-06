@@ -30,7 +30,7 @@ fn test_clz_compiles_with_osaka() {
     assert!(validation_result.is_ok(), "CLZ should validate successfully with Osaka version");
 
     // Generate bytecode to confirm CLZ (0x1e) is present
-    let bytecode_result = Codegen::generate_main_bytecode(&evm_version, &contract, None);
+    let bytecode_result = Codegen::generate_main_bytecode(&evm_version, &contract, None, false);
     assert!(bytecode_result.is_ok());
     let bytecode = bytecode_result.unwrap();
 

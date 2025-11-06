@@ -21,7 +21,7 @@ fn test_noop_in_macro_generates_no_bytecode() {
     contract.derive_storage_pointers();
 
     let evm_version = &EVMVersion::default();
-    let main_bytecode = Codegen::generate_main_bytecode(evm_version, &contract, None).unwrap();
+    let main_bytecode = Codegen::generate_main_bytecode(evm_version, &contract, None, false).unwrap();
 
     // __NOOP should generate empty bytecode
     assert_eq!(main_bytecode, String::from(""));
@@ -48,7 +48,7 @@ fn test_noop_mixed_with_opcodes() {
     contract.derive_storage_pointers();
 
     let evm_version = &EVMVersion::default();
-    let main_bytecode = Codegen::generate_main_bytecode(evm_version, &contract, None).unwrap();
+    let main_bytecode = Codegen::generate_main_bytecode(evm_version, &contract, None, false).unwrap();
 
     // Should only have PUSH1 0x01 and DUP1
     assert_eq!(main_bytecode, String::from("600180"));
@@ -74,7 +74,7 @@ fn test_noop_as_constant() {
     contract.derive_storage_pointers();
 
     let evm_version = &EVMVersion::default();
-    let main_bytecode = Codegen::generate_main_bytecode(evm_version, &contract, None).unwrap();
+    let main_bytecode = Codegen::generate_main_bytecode(evm_version, &contract, None, false).unwrap();
 
     // [MY_NOOP] should generate no bytecode, only PUSH1 0x42
     assert_eq!(main_bytecode, String::from("6042"));
@@ -102,7 +102,7 @@ fn test_noop_directly_in_main() {
     contract.derive_storage_pointers();
 
     let evm_version = &EVMVersion::default();
-    let main_bytecode = Codegen::generate_main_bytecode(evm_version, &contract, None).unwrap();
+    let main_bytecode = Codegen::generate_main_bytecode(evm_version, &contract, None, false).unwrap();
 
     // Should only have PUSH1 0x42, no bytecode for __NOOP
     assert_eq!(main_bytecode, String::from("6042"));
@@ -129,7 +129,7 @@ fn test_noop_in_constructor() {
     contract.derive_storage_pointers();
 
     let evm_version = &EVMVersion::default();
-    let (constructor_bytecode, _) = Codegen::generate_constructor_bytecode(evm_version, &contract, None).unwrap();
+    let (constructor_bytecode, _) = Codegen::generate_constructor_bytecode(evm_version, &contract, None, false).unwrap();
 
     // Should have: PUSH1 0x01, PUSH0, MSTORE
     assert_eq!(constructor_bytecode, String::from("60015f52"));
@@ -156,7 +156,7 @@ fn test_noop_in_for_loop() {
     contract.derive_storage_pointers();
 
     let evm_version = &EVMVersion::default();
-    let main_bytecode = Codegen::generate_main_bytecode(evm_version, &contract, None).unwrap();
+    let main_bytecode = Codegen::generate_main_bytecode(evm_version, &contract, None, false).unwrap();
 
     // Loop unrolls to: 0x01 0x01 (two iterations, only the PUSH1 0x01 each time)
     assert_eq!(main_bytecode, String::from("60016001"));
@@ -182,7 +182,7 @@ fn test_noop_in_label() {
     contract.derive_storage_pointers();
 
     let evm_version = &EVMVersion::default();
-    let main_bytecode = Codegen::generate_main_bytecode(evm_version, &contract, None).unwrap();
+    let main_bytecode = Codegen::generate_main_bytecode(evm_version, &contract, None, false).unwrap();
 
     // Should have JUMPDEST (5b) + PUSH1 0x42
     assert_eq!(main_bytecode, String::from("5b6042"));
@@ -229,7 +229,7 @@ fn test_noop_multiple_in_sequence() {
     contract.derive_storage_pointers();
 
     let evm_version = &EVMVersion::default();
-    let main_bytecode = Codegen::generate_main_bytecode(evm_version, &contract, None).unwrap();
+    let main_bytecode = Codegen::generate_main_bytecode(evm_version, &contract, None, false).unwrap();
 
     // Only PUSH1 0x01 should remain
     assert_eq!(main_bytecode, String::from("6001"));
@@ -259,7 +259,7 @@ fn test_noop_standalone_usage() {
     contract.derive_storage_pointers();
 
     let evm_version = &EVMVersion::default();
-    let main_bytecode = Codegen::generate_main_bytecode(evm_version, &contract, None).unwrap();
+    let main_bytecode = Codegen::generate_main_bytecode(evm_version, &contract, None, false).unwrap();
 
     // Should have: DUP1, POP, PUSH1 0x01 (all __NOOP instances generate nothing)
     // DUP1 = 80, POP = 50, PUSH1 0x01 = 6001

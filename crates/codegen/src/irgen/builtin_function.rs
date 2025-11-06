@@ -81,12 +81,13 @@ pub fn builtin_function_gen<'a>(
     starting_offset: usize,
     bytes: &mut BytecodeSegments,
     bf: &BuiltinFunctionCall,
+    relax_jumps: bool,
 ) -> Result<(), CodegenError> {
     tracing::info!(target: "codegen", "RECURSE BYTECODE GOT BUILTIN FUNCTION CALL: {:?}", bf);
     match bf.kind {
         BuiltinFunctionKind::Codesize => {
             let (codesize_offset, push_bytes) =
-                codesize(evm_version, contract, macro_def, scope, offset, mis, circular_codesize_invocations, bf)?;
+                codesize(evm_version, contract, macro_def, scope, offset, mis, circular_codesize_invocations, bf, relax_jumps)?;
 
             *offset += codesize_offset;
             // Check if this is a circular codesize placeholder
@@ -323,6 +324,7 @@ fn codesize<'a>(
     mis: &mut Vec<(usize, MacroInvocation)>,
     circular_codesize_invocations: &mut CircularCodeSizeIndices,
     bf: &BuiltinFunctionCall,
+    relax_jumps: bool,
 ) -> Result<(usize, String), CodegenError> {
     let first_arg = extract_single_argument(bf, "__codesize")?;
     let ir_macro = if let Some(m) = contract.find_macro_by_name(first_arg.name.as_ref().unwrap()) {
@@ -370,6 +372,7 @@ fn codesize<'a>(
             mis,
             ir_macro.name.eq("CONSTRUCTOR"),
             Some(circular_codesize_invocations),
+            relax_jumps,
         ) {
             Ok(r) => r,
             Err(e) => {

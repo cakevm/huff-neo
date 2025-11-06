@@ -43,7 +43,7 @@ fn test_invocation_should_fail() {
 
     // Have the Codegen create the runtime bytecode. Should throw an error because test
     // invocation is not allowed.
-    match Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None) {
+    match Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false) {
         Ok(_) => panic!("Expected an error"),
         Err(e) => {
             assert_eq!(std::mem::discriminant(&e.kind), std::mem::discriminant(&CodegenErrorKind::TestInvocation(String::default())));

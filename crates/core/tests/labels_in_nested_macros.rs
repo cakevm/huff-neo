@@ -28,7 +28,7 @@ fn test_simple_label_cross_macro_reference() {
     let mut contract = parser.parse().unwrap();
     contract.derive_storage_pointers();
 
-    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None);
+    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false);
 
     assert!(result.is_ok());
 
@@ -66,7 +66,7 @@ fn test_nested_label() {
     let mut contract = parser.parse().unwrap();
     contract.derive_storage_pointers();
 
-    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None);
+    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false);
 
     assert!(result.is_ok());
     let bytecode = result.unwrap();
@@ -102,7 +102,7 @@ fn test_label_in_nested_macro_with_args() {
     let mut contract = parser.parse().unwrap();
     contract.derive_storage_pointers();
 
-    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None);
+    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false);
 
     assert!(result.is_ok());
 
@@ -143,7 +143,7 @@ fn test_multiple_labels_in_nested_macro() {
     let mut contract = parser.parse().unwrap();
     contract.derive_storage_pointers();
 
-    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None);
+    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false);
 
     assert!(result.is_ok());
 
@@ -181,7 +181,7 @@ fn test_label_scope_isolation() {
     let mut contract = parser.parse().unwrap();
     contract.derive_storage_pointers();
 
-    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None);
+    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false);
 
     // This should work - labels should be properly scoped
     assert!(result.is_ok());
@@ -239,7 +239,7 @@ fn test_multiple_macro_invocations_with_same_label() {
     let mut contract = parser.parse().unwrap();
     contract.derive_storage_pointers();
 
-    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None);
+    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false);
     assert!(result.is_ok());
 
     let bytecode = result.unwrap();
@@ -274,7 +274,7 @@ fn test_label_shadowing_across_scopes() {
     let mut contract = parser.parse().unwrap();
     contract.derive_storage_pointers();
 
-    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None);
+    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false);
     assert!(result.is_ok());
 
     let bytecode = result.unwrap();
@@ -313,7 +313,7 @@ fn test_nested_macro_label_argument() {
     let mut contract = parser.parse().unwrap();
     contract.derive_storage_pointers();
 
-    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None);
+    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false);
 
     // This should compile successfully
     assert!(result.is_ok(), "Failed to compile nested macro with label argument");
@@ -356,7 +356,7 @@ fn test_nested_label_shadowing_three_levels() {
     let mut contract = parser.parse().unwrap();
     contract.derive_storage_pointers();
 
-    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None);
+    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false);
     assert!(result.is_ok());
 
     let bytecode = result.unwrap();
@@ -390,7 +390,7 @@ fn test_sibling_macro_label_visibility() {
     let mut contract = parser.parse().unwrap();
     contract.derive_storage_pointers();
 
-    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None);
+    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false);
     assert!(result.is_ok());
 
     let bytecode = result.unwrap();
@@ -425,7 +425,7 @@ fn test_multiple_macro_invocations_with_cross_references() {
     let mut contract = parser.parse().unwrap();
     contract.derive_storage_pointers();
 
-    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None);
+    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false);
     assert!(result.is_ok());
 
     let bytecode = result.unwrap();
@@ -460,7 +460,7 @@ fn test_duplicate_labels_in_sibling_scopes_error() {
     let mut contract = parser.parse().unwrap();
     contract.derive_storage_pointers();
 
-    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None);
+    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false);
 
     // Should fail with duplicate label error when there's cross-referencing
     assert!(result.is_err());
@@ -494,7 +494,7 @@ fn test_parent_uses_deeply_nested_label() {
     let mut contract = parser.parse().unwrap();
     contract.derive_storage_pointers();
 
-    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None);
+    let result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false);
     assert!(result.is_ok());
 
     let bytecode = result.unwrap();

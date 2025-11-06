@@ -28,6 +28,12 @@ use crate::irgen::prelude::*;
 /// Maximum allowed iterations for compile-time for loops to prevent infinite loops
 const MAX_LOOP_ITERATIONS: usize = 10_000;
 
+/// Maximum number of iterations allowed for the jump relaxation optimization algorithm.
+///
+/// This limit prevents infinite loops in pathological cases where convergence fails,
+/// though typical contracts converge in a few iterations.
+const JUMP_RELAXATION_MAX_ITERATIONS: usize = 20;
+
 /// ### Codegen
 ///
 /// Code Generation Manager responsible for generating bytecode from a
@@ -66,8 +72,9 @@ impl Codegen {
         evm_version: &EVMVersion,
         contract: &Contract,
         alternative_main: Option<String>,
+        relax_jumps: bool,
     ) -> Result<String, CodegenError> {
-        let (bytecode, _source_map) = Self::generate_main_bytecode_with_sourcemap(evm_version, contract, alternative_main)?;
+        let (bytecode, _source_map) = Self::generate_main_bytecode_with_sourcemap(evm_version, contract, alternative_main, relax_jumps)?;
         Ok(bytecode)
     }
 
@@ -76,6 +83,7 @@ impl Codegen {
         evm_version: &EVMVersion,
         contract: &Contract,
         alternative_main: Option<String>,
+        relax_jumps: bool,
     ) -> Result<(String, Vec<SourceMapEntry>), CodegenError> {
         // Expand for loops before any other processing
         let contract = Self::expand_for_loops(contract)?;
@@ -90,8 +98,17 @@ impl Codegen {
         let m_macro = Codegen::get_macro_by_name(&main_macro, &contract)?;
 
         // For each MacroInvocation Statement, recurse into bytecode
-        let bytecode_res: BytecodeRes =
-            Codegen::macro_to_bytecode(evm_version, m_macro, &contract, &mut vec![m_macro], 0, &mut Vec::default(), false, None)?;
+        let bytecode_res: BytecodeRes = Codegen::macro_to_bytecode(
+            evm_version,
+            m_macro,
+            &contract,
+            &mut vec![m_macro],
+            0,
+            &mut Vec::default(),
+            false,
+            None,
+            relax_jumps,
+        )?;
 
         tracing::debug!(target: "codegen", "Generated main bytecode. Appending table bytecode...");
 
@@ -104,9 +121,10 @@ impl Codegen {
         evm_version: &EVMVersion,
         contract: &Contract,
         alternative_constructor: Option<String>,
+        relax_jumps: bool,
     ) -> Result<(String, bool), CodegenError> {
         let ((bytecode, _source_map), has_custom) =
-            Self::generate_constructor_bytecode_with_sourcemap(evm_version, contract, alternative_constructor)?;
+            Self::generate_constructor_bytecode_with_sourcemap(evm_version, contract, alternative_constructor, relax_jumps)?;
         Ok((bytecode, has_custom))
     }
 
@@ -115,6 +133,7 @@ impl Codegen {
         evm_version: &EVMVersion,
         contract: &Contract,
         alternative_constructor: Option<String>,
+        relax_jumps: bool,
     ) -> Result<((String, Vec<SourceMapEntry>), bool), CodegenError> {
         // Expand for loops before any other processing
         let contract = Self::expand_for_loops(contract)?;
@@ -129,8 +148,17 @@ impl Codegen {
         let c_macro = Codegen::get_macro_by_name(&constructor_macro, &contract)?;
 
         // For each MacroInvocation Statement, recurse into bytecode
-        let bytecode_res: BytecodeRes =
-            Codegen::macro_to_bytecode(evm_version, c_macro, &contract, &mut vec![c_macro], 0, &mut Vec::default(), false, None)?;
+        let bytecode_res: BytecodeRes = Codegen::macro_to_bytecode(
+            evm_version,
+            c_macro,
+            &contract,
+            &mut vec![c_macro],
+            0,
+            &mut Vec::default(),
+            false,
+            None,
+            relax_jumps,
+        )?;
 
         // Check if the constructor performs its own code generation
         let has_custom_bootstrap = bytecode_res.bytes.iter().any(|seg| seg.bytes.as_str() == "f3");
@@ -678,6 +706,7 @@ impl Codegen {
         mis: &mut Vec<(usize, MacroInvocation)>,
         recursing_constructor: bool,
         circular_codesize_invocations: Option<&mut CircularCodeSizeIndices>,
+        relax_jumps: bool,
     ) -> Result<BytecodeRes, CodegenError> {
         // Get intermediate bytecode representation of the macro definition
         let mut bytes = BytecodeSegments::new();
@@ -746,6 +775,7 @@ impl Codegen {
                         &mut utilized_tables,
                         circular_codesize_invocations,
                         starting_offset,
+                        relax_jumps,
                     )?;
                     // Use the spans from statement_gen (which preserves nested macro spans)
                     // instead of duplicating the parent's span
@@ -770,6 +800,7 @@ impl Codegen {
                         &mut table_instances,
                         &mut utilized_tables,
                         ir_byte.span,
+                        relax_jumps,
                     )?;
                     // Add span for each byte segment added by bubble_arg_call
                     let bytes_added = bytes.len() - bytes_before;
@@ -812,7 +843,7 @@ impl Codegen {
         }
 
         // Fill JUMPDEST placeholders
-        let (new_bytes, unmatched_jumps) = Codegen::fill_unmatched(bytes.clone(), &jump_table, &label_indices)?;
+        let (new_bytes, unmatched_jumps) = Codegen::fill_unmatched(bytes.clone(), &jump_table, &label_indices, relax_jumps)?;
 
         // Adjust spans if bytes changed
         if new_bytes.len() != bytes.len() {
@@ -841,23 +872,165 @@ impl Codegen {
         Ok(BytecodeRes { bytes, spans, label_indices, unmatched_jumps, table_instances, utilized_tables })
     }
 
-    /// Helper associated function to fill unmatched jump dests.
+    /// Optimize PUSH2 (2-byte) jumps to PUSH1 (1-byte) jumps where possible.
     ///
     /// ## Overview
     ///
-    /// Iterates over the vec of generated bytes. At each index, check if a jump is tracked.
-    /// If one is, find the index of label and inplace the formatted location.
-    /// If there is no label matching the jump, we append the jump to a list of unmatched jumps,
-    /// updating the jump's bytecode index.
+    /// Implements Szymanski's "Start Big and Shrink" algorithm for jump relaxation.
+    /// Iteratively attempts to shrink PUSH2 (2-byte) jumps to PUSH1 (1-byte) jumps
+    /// when the target label is within 0-255 byte range.
     ///
-    /// On success, returns a tuple of generated bytes and unmatched jumps.
-    /// On failure, returns a CodegenError.
-    #[allow(clippy::type_complexity)]
+    /// The algorithm:
+    /// 1. Starts with all jumps as PUSH2 (2 bytes)
+    /// 2. Reads existing label positions from `label_indices` (populated during codegen)
+    /// 3. Attempts to shrink PUSH2 → PUSH1 where target ≤ 0xFF
+    /// 4. Updates segment byte offsets and repeats until convergence or max iterations
+    ///
+    /// Jump relaxation using iterative offset recalculation ("Start big and shrink" approach)
+    /// for span-dependent instructions. Based on techniques described in:
+    /// Thomas G. Szymanski, "Assembling Code for Machines with Span-Dependent Instructions",
+    /// CACM 21(4), 1978, p. 300-308.
+    /// See also: <https://www.complang.tuwien.ac.at/anton/assembling-span-dependent.html>
+    ///
+    /// This is a simpler iterative variant of Szymanski's original graph-based algorithm.
+    /// It iteratively optimizes jump instructions from PUSH2 to PUSH1 when targets fit
+    /// within 0-255 bytes. Each iteration updates segment byte offsets since shrinking one
+    /// jump affects the position of all subsequent segments.
+    ///
+    /// ## Arguments
+    /// * `bytes` - The bytecode segments containing jump placeholders
+    /// * `jump_table` - Table mapping offsets to Jump metadata
+    /// * `label_indices` - Scoped label positions
+    ///
+    /// ## Returns
+    /// * `Ok(BytecodeSegments)` - Optimized bytecode with relaxed jumps
+    /// * `Err(CodegenError)` - If optimization fails
+    pub fn relax_jump_offsets(
+        mut bytes: BytecodeSegments,
+        jump_table: &JumpTable,
+        label_indices: &LabelIndices,
+    ) -> Result<BytecodeSegments, CodegenError> {
+        let mut iteration = 0;
+        let mut changed = true; // Did any changes occur in the last iteration?
+
+        tracing::info!(target: "codegen", "Starting jump relaxation optimization");
+
+        while changed && iteration < JUMP_RELAXATION_MAX_ITERATIONS {
+            changed = false;
+            iteration += 1;
+
+            // Calculate current segment byte offsets (accounting for any size changes)
+            let offsets = bytes.calculate_offsets();
+
+            tracing::debug!(target: "codegen", "Relaxation iteration {} - checking {} segments", iteration, bytes.len());
+
+            // Iterate through all segments looking for jump placeholders
+            for (segment_idx, segment) in bytes.iter_mut().enumerate() {
+                if let Bytes::JumpPlaceholder(ref mut placeholder) = segment.bytes {
+                    // Only optimize if currently PUSH2
+                    if placeholder.push_opcode != PushOpcode::Push2 {
+                        continue;
+                    }
+
+                    // Get the current bytecode offset for this segment
+                    let current_offset = offsets[segment_idx];
+
+                    // Find the corresponding jump in the jump table
+                    if let Some(jumps) = jump_table.get(&segment.offset) {
+                        // Use the first jump (typically there's only one per offset)
+                        if let Some(jump) = jumps.first() {
+                            // Look up the target label's offset
+                            match label_indices.get(&placeholder.label, jump.scope_depth, &jump.scope_path) {
+                                Ok(Some(target_offset)) => {
+                                    // Check if target fits in PUSH1 (0-255)
+                                    if target_offset <= 0xFF {
+                                        tracing::debug!(
+                                            target: "codegen",
+                                            "Shrinking jump to '{}' at offset {} from PUSH2 to PUSH1 (target={})",
+                                            placeholder.label,
+                                            current_offset,
+                                            target_offset
+                                        );
+
+                                        // Shrink from PUSH2 to PUSH1
+                                        placeholder.push_opcode = PushOpcode::Push1;
+                                        changed = true;
+                                    } else {
+                                        tracing::trace!(
+                                            target: "codegen",
+                                            "Jump to '{}' at offset {} remains PUSH2 (target={})",
+                                            placeholder.label,
+                                            current_offset,
+                                            target_offset
+                                        );
+                                    }
+                                }
+                                Ok(None) => {
+                                    // Label not found - will be handled by fill_unmatched later
+                                    tracing::trace!(
+                                        target: "codegen",
+                                        "Label '{}' not found during relaxation, will be resolved later",
+                                        placeholder.label
+                                    );
+                                }
+                                Err(e) => {
+                                    // Error looking up label - will be handled by fill_unmatched later
+                                    tracing::trace!(
+                                        target: "codegen",
+                                        "Error looking up label '{}' during relaxation: {:?}",
+                                        placeholder.label,
+                                        e
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if changed {
+                tracing::debug!(target: "codegen", "Iteration {} made changes, will recalculate segment offsets", iteration);
+            }
+        }
+
+        if iteration >= JUMP_RELAXATION_MAX_ITERATIONS {
+            tracing::warn!(target: "codegen", "Jump relaxation hit max iterations ({})", JUMP_RELAXATION_MAX_ITERATIONS);
+        } else {
+            tracing::info!(target: "codegen", "Jump relaxation converged after {} iterations", iteration);
+        }
+
+        Ok(bytes)
+    }
+
+    /// Resolves jump placeholders to their target offsets with optional size optimization.
+    ///
+    /// Replaces jump placeholders with actual bytecode offsets by looking up labels in the
+    /// label index. When `relax_jumps` is enabled, optimizes PUSH2 jumps to PUSH1 where
+    /// targets fit within a single byte (0-255).
+    ///
+    /// ## Arguments
+    ///
+    /// * `bytes` - Bytecode segments with jump placeholders
+    /// * `jump_table` - Jump metadata indexed by bytecode offset
+    /// * `label_indices` - Scoped label positions
+    /// * `relax_jumps` - Enable jump size optimization
+    ///
+    /// ## Returns
+    ///
+    /// Returns resolved bytecode and any unmatched jumps, or an error for label conflicts
+    /// or invalid jump targets.
     pub fn fill_unmatched(
         mut bytes: BytecodeSegments,
         jump_table: &JumpTable,
         label_indices: &LabelIndices,
+        relax_jumps: bool,
     ) -> Result<(BytecodeSegments, Vec<Jump>), CodegenError> {
+        // Apply jump relaxation optimization if enabled
+        // This will replace PUSH2 jumps with PUSH1 where possible, before final resolution
+        if relax_jumps {
+            bytes = Self::relax_jump_offsets(bytes, jump_table, label_indices)?;
+        }
+
         // Resolve all jumps using the new typed approach
         let unmatched_jumps = bytes.resolve_jumps(jump_table, label_indices).map_err(|label_error| {
             // Match on the typed error variants
@@ -997,7 +1170,7 @@ impl Codegen {
             scope.push(macro_def);
 
             // Add 1 to starting offset to account for the JUMPDEST opcode
-            let mut res = Codegen::macro_to_bytecode(evm_version, macro_def, contract, scope, *offset + 1, mis, false, None)?;
+            let mut res = Codegen::macro_to_bytecode(evm_version, macro_def, contract, scope, *offset + 1, mis, false, None, false)?;
 
             for j in res.unmatched_jumps.iter_mut() {
                 let new_index = j.bytecode_index;

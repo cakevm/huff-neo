@@ -58,7 +58,7 @@ fn compiles_constructor_bytecode() {
     assert!(cg.artifact.is_none());
 
     // Have the Codegen create the constructor bytecode
-    let (cbytes, custom_bootstrap) = Codegen::generate_constructor_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+    let (cbytes, custom_bootstrap) = Codegen::generate_constructor_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
     println!("Constructor Bytecode Result: {cbytes:?}");
     assert_eq!(cbytes, String::from("335f55"));
     assert!(!custom_bootstrap);
@@ -84,7 +84,7 @@ fn compiles_runtime_bytecode() {
     assert!(cg.artifact.is_none());
 
     // Have the Codegen create the constructor bytecode
-    let (cbytes, cbootstrap) = Codegen::generate_constructor_bytecode(&EVMVersion::default(), &contract, None).unwrap();
+    let (cbytes, cbootstrap) = Codegen::generate_constructor_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
     assert_eq!(cbytes, String::from("335f55"));
     assert!(!cbootstrap);
 
