@@ -1354,3 +1354,137 @@ fn test_nested_macro_invocation_with_arg_scoping() {
     // Expected bytecode: IDENTITY(__NOOP) should produce nothing (since __NOOP generates no bytecode)
     assert!(main_bytecode.is_empty());
 }
+
+#[test]
+fn test_nested_macro_invocation_with_label_identical_params() {
+    // Tests nested macro invocations as arguments with labels between invocations.
+    // Ensures the compiler correctly resolves nested macro calls when labels
+    // change bytecode offsets, even with identical parameter names across macros.
+    let source = r#"
+        #define macro M3(x) = takes(0) returns(0) {
+            <x>
+        }
+
+        #define macro M2(y) = takes(0) returns(0) {
+            M3(<y>)
+        }
+
+        #define macro MAIN() = takes(0) returns(0) {
+            M2(M3(0x01))
+            lbl:
+            M2(M3(0x02))
+        }
+    "#;
+
+    // Lex + Parse
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    let evm_version = EVMVersion::default();
+
+    // This should compile successfully without stack overflow
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None, false).unwrap();
+
+    // Expected bytecode:
+    // M2(M3(0x01)) -> M3(M3(0x01)) -> M3(0x01) -> 0x01 = PUSH1 0x01
+    // lbl: -> JUMPDEST
+    // M2(M3(0x02)) -> M3(M3(0x02)) -> M3(0x02) -> 0x02 = PUSH1 0x02
+    // Total: 6001 5b 6002
+    let expected_bytecode = "60015b6002";
+    assert_eq!(main_bytecode.to_lowercase(), expected_bytecode.to_lowercase());
+}
+
+#[test]
+fn test_nested_macro_invocation_with_label_different_params() {
+    // Tests nested macro invocations as arguments with labels and different parameter names.
+    // Verifies argument resolution works correctly across macro boundaries when parameter
+    // names differ and labels are present.
+    let source = r#"
+        #define macro M3(arg) = takes(0) returns(0) {
+            <arg>
+        }
+
+        #define macro M2(y) = takes(0) returns(0) {
+            M3(<y>)
+        }
+
+        #define macro MAIN() = takes(0) returns(0) {
+            M2(M3(0x01))
+            lbl:
+            M2(M3(0x02))
+        }
+    "#;
+
+    // Lex + Parse
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    let evm_version = EVMVersion::default();
+
+    // This should compile successfully without "Missing Argument Definition" error
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None, false).unwrap();
+
+    // Expected bytecode: same as above
+    // M2(M3(0x01)) -> M3(M3(0x01)) -> M3(0x01) -> 0x01 = PUSH1 0x01
+    // lbl: -> JUMPDEST
+    // M2(M3(0x02)) -> M3(M3(0x02)) -> M3(0x02) -> 0x02 = PUSH1 0x02
+    // Total: 6001 5b 6002
+    let expected_bytecode = "60015b6002";
+    assert_eq!(main_bytecode.to_lowercase(), expected_bytecode.to_lowercase());
+}
+
+#[test]
+fn test_nested_argcall_in_macrocall_with_label() {
+    // Tests recursive argument resolution in nested macro calls with labels.
+    // Verifies that when a MacroCall contains an ArgCall (e.g., M3(<arg>)), the compiler
+    // correctly resolves nested arguments without infinite recursion or stack overflow.
+    let source = r#"
+        #define macro MAIN() = {
+            M1(__NOOP)
+        }
+
+        #define macro M1(arg) = {
+            M2(M3(<arg>))
+            lbl:
+            M2(M3(<arg>))
+        }
+
+        #define macro M2(arg) = {
+            <arg>
+        }
+
+        #define macro M3(arg) = {
+            <arg>
+        }
+    "#;
+
+    // Lex + Parse
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    let evm_version = EVMVersion::default();
+
+    // This should compile successfully without stack overflow
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None, false).unwrap();
+
+    // Expected bytecode:
+    // M1(__NOOP) expands to:
+    //   M2(M3(__NOOP)) -> M2(__NOOP) -> __NOOP (no output)
+    //   lbl: -> JUMPDEST (5b)
+    //   M2(M3(__NOOP)) -> M2(__NOOP) -> __NOOP (no output)
+    // Total: just the JUMPDEST
+    let expected_bytecode = "5b";
+    assert_eq!(main_bytecode.to_lowercase(), expected_bytecode.to_lowercase());
+}
