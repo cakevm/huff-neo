@@ -243,6 +243,19 @@ pub fn bubble_arg_call(
                         tracing::info!(target: "codegen", "GOT __NOOP ARG FROM MACRO INVOCATION - GENERATING NO BYTECODE");
                         // Generate no bytecode - __NOOP is a no-op
                     }
+                    MacroArg::BuiltinFunctionCall(bf) => {
+                        tracing::info!(target: "codegen", "GOT BUILTIN FUNCTION CALL {:?} ARG FROM MACRO INVOCATION", bf.kind);
+                        let push_value = Codegen::gen_builtin_bytecode(contract, bf, bf.span.clone())?;
+
+                        // For __RIGHTPAD, always use PUSH32 with full 32 bytes (no optimization)
+                        let push_bytes = match bf.kind {
+                            BuiltinFunctionKind::RightPad => push_value.to_hex_full_with_opcode(),
+                            _ => push_value.to_hex_with_opcode(evm_version),
+                        };
+
+                        *offset += push_bytes.len() / 2;
+                        bytes.push_with_offset(starting_offset, Bytes::Raw(push_bytes));
+                    }
                     MacroArg::ArgCall(ArgCall { macro_name: ac_parent_macro_name, name: ac, span: arg_span }) => {
                         tracing::info!(target: "codegen", "GOT ARG CALL \"{}\" ARG FROM MACRO INVOCATION", ac);
                         tracing::debug!(target: "codegen", "~~~ BUBBLING UP ARG CALL");
@@ -325,8 +338,12 @@ pub fn bubble_arg_call(
                                     format!("{:02x}{hex_literal}", 95 + hex_literal.len() / 2)
                                 }
                                 ConstVal::BuiltinFunctionCall(bf) => {
-                                    Codegen::gen_builtin_bytecode(contract, bf, target_macro_invoc.1.span.clone())?
-                                        .to_hex_with_opcode(evm_version)
+                                    let push_value = Codegen::gen_builtin_bytecode(contract, bf, target_macro_invoc.1.span.clone())?;
+                                    // For __RIGHTPAD, always use PUSH32 with full 32 bytes (no optimization)
+                                    match bf.kind {
+                                        BuiltinFunctionKind::RightPad => push_value.to_hex_full_with_opcode(),
+                                        _ => push_value.to_hex_with_opcode(evm_version),
+                                    }
                                 }
                                 ConstVal::Expression(expr) => {
                                     tracing::info!(target: "codegen", "EVALUATING CONSTANT EXPRESSION FOR \"{iden}\"");

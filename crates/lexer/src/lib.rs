@@ -321,7 +321,11 @@ impl<'a> Lexer<'a> {
                         kind
                     } else if matches!(
                         self.context_stack.top(),
-                        &Context::MacroBody | &Context::BuiltinFunction | &Context::CodeTableBody | &Context::Constant
+                        &Context::MacroBody
+                            | &Context::BuiltinFunction
+                            | &Context::CodeTableBody
+                            | &Context::Constant
+                            | &Context::MacroArgs
                     ) && BuiltinFunctionKind::try_from(&word).is_ok()
                     {
                         TokenKind::BuiltinFunction(word)

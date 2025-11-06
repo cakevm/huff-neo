@@ -88,6 +88,39 @@ Some builtin functions can be combined with other functions. Possible combinatio
 - `__RIGHTPAD(__FUNC_SIG("test(address, uint256)"))`
 - `__RIGHTPAD(__BYTES("hello"))`
 
+## Builtin Functions as Macro Arguments
+
+Builtin functions that can be evaluated at compile-time can be passed as macro arguments. This allows for more flexible and reusable macro definitions.
+
+The following builtin functions support being passed as macro arguments:
+- `__FUNC_SIG` - Function selectors
+- `__EVENT_HASH` - Event hashes
+- `__BYTES` - String bytes
+- `__RIGHTPAD` - Right-padded values
+
+### Example
+```javascript
+#define function transfer(address,uint256) nonpayable returns ()
+
+#define macro PUSH_VALUE(val) = takes(0) returns(1) {
+    <val>
+}
+
+#define macro MAIN() = takes(0) returns(0) {
+    // Pass builtin function call as macro argument
+    PUSH_VALUE(__FUNC_SIG(transfer))
+
+    // Pass padded builtin as argument
+    PUSH_VALUE(__RIGHTPAD(0x1234))
+
+    // Pass bytes as argument
+    PUSH_VALUE(__BYTES("test"))
+
+    pop pop pop
+}
+```
+
+This feature enables creating generic utility macros that work with computed values, improving code reusability and maintainability.
 
 ## Example
 ```javascript

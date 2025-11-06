@@ -1470,6 +1470,19 @@ impl Parser {
                 self.consume();
                 Ok(MacroArg::Noop)
             }
+            TokenKind::BuiltinFunction(f) => {
+                let mut curr_spans = vec![self.current_token.span.clone()];
+                self.match_kind(TokenKind::BuiltinFunction(String::default()))?;
+                let args = self.parse_builtin_args()?;
+                if let Some(i) = self.spans.iter().position(|s| s.eq(&curr_spans[0])) {
+                    curr_spans.append(&mut self.spans[(i + 1)..].to_vec());
+                }
+                Ok(MacroArg::BuiltinFunctionCall(BuiltinFunctionCall {
+                    kind: BuiltinFunctionKind::from(f),
+                    args,
+                    span: AstSpan(curr_spans),
+                }))
+            }
             TokenKind::Ident(ident) => {
                 if self.peek().is_some() && self.peek().unwrap().kind == TokenKind::OpenParen {
                     // It's a nested macro call
@@ -1528,7 +1541,7 @@ impl Parser {
             }
             arg => Err(ParserError {
                 kind: ParserErrorKind::InvalidMacroArgs(arg),
-                hint: Some("Expected literal, identifier, opcode, __NOOP, or argument call".to_string()),
+                hint: Some("Expected literal, identifier, opcode, builtin function, __NOOP, or argument call".to_string()),
                 spans: AstSpan(vec![self.current_token.span.clone()]),
                 cursor: self.cursor,
             }),
@@ -1578,6 +1591,19 @@ impl Parser {
                     args.push(MacroArg::Noop);
                     self.consume();
                 }
+                TokenKind::BuiltinFunction(f) => {
+                    let mut curr_spans = vec![self.current_token.span.clone()];
+                    self.match_kind(TokenKind::BuiltinFunction(String::default()))?;
+                    let builtin_args = self.parse_builtin_args()?;
+                    if let Some(i) = self.spans.iter().position(|s| s.eq(&curr_spans[0])) {
+                        curr_spans.append(&mut self.spans[(i + 1)..].to_vec());
+                    }
+                    args.push(MacroArg::BuiltinFunctionCall(BuiltinFunctionCall {
+                        kind: BuiltinFunctionKind::from(f),
+                        args: builtin_args,
+                        span: AstSpan(curr_spans),
+                    }));
+                }
                 TokenKind::LeftAngle => {
                     // Passed into the Macro Call like:
                     // GET_SLOT_FROM_KEY(<mem_ptr>)  // [slot]
@@ -1602,14 +1628,14 @@ impl Parser {
                 arg => {
                     tracing::error!(
                         target: "parser",
-                        "Invalid macro call arguments. Must be of kind Ident or Literal. Got: {}",
+                        "Invalid macro call arguments. Must be of kind Ident, Literal, Builtin Function, etc. Got: {}",
                         self.current_token.kind
                     );
                     let new_spans = self.spans.clone();
                     self.spans = vec![];
                     return Err(ParserError {
                         kind: ParserErrorKind::InvalidMacroArgs(arg),
-                        hint: Some("Expected literal, identifier (string), or an argument call".to_string()),
+                        hint: Some("Expected literal, identifier (string), builtin function, or an argument call".to_string()),
                         spans: AstSpan(new_spans),
                         cursor: self.cursor,
                     });
