@@ -11,6 +11,9 @@
 - Allow `for`, `if`, and `else` to be used as label names.
 - Add parser support for `<arg>` in if/for expressions (fixes #129).
   - Example: `if (<MODE> == 0x01) { ... }`
+- Add support for builtin functions as macro arguments (fixes #130).
+  - Builtin functions can now be passed as macro arguments: `__FUNC_SIG`, `__EVENT_HASH`, `__BYTES`, `__RIGHTPAD`.
+  - Example: `MACRO(__FUNC_SIG(transfer))`
 
 ## [1.5.2] - 2025-11-05
 - Add compile-time if/else if/else statements.

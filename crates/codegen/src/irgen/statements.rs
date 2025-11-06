@@ -62,6 +62,11 @@ fn evaluate_expression_with_context(
                                 });
                             }
                         }
+                        MacroArg::BuiltinFunctionCall(bf) => {
+                            // Builtin function call - evaluate it
+                            let push_value = Codegen::gen_builtin_bytecode(contract, bf, bf.span.clone())?;
+                            return Ok(push_value.value.0);
+                        }
                         MacroArg::ArgCall(nested_arg) => {
                             // Nested argument reference - recursively resolve
                             return evaluate_expression_with_context(

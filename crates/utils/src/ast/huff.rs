@@ -899,6 +899,10 @@ pub enum MacroArg {
     ///
     /// Example: `APPLY_OP(add)`, `USE_TWO_OPS(tload, clz)`
     Opcode(Opcode),
+    /// Builtin Function Call Argument
+    ///
+    /// Example: `MACRO(__FUNC_SIG(transfer))`, `MACRO(__EVENT_HASH(Transfer))`
+    BuiltinFunctionCall(BuiltinFunctionCall),
     /// __NOOP builtin constant (generates no bytecode)
     ///
     /// Example: `MACRO(__NOOP)`

@@ -168,12 +168,14 @@ pub fn builtin_function_gen<'a>(
         }
         BuiltinFunctionKind::RightPad => {
             let push_value = builtin_pad(contract, bf, PadDirection::Right)?;
-            let push_bytes = push_value.to_hex_with_opcode(evm_version);
-            *offset += push_bytes.len() / 2;
+            // For padding, always use PUSH32 with full 32 bytes (no optimization)
+            let push_bytes = push_value.to_hex_full_with_opcode();
+            *offset += 33; // PUSH32 opcode (1 byte) + 32 bytes of data
             bytes.push_with_offset(starting_offset, Bytes::Raw(push_bytes));
         }
         BuiltinFunctionKind::LeftPad => {
-            return Err(invalid_arguments_error("LeftPad is not supported in a function or macro", &bf.span));
+            // __LEFTPAD is only available in constant definitions and code tables, not in macro bodies
+            return Err(invalid_arguments_error("__LEFTPAD is only available in constant definitions and code tables", &bf.span));
         }
         BuiltinFunctionKind::DynConstructorArg => {
             validate_arg_count(bf, 2, "__CODECOPY_DYN_ARG")?;

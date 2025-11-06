@@ -69,6 +69,20 @@ impl PushValue {
     pub fn to_hex_full(&self) -> String {
         hex::encode(self.value.0)
     }
+
+    /// Converts the full 32-byte value to hex string with PUSH32 opcode prefix (0x7f).
+    ///
+    /// Always generates a PUSH32 instruction (33 bytes total: 1 byte opcode + 32 bytes data),
+    /// regardless of leading zeros. This is useful for operations that require exact 32-byte
+    /// values on the stack, such as padding functions.
+    ///
+    /// # Examples
+    /// - Value `0x0000...0001` → `"7f0000000000000000000000000000000000000000000000000000000000000001"`
+    /// - Value `0x0000...1234` → `"7f0000000000000000000000000000000000000000000000000000000000001234"`
+    /// - Value `0xFFFF...FFFF` → `"7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"`
+    pub fn to_hex_full_with_opcode(&self) -> String {
+        format!("7f{}", self.to_hex_full())
+    }
 }
 
 /// Convert from a 32-byte array directly to PushValue
