@@ -76,8 +76,6 @@ pub struct Compiler<'a, 'l> {
     pub construct_args: Option<Vec<String>>,
     /// Constant Overrides
     pub constant_overrides: Option<BTreeMap<&'a str, Bytes>>,
-    /// Whether to optimize compilation or not.
-    pub optimize: bool,
     /// Generate and log bytecode
     pub bytecode: bool,
     /// Whether to check cached artifacts
@@ -113,7 +111,6 @@ impl<'a, 'l> Compiler<'a, 'l> {
             alternative_constructor,
             construct_args,
             constant_overrides,
-            optimize: false,
             bytecode: false,
             cached,
             file_provider: Arc::new(FileSystemFileProvider {}),
@@ -145,7 +142,6 @@ impl<'a, 'l> Compiler<'a, 'l> {
             alternative_constructor,
             construct_args,
             constant_overrides,
-            optimize: false,
             bytecode: false,
             cached: false,
             file_provider: Arc::new(InMemoryFileProvider::new(file_sources)),

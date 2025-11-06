@@ -6,7 +6,9 @@
 - Introducing `--relax-jumps` CLI flag to optimize jump instructions from PUSH2 to PUSH1.
   - Optimizes jump instructions from PUSH2 to PUSH1 when jump targets are 0-255.
   - Reduces deployment gas costs, but will not affect runtime gas costs.
+- Removed unimplemented `--optimize` flag.
 - Fix parser bug where `for` loops and `if/else` statements after labels were rejected.
+- Allow `for`, `if`, and `else` to be used as label names.
 
 ## [1.5.2] - 2025-11-05
 - Add compile-time if/else if/else statements.

@@ -112,7 +112,6 @@ fn main() {
         alternative_constructor: cli.alternative_constructor,
         construct_args: cli.inputs,
         constant_overrides: constants,
-        optimize: cli.optimize,
         bytecode: cli.bytecode,
         cached: use_cache,
         file_provider: Arc::new(FileSystemFileProvider {}),

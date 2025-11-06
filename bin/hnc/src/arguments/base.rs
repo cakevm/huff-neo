@@ -37,14 +37,11 @@ pub struct HuffArgs {
     #[clap(short = 'a', long = "artifacts")]
     pub artifacts: bool,
 
-    /// Optimize compilation [WIP]
-    #[clap(short = 'z', long = "optimize")]
-    pub optimize: bool,
-
     /// Apply branch relaxation to minimize deployment gas (use PUSH1 where possible)
     ///
     /// When enabled all pushes for jumps will be minimized to PUSH1 where possible.
     /// This can reduce deployment gas costs, but has no effect on runtime gas costs.
+    /// Only applies to label references used in JUMPI and JUMP opcodes.
     #[clap(long = "relax-jumps")]
     pub relax_jumps: bool,
 
