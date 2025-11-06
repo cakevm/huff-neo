@@ -391,10 +391,26 @@ pub fn statement_gen<'a>(
                                 if let Some(parent_macro) = contract.find_macro_by_name(&parent_mi.macro_name)
                                     && let Some(param_idx) =
                                         parent_macro.parameters.iter().position(|p| p.name.as_deref() == Some(arg_name))
-                                    && let Some(MacroArg::Ident(macro_name)) = parent_mi.args.get(param_idx)
                                 {
-                                    resolved_macro_name = Some(macro_name.clone());
-                                    break;
+                                    // Check what type of argument value we have
+                                    if let Some(arg_value) = parent_mi.args.get(param_idx) {
+                                        match arg_value {
+                                            MacroArg::Ident(macro_name) => {
+                                                // Direct macro name reference
+                                                resolved_macro_name = Some(macro_name.clone());
+                                                break;
+                                            }
+                                            MacroArg::MacroCall(macro_call) => {
+                                                // The argument is a macro invocation - extract the macro name
+                                                resolved_macro_name = Some(macro_call.macro_name.clone());
+                                                break;
+                                            }
+                                            _ => {
+                                                // Other types not supported for macro invocation, continue searching
+                                                continue;
+                                            }
+                                        }
+                                    }
                                 }
                             }
 
@@ -409,6 +425,36 @@ pub fn statement_gen<'a>(
                                 // Keep the original if we couldn't resolve
                                 resolved_args.push(arg.clone());
                             }
+                        }
+                        MacroArg::MacroCall(macro_call) => {
+                            // Recursively resolve any ArgCalls in the macro call's arguments
+                            let mut resolved_macro_args = Vec::new();
+                            for macro_arg in &macro_call.args {
+                                match macro_arg {
+                                    MacroArg::ArgCall(arg_call) => {
+                                        // Resolve this ArgCall by looking it up in the current context
+                                        let mut resolved = None;
+                                        for (_, parent_mi) in mis.iter().rev() {
+                                            if let Some(parent_macro) = contract.find_macro_by_name(&parent_mi.macro_name)
+                                                && let Some(param_idx) =
+                                                    parent_macro.parameters.iter().position(|p| p.name.as_deref() == Some(&arg_call.name))
+                                                && let Some(arg_value) = parent_mi.args.get(param_idx)
+                                            {
+                                                resolved = Some(arg_value.clone());
+                                                break;
+                                            }
+                                        }
+                                        resolved_macro_args.push(resolved.unwrap_or_else(|| macro_arg.clone()));
+                                    }
+                                    _ => resolved_macro_args.push(macro_arg.clone()),
+                                }
+                            }
+                            // Create a new MacroCall with resolved arguments
+                            resolved_args.push(MacroArg::MacroCall(MacroInvocation {
+                                macro_name: macro_call.macro_name.clone(),
+                                args: resolved_macro_args,
+                                span: macro_call.span.clone(),
+                            }));
                         }
                         _ => resolved_args.push(arg.clone()),
                     }
