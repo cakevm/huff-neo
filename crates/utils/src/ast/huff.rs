@@ -964,7 +964,7 @@ pub enum Expression {
         /// The span of the grouped expression (including parentheses)
         span: AstSpan,
     },
-    /// Reference to a macro argument (e.g., <arg>)
+    /// Reference to a macro argument (e.g., `<arg>`)
     ArgCall {
         /// The parent macro name
         macro_name: String,
