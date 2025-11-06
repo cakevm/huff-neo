@@ -86,18 +86,10 @@ pub fn builtin_function_gen<'a>(
     tracing::info!(target: "codegen", "RECURSE BYTECODE GOT BUILTIN FUNCTION CALL: {:?}", bf);
     match bf.kind {
         BuiltinFunctionKind::Codesize => {
-            let (codesize_offset, push_bytes) =
+            let (codesize_offset, bytes_variant) =
                 codesize(evm_version, contract, macro_def, scope, offset, mis, circular_codesize_invocations, bf, relax_jumps)?;
 
             *offset += codesize_offset;
-            // Check if this is a circular codesize placeholder
-            let bytes_variant = if push_bytes == "cccc" {
-                // Extract macro name from the builtin function argument
-                let first_arg = extract_single_argument(bf, "__codesize")?;
-                Bytes::CircularCodesizePlaceholder(CircularCodesizePlaceholderData::new(first_arg.name.as_ref().unwrap().to_string()))
-            } else {
-                Bytes::Raw(push_bytes)
-            };
             bytes.push_with_offset(starting_offset, bytes_variant);
         }
         BuiltinFunctionKind::Tablesize => {
@@ -312,8 +304,8 @@ pub fn builtin_function_gen<'a>(
 
 /// Generates bytecode for the __codesize builtin function
 ///
-/// Returns a tuple of (byte_offset, bytecode_string) containing the size of the specified macro.
-/// Handles circular references by inserting a placeholder ("cccc") that's filled in later.
+/// Returns a tuple of (byte_offset, Bytes variant) containing the size of the specified macro.
+/// Handles circular references by creating a CircularCodesizePlaceholder that's filled in later.
 #[allow(clippy::too_many_arguments)]
 fn codesize<'a>(
     evm_version: &EVMVersion,
@@ -325,7 +317,7 @@ fn codesize<'a>(
     circular_codesize_invocations: &mut CircularCodeSizeIndices,
     bf: &BuiltinFunctionCall,
     relax_jumps: bool,
-) -> Result<(usize, String), CodegenError> {
+) -> Result<(usize, Bytes), CodegenError> {
     let first_arg = extract_single_argument(bf, "__codesize")?;
     let ir_macro = if let Some(m) = contract.find_macro_by_name(first_arg.name.as_ref().unwrap()) {
         m
@@ -353,14 +345,15 @@ fn codesize<'a>(
     // we have adequate information about the macros eventual size.
     // We also need to avoid if the codesize arg is any of the previous macros to
     // avoid a circular reference
-    let (codesize_offset, push_bytes) = if is_previous_parent || macro_def.name.eq(codesize_arg) {
+    let (codesize_offset, bytes_variant) = if is_previous_parent || macro_def.name.eq(codesize_arg) {
         tracing::debug!(target: "codegen", "CIRCULAR CODESIZE INVOCATION DETECTED INJECTING PLACEHOLDER | macro: {}", ir_macro.name);
 
         // Save the invocation for later
         circular_codesize_invocations.insert((codesize_arg.to_string(), *offset));
 
-        // Progress offset by placeholder size
-        (2, "cccc".to_string())
+        // Create a CircularCodesizePlaceholder variant (starts as PUSH1, 2 bytes)
+        let placeholder = Bytes::CircularCodesizePlaceholder(CircularCodesizePlaceholderData::new(codesize_arg.to_string()));
+        (2, placeholder)
     } else {
         // We will still need to recurse to get accurate values
         let res: BytecodeRes = match Codegen::macro_to_bytecode(
@@ -388,9 +381,9 @@ fn codesize<'a>(
         let size = format_even_bytes(format!("{:02x}", res.bytes.iter().map(|seg| seg.bytes.len()).sum::<usize>()));
         let push_bytes = format!("{:02x}{size}", 95 + size.len() / 2);
         let offset = push_bytes.len() / 2;
-        (offset, push_bytes)
+        (offset, Bytes::Raw(push_bytes))
     };
-    Ok((codesize_offset, push_bytes))
+    Ok((codesize_offset, bytes_variant))
 }
 
 /// Generates a PushValue for the __ERROR builtin function
