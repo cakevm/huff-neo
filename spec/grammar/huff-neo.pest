@@ -81,7 +81,7 @@ type_name = {
 
 // Array type suffix
 // Examples: [], [5], [10]
-array_suffix = { "[" ~ const_expr? ~ "]" }
+array_suffix = { "[" ~ arithmetic_expr? ~ "]" }
 
 // Elementary (built-in) types
 // Examples: uint256, address, bool, bytes32, string
@@ -156,10 +156,17 @@ constant_definition = { "#" ~ "define" ~ "constant" ~ identifier ~ "=" ~ constan
 // COMPILE-TIME VALUE EXPRESSIONS
 // ============================================================================
 
-// Compile-time evaluated expressions with operator precedence
-// Can include: arithmetic, constant references, macro arguments, builtins, literals, comparisons
-// Examples: 0x42, [BASE] + [OFFSET], <arg>, [A] + <b>, 0x100 * 2 - 1, __FUNC_SIG("foo()"), [A] == [B], ![FLAG]
-const_expr = { comparison }
+// Arithmetic expressions (NO comparisons)
+// Used in: constant definitions, for-loop ranges/steps, array sizes, builtin arguments
+// Can include: arithmetic operators, constant references, macro arguments, builtins, literals
+// Examples: 0x42, [BASE] + [OFFSET], <arg>, [A] + <b>, 0x100 * 2 - 1, __FUNC_SIG("foo()")
+arithmetic_expr = { term }
+
+// Conditional expressions (WITH comparisons)
+// Used in: if/else conditions ONLY
+// Can include: arithmetic operators AND comparison operators, logical NOT
+// Examples: [A] == [B], [X] > [Y], ![FLAG], ([A] + [B]) > 0x20, <mode> == 0x01
+conditional_expr = { comparison }
 
 // Comparison operators (lowest precedence)
 // Examples: [A] == [B], [X] > [Y], [VALUE] != 0x00
@@ -244,12 +251,12 @@ value_opcode = { opcode }                   // add, mul, mstore, etc.
 // ============================================================================
 
 // CONSTANT DEFINITIONS: Right-hand side of #define constant X = ...
-// Most permissive: accepts expressions, builtins, special values
+// Accepts arithmetic expressions (NO comparisons), builtins, special values
 constant_definition_value = {
     special_fsp
     | special_noop
     | invoke_builtin
-    | const_expr
+    | arithmetic_expr
 }
 
 // CODE TABLES: Entries in #define table MY_TABLE { ... }
@@ -266,6 +273,7 @@ code_table_entry = {
 macro_argument = {
     literal_hex
     | literal_string
+    | literal_boolean        // true, false
     | invoke_argument        // <callback>(args)
     | ref_argument           // <param>
     | invoke_macro           // NESTED_MACRO()
@@ -312,9 +320,13 @@ builtin_assert_pc_arg = { literal_hex | ref_constant_bracketed }
 
 // EXPRESSION PRIMARIES: Atomic values in compile-time expressions
 // Used in: constant definitions, for loop ranges, if conditions, value-based builtins
-// Includes macro argument references (<arg>) for use in conditional compilation and loops
+// Includes:
+//   - Macro argument references (<arg>) for use in conditional compilation and loops
+//   - Boolean literals (true/false) for use in if conditions
+// Note: Parenthesized expressions use conditional_expr to support both arithmetic and comparisons
+//       The context (arithmetic_expr vs conditional_expr) at the top level determines what's allowed
 primary = {
-    "(" ~ const_expr ~ ")"
+    "(" ~ conditional_expr ~ ")"
     | ref_constant_bracketed
     | ref_argument
     | special_fsp
@@ -322,6 +334,7 @@ primary = {
     | invoke_builtin
     | literal_hex
     | literal_decimal
+    | literal_boolean
 }
 
 // ============================================================================
@@ -486,8 +499,8 @@ builtin_function_call = {
     | "__tablesize" ~ "(" ~ ref_identifier ~ ")"
     | "__tablestart" ~ "(" ~ ref_identifier ~ ")"
     | "__codesize" ~ "(" ~ ref_identifier ~ ")"
-    | "__RIGHTPAD" ~ "(" ~ const_expr ~ "," ~ const_expr ~ ")"
-    | "__LEFTPAD" ~ "(" ~ const_expr ~ "," ~ const_expr ~ ")"
+    | "__RIGHTPAD" ~ "(" ~ arithmetic_expr ~ "," ~ arithmetic_expr ~ ")"
+    | "__LEFTPAD" ~ "(" ~ arithmetic_expr ~ "," ~ arithmetic_expr ~ ")"
     | "__CODECOPY_DYN_ARG" ~ "(" ~ literal_decimal ~ ")"
     | "__VERBATIM" ~ "(" ~ literal_hex ~ ")"
     | "__BYTES" ~ "(" ~ literal_string ~ ")"
@@ -511,11 +524,11 @@ for_loop = {
 // Loop range (start..end, exclusive end)
 // Can include macro arguments using <arg> syntax
 // Examples: 0..10, [START]..[END], 0..<count>, [BASE]..([BASE] + <offset>)
-for_range = { const_expr ~ ".." ~ const_expr }
+for_range = { arithmetic_expr ~ ".." ~ arithmetic_expr }
 
 // Optional step size (default is 1)
 // Example: step 2
-for_step = { "step" ~ const_expr }
+for_step = { "step" ~ arithmetic_expr }
 
 // Loop body
 for_body = { "{" ~ for_statement* ~ "}" }
@@ -536,15 +549,17 @@ loop_variable_reference = { "<" ~ identifier ~ ">" }
 
 // Compile-time if statement (evaluates condition at compile time)
 // Examples:
+//   if (true) { ... }                         // Boolean literal
+//   if (false) { ... } else { ... }           // Boolean literal
 //   if ([CONSTANT] > 5) { ... }
 //   if ([A] == [B]) { ... } else { ... }
 //   if (![FLAG]) { ... }
 //   if ([MODE] == 1) { ... } else if ([MODE] == 2) { ... } else { ... }
 //   if (([A] + [B]) * [C] > [D]) { ... }
-//   if (<threshold>) { ... }                  // Using macro argument
+//   if (<threshold> == 0x01) { ... }          // Using macro argument
 //   if ([BASE] + <offset> > 0x20) { ... }     // Mixed constants and arguments
 if_statement = {
-    "if" ~ "(" ~ const_expr ~ ")" ~ if_body
+    "if" ~ "(" ~ conditional_expr ~ ")" ~ if_body
     ~ else_if_clause*
     ~ else_clause?
 }
@@ -552,7 +567,7 @@ if_statement = {
 // Else if clause
 // Example: else if ([X] < 10) { ... }
 else_if_clause = {
-    "else" ~ "if" ~ "(" ~ const_expr ~ ")" ~ if_body
+    "else" ~ "if" ~ "(" ~ conditional_expr ~ ")" ~ if_body
 }
 
 // Else clause

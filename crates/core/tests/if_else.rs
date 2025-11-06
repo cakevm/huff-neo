@@ -690,3 +690,123 @@ fn test_keywords_as_labels() {
     let expected = "610012565b60aa600161000e57005b60bb005b60cc61000456";
     assert_eq!(bytecode.to_lowercase(), expected.to_lowercase());
 }
+
+#[test]
+fn test_if_true_literal() {
+    // Test if with true boolean literal
+    let source = r#"
+        #define macro MAIN() = takes(0) returns(0) {
+            if (true) {
+                0xAA
+            } else {
+                0xBB
+            }
+        }
+    "#;
+
+    let bytecode = compile_to_bytecode(source).unwrap();
+
+    // Expected bytecode: PUSH1 0xAA (true evaluates to 0x01, thus true)
+    let expected = "60aa";
+    assert_eq!(bytecode.to_lowercase(), expected.to_lowercase());
+}
+
+#[test]
+fn test_if_false_literal() {
+    // Test if with false boolean literal
+    let source = r#"
+        #define macro MAIN() = takes(0) returns(0) {
+            if (false) {
+                0xAA
+            } else {
+                0xBB
+            }
+        }
+    "#;
+
+    let bytecode = compile_to_bytecode(source).unwrap();
+
+    // Expected bytecode: PUSH1 0xBB (false evaluates to 0x00, thus false)
+    let expected = "60bb";
+    assert_eq!(bytecode.to_lowercase(), expected.to_lowercase());
+}
+
+#[test]
+fn test_if_true_comparison() {
+    // Test if with true in comparison
+    let source = r#"
+        #define constant ENABLED = 0x01
+
+        #define macro MAIN() = takes(0) returns(0) {
+            if (true == [ENABLED]) {
+                0xFF
+            }
+        }
+    "#;
+
+    let bytecode = compile_to_bytecode(source).unwrap();
+
+    // Expected bytecode: PUSH1 0xFF (true == 0x01 is true)
+    let expected = "60ff";
+    assert_eq!(bytecode.to_lowercase(), expected.to_lowercase());
+}
+
+#[test]
+fn test_if_false_comparison() {
+    // Test if with false in comparison
+    let source = r#"
+        #define constant DISABLED = 0x00
+
+        #define macro MAIN() = takes(0) returns(0) {
+            if (false == [DISABLED]) {
+                0xFF
+            }
+        }
+    "#;
+
+    let bytecode = compile_to_bytecode(source).unwrap();
+
+    // Expected bytecode: PUSH1 0xFF (false == 0x00 is true)
+    let expected = "60ff";
+    assert_eq!(bytecode.to_lowercase(), expected.to_lowercase());
+}
+
+#[test]
+fn test_if_not_true() {
+    // Test if with logical NOT of true
+    let source = r#"
+        #define macro MAIN() = takes(0) returns(0) {
+            if (!true) {
+                0xAA
+            } else {
+                0xBB
+            }
+        }
+    "#;
+
+    let bytecode = compile_to_bytecode(source).unwrap();
+
+    // Expected bytecode: PUSH1 0xBB (!true = !0x01 = 0x00, thus false)
+    let expected = "60bb";
+    assert_eq!(bytecode.to_lowercase(), expected.to_lowercase());
+}
+
+#[test]
+fn test_if_not_false() {
+    // Test if with logical NOT of false
+    let source = r#"
+        #define macro MAIN() = takes(0) returns(0) {
+            if (!false) {
+                0xAA
+            } else {
+                0xBB
+            }
+        }
+    "#;
+
+    let bytecode = compile_to_bytecode(source).unwrap();
+
+    // Expected bytecode: PUSH1 0xAA (!false = !0x00 = 0x01, thus true)
+    let expected = "60aa";
+    assert_eq!(bytecode.to_lowercase(), expected.to_lowercase());
+}
