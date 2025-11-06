@@ -2160,9 +2160,40 @@ impl Parser {
                 let (name, full_span) = self.parse_constant_push()?;
                 Ok(Expression::Constant { name, span: AstSpan(vec![full_span]) })
             }
+            TokenKind::LeftAngle => {
+                // Support <arg> syntax in expressions
+                let start_span = self.current_token.span.clone();
+                self.consume(); // consume <
+
+                let arg_name = match self.current_token.kind.clone() {
+                    TokenKind::Ident(name) => {
+                        self.consume();
+                        name
+                    }
+                    _ => {
+                        return Err(ParserError {
+                            kind: ParserErrorKind::InvalidExpression(self.current_token.kind.clone()),
+                            hint: Some("Expected identifier after '<' in argument reference".to_string()),
+                            spans: AstSpan(vec![self.current_token.span.clone()]),
+                            cursor: self.cursor,
+                        });
+                    }
+                };
+
+                let end_span = self.current_token.span.clone();
+                self.match_kind(TokenKind::RightAngle)?; // consume >
+
+                // Create a single span covering the full <arg> including the brackets and name
+                let span = AstSpan(vec![Span { start: start_span.start, end: end_span.end, file: start_span.file.clone() }]);
+                Ok(Expression::ArgCall {
+                    macro_name: String::new(), // Will be filled in during evaluation
+                    name: arg_name,
+                    span,
+                })
+            }
             _ => Err(ParserError {
                 kind: ParserErrorKind::InvalidExpression(self.current_token.kind.clone()),
-                hint: Some("Expected literal, bracketed constant [NAME], or '('".to_string()),
+                hint: Some("Expected literal, bracketed constant [NAME], arg call <name>, or '('".to_string()),
                 spans: AstSpan(vec![self.current_token.span.clone()]),
                 cursor: self.cursor,
             }),

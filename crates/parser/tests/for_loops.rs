@@ -379,3 +379,154 @@ fn test_for_loop_with_constant_step() {
     assert_eq!(macro_definition.statements[0], expected_statement);
     assert_eq!(parser.current_token.kind, TokenKind::Eof);
 }
+
+#[test]
+fn test_for_loop_with_arg_in_bound() {
+    let source = "#define macro TEST(count) = takes(0) returns(0) { for(i in 0..<count>) { } }";
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+
+    let contract = parser.parse().unwrap();
+    let macro_definition = contract.macros.get("TEST").cloned().unwrap();
+
+    assert_eq!(macro_definition.statements.len(), 1);
+
+    let expected_statement = Statement {
+        ty: StatementType::ForLoop {
+            variable: "i".to_string(),
+            start: Expression::Literal { value: str_to_bytes32("00"), span: AstSpan(vec![Span { start: 59, end: 60, file: None }]) },
+            end: Expression::ArgCall {
+                macro_name: String::new(),
+                name: "count".to_string(),
+                span: AstSpan(vec![Span { start: 62, end: 69, file: None }]), // "<count>"
+            },
+            step: None,
+            body: vec![],
+        },
+        span: AstSpan(vec![
+            Span { start: 50, end: 53, file: None }, // "for"
+            Span { start: 53, end: 54, file: None }, // "("
+            Span { start: 54, end: 55, file: None }, // "i"
+            Span { start: 56, end: 58, file: None }, // "in"
+            Span { start: 59, end: 60, file: None }, // "0"
+            Span { start: 60, end: 62, file: None }, // ".."
+            Span { start: 62, end: 69, file: None }, // "<count>"
+            Span { start: 69, end: 70, file: None }, // ")"
+            Span { start: 71, end: 72, file: None }, // "{"
+            Span { start: 73, end: 74, file: None }, // "}"
+        ]),
+    };
+
+    assert_eq!(macro_definition.statements[0], expected_statement);
+    assert_eq!(parser.current_token.kind, TokenKind::Eof);
+}
+
+#[test]
+fn test_for_loop_with_arg_arithmetic_bound() {
+    let source = "#define macro TEST(base, extra) = takes(0) returns(0) { for(i in 0..(<base> + <extra>)) { } }";
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+
+    let contract = parser.parse().unwrap();
+    let macro_definition = contract.macros.get("TEST").cloned().unwrap();
+
+    assert_eq!(macro_definition.statements.len(), 1);
+
+    let expected_statement = Statement {
+        ty: StatementType::ForLoop {
+            variable: "i".to_string(),
+            start: Expression::Literal { value: str_to_bytes32("00"), span: AstSpan(vec![Span { start: 65, end: 66, file: None }]) },
+            end: Expression::Grouped {
+                expr: Box::new(Expression::Binary {
+                    left: Box::new(Expression::ArgCall {
+                        macro_name: String::new(),
+                        name: "base".to_string(),
+                        span: AstSpan(vec![Span { start: 69, end: 75, file: None }]), // "<base>"
+                    }),
+                    op: BinaryOp::Add,
+                    right: Box::new(Expression::ArgCall {
+                        macro_name: String::new(),
+                        name: "extra".to_string(),
+                        span: AstSpan(vec![Span { start: 78, end: 85, file: None }]), // "<extra>"
+                    }),
+                    span: AstSpan(vec![
+                        Span { start: 69, end: 75, file: None }, // "<base>"
+                        Span { start: 76, end: 77, file: None }, // "+"
+                        Span { start: 78, end: 85, file: None }, // "<extra>"
+                    ]),
+                }),
+                span: AstSpan(vec![
+                    Span { start: 68, end: 69, file: None }, // "("
+                    Span { start: 85, end: 86, file: None }, // ")"
+                ]),
+            },
+            step: None,
+            body: vec![],
+        },
+        span: AstSpan(vec![
+            Span { start: 56, end: 59, file: None }, // "for"
+            Span { start: 59, end: 60, file: None }, // "("
+            Span { start: 60, end: 61, file: None }, // "i"
+            Span { start: 62, end: 64, file: None }, // "in"
+            Span { start: 65, end: 66, file: None }, // "0"
+            Span { start: 66, end: 68, file: None }, // ".."
+            Span { start: 68, end: 69, file: None }, // "("
+            Span { start: 85, end: 86, file: None }, // ")"
+            Span { start: 86, end: 87, file: None }, // ")"
+            Span { start: 88, end: 89, file: None }, // "{"
+            Span { start: 90, end: 91, file: None }, // "}"
+        ]),
+    };
+
+    assert_eq!(macro_definition.statements[0], expected_statement);
+    assert_eq!(parser.current_token.kind, TokenKind::Eof);
+}
+
+#[test]
+fn test_for_loop_with_arg_in_step() {
+    let source = "#define macro TEST(step_size) = takes(0) returns(0) { for(i in 0..10 step <step_size>) { } }";
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+
+    let contract = parser.parse().unwrap();
+    let macro_definition = contract.macros.get("TEST").cloned().unwrap();
+
+    assert_eq!(macro_definition.statements.len(), 1);
+
+    let expected_statement = Statement {
+        ty: StatementType::ForLoop {
+            variable: "i".to_string(),
+            start: Expression::Literal { value: str_to_bytes32("00"), span: AstSpan(vec![Span { start: 63, end: 64, file: None }]) },
+            end: Expression::Literal { value: str_to_bytes32("10"), span: AstSpan(vec![Span { start: 66, end: 68, file: None }]) },
+            step: Some(Expression::ArgCall {
+                macro_name: String::new(),
+                name: "step_size".to_string(),
+                span: AstSpan(vec![Span { start: 74, end: 85, file: None }]), // "<step_size>"
+            }),
+            body: vec![],
+        },
+        span: AstSpan(vec![
+            Span { start: 54, end: 57, file: None }, // "for"
+            Span { start: 57, end: 58, file: None }, // "("
+            Span { start: 58, end: 59, file: None }, // "i"
+            Span { start: 60, end: 62, file: None }, // "in"
+            Span { start: 63, end: 64, file: None }, // "0"
+            Span { start: 64, end: 66, file: None }, // ".."
+            Span { start: 66, end: 68, file: None }, // "10"
+            Span { start: 69, end: 73, file: None }, // "step"
+            Span { start: 74, end: 85, file: None }, // "<step_size>"
+            Span { start: 85, end: 86, file: None }, // ")"
+            Span { start: 87, end: 88, file: None }, // "{"
+            Span { start: 89, end: 90, file: None }, // "}"
+        ]),
+    };
+
+    assert_eq!(macro_definition.statements[0], expected_statement);
+    assert_eq!(parser.current_token.kind, TokenKind::Eof);
+}

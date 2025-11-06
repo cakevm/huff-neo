@@ -252,3 +252,56 @@ fn parses_if_tight_spacing() {
     while let Some(Ok(_)) = lexer.next() {}
     assert!(lexer.eof);
 }
+
+#[test]
+fn parses_if_with_arg_in_condition() {
+    let source = "#define macro TEST(threshold) = takes(0) returns(0) { if(<threshold>) { } }";
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let mut lexer = Lexer::new(flattened_source);
+
+    // Skip to the if condition (25 tokens before <)
+    for _ in 0..25 {
+        let _ = lexer.next();
+    }
+
+    // Lex '<' (LeftAngle)
+    let tok = lexer.next();
+    let unwrapped = tok.unwrap().unwrap();
+    assert_eq!(unwrapped.kind, TokenKind::LeftAngle);
+
+    // Lex 'threshold' (identifier)
+    let tok = lexer.next();
+    let unwrapped = tok.unwrap().unwrap();
+    assert_eq!(unwrapped.kind, TokenKind::Ident("threshold".to_string()));
+
+    // Lex '>' (RightAngle)
+    let tok = lexer.next();
+    let unwrapped = tok.unwrap().unwrap();
+    assert_eq!(unwrapped.kind, TokenKind::RightAngle);
+
+    // Continue lexing to ensure rest is valid
+    while let Some(Ok(_)) = lexer.next() {}
+    assert!(lexer.eof);
+}
+
+#[test]
+fn parses_if_with_arg_arithmetic() {
+    let source = "#define macro TEST(a, b) = takes(0) returns(0) { if(<a> + <b> > 0x10) { } }";
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let mut lexer = Lexer::new(flattened_source);
+
+    // Just verify it lexes without error (complex expression with args)
+    while let Some(Ok(_)) = lexer.next() {}
+    assert!(lexer.eof);
+}
+
+#[test]
+fn parses_if_with_mixed_const_and_arg() {
+    let source = "#define macro TEST(offset) = takes(0) returns(0) { if([BASE] + <offset> > 0x20) { } }";
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let mut lexer = Lexer::new(flattened_source);
+
+    // Just verify it lexes without error (mixed constants and args in expression)
+    while let Some(Ok(_)) = lexer.next() {}
+    assert!(lexer.eof);
+}

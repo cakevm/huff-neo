@@ -345,3 +345,78 @@ fn parses_for_loop_with_newlines() {
     while let Some(Ok(_)) = lexer.next() {}
     assert!(lexer.eof);
 }
+
+#[test]
+fn parses_for_loop_with_arg_in_bound() {
+    let source = "#define macro TEST(count) = takes(0) returns(0) { for(i in 0..<count>) { } }";
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let mut lexer = Lexer::new(flattened_source);
+
+    // Skip to the arg in upper bound (31 tokens before <)
+    for _ in 0..31 {
+        let _ = lexer.next();
+    }
+
+    // Lex '<' (LeftAngle)
+    let tok = lexer.next();
+    let unwrapped = tok.unwrap().unwrap();
+    assert_eq!(unwrapped.kind, TokenKind::LeftAngle);
+
+    // Lex 'count' (identifier)
+    let tok = lexer.next();
+    let unwrapped = tok.unwrap().unwrap();
+    assert_eq!(unwrapped.kind, TokenKind::Ident("count".to_string()));
+
+    // Lex '>' (RightAngle)
+    let tok = lexer.next();
+    let unwrapped = tok.unwrap().unwrap();
+    assert_eq!(unwrapped.kind, TokenKind::RightAngle);
+
+    // Continue lexing to ensure rest is valid
+    while let Some(Ok(_)) = lexer.next() {}
+    assert!(lexer.eof);
+}
+
+#[test]
+fn parses_for_loop_with_arg_in_start_and_end() {
+    let source = "#define macro TEST(start, end) = takes(0) returns(0) { for(i in <start>..<end>) { } }";
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let mut lexer = Lexer::new(flattened_source);
+
+    // Just verify it lexes without error
+    while let Some(Ok(_)) = lexer.next() {}
+    assert!(lexer.eof);
+}
+
+#[test]
+fn parses_for_loop_with_arg_arithmetic() {
+    let source = "#define macro TEST(base, extra) = takes(0) returns(0) { for(i in 0..(<base> + <extra>)) { } }";
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let mut lexer = Lexer::new(flattened_source);
+
+    // Just verify it lexes without error (arithmetic expression with args)
+    while let Some(Ok(_)) = lexer.next() {}
+    assert!(lexer.eof);
+}
+
+#[test]
+fn parses_for_loop_with_mixed_const_and_arg() {
+    let source = "#define macro TEST(offset) = takes(0) returns(0) { for(i in [BASE]..([BASE] + <offset>)) { } }";
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let mut lexer = Lexer::new(flattened_source);
+
+    // Just verify it lexes without error (mixed constants and args)
+    while let Some(Ok(_)) = lexer.next() {}
+    assert!(lexer.eof);
+}
+
+#[test]
+fn parses_for_loop_with_arg_in_step() {
+    let source = "#define macro TEST(step_size) = takes(0) returns(0) { for(i in 0..10 step <step_size>) { } }";
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let mut lexer = Lexer::new(flattened_source);
+
+    // Just verify it lexes without error (arg in step value)
+    while let Some(Ok(_)) = lexer.next() {}
+    assert!(lexer.eof);
+}

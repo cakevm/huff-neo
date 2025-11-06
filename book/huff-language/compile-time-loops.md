@@ -157,6 +157,86 @@ for(i in 0..[SIZE] * 2) {
 // Expands iterations from 0 to 9
 ```
 
+### Macro Arguments in Bounds
+
+Macro arguments can be used in loop bounds using `<arg>` syntax. The arguments are evaluated at compile-time during macro expansion.
+
+#### Basic Usage
+
+```javascript
+#define macro LOOP(count) = takes(0) returns(0) {
+    for(i in 0..<count>) {
+        <i>
+    }
+}
+
+#define macro MAIN() = takes(0) returns(0) {
+    LOOP(0x03)  // Expands to: 0x00 0x01 0x02
+}
+```
+
+#### With Start and End Arguments
+
+```javascript
+#define macro RANGE(start, end) = takes(0) returns(0) {
+    for(i in <start>..<end>) {
+        <i>
+    }
+}
+
+#define macro MAIN() = takes(0) returns(0) {
+    RANGE(0x05, 0x08)  // Expands to: 0x05 0x06 0x07
+}
+```
+
+#### With Step Argument
+
+```javascript
+#define macro STEPPED(count, step) = takes(0) returns(0) {
+    for(i in 0..<count> step <step>) {
+        <i>
+    }
+}
+
+#define macro MAIN() = takes(0) returns(0) {
+    STEPPED(0x0A, 0x02)  // Expands to: 0x00 0x02 0x04 0x06 0x08
+}
+```
+
+#### With Arithmetic
+
+Arguments can be used in arithmetic expressions:
+
+```javascript
+#define macro COMPUTED(base, extra) = takes(0) returns(0) {
+    for(i in 0..(<base> + <extra>)) {
+        <i>
+    }
+}
+
+#define macro MAIN() = takes(0) returns(0) {
+    COMPUTED(0x02, 0x03)  // Loop from 0 to 5
+}
+```
+
+#### Mixed with Constants
+
+Arguments can be combined with constants in bound expressions:
+
+```javascript
+#define constant BASE = 0x10
+
+#define macro ADD_RANGE(offset) = takes(0) returns(0) {
+    for(i in [BASE]..([BASE] + <offset>)) {
+        <i>
+    }
+}
+
+#define macro MAIN() = takes(0) returns(0) {
+    ADD_RANGE(0x05)  // Loop from 0x10 to 0x15
+}
+```
+
 ### Iteration Limit
 
 **Important**: To prevent compile-time explosion and excessive bytecode generation, loops are limited to **10,000 iterations maximum**.
