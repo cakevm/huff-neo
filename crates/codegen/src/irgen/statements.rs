@@ -356,16 +356,29 @@ pub fn statement_gen<'a>(
                     });
                 }
 
-                // Recurse into macro invocation
-                scope.push(ir_macro);
-
-                // Resolve any ArgCall and ArgCallMacroInvocation arguments before pushing the invocation
+                // Resolve any ArgCall and ArgCallMacroInvocation arguments BEFORE pushing to scope
+                // This ensures we check the calling macro's parameters, not the invoked macro's
                 let mut resolved_args = Vec::new();
                 for arg in &mi.args {
                     match arg {
                         MacroArg::ArgCall(arg_call) => {
                             // Resolve this ArgCall by looking it up in the current context
+                            // BUT ensure proper scoping - the argument must be accessible from the current macro
                             let mut resolved = None;
+
+                            // The current macro (the one calling this MacroInvocation) is macro_def
+                            // It must have the argument as a parameter for it to be accessible
+                            let current_has_param = macro_def.parameters.iter().any(|p| p.name.as_deref() == Some(&arg_call.name));
+
+                            if !current_has_param {
+                                // The current macro doesn't have this parameter, so the argument is not accessible
+                                // This is a scoping violation - return an error instead of searching parent scopes
+                                return Err(CodegenError {
+                                    kind: CodegenErrorKind::MissingArgumentDefinition(arg_call.name.clone()),
+                                    span: mi.span.clone_box(),
+                                    token: None,
+                                });
+                            }
 
                             // Search through the invocation stack for the argument's value
                             for (_, parent_mi) in mis.iter().rev() {
@@ -462,6 +475,10 @@ pub fn statement_gen<'a>(
 
                 // Create a resolved invocation
                 let resolved_mi = MacroInvocation { macro_name: mi.macro_name.clone(), args: resolved_args, span: mi.span.clone() };
+
+                // Push the invoked macro to the scope AFTER resolving arguments
+                // This is important for circular recursion detection
+                scope.push(ir_macro);
 
                 mis.push((*offset, resolved_mi));
 
