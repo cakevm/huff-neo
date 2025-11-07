@@ -1558,3 +1558,42 @@ fn test_true_false_in_macro_arg_if_condition() {
     let expected_bytecode = "60aa60bb";
     assert_eq!(main_bytecode.to_lowercase(), expected_bytecode.to_lowercase());
 }
+
+#[test]
+fn test_arg_scoping_with_label_in_caller() {
+    // When a macro M1 has a parameter 'arg' and defines a jump label,
+    // and calls M2() without passing 'arg', M2 should NOT have access to 'arg'
+    // even if M2 calls M3(<arg>).
+    let source = r#"
+        #define macro M3(arg) = takes(0) returns(0) {
+            <arg>
+        }
+
+        #define macro M2() = takes(0) returns(0) {
+            M3(<arg>)
+        }
+
+        #define macro M1(arg) = takes(0) returns(0) {
+            label:
+            M2()
+        }
+
+        #define macro MAIN() = takes(0) returns(0) {
+            M1(__NOOP)
+        }
+    "#;
+
+    // Lex + Parse
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    // Codegen should fail because M2 tries to use <arg> which was not passed to it
+    let codegen_result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false);
+
+    assert!(codegen_result.is_err());
+    assert_eq!(codegen_result.unwrap_err().kind, CodegenErrorKind::MissingArgumentDefinition(String::from("arg")));
+}

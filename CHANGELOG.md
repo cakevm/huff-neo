@@ -6,6 +6,9 @@
 - Add support for `true` and `false` boolean literals in if conditions and macro arguments.
   - `true` evaluates to `0x01`, `false` evaluates to `0x00`.
   - Example: `if (true) { 0xAA } else { 0xBB }`
+- Fix macro argument scoping bug where parameters leaked across macro boundaries (fixes #139).
+  - Macros can no longer access parameters from parent scopes unless explicitly passed.
+  - Example: If `M1(arg)` calls `M2()` without passing `arg`, then `M2` cannot use `<arg>`.
 
 ## [1.5.3] - 2025-11-06
 - Introducing `--relax-jumps` CLI flag to optimize jump instructions from PUSH2 to PUSH1.

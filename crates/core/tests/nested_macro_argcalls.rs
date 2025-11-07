@@ -153,19 +153,19 @@ fn test_deeply_nested_argcalls() {
 
 #[test]
 fn test_argcall_scope_chain_traversal() {
-    // Tests that ArgCalls properly traverse scope chain to find definitions
-    // When <arg> is not found in immediate macro, it should bubble up to parent scopes
+    // Tests that ArgCalls properly traverse scope chain when parameters are correctly passed
+    // Each macro receives the parameter and passes it to the next level
     let source = r#"
         #define macro INNER(param) = takes(0) returns(1) {
             <param>
         }
 
-        #define macro MIDDLE() = takes(0) returns(1) {
-            INNER(<outer_param>)  // outer_param not defined in MIDDLE, should bubble to OUTER
+        #define macro MIDDLE(outer_param) = takes(0) returns(1) {
+            INNER(<outer_param>)  // MIDDLE has outer_param and passes it to INNER
         }
 
         #define macro OUTER(outer_param) = takes(0) returns(1) {
-            MIDDLE()
+            MIDDLE(<outer_param>)  // OUTER passes outer_param to MIDDLE
         }
 
         #define macro MAIN() = takes(0) returns(1) {
