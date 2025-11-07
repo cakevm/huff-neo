@@ -2,6 +2,7 @@ use alloy_primitives::U256;
 use huff_neo_utils::bytecode::{BytecodeSegments, JumpPlaceholderData, PushOpcode};
 use huff_neo_utils::bytes_util::str_to_bytes32;
 use huff_neo_utils::prelude::*;
+use huff_neo_utils::scope::ScopeManager;
 
 use crate::Codegen;
 use crate::irgen::arg_calls::bubble_arg_call;
@@ -12,14 +13,15 @@ use crate::irgen::constants::{constant_gen, lookup_constant};
 type StatementGenResult = (BytecodeSegments, Vec<Option<(usize, usize)>>);
 
 /// Evaluates an expression with access to macro invocation context for resolving `<arg>` calls
-fn evaluate_expression_with_context(
+fn evaluate_expression_with_context<'a>(
     expr: &Expression,
     contract: &Contract,
-    mis: &[(usize, MacroInvocation)],
+    scope_mgr: &ScopeManager<'a>,
 ) -> Result<[u8; 32], CodegenError> {
     match expr {
         Expression::ArgCall { name, span: arg_span, .. } => {
             // Search through the macro invocation stack for the argument's value
+            let mis = scope_mgr.invocation_vec();
             for (_, parent_mi) in mis.iter().rev() {
                 if let Some(parent_macro) = contract.find_macro_by_name(&parent_mi.macro_name)
                     && let Some(param_idx) = parent_macro.parameters.iter().position(|p| p.name.as_deref() == Some(name))
@@ -76,7 +78,7 @@ fn evaluate_expression_with_context(
                                     span: nested_arg.span.clone(),
                                 },
                                 contract,
-                                mis,
+                                scope_mgr,
                             );
                         }
                         _ => {
@@ -99,8 +101,8 @@ fn evaluate_expression_with_context(
 
         Expression::Binary { left, op, right, span } => {
             // Evaluate both operands using this function to handle nested ArgCalls
-            let left_val = evaluate_expression_with_context(left, contract, mis)?;
-            let right_val = evaluate_expression_with_context(right, contract, mis)?;
+            let left_val = evaluate_expression_with_context(left, contract, scope_mgr)?;
+            let right_val = evaluate_expression_with_context(right, contract, scope_mgr)?;
 
             // Convert to U256 for arithmetic
             let l = U256::from_be_bytes(left_val);
@@ -172,7 +174,7 @@ fn evaluate_expression_with_context(
 
         Expression::Unary { op, expr: inner_expr, .. } => {
             // Evaluate the operand using this function to handle nested ArgCalls
-            let val = evaluate_expression_with_context(inner_expr, contract, mis)?;
+            let val = evaluate_expression_with_context(inner_expr, contract, scope_mgr)?;
             let v = U256::from_be_bytes(val);
 
             // Perform unary operation
@@ -192,7 +194,7 @@ fn evaluate_expression_with_context(
 
         Expression::Grouped { expr: inner_expr, .. } => {
             // Just evaluate the inner expression
-            evaluate_expression_with_context(inner_expr, contract, mis)
+            evaluate_expression_with_context(inner_expr, contract, scope_mgr)
         }
 
         // For Literal, Constant, and other types without ArgCalls, use standard evaluation
@@ -207,10 +209,9 @@ pub fn statement_gen<'a>(
     evm_version: &EVMVersion,
     s: &Statement,
     contract: &'a Contract,
-    macro_def: &MacroDefinition,
-    scope: &mut Vec<&'a MacroDefinition>,
+    macro_def: &'a MacroDefinition,
+    scope_mgr: &mut ScopeManager<'a>,
     offset: &mut usize,
-    mis: &mut Vec<(usize, MacroInvocation)>,
     jump_table: &mut JumpTable,
     label_indices: &mut LabelIndices,
     table_instances: &mut Jumps,
@@ -263,6 +264,36 @@ pub fn statement_gen<'a>(
                 });
             }
 
+            // Check for circular recursion - if this macro is already in the scope, it's recursive
+            // This must be checked for both outlined and inlined macros
+            if scope_mgr.macro_stack().iter().any(|m| m.name == ir_macro.name) {
+                tracing::error!(
+                    target: "codegen",
+                    "CIRCULAR RECURSION DETECTED: Macro \"{}\" is already in the call stack",
+                    ir_macro.name
+                );
+                return Err(CodegenError {
+                    kind: CodegenErrorKind::CircularMacroInvocation(ir_macro.name.clone()),
+                    span: mi.span.clone_box(),
+                    token: None,
+                });
+            }
+
+            // Check recursion depth limit to prevent stack overflow
+            const MAX_RECURSION_DEPTH: usize = 100;
+            if scope_mgr.depth() >= MAX_RECURSION_DEPTH {
+                tracing::error!(
+                    target: "codegen",
+                    "Maximum recursion depth of {} exceeded",
+                    MAX_RECURSION_DEPTH
+                );
+                return Err(CodegenError {
+                    kind: CodegenErrorKind::CircularMacroInvocation(ir_macro.name.clone()),
+                    span: mi.span.clone_box(),
+                    token: None,
+                });
+            }
+
             // If invoked macro is a function (outlined), insert a jump to the function's code and a
             // jumpdest to return to. If it is inlined, insert the macro's code at the
             // current offset.
@@ -272,24 +303,11 @@ pub fn statement_gen<'a>(
                 let stack_swaps = (0..ir_macro.takes).rev().map(|i| format!("{:02x}", 0x90 + i)).collect::<Vec<_>>();
 
                 // Insert a jump to the outlined macro's code
-                // Use offset to make each invocation unique
-                let scope_path: Vec<String> = if scope.len() > 1 {
-                    let mut path: Vec<String> = scope[..scope.len() - 1].iter().map(|m| m.name.clone()).collect();
-                    path.push(format!("{}_{}", scope.last().unwrap().name, *offset));
-                    path
-                } else {
-                    scope.iter().map(|m| m.name.clone()).collect()
-                };
-                let scope_depth = scope.len().saturating_sub(1);
+                // Functions (outlined macros) are defined at the top-level scope, so use that scope
+                let scope_id = huff_neo_utils::scope::ScopeId::new(vec![], 0);
                 jump_table.insert(
                     *offset + stack_swaps.len() + 3, // PUSH2 + 2 bytes + stack_swaps.len()
-                    vec![Jump {
-                        label: format!("goto_{}", &ir_macro.name),
-                        bytecode_index: 0,
-                        span: s.span.clone(),
-                        scope_depth,
-                        scope_path,
-                    }],
+                    vec![Jump { label: format!("goto_{}", &ir_macro.name), bytecode_index: 0, span: s.span.clone(), scope_id }],
                 );
 
                 // Get span info for this statement
@@ -327,60 +345,51 @@ pub fn statement_gen<'a>(
                 // PUSH2 + 2 bytes + stack_swaps.len() + PUSH2 + 2 bytes + JUMP + JUMPDEST
                 *offset += stack_swaps.len() + 8;
             } else {
-                // Check for circular recursion - if this macro is already in the scope, it's recursive
-                if scope.iter().any(|m| m.name == ir_macro.name) {
-                    tracing::error!(
-                        target: "codegen",
-                        "CIRCULAR RECURSION DETECTED: Macro \"{}\" is already in the call stack",
-                        ir_macro.name
-                    );
-                    return Err(CodegenError {
-                        kind: CodegenErrorKind::CircularMacroInvocation(ir_macro.name.clone()),
-                        span: mi.span.clone_box(),
-                        token: None,
-                    });
-                }
-
-                // Check recursion depth limit to prevent stack overflow
-                const MAX_RECURSION_DEPTH: usize = 100;
-                if scope.len() >= MAX_RECURSION_DEPTH {
-                    tracing::error!(
-                        target: "codegen",
-                        "RECURSION DEPTH LIMIT EXCEEDED: Maximum depth of {} reached",
-                        MAX_RECURSION_DEPTH
-                    );
-                    return Err(CodegenError {
-                        kind: CodegenErrorKind::RecursionDepthExceeded(MAX_RECURSION_DEPTH),
-                        span: mi.span.clone_box(),
-                        token: None,
-                    });
-                }
-
                 // Resolve any ArgCall and ArgCallMacroInvocation arguments BEFORE pushing to scope
                 // This ensures we check the calling macro's parameters, not the invoked macro's
                 let mut resolved_args = Vec::new();
                 for arg in &mi.args {
                     match arg {
                         MacroArg::ArgCall(arg_call) => {
-                            // Resolve this ArgCall by looking it up in the current context
-                            // BUT ensure proper scoping - the argument must be accessible from the current macro
+                            // Resolve this ArgCall by looking it up in the invocation stack
+                            // An ArgCall in macro invocation arguments (like M2(<arg>)) must be accessible
+                            // from the CURRENT macro's scope - either as a parameter or through invocation chain
                             let mut resolved = None;
 
-                            // The current macro (the one calling this MacroInvocation) is macro_def
-                            // It must have the argument as a parameter for it to be accessible
+                            // First check if current macro has this parameter
                             let current_has_param = macro_def.parameters.iter().any(|p| p.name.as_deref() == Some(&arg_call.name));
 
+                            // If current macro doesn't have this parameter, check if it was passed to current macro
                             if !current_has_param {
-                                // The current macro doesn't have this parameter, so the argument is not accessible
-                                // This is a scoping violation - return an error instead of searching parent scopes
-                                return Err(CodegenError {
-                                    kind: CodegenErrorKind::MissingArgumentDefinition(arg_call.name.clone()),
-                                    span: mi.span.clone_box(),
-                                    token: None,
-                                });
+                                // The ArgCall must have been explicitly passed to the current macro
+                                // Check if the current macro's invocation (last in mis) contains this ArgCall
+                                let mut passed_to_current = false;
+
+                                if let Some(current_mi) = scope_mgr.current_invocation() {
+                                    // Check if any of the arguments passed to current macro is this ArgCall
+                                    fn contains_arg_call(args: &[MacroArg], name: &str) -> bool {
+                                        args.iter().any(|arg| match arg {
+                                            MacroArg::ArgCall(ac) => ac.name == name,
+                                            MacroArg::MacroCall(mc) => contains_arg_call(&mc.args, name),
+                                            _ => false,
+                                        })
+                                    }
+
+                                    passed_to_current = contains_arg_call(&current_mi.args, &arg_call.name);
+                                }
+
+                                // If not passed to current macro, error
+                                if !passed_to_current {
+                                    return Err(CodegenError {
+                                        kind: CodegenErrorKind::MissingArgumentDefinition(arg_call.name.clone()),
+                                        span: mi.span.clone_box(),
+                                        token: None,
+                                    });
+                                }
                             }
 
                             // Search through the invocation stack for the argument's value
+                            let mis = scope_mgr.invocation_vec();
                             for (_, parent_mi) in mis.iter().rev() {
                                 if let Some(parent_macro) = contract.find_macro_by_name(&parent_mi.macro_name)
                                     && let Some(param_idx) =
@@ -397,6 +406,7 @@ pub fn statement_gen<'a>(
                         }
                         MacroArg::ArgCallMacroInvocation(arg_name, invoc_args) => {
                             // Resolve the argument name to find the actual macro
+                            let mis = scope_mgr.invocation_vec();
                             let mut resolved_macro_name = None;
 
                             // Search through the invocation stack for the argument's value
@@ -441,28 +451,83 @@ pub fn statement_gen<'a>(
                         }
                         MacroArg::MacroCall(macro_call) => {
                             // Recursively resolve any ArgCalls in the macro call's arguments
-                            let mut resolved_macro_args = Vec::new();
-                            for macro_arg in &macro_call.args {
-                                match macro_arg {
-                                    MacroArg::ArgCall(arg_call) => {
-                                        // Resolve this ArgCall by looking it up in the current context
-                                        let mut resolved = None;
-                                        for (_, parent_mi) in mis.iter().rev() {
-                                            if let Some(parent_macro) = contract.find_macro_by_name(&parent_mi.macro_name)
-                                                && let Some(param_idx) =
-                                                    parent_macro.parameters.iter().position(|p| p.name.as_deref() == Some(&arg_call.name))
-                                                && let Some(arg_value) = parent_mi.args.get(param_idx)
-                                            {
-                                                resolved = Some(arg_value.clone());
-                                                break;
+                            fn resolve_macro_call_args<'a>(
+                                macro_call: &MacroInvocation,
+                                scope_mgr: &ScopeManager<'a>,
+                                contract: &Contract,
+                                macro_def: &MacroDefinition,
+                            ) -> Result<Vec<MacroArg>, CodegenError> {
+                                let mis = scope_mgr.invocation_vec();
+                                let mut resolved_args = Vec::new();
+                                for arg in &macro_call.args {
+                                    match arg {
+                                        MacroArg::ArgCall(arg_call) => {
+                                            // First check if current macro has this parameter
+                                            let current_has_param =
+                                                macro_def.parameters.iter().any(|p| p.name.as_deref() == Some(&arg_call.name));
+
+                                            // If current macro doesn't have this parameter, check if it was passed to current macro
+                                            if !current_has_param {
+                                                // The ArgCall must have been explicitly passed to the current macro
+                                                // Check if the current macro's invocation (last in mis) contains this ArgCall
+                                                let mut passed_to_current = false;
+
+                                                if let Some((_, current_mi)) = mis.last() {
+                                                    // Check if any of the arguments passed to current macro is this ArgCall
+                                                    fn contains_arg_call(args: &[MacroArg], name: &str) -> bool {
+                                                        args.iter().any(|arg| match arg {
+                                                            MacroArg::ArgCall(ac) => ac.name == name,
+                                                            MacroArg::MacroCall(mc) => contains_arg_call(&mc.args, name),
+                                                            _ => false,
+                                                        })
+                                                    }
+
+                                                    passed_to_current = contains_arg_call(&current_mi.args, &arg_call.name);
+                                                }
+
+                                                // If not passed to current macro, error
+                                                if !passed_to_current {
+                                                    return Err(CodegenError {
+                                                        kind: CodegenErrorKind::MissingArgumentDefinition(arg_call.name.clone()),
+                                                        span: macro_call.span.clone_box(),
+                                                        token: None,
+                                                    });
+                                                }
                                             }
+
+                                            // Resolve this ArgCall by looking it up in the current context
+                                            let mut resolved = None;
+                                            for (_, parent_mi) in mis.iter().rev() {
+                                                if let Some(parent_macro) = contract.find_macro_by_name(&parent_mi.macro_name)
+                                                    && let Some(param_idx) = parent_macro
+                                                        .parameters
+                                                        .iter()
+                                                        .position(|p| p.name.as_deref() == Some(&arg_call.name))
+                                                    && let Some(arg_value) = parent_mi.args.get(param_idx)
+                                                {
+                                                    resolved = Some(arg_value.clone());
+                                                    break;
+                                                }
+                                            }
+                                            resolved_args.push(resolved.unwrap_or_else(|| arg.clone()));
                                         }
-                                        resolved_macro_args.push(resolved.unwrap_or_else(|| macro_arg.clone()));
+                                        MacroArg::MacroCall(nested_macro_call) => {
+                                            // Recursively resolve nested MacroCalls
+                                            let nested_resolved_args =
+                                                resolve_macro_call_args(nested_macro_call, scope_mgr, contract, macro_def)?;
+                                            resolved_args.push(MacroArg::MacroCall(MacroInvocation {
+                                                macro_name: nested_macro_call.macro_name.clone(),
+                                                args: nested_resolved_args,
+                                                span: nested_macro_call.span.clone(),
+                                            }));
+                                        }
+                                        _ => resolved_args.push(arg.clone()),
                                     }
-                                    _ => resolved_macro_args.push(macro_arg.clone()),
                                 }
+                                Ok(resolved_args)
                             }
-                            // Create a new MacroCall with resolved arguments
+
+                            let resolved_macro_args = resolve_macro_call_args(macro_call, scope_mgr, contract, macro_def)?;
                             resolved_args.push(MacroArg::MacroCall(MacroInvocation {
                                 macro_name: macro_call.macro_name.clone(),
                                 args: resolved_macro_args,
@@ -478,17 +543,14 @@ pub fn statement_gen<'a>(
 
                 // Push the invoked macro to the scope AFTER resolving arguments
                 // This is important for circular recursion detection
-                scope.push(ir_macro);
-
-                mis.push((*offset, resolved_mi));
+                scope_mgr.push_macro_with_invocation(ir_macro, *offset, resolved_mi);
 
                 let mut res: BytecodeRes = match Codegen::macro_to_bytecode(
                     evm_version,
                     ir_macro,
                     contract,
-                    scope,
+                    scope_mgr,
                     *offset,
-                    mis,
                     false,
                     Some(circular_codesize_invocations),
                     relax_jumps,
@@ -500,9 +562,13 @@ pub fn statement_gen<'a>(
                             "FAILED TO RECURSE INTO MACRO \"{}\"",
                             ir_macro.name
                         );
+                        scope_mgr.pop_macro();
                         return Err(e);
                     }
                 };
+
+                // Note: The macro is already popped by macro_to_bytecode at the end
+                // because depth > 1 when processing inline macros recursively. We should NOT pop again here.
 
                 // Set jump table values
                 tracing::debug!(target: "codegen", "Unmatched jumps: {:?}", res.unmatched_jumps.iter().map(|uj| uj.label.clone()).collect::<Vec<String>>());
@@ -535,18 +601,10 @@ pub fn statement_gen<'a>(
 
             // Build the scope path from the current macro invocation stack
             // Use offset to make each invocation unique
-            let scope_path: Vec<String> = if scope.len() > 1 {
-                let mut path: Vec<String> = scope[..scope.len() - 1].iter().map(|m| m.name.clone()).collect();
-                // Add the current macro with its invocation offset to make it unique
-                path.push(format!("{}_{}", scope.last().unwrap().name, *offset));
-                path
-            } else {
-                scope.iter().map(|m| m.name.clone()).collect()
-            };
-            let scope_depth = scope.len().saturating_sub(1); // -1 because scope includes the current macro
+            let scope_id = scope_mgr.current_scope();
 
             // Try to insert the label with scope information
-            if let Err(err_msg) = label_indices.insert(label.name.clone(), *offset, scope_depth, scope_path) {
+            if let Err(err_msg) = label_indices.insert(label.name.clone(), *offset, &scope_id) {
                 tracing::error!(target: "codegen", "DUPLICATE LABEL: {}", err_msg);
                 return Err(CodegenError {
                     kind: CodegenErrorKind::DuplicateLabelInScope(label.name.clone()),
@@ -577,20 +635,10 @@ pub fn statement_gen<'a>(
             // PUSH2 + 2 byte destination (placeholder for now, filled in `Codegen::fill_unmatched`
             tracing::info!(target: "codegen", "RECURSE BYTECODE GOT LABEL CALL: {}", label);
 
-            // Build the scope information for this jump
-            // Use offset to make each invocation unique (matching the label definition logic)
-            let scope_path: Vec<String> = if scope.len() > 1 {
-                let mut path: Vec<String> = scope[..scope.len() - 1].iter().map(|m| m.name.clone()).collect();
-                // Add the current macro with its invocation offset to make it unique
-                path.push(format!("{}_{}", scope.last().unwrap().name, *offset));
-                path
-            } else {
-                scope.iter().map(|m| m.name.clone()).collect()
-            };
-            let scope_depth = scope.len().saturating_sub(1); // -1 because scope includes the current macro
+            // Get the scope for this jump
+            let scope_id = scope_mgr.current_scope();
 
-            jump_table
-                .insert(*offset, vec![Jump { label: label.to_string(), bytecode_index: 0, span: s.span.clone(), scope_depth, scope_path }]);
+            jump_table.insert(*offset, vec![Jump { label: label.to_string(), bytecode_index: 0, span: s.span.clone(), scope_id }]);
             bytes.push_with_offset(
                 *offset,
                 Bytes::JumpPlaceholder(JumpPlaceholderData::new(label.to_string(), PushOpcode::Push2, String::new())),
@@ -617,9 +665,8 @@ pub fn statement_gen<'a>(
                 evm_version,
                 contract,
                 macro_def,
-                scope,
+                scope_mgr,
                 offset,
-                mis,
                 table_instances,
                 utilized_tables,
                 circular_codesize_invocations,
@@ -652,7 +699,8 @@ pub fn statement_gen<'a>(
             tracing::info!(target: "codegen", "Processing ArgMacroInvocation: <{}>()", arg_name);
 
             // Function to recursively resolve an argument through the invocation stack
-            fn resolve_argument(arg_name: &str, mis: &[(usize, MacroInvocation)], contract: &Contract) -> Result<String, CodegenErrorKind> {
+            fn resolve_argument<'a>(arg_name: &str, scope_mgr: &ScopeManager<'a>, contract: &Contract) -> Result<String, CodegenErrorKind> {
+                let mis = scope_mgr.invocation_vec();
                 // Search through the macro invocation stack
                 for (_, mi) in mis.iter().rev() {
                     // Find the macro definition
@@ -668,11 +716,11 @@ pub fn statement_gen<'a>(
                                     }
                                     MacroArg::ArgCall(arg_call) => {
                                         // The argument is itself an argument reference - need to resolve it recursively
-                                        return resolve_argument(&arg_call.name, mis, contract);
+                                        return resolve_argument(&arg_call.name, scope_mgr, contract);
                                     }
                                     MacroArg::ArgCallMacroInvocation(inner_arg_name, _) => {
                                         // The argument is an invocation of another argument - resolve that argument
-                                        return resolve_argument(inner_arg_name, mis, contract);
+                                        return resolve_argument(inner_arg_name, scope_mgr, contract);
                                     }
                                     MacroArg::Noop => {
                                         // __NOOP cannot be invoked as a macro
@@ -694,7 +742,7 @@ pub fn statement_gen<'a>(
             }
 
             // Resolve the argument to get the actual macro name
-            let macro_name = match resolve_argument(arg_name, mis, contract) {
+            let macro_name = match resolve_argument(arg_name, scope_mgr, contract) {
                 Ok(name) => {
                     tracing::info!(target: "codegen", "Resolved <{}> to macro: {}", arg_name, name);
                     name
@@ -718,9 +766,8 @@ pub fn statement_gen<'a>(
                 &macro_invocation_statement,
                 contract,
                 macro_def,
-                scope,
+                scope_mgr,
                 offset,
-                mis,
                 jump_table,
                 label_indices,
                 table_instances,
@@ -732,7 +779,7 @@ pub fn statement_gen<'a>(
         }
         StatementType::IfStatement { condition, then_branch, else_if_branches, else_branch } => {
             // Evaluate condition with macro invocation context (supports <arg>)
-            let condition_val = evaluate_expression_with_context(condition, contract, mis)?;
+            let condition_val = evaluate_expression_with_context(condition, contract, scope_mgr)?;
             let condition_true = !U256::from_be_bytes(condition_val).is_zero();
 
             // Select the appropriate branch
@@ -742,7 +789,7 @@ pub fn statement_gen<'a>(
                 // Check else if branches
                 let mut matched_branch = None;
                 for (else_if_condition, else_if_body) in else_if_branches {
-                    let else_if_val = evaluate_expression_with_context(else_if_condition, contract, mis)?;
+                    let else_if_val = evaluate_expression_with_context(else_if_condition, contract, scope_mgr)?;
                     let else_if_true = !U256::from_be_bytes(else_if_val).is_zero();
 
                     if else_if_true {
@@ -767,9 +814,8 @@ pub fn statement_gen<'a>(
                             stmt,
                             contract,
                             macro_def,
-                            scope,
+                            scope_mgr,
                             offset,
-                            mis,
                             jump_table,
                             label_indices,
                             table_instances,
@@ -819,9 +865,8 @@ pub fn statement_gen<'a>(
                             &mut bytes,
                             macro_def,
                             contract,
-                            scope,
+                            scope_mgr,
                             offset,
-                            mis,
                             jump_table,
                             table_instances,
                             utilized_tables,
@@ -845,10 +890,13 @@ pub fn statement_gen<'a>(
         }
         StatementType::ForLoop { variable, start, end, step, body } => {
             // Evaluate loop bounds with macro invocation context (supports <arg>)
-            let start_val = evaluate_expression_with_context(start, contract, mis)?;
-            let end_val = evaluate_expression_with_context(end, contract, mis)?;
-            let step_val =
-                if let Some(step_expr) = step { evaluate_expression_with_context(step_expr, contract, mis)? } else { str_to_bytes32("1") };
+            let start_val = evaluate_expression_with_context(start, contract, scope_mgr)?;
+            let end_val = evaluate_expression_with_context(end, contract, scope_mgr)?;
+            let step_val = if let Some(step_expr) = step {
+                evaluate_expression_with_context(step_expr, contract, scope_mgr)?
+            } else {
+                str_to_bytes32("1")
+            };
 
             // Convert to U256 for iteration
             let start_u256 = U256::from_be_bytes(start_val);
@@ -890,9 +938,8 @@ pub fn statement_gen<'a>(
                                 stmt,
                                 contract,
                                 macro_def,
-                                scope,
+                                scope_mgr,
                                 offset,
-                                mis,
                                 jump_table,
                                 label_indices,
                                 table_instances,
@@ -940,9 +987,8 @@ pub fn statement_gen<'a>(
                                 &mut bytes,
                                 macro_def,
                                 contract,
-                                scope,
+                                scope_mgr,
                                 offset,
-                                mis,
                                 jump_table,
                                 table_instances,
                                 utilized_tables,

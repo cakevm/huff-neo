@@ -9,6 +9,7 @@ use huff_neo_utils::ast::huff::*;
 use huff_neo_utils::ast::span::AstSpan;
 use huff_neo_utils::bytes_util::str_to_bytes32;
 use huff_neo_utils::file::file_source::FileSource;
+use huff_neo_utils::scope::ScopeManager;
 use huff_neo_utils::{
     abi::*,
     artifact::*,
@@ -25,22 +26,22 @@ use std::{cmp::Ordering, collections::HashMap, fs, path::Path, sync::Arc};
 mod irgen;
 use crate::irgen::prelude::*;
 
+/// Maximum macro recursion depth allowed during compilation.
+///
+/// This prevents infinite recursion in macro expansion or argument resolution,
+/// which can occur with circular macro calls or recursive argument references.
+pub(crate) const MAX_MACRO_RECURSION_DEPTH: usize = 100;
+
 /// Maximum number of iterations allowed for the jump relaxation optimization algorithm.
 ///
 /// This limit prevents infinite loops in pathological cases where convergence fails,
 /// though typical contracts converge in a few iterations.
 const JUMP_RELAXATION_MAX_ITERATIONS: usize = 20;
 
-/// ### Codegen
+/// Compiles Huff contracts into EVM bytecode.
 ///
-/// Code Generation Manager responsible for generating bytecode from a
-/// [Contract](../../huff_utils/src/ast.rs#Contract) Abstract Syntax Tree.
-///
-/// #### Usage
-///
-/// The canonical way to instantiate a Codegen instance is using the public associated
-/// [new](Codegen::new) function.
-///
+/// Transforms a Contract AST into executable bytecode, handling macro expansion,
+/// label resolution, and bytecode optimization.
 ///
 /// ```rust
 /// use huff_neo_codegen::Codegen;
@@ -64,7 +65,14 @@ impl Codegen {
         Self { ast: None, artifact: None, main_bytecode: None, constructor_bytecode: None }
     }
 
-    /// Generates main bytecode from a Contract AST
+    /// Compiles the contract's main macro into executable bytecode.
+    ///
+    /// # Arguments
+    ///
+    /// * `evm_version` - Target EVM version
+    /// * `contract` - The contract to compile
+    /// * `alternative_main` - Optional alternative entry point (defaults to "MAIN")
+    /// * `relax_jumps` - Enable jump optimization to reduce bytecode size
     pub fn generate_main_bytecode(
         evm_version: &EVMVersion,
         contract: &Contract,
@@ -75,7 +83,9 @@ impl Codegen {
         Ok(bytecode)
     }
 
-    /// Generates main bytecode with source map from a Contract AST
+    /// Compiles the contract's main macro into bytecode with source map.
+    ///
+    /// Like `generate_main_bytecode`, but also returns a source map for debugging.
     pub fn generate_main_bytecode_with_sourcemap(
         evm_version: &EVMVersion,
         contract: &Contract,
@@ -91,18 +101,13 @@ impl Codegen {
         // Find the main macro
         let m_macro = Codegen::get_macro_by_name(&main_macro, &contract)?;
 
+        // Create scope manager and push the main macro
+        let mut scope_mgr = ScopeManager::new();
+        scope_mgr.push_macro(m_macro, 0);
+
         // For each MacroInvocation Statement, recurse into bytecode
-        let bytecode_res: BytecodeRes = Codegen::macro_to_bytecode(
-            evm_version,
-            m_macro,
-            &contract,
-            &mut vec![m_macro],
-            0,
-            &mut Vec::default(),
-            false,
-            None,
-            relax_jumps,
-        )?;
+        let bytecode_res: BytecodeRes =
+            Codegen::macro_to_bytecode(evm_version, m_macro, &contract, &mut scope_mgr, 0, false, None, relax_jumps)?;
 
         tracing::debug!(target: "codegen", "Generated main bytecode. Appending table bytecode...");
 
@@ -138,18 +143,13 @@ impl Codegen {
         // Find the constructor macro
         let c_macro = Codegen::get_macro_by_name(&constructor_macro, &contract)?;
 
+        // Create scope manager and push the constructor macro
+        let mut scope_mgr = ScopeManager::new();
+        scope_mgr.push_macro(c_macro, 0);
+
         // For each MacroInvocation Statement, recurse into bytecode
-        let bytecode_res: BytecodeRes = Codegen::macro_to_bytecode(
-            evm_version,
-            c_macro,
-            &contract,
-            &mut vec![c_macro],
-            0,
-            &mut Vec::default(),
-            false,
-            None,
-            relax_jumps,
-        )?;
+        let bytecode_res: BytecodeRes =
+            Codegen::macro_to_bytecode(evm_version, c_macro, &contract, &mut scope_mgr, 0, false, None, relax_jumps)?;
 
         // Check if the constructor performs its own code generation
         let has_custom_bootstrap = bytecode_res.bytes.iter().any(|seg| seg.bytes.as_str() == "f3");
@@ -418,38 +418,48 @@ impl Codegen {
         Ok((bytecode, source_map))
     }
 
-    /// Recurses a MacroDefinition to generate Bytecode
+    /// Generates bytecode from a macro definition.
     ///
-    /// ## Overview
+    /// Expands the macro body into bytecode, resolving labels, arguments, and nested macro calls.
     ///
-    /// `macro_to_bytecode` first transforms the macro definition into "IR" Bytecode - a vec of
-    /// intermediate bytes. It then iterates over each byte, converting the
-    /// [IRByte](struct.IRByte.html) into a `Bytes`. Once done iterating over the macro
-    /// definition IRBytes, we use the JumpTable to match any unmatched jumps. If jumps are not
-    /// matched, they are appended to a vec of unmatched jumps.
+    /// # Arguments
     ///
-    /// On success, a [BytecodeRes](struct.BytecodeRes.html) is returned,
-    /// containing the generated bytes, label indices, unmatched jumps, and table indices.
+    /// * `evm_version` - Target EVM version for opcode compatibility
+    /// * `macro_def` - The macro to compile
+    /// * `contract` - Contract context for macro and constant lookups
+    /// * `scope_mgr` - Call stack for tracking macro invocations and scope
+    /// * `offset` - Starting bytecode offset
+    /// * `recursing_constructor` - Whether compiling within a constructor
+    /// * `circular_codesize_invocations` - Tracks __CODESIZE recursion to prevent infinite loops
+    /// * `relax_jumps` - Enable jump size optimization
     ///
-    /// ## Arguments
+    /// # Returns
     ///
-    /// * `macro_def` - Macro definition to convert to bytecode
-    /// * `contract` - Reference to the `Contract` AST generated by the parser
-    /// * `scope` - Current scope of the recursion. Contains all macro definitions recursed so far.
-    /// * `offset` - Current bytecode offset
-    /// * `mis` - Vector of tuples containing parent macro invocations as well as their offsets.
+    /// Bytecode with label indices, unresolved jumps, and source map information.
     #[allow(clippy::too_many_arguments)]
     pub fn macro_to_bytecode<'a>(
         evm_version: &EVMVersion,
         macro_def: &'a MacroDefinition,
         contract: &'a Contract,
-        scope: &mut Vec<&'a MacroDefinition>,
+        scope_mgr: &mut ScopeManager<'a>,
         mut offset: usize,
-        mis: &mut Vec<(usize, MacroInvocation)>,
         recursing_constructor: bool,
         circular_codesize_invocations: Option<&mut CircularCodeSizeIndices>,
         relax_jumps: bool,
     ) -> Result<BytecodeRes, CodegenError> {
+        // Safety check to prevent infinite recursion
+        if scope_mgr.depth() > MAX_MACRO_RECURSION_DEPTH {
+            let macro_chain = scope_mgr.macro_stack().iter().map(|m| m.name.as_str()).collect::<Vec<_>>().join(" -> ");
+            return Err(CodegenError {
+                kind: CodegenErrorKind::InvalidMacroArgumentType(format!(
+                    "Maximum macro recursion depth ({}) exceeded while compiling macro '{}'.\nMacro call chain: {}\nThis likely indicates circular macro calls or infinitely recursive macro expansion.",
+                    MAX_MACRO_RECURSION_DEPTH, macro_def.name, macro_chain
+                )),
+                span: macro_def.span.clone_box(),
+                token: None,
+            });
+        }
+
         // Get intermediate bytecode representation of the macro definition
         let mut bytes = BytecodeSegments::new();
         let mut spans: Vec<Option<(usize, usize)>> = Vec::default();
@@ -508,9 +518,8 @@ impl Codegen {
                         s,
                         contract,
                         macro_def,
-                        scope,
+                        scope_mgr,
                         &mut offset,
-                        mis,
                         &mut jump_table,
                         &mut label_indices,
                         &mut table_instances,
@@ -535,9 +544,8 @@ impl Codegen {
                         &mut bytes,
                         macro_def,
                         contract,
-                        scope,
+                        scope_mgr,
                         &mut offset,
-                        mis,
                         &mut jump_table,
                         &mut table_instances,
                         &mut utilized_tables,
@@ -553,21 +561,19 @@ impl Codegen {
             }
         }
 
-        // We're done, let's pop off the macro invocation
-        if mis.pop().is_none() {
-            tracing::warn!(target: "codegen", "ATTEMPTED MACRO INVOCATION POP FAILED AT SCOPE: {}", scope.len());
-        }
+        // Note: We don't pop from scope_mgr here because it's either:
+        // 1. Done by the caller after the recursive call returns (for inline macros)
+        // 2. Done at the end of this function (for top-level or function generation)
 
         // Add functions (outlined macros) to the end of the bytecode if the scope length == 1
         // (i.e., we're at the top level of recursion)
-        if scope.len() == 1 {
+        if scope_mgr.depth() == 1 {
             let bytes_before = bytes.len();
             bytes = Codegen::append_functions(
                 evm_version,
                 contract,
-                scope,
+                scope_mgr,
                 &mut offset,
-                mis,
                 &mut jump_table,
                 &mut label_indices,
                 &mut table_instances,
@@ -581,7 +587,7 @@ impl Codegen {
         } else {
             // If the scope length is > 1, we're processing a child macro. Since we're done
             // with it, it can be popped.
-            scope.pop();
+            scope_mgr.pop_macro();
         }
 
         // Fill JUMPDEST placeholders
@@ -682,7 +688,7 @@ impl Codegen {
                         // Use the first jump (typically there's only one per offset)
                         if let Some(jump) = jumps.first() {
                             // Look up the target label's offset
-                            match label_indices.get(&placeholder.label, jump.scope_depth, &jump.scope_path) {
+                            match label_indices.get(&placeholder.label, &jump.scope_id) {
                                 Ok(Some(target_offset)) => {
                                     // Check if target fits in PUSH1 (0-255)
                                     if target_offset <= 0xFF {
@@ -817,8 +823,8 @@ impl Codegen {
         for jump in &unmatched_jumps {
             tracing::warn!(
                 target: "codegen",
-                "UNMATCHED JUMP LABEL \"{}\" AT BYTECODE INDEX {} (scope_depth={}, scope_path={:?})",
-                jump.label, jump.bytecode_index, jump.scope_depth, jump.scope_path
+                "UNMATCHED JUMP LABEL \"{}\" AT BYTECODE INDEX {} (scope_id={:?})",
+                jump.label, jump.bytecode_index, jump.scope_id
             );
         }
 
@@ -899,20 +905,57 @@ impl Codegen {
     pub fn append_functions<'a>(
         evm_version: &EVMVersion,
         contract: &'a Contract,
-        scope: &mut Vec<&'a MacroDefinition>,
+        scope_mgr: &mut ScopeManager<'a>,
         offset: &mut usize,
-        mis: &mut Vec<(usize, MacroInvocation)>,
         jump_table: &mut JumpTable,
         label_indices: &mut LabelIndices,
         table_instances: &mut Jumps,
         mut bytes: BytecodeSegments,
     ) -> Result<BytecodeSegments, CodegenError> {
-        for macro_def in contract.macros.values().filter(|m| m.outlined) {
+        // First pass: Pre-register all function goto_ labels at their future offsets
+        // This allows nested function calls to resolve correctly
+        let functions: Vec<_> = contract.macros.values().filter(|m| m.outlined).collect();
+        let mut current_offset = *offset;
+        let goto_scope_id = huff_neo_utils::scope::ScopeId::new(vec![], 0);
+
+        // We need to calculate offsets without actually generating bytecode yet
+        // Store the calculated offset for each function
+        let mut function_offsets: Vec<(&MacroDefinition, usize)> = Vec::new();
+
+        for macro_def in &functions {
+            // Register the goto_ label at the current offset
+            if let Err(err_msg) = label_indices.insert(format!("goto_{}", macro_def.name.clone()), current_offset, &goto_scope_id) {
+                // This shouldn't happen for auto-generated goto_ labels - indicates a compiler bug
+                tracing::error!(target: "codegen", "INTERNAL ERROR: Duplicate goto_ label for function '{}': {}", macro_def.name, err_msg);
+                return Err(CodegenError {
+                    kind: CodegenErrorKind::DuplicateLabelInScope(format!("goto_{}", macro_def.name)),
+                    span: macro_def.span.clone_box(),
+                    token: None,
+                });
+            }
+
+            function_offsets.push((macro_def, current_offset));
+
+            // Estimate the size of this function for offset calculation
+            // We'll need to generate it to get the exact size, but for now we need a placeholder
+            // This is a chicken-and-egg problem: we need offsets to generate code, but need code to know offsets
+            // Solution: Generate into a temporary buffer first
+            scope_mgr.push_macro(macro_def, current_offset);
+            let temp_res = Codegen::macro_to_bytecode(evm_version, macro_def, contract, scope_mgr, current_offset + 1, false, None, false)?;
+            let macro_code_len = temp_res.bytes.iter().map(|seg| seg.bytes.len()).sum::<usize>();
+            let stack_swaps_len = macro_def.returns;
+            current_offset += macro_code_len + stack_swaps_len + 2; // JUMPDEST + MACRO_CODE_LEN + stack_swaps.len() + JUMP
+            // Note: macro_to_bytecode already popped the macro (depth > 1)
+        }
+
+        // Second pass: Actually generate the function bytecode
+        // Now all goto_ labels are registered, so nested calls will resolve
+        for (macro_def, func_offset) in function_offsets {
             // Push the function to the scope
-            scope.push(macro_def);
+            scope_mgr.push_macro(macro_def, func_offset);
 
             // Add 1 to starting offset to account for the JUMPDEST opcode
-            let mut res = Codegen::macro_to_bytecode(evm_version, macro_def, contract, scope, *offset + 1, mis, false, None, false)?;
+            let mut res = Codegen::macro_to_bytecode(evm_version, macro_def, contract, scope_mgr, func_offset + 1, false, None, false)?;
 
             for j in res.unmatched_jumps.iter_mut() {
                 let new_index = j.bytecode_index;
@@ -931,24 +974,15 @@ impl Codegen {
             let stack_swaps = (0..macro_def.returns).map(|i| format!("{:02x}", 0x90 + i)).collect::<Vec<_>>();
 
             // Insert JUMPDEST, stack swaps, and final JUMP back to the location of invocation.
-            bytes.push_with_offset(*offset, Bytes::Raw(Opcode::Jumpdest.to_string()));
-            res.bytes.push_with_offset(*offset + macro_code_len + 1, Bytes::Raw(format!("{}{}", stack_swaps.join(""), Opcode::Jump)));
+            bytes.push_with_offset(func_offset, Bytes::Raw(Opcode::Jumpdest.to_string()));
+            res.bytes.push_with_offset(func_offset + macro_code_len + 1, Bytes::Raw(format!("{}{}", stack_swaps.join(""), Opcode::Jump)));
             bytes.extend(res.bytes);
-            // Add the jumpdest to the beginning of the outlined macro.
-            // Outlined macros are at the top-level scope
-            let scope_path: Vec<String> = vec![];
-            let scope_depth = 0;
-            if let Err(err_msg) = label_indices.insert(format!("goto_{}", macro_def.name.clone()), *offset, scope_depth, scope_path) {
-                // This shouldn't happen for auto-generated goto_ labels - indicates a compiler bug
-                tracing::error!(target: "codegen", "INTERNAL ERROR: Duplicate goto_ label for function '{}': {}", macro_def.name, err_msg);
-                return Err(CodegenError {
-                    kind: CodegenErrorKind::DuplicateLabelInScope(format!("goto_{}", macro_def.name)),
-                    span: macro_def.span.clone_box(),
-                    token: None,
-                });
-            }
-            *offset += macro_code_len + stack_swaps.len() + 2; // JUMPDEST + MACRO_CODE_LEN + stack_swaps.len() + JUMP
+
+            // Note: The function is already popped by macro_to_bytecode at the end
+            // because depth > 1 when generating functions. We should NOT pop again here.
         }
+
+        *offset = current_offset;
         Ok(bytes)
     }
 

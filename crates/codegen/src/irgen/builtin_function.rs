@@ -10,9 +10,9 @@ use huff_neo_utils::bytes_util::{bytes32_to_hex_string, format_even_bytes, pad_n
 use huff_neo_utils::error::{CodegenError, CodegenErrorKind};
 use huff_neo_utils::evm_version::EVMVersion;
 use huff_neo_utils::prelude::{
-    Argument, AstSpan, BuiltinFunctionArg, BuiltinFunctionCall, BuiltinFunctionKind, Contract, MacroDefinition, MacroInvocation, PushValue,
-    TableDefinition,
+    Argument, AstSpan, BuiltinFunctionArg, BuiltinFunctionCall, BuiltinFunctionKind, Contract, MacroDefinition, PushValue, TableDefinition,
 };
+use huff_neo_utils::scope::ScopeManager;
 
 /// Creates a CodegenError for invalid arguments
 fn invalid_arguments_error(msg: impl Into<String>, span: &AstSpan) -> CodegenError {
@@ -72,9 +72,8 @@ pub fn builtin_function_gen<'a>(
     evm_version: &EVMVersion,
     contract: &'a Contract,
     macro_def: &MacroDefinition,
-    scope: &mut Vec<&'a MacroDefinition>,
+    scope_mgr: &mut ScopeManager<'a>,
     offset: &mut usize,
-    mis: &mut Vec<(usize, MacroInvocation)>,
     table_instances: &mut Jumps,
     utilized_tables: &mut Vec<TableDefinition>,
     circular_codesize_invocations: &mut CircularCodeSizeIndices,
@@ -87,7 +86,7 @@ pub fn builtin_function_gen<'a>(
     match bf.kind {
         BuiltinFunctionKind::Codesize => {
             let (codesize_offset, bytes_variant) =
-                codesize(evm_version, contract, macro_def, scope, offset, mis, circular_codesize_invocations, bf, relax_jumps)?;
+                codesize(evm_version, contract, macro_def, scope_mgr, offset, circular_codesize_invocations, bf, relax_jumps)?;
 
             *offset += codesize_offset;
             bytes.push_with_offset(starting_offset, bytes_variant);
@@ -107,20 +106,12 @@ pub fn builtin_function_gen<'a>(
             // Make sure the table exists
             if let Some(t) = contract.find_table_by_name(first_arg.name.as_ref().unwrap()) {
                 tracing::debug!(target: "codegen", "Creating table instance for {} at offset {}", first_arg.name.as_ref().unwrap(), *offset);
-                let scope_path: Vec<String> = if scope.len() > 1 {
-                    let mut path: Vec<String> = scope[..scope.len() - 1].iter().map(|m| m.name.clone()).collect();
-                    path.push(format!("{}_{}", scope.last().unwrap().name, *offset));
-                    path
-                } else {
-                    scope.iter().map(|m| m.name.clone()).collect()
-                };
-                let scope_depth = scope.len().saturating_sub(1);
+                let scope_id = scope_mgr.current_scope();
                 table_instances.push(Jump {
                     label: first_arg.name.as_ref().unwrap().to_owned(),
                     bytecode_index: *offset,
                     span: bf.span.clone(),
-                    scope_depth,
-                    scope_path,
+                    scope_id,
                 });
                 if !utilized_tables.contains(&t) {
                     utilized_tables.push(t);
@@ -313,9 +304,8 @@ fn codesize<'a>(
     evm_version: &EVMVersion,
     contract: &'a Contract,
     macro_def: &MacroDefinition,
-    scope: &mut Vec<&'a MacroDefinition>,
+    scope_mgr: &mut ScopeManager<'a>,
     offset: &mut usize,
-    mis: &mut Vec<(usize, MacroInvocation)>,
     circular_codesize_invocations: &mut CircularCodeSizeIndices,
     bf: &BuiltinFunctionCall,
     relax_jumps: bool,
@@ -338,7 +328,7 @@ fn codesize<'a>(
 
     // Get the name of the macro being passed to __codesize
     let codesize_arg = first_arg.name.as_ref().unwrap();
-    let is_previous_parent = scope.iter().any(|def| def.name == *codesize_arg);
+    let is_previous_parent = scope_mgr.macro_stack().iter().any(|def| def.name == *codesize_arg);
 
     // Special case:
     // If the macro provided to __codesize is the current macro, we need to avoid a
@@ -362,9 +352,8 @@ fn codesize<'a>(
             evm_version,
             ir_macro,
             contract,
-            scope,
+            scope_mgr,
             *offset,
-            mis,
             ir_macro.name.eq("CONSTRUCTOR"),
             Some(circular_codesize_invocations),
             relax_jumps,

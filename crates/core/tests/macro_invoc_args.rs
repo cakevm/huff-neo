@@ -1597,3 +1597,135 @@ fn test_arg_scoping_with_label_in_caller() {
     assert!(codegen_result.is_err());
     assert_eq!(codegen_result.unwrap_err().kind, CodegenErrorKind::MissingArgumentDefinition(String::from("arg")));
 }
+
+#[test]
+fn test_deeply_nested_macro_args_with_label_2_levels() {
+    // Test 2-level nesting (baseline - should work)
+    let source = r#"
+        #define macro IDENTITY(arg) = takes(0) returns(0) {
+            <arg>
+        }
+
+        #define macro M1(a) = takes(0) returns(0) {
+            lbl:
+            IDENTITY(<a>)
+        }
+
+        #define macro MAIN() = takes(0) returns(0) {
+            M1(0x42)
+        }
+    "#;
+
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    let evm_version = EVMVersion::default();
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None, false).unwrap();
+
+    // Should successfully compile
+    assert!(!main_bytecode.is_empty());
+}
+
+#[test]
+fn test_deeply_nested_macro_args_with_label_3_levels() {
+    // Test 3-level nesting (the failing case from the issue)
+    let source = r#"
+        #define macro IDENTITY(arg) = takes(0) returns(0) {
+            <arg>
+        }
+
+        #define macro M1(a) = takes(0) returns(0) {
+            lbl:
+            IDENTITY(IDENTITY(IDENTITY(<a>)))
+        }
+
+        #define macro MAIN() = takes(0) returns(0) {
+            M1(0x42)
+        }
+    "#;
+
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    let evm_version = EVMVersion::default();
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None, false).unwrap();
+
+    // Should successfully compile with nested IDENTITY calls
+    assert!(!main_bytecode.is_empty());
+
+    // Verify the bytecode contains the expected value 0x42
+    assert!(main_bytecode.contains("42"));
+}
+
+#[test]
+fn test_deeply_nested_macro_args_with_label_4_levels() {
+    // Test 4+ level nesting to ensure truly generic solution
+    let source = r#"
+        #define macro IDENTITY(arg) = takes(0) returns(0) {
+            <arg>
+        }
+
+        #define macro M1(a) = takes(0) returns(0) {
+            lbl:
+            IDENTITY(IDENTITY(IDENTITY(IDENTITY(IDENTITY(<a>)))))
+        }
+
+        #define macro MAIN() = takes(0) returns(0) {
+            M1(0x42)
+        }
+    "#;
+
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    let evm_version = EVMVersion::default();
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None, false).unwrap();
+
+    // Should successfully compile even with 5 levels of IDENTITY nesting
+    assert!(!main_bytecode.is_empty());
+    assert!(main_bytecode.contains("42"));
+}
+
+#[test]
+fn test_deeply_nested_macro_args_without_label() {
+    // Verify that nesting works fine without a label (control case)
+    let source = r#"
+        #define macro IDENTITY(arg) = takes(0) returns(0) {
+            <arg>
+        }
+
+        #define macro M1(a) = takes(0) returns(0) {
+            IDENTITY(IDENTITY(IDENTITY(<a>)))
+        }
+
+        #define macro MAIN() = takes(0) returns(0) {
+            M1(0x42)
+        }
+    "#;
+
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    let evm_version = EVMVersion::default();
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None, false).unwrap();
+
+    // Should work fine without label
+    assert!(!main_bytecode.is_empty());
+    assert!(main_bytecode.contains("42"));
+}

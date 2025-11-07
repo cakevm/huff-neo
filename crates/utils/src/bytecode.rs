@@ -3,6 +3,7 @@
 //! Abstract translating state into bytecode.
 
 use crate::ast::span::AstSpan;
+use crate::scope::ScopeId;
 use crate::{
     evm_version::EVMVersion,
     prelude::{Statement, TableDefinition},
@@ -389,7 +390,7 @@ impl BytecodeSegments {
                         );
 
                         // Look up the label's target offset
-                        match label_indices.get(jump.label.as_str(), jump.scope_depth, &jump.scope_path) {
+                        match label_indices.get(jump.label.as_str(), &jump.scope_id) {
                             Ok(Some(target_offset)) => {
                                 // Verify the offset fits in the chosen push opcode
                                 if !data.push_opcode.can_represent(target_offset) {
@@ -408,8 +409,7 @@ impl BytecodeSegments {
                                     label: jump.label.clone(),
                                     bytecode_index: code_index,
                                     span: jump.span.clone(),
-                                    scope_depth: jump.scope_depth,
-                                    scope_path: jump.scope_path.clone(),
+                                    scope_id: jump.scope_id.clone(),
                                 });
                             }
                             Err(err_msg) => {
@@ -582,7 +582,7 @@ impl Display for BytecodeRes {
 }
 
 /// A Jump
-#[derive(Debug, Default, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Jump {
     /// Jump's Label
     pub label: String,
@@ -590,10 +590,14 @@ pub struct Jump {
     pub bytecode_index: usize,
     /// The Jump Span
     pub span: AstSpan,
-    /// The scope depth where the jump was made
-    pub scope_depth: usize,
-    /// The scope path where the jump was made
-    pub scope_path: Vec<String>,
+    /// The scope where the jump was made
+    pub scope_id: ScopeId,
+}
+
+impl Default for Jump {
+    fn default() -> Self {
+        Self { label: String::new(), bytecode_index: 0, span: AstSpan::default(), scope_id: ScopeId::new(vec![], 0) }
+    }
 }
 
 /// Type for a vec of `Jump`s
@@ -604,10 +608,8 @@ pub type Jumps = Vec<Jump>;
 pub struct ScopedLabel {
     /// The bytecode offset of the label
     pub offset: usize,
-    /// The scope depth where the label was defined (0 = top level)
-    pub scope_depth: usize,
-    /// The macro invocation chain that led to this label
-    pub scope_path: Vec<String>,
+    /// The scope where the label was defined
+    pub scope_id: ScopeId,
 }
 
 /// Error type for label operations
@@ -646,24 +648,27 @@ impl ScopedLabelIndices {
 
     /// Insert a label with scope information
     /// Returns an error if the label already exists in the same scope
-    pub fn insert(&mut self, name: String, offset: usize, scope_depth: usize, scope_path: Vec<String>) -> Result<(), LabelError> {
+    pub fn insert(&mut self, name: String, offset: usize, scope_id: &ScopeId) -> Result<(), LabelError> {
         let entry = self.labels.entry(name.clone()).or_default();
 
-        // Check if label already exists at the same scope depth
+        // Check if label already exists at the same scope
         for existing in entry.iter() {
-            if existing.scope_depth == scope_depth && existing.scope_path == scope_path {
+            if existing.scope_id == *scope_id {
                 return Err(LabelError::DuplicateLabelInScope(name));
             }
         }
 
-        entry.push(ScopedLabel { offset, scope_depth, scope_path });
+        entry.push(ScopedLabel { offset, scope_id: scope_id.clone() });
         Ok(())
     }
 
     /// Get the label offset for a given name, considering scope
     /// Returns the label from the deepest matching scope
     /// Returns an error if duplicate labels are found in sibling scopes when cross-referencing
-    pub fn get(&self, name: &str, current_scope_depth: usize, current_scope_path: &[String]) -> Result<Option<usize>, LabelError> {
+    pub fn get(&self, name: &str, current_scope: &ScopeId) -> Result<Option<usize>, LabelError> {
+        let current_scope_depth = current_scope.depth;
+        let current_scope_path = &current_scope.path;
+
         self.labels.get(name).map_or(Ok(None), |labels| {
             // First, try to find a label in the current scope or parent scopes
             let in_scope = labels
@@ -671,11 +676,11 @@ impl ScopedLabelIndices {
                 .filter(|label| {
                     // Label is accessible if it's at the same depth or shallower
                     // and the scope path matches up to the label's depth
-                    label.scope_depth <= current_scope_depth
-                        && label.scope_path.len() <= current_scope_path.len()
-                        && label.scope_path.iter().zip(current_scope_path.iter()).all(|(a, b)| a == b)
+                    label.scope_id.depth <= current_scope_depth
+                        && label.scope_id.path.len() <= current_scope_path.len()
+                        && label.scope_id.path.iter().zip(current_scope_path.iter()).all(|(a, b)| a == b)
                 })
-                .max_by_key(|label| label.scope_depth)
+                .max_by_key(|label| label.scope_id.depth)
                 .map(|label| label.offset);
 
             if in_scope.is_some() {
@@ -688,8 +693,8 @@ impl ScopedLabelIndices {
                 .iter()
                 .filter(|label| {
                     // Check if this label is in a child scope (starts with our scope path)
-                    label.scope_path.len() > current_scope_path.len()
-                        && current_scope_path.iter().zip(label.scope_path.iter()).all(|(a, b)| a == b)
+                    label.scope_id.path.len() > current_scope_path.len()
+                        && current_scope_path.iter().zip(label.scope_id.path.iter()).all(|(a, b)| a == b)
                 })
                 .collect();
 
@@ -714,24 +719,24 @@ impl ScopedLabelIndices {
                     .iter()
                     .filter(|label| {
                         // Must have at least the depth we're checking
-                        if label.scope_path.len() <= depth {
+                        if label.scope_id.path.len() <= depth {
                             return false;
                         }
 
                         // Must share the common ancestor path
-                        if label.scope_path[..depth] != search_scope[..depth] {
+                        if label.scope_id.path[..depth] != search_scope[..depth] {
                             return false;
                         }
 
                         // If we're at the immediate parent level, exclude our own path
                         if depth == current_scope_path.len() - 1 {
                             // Same depth siblings
-                            label.scope_path.len() == current_scope_path.len() && label.scope_path != current_scope_path
+                            label.scope_id.path.len() == current_scope_path.len() && label.scope_id.path != *current_scope_path
                         } else {
                             // Different branch from this ancestor - must diverge after depth
-                            if label.scope_path.len() > depth {
+                            if label.scope_id.path.len() > depth {
                                 // The path diverges at depth+1 (different child of common ancestor)
-                                label.scope_path.get(depth) != current_scope_path.get(depth)
+                                label.scope_id.path.get(depth) != current_scope_path.get(depth)
                             } else {
                                 false
                             }
@@ -743,7 +748,7 @@ impl ScopedLabelIndices {
                     // Check for duplicates across cousins only when we're doing cross-reference
                     if cousin_labels.len() > 1 {
                         // Multiple cousins define this label - check if they're in different branches
-                        let unique_scopes: std::collections::HashSet<_> = cousin_labels.iter().map(|label| &label.scope_path).collect();
+                        let unique_scopes: std::collections::HashSet<_> = cousin_labels.iter().map(|label| &label.scope_id.path).collect();
 
                         if unique_scopes.len() > 1 {
                             // Labels are in different cousin scopes - ambiguous reference

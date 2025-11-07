@@ -9,6 +9,8 @@
 - Fix macro argument scoping bug where parameters leaked across macro boundaries (fixes #139).
   - Macros can no longer access parameters from parent scopes unless explicitly passed.
   - Example: If `M1(arg)` calls `M2()` without passing `arg`, then `M2` cannot use `<arg>`.
+- Fix nested macro invocation resulted in stack overflow (fixes #140).
+  - Example: `M1(M1(M1(<a>)))`
 
 ## [1.5.3] - 2025-11-06
 - Introducing `--relax-jumps` CLI flag to optimize jump instructions from PUSH2 to PUSH1.

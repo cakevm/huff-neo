@@ -240,7 +240,9 @@ impl TestRunner {
             Codegen::update_table_size(&evm_version, contract).map_err(|e| RunnerError::CompilerError(CompilerError::CodegenError(e)))?;
 
         // Compile the passed test macro
-        let res = Codegen::macro_to_bytecode(&evm_version, m, &contract, &mut vec![m], 0, &mut Vec::default(), false, None, false)
+        let mut scope_mgr = huff_neo_utils::scope::ScopeManager::new();
+        scope_mgr.push_macro(m, 0);
+        let res = Codegen::macro_to_bytecode(&evm_version, m, &contract, &mut scope_mgr, 0, false, None, false)
             .map_err(|e| RunnerError::CompilerError(CompilerError::CodegenError(e)))?;
 
         // Generate table bytecode for compiled test macro
