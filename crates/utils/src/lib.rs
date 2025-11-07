@@ -63,6 +63,9 @@ pub mod shell;
 /// Lexer Context
 pub mod lexer_context;
 
+/// Scope Management Module
+pub mod scope;
+
 /// Prelude wraps common utilities.
 pub mod prelude {
     pub use crate::ast::{abi::*, huff::*, span::*};
@@ -70,7 +73,7 @@ pub mod prelude {
     pub use crate::file::unpack_files::*;
     pub use crate::file::{file_source::*, full_file_source::*};
     pub use crate::{
-        abi::*, artifact::*, bytecode::*, bytes_util::*, error::*, evm_version::*, opcodes::*, push_value::*, report::*, sol_interface::*,
-        token::*, types::*,
+        abi::*, artifact::*, bytecode::*, bytes_util::*, error::*, evm_version::*, opcodes::*, push_value::*, report::*, scope::*,
+        sol_interface::*, token::*, types::*,
     };
 }

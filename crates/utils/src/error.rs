@@ -263,6 +263,12 @@ pub enum CodegenErrorKind {
     LoopIterationLimitExceeded(usize),
     /// PC (program counter) assertion failed (expected, actual)
     AssertPcFailed(usize, usize),
+    /// Exceeded maximum iterations when resolving argument references through the scope chain
+    /// First parameter is the argument name, second is the maximum allowed iterations
+    ArgResolutionLimitExceeded(String, usize),
+    /// Exceeded maximum iterations in bubble_arg_call when bubbling up through nested macro calls
+    /// First parameter is the argument name, second is the maximum allowed iterations
+    BubbleArgLimitExceeded(String, usize),
 }
 
 impl Spanned for CodegenError {
@@ -396,6 +402,20 @@ impl<W: Write> Report<W> for CodegenError {
             }
             CodegenErrorKind::AssertPcFailed(expected, actual) => {
                 write!(f.out, "PC assertion failed: expected position 0x{:x}, but current position is 0x{:x}", expected, actual)
+            }
+            CodegenErrorKind::ArgResolutionLimitExceeded(arg_name, max_iterations) => {
+                write!(
+                    f.out,
+                    "Exceeded maximum iterations ({}) while resolving argument reference '<{}>' through the scope chain - possible circular argument reference",
+                    max_iterations, arg_name
+                )
+            }
+            CodegenErrorKind::BubbleArgLimitExceeded(arg_name, max_iterations) => {
+                write!(
+                    f.out,
+                    "Exceeded maximum iterations ({}) while bubbling argument '<{}>' up through nested macro calls",
+                    max_iterations, arg_name
+                )
             }
         }
     }
@@ -779,6 +799,24 @@ impl fmt::Display for CompilerError {
                         "\nError: PC assertion failed\nExpected position: 0x{:x}\nActual position: 0x{:x}\n{}\n",
                         expected,
                         actual,
+                        ce.span.error(None)
+                    )
+                }
+                CodegenErrorKind::ArgResolutionLimitExceeded(arg_name, max_iterations) => {
+                    write!(
+                        f,
+                        "\nError: Exceeded maximum iterations ({}) while resolving argument reference '<{}>'\nPossible circular argument reference\n{}\n",
+                        max_iterations,
+                        arg_name,
+                        ce.span.error(None)
+                    )
+                }
+                CodegenErrorKind::BubbleArgLimitExceeded(arg_name, max_iterations) => {
+                    write!(
+                        f,
+                        "\nError: Exceeded maximum iterations ({}) while bubbling argument '<{}>' up through nested macro calls\n{}\n",
+                        max_iterations,
+                        arg_name,
                         ce.span.error(None)
                     )
                 }

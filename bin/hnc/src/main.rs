@@ -170,18 +170,10 @@ fn main() {
             });
 
             // Recurse through the macro and generate bytecode
-            let bytecode_res: BytecodeRes = Codegen::macro_to_bytecode(
-                &evm_version,
-                macro_def,
-                contract,
-                &mut vec![macro_def],
-                0,
-                &mut Vec::default(),
-                false,
-                None,
-                false,
-            )
-            .unwrap();
+            let mut scope_mgr = huff_neo_utils::scope::ScopeManager::new();
+            scope_mgr.push_macro(macro_def, 0);
+            let bytecode_res: BytecodeRes =
+                Codegen::macro_to_bytecode(&evm_version, macro_def, contract, &mut scope_mgr, 0, false, None, false).unwrap();
 
             if bytecode_res.label_indices.is_empty() {
                 eprintln!(
@@ -204,7 +196,7 @@ fn main() {
                             Cell::new(format!(
                                 "{}{}",
                                 label,
-                                if sl.scope_depth > 0 { format!(" (scope {})", sl.scope_depth) } else { String::new() }
+                                if sl.scope_id.depth > 0 { format!(" (scope {:?})", sl.scope_id.path) } else { String::new() }
                             )),
                             Cell::new(format!("{:#04x}", sl.offset)),
                         ])
