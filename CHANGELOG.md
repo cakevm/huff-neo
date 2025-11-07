@@ -3,6 +3,7 @@
 # Huff Neo Compiler changelog
 
 ## Unreleased
+## [1.5.4] - 2025-11-07
 - Add support for `true` and `false` boolean literals in if conditions and macro arguments.
   - `true` evaluates to `0x01`, `false` evaluates to `0x00`.
   - Example: `if (true) { 0xAA } else { 0xBB }`
