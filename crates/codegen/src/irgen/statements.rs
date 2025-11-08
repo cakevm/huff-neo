@@ -3,6 +3,7 @@ use huff_neo_utils::bytecode::{BytecodeSegments, JumpPlaceholderData, PushOpcode
 use huff_neo_utils::bytes_util::str_to_bytes32;
 use huff_neo_utils::prelude::*;
 use huff_neo_utils::scope::ScopeManager;
+use std::collections::BTreeMap;
 
 use crate::Codegen;
 use crate::irgen::arg_calls::bubble_arg_call;
@@ -216,6 +217,7 @@ pub fn statement_gen<'a>(
     label_indices: &mut LabelIndices,
     table_instances: &mut Jumps,
     utilized_tables: &mut Vec<TableDefinition>,
+    embedded_tables: &mut BTreeMap<String, usize>,
     circular_codesize_invocations: &mut CircularCodeSizeIndices,
     starting_offset: usize,
     relax_jumps: bool,
@@ -669,6 +671,7 @@ pub fn statement_gen<'a>(
                 offset,
                 table_instances,
                 utilized_tables,
+                embedded_tables,
                 circular_codesize_invocations,
                 starting_offset,
                 &mut bytes,
@@ -772,6 +775,7 @@ pub fn statement_gen<'a>(
                 label_indices,
                 table_instances,
                 utilized_tables,
+                embedded_tables,
                 circular_codesize_invocations,
                 starting_offset,
                 relax_jumps,
@@ -820,6 +824,7 @@ pub fn statement_gen<'a>(
                             label_indices,
                             table_instances,
                             utilized_tables,
+                            embedded_tables,
                             circular_codesize_invocations,
                             starting_offset,
                             relax_jumps,
@@ -944,6 +949,7 @@ pub fn statement_gen<'a>(
                                 label_indices,
                                 table_instances,
                                 utilized_tables,
+                                embedded_tables,
                                 circular_codesize_invocations,
                                 starting_offset,
                                 relax_jumps,

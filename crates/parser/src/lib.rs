@@ -2178,9 +2178,10 @@ impl Parser {
             }
             TokenKind::Num(n) => {
                 // Handle numeric literals (used in for loops)
+                // Convert decimal to hex string before passing to str_to_bytes32
                 let span = AstSpan(vec![self.current_token.span.clone()]);
                 self.consume();
-                let value = str_to_bytes32(&format!("{}", n));
+                let value = str_to_bytes32(&format!("{:x}", n));
                 Ok(Expression::Literal { value, span })
             }
             TokenKind::OpenParen => {

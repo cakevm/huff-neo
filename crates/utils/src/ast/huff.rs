@@ -1130,6 +1130,8 @@ pub enum BuiltinFunctionKind {
     Codesize,
     /// Table start function
     Tablestart,
+    /// Embed table function
+    EmbedTable,
     /// Function signature function
     FunctionSignature,
     /// Event hash function
@@ -1156,6 +1158,7 @@ impl From<String> for BuiltinFunctionKind {
             "__tablesize" => BuiltinFunctionKind::Tablesize,
             "__codesize" => BuiltinFunctionKind::Codesize,
             "__tablestart" => BuiltinFunctionKind::Tablestart,
+            "__EMBED_TABLE" => BuiltinFunctionKind::EmbedTable,
             "__FUNC_SIG" => BuiltinFunctionKind::FunctionSignature,
             "__EVENT_HASH" => BuiltinFunctionKind::EventHash,
             "__ERROR" => BuiltinFunctionKind::Error,
@@ -1180,6 +1183,7 @@ impl TryFrom<&String> for BuiltinFunctionKind {
             "__tablesize" => Ok(BuiltinFunctionKind::Tablesize),
             "__codesize" => Ok(BuiltinFunctionKind::Codesize),
             "__tablestart" => Ok(BuiltinFunctionKind::Tablestart),
+            "__EMBED_TABLE" => Ok(BuiltinFunctionKind::EmbedTable),
             "__FUNC_SIG" => Ok(BuiltinFunctionKind::FunctionSignature),
             "__EVENT_HASH" => Ok(BuiltinFunctionKind::EventHash),
             "__ERROR" => Ok(BuiltinFunctionKind::Error),
@@ -1200,6 +1204,7 @@ impl Display for BuiltinFunctionKind {
             BuiltinFunctionKind::Tablesize => write!(f, "__tablesize"),
             BuiltinFunctionKind::Codesize => write!(f, "__codesize"),
             BuiltinFunctionKind::Tablestart => write!(f, "__tablestart"),
+            BuiltinFunctionKind::EmbedTable => write!(f, "__EMBED_TABLE"),
             BuiltinFunctionKind::FunctionSignature => write!(f, "__FUNC_SIG"),
             BuiltinFunctionKind::EventHash => write!(f, "__EVENT_HASH"),
             BuiltinFunctionKind::Error => write!(f, "__ERROR"),
@@ -1221,6 +1226,7 @@ impl BuiltinFunctionKind {
             "__tablesize"
                 | "__codesize"
                 | "__tablestart"
+                | "__EMBED_TABLE"
                 | "__FUNC_SIG"
                 | "__EVENT_HASH"
                 | "__ERROR"

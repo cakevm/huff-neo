@@ -327,6 +327,12 @@ impl Codegen {
         let mut table_offset = bytecode.len() / 2;
 
         res.utilized_tables.iter().try_for_each(|jt| {
+            // Skip tables that were embedded inline
+            if res.embedded_tables.contains_key(&jt.name) {
+                tracing::debug!(target: "codegen", "Skipping embedded table \"{}\" from end-placement", jt.name);
+                return Ok(());
+            }
+
             table_offsets.insert(jt.name.to_string(), table_offset);
 
             let Some(table_size) = &jt.size else {
@@ -400,7 +406,10 @@ impl Codegen {
         })?;
 
         res.table_instances.iter().for_each(|jump| {
-            if let Some(o) = table_offsets.get(&jump.label) {
+            // Check both end-placed tables and embedded tables
+            let offset_opt = table_offsets.get(&jump.label).or_else(|| res.embedded_tables.get(&jump.label));
+
+            if let Some(o) = offset_opt {
                 let before = &bytecode[0..jump.bytecode_index * 2 + 2];
                 let after = &bytecode[jump.bytecode_index * 2 + 6..];
 
@@ -470,6 +479,7 @@ impl Codegen {
         let mut label_indices = LabelIndices::new();
         let mut table_instances = Jumps::new();
         let mut utilized_tables: Vec<TableDefinition> = Vec::new();
+        let mut embedded_tables = std::collections::BTreeMap::new();
         let mut ccsi = CircularCodeSizeIndices::new();
         let circular_codesize_invocations = circular_codesize_invocations.unwrap_or(&mut ccsi);
 
@@ -524,6 +534,7 @@ impl Codegen {
                         &mut label_indices,
                         &mut table_instances,
                         &mut utilized_tables,
+                        &mut embedded_tables,
                         circular_codesize_invocations,
                         starting_offset,
                         relax_jumps,
@@ -619,7 +630,7 @@ impl Codegen {
         let bytes = new_bytes;
 
         tracing::info!(target: "codegen", "BytecodeRes created with {} bytes and {} spans", bytes.len(), spans.len());
-        Ok(BytecodeRes { bytes, spans, label_indices, unmatched_jumps, table_instances, utilized_tables })
+        Ok(BytecodeRes { bytes, spans, label_indices, unmatched_jumps, table_instances, utilized_tables, embedded_tables })
     }
 
     /// Optimize PUSH2 (2-byte) jumps to PUSH1 (1-byte) jumps where possible.

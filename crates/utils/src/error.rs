@@ -228,6 +228,8 @@ pub enum CodegenErrorKind {
     /// Duplicate label defined in multiple sibling scopes
     /// When a label is not found in current scope, fallback searches siblings - but will always find the first definition, making subsequent ones unreachable
     DuplicateLabelAcrossSiblings(String),
+    /// Duplicate Table Embedding
+    DuplicateTableEmbedding(String),
     /// Jump target is too large for the specified opcode
     JumpTargetTooLarge {
         /// The label name
@@ -356,6 +358,9 @@ impl<W: Write> Report<W> for CodegenError {
             }
             CodegenErrorKind::DuplicateLabelAcrossSiblings(label) => {
                 write!(f.out, "Duplicate label '{}' defined across siblings in same scope", label)
+            }
+            CodegenErrorKind::DuplicateTableEmbedding(table) => {
+                write!(f.out, "Table \"{}\" has already been embedded. Each table can only be embedded once with __EMBED_TABLE.", table)
             }
             CodegenErrorKind::JumpTargetTooLarge { label, target, opcode } => {
                 write!(f.out, "Jump target {:#x} too large for {} in label \"{}\"", target, opcode, label)
@@ -719,6 +724,9 @@ impl fmt::Display for CompilerError {
                 }
                 CodegenErrorKind::DuplicateLabelAcrossSiblings(label) => {
                     write!(f, "\nError: Duplicate label '{}' defined across siblings in same scope\n{}\n", label, ce.span.error(None))
+                }
+                CodegenErrorKind::DuplicateTableEmbedding(table) => {
+                    write!(f, "\nError: Table \"{}\" has already been embedded\n{}\n", table, ce.span.error(None))
                 }
                 CodegenErrorKind::JumpTargetTooLarge { label, target, opcode } => {
                     write!(
