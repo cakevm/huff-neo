@@ -3,8 +3,8 @@ use crate::irgen::constants::{constant_gen, evaluate_constant_value};
 use alloy_primitives::{B256, hex, keccak256};
 use huff_neo_utils::builtin_eval::{PadDirection, eval_builtin_bytes, eval_event_hash, eval_function_signature};
 use huff_neo_utils::bytecode::{
-    BytecodeRes, BytecodeSegments, Bytes, CircularCodeSizeIndices, CircularCodesizePlaceholderData, DynConstructorArgPlaceholderData, Jump,
-    JumpPlaceholderData, Jumps, PushOpcode,
+    AssertPcPlaceholderData, BytecodeRes, BytecodeSegments, Bytes, CircularCodeSizeIndices, CircularCodesizePlaceholderData,
+    DynConstructorArgPlaceholderData, Jump, JumpPlaceholderData, Jumps, PushOpcode,
 };
 use huff_neo_utils::bytes_util::{bytes32_to_hex_string, format_even_bytes, pad_n_bytes};
 use huff_neo_utils::error::{CodegenError, CodegenErrorKind};
@@ -268,28 +268,21 @@ pub fn builtin_function_gen<'a>(
                 }
             };
 
-            // Check if the current position matches the expected position
-            if starting_offset != expected_position {
-                tracing::error!(
-                    target: "codegen",
-                    "PC assertion failed: expected 0x{:x}, got 0x{:x}",
-                    expected_position,
-                    starting_offset
-                );
-                return Err(CodegenError {
-                    kind: CodegenErrorKind::AssertPcFailed(expected_position, starting_offset),
-                    span: bf.span.clone_box(),
-                    token: None,
-                });
-            }
+            // Create a placeholder for PC assertion validation
+            // This will be checked after jump relaxation in fill_unmatched()
+            // to ensure the assertion uses post-relaxation offsets
+            bytes.push_with_offset(
+                starting_offset,
+                Bytes::AssertPcPlaceholder(AssertPcPlaceholderData::new(expected_position, bf.span.clone())),
+            );
 
             tracing::debug!(
                 target: "codegen",
-                "PC assertion passed: position is 0x{:x} as expected",
-                starting_offset
+                "Created __ASSERT_PC placeholder: expecting offset 0x{:x} (will validate after relaxation)",
+                expected_position
             );
 
-            // No bytecode is generated - this is a pure compile-time check
+            // No bytecode is generated - this is a compile-time validation placeholder
         }
     }
     Ok(())

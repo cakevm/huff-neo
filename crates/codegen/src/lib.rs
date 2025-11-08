@@ -591,7 +591,9 @@ impl Codegen {
         }
 
         // Fill JUMPDEST placeholders
-        let (new_bytes, unmatched_jumps) = Codegen::fill_unmatched(bytes.clone(), &jump_table, &label_indices, relax_jumps)?;
+        let (new_bytes, unmatched_jumps, updated_label_indices) =
+            Codegen::fill_unmatched(bytes.clone(), &jump_table, &label_indices, relax_jumps)?;
+        let label_indices = updated_label_indices; // Use the updated indices (which account for relaxation)
 
         // Adjust spans if bytes changed
         if new_bytes.len() != bytes.len() {
@@ -651,15 +653,18 @@ impl Codegen {
     /// * `label_indices` - Scoped label positions
     ///
     /// ## Returns
-    /// * `Ok(BytecodeSegments)` - Optimized bytecode with relaxed jumps
+    /// * `Ok((BytecodeSegments, LabelIndices, offset_mapping))` - Optimized bytecode, updated label indices, and mapping from original to new offsets
     /// * `Err(CodegenError)` - If optimization fails
     pub fn relax_jump_offsets(
         mut bytes: BytecodeSegments,
         jump_table: &JumpTable,
         label_indices: &LabelIndices,
-    ) -> Result<BytecodeSegments, CodegenError> {
+    ) -> Result<(BytecodeSegments, LabelIndices, std::collections::BTreeMap<usize, usize>), CodegenError> {
         let mut iteration = 0;
         let mut changed = true; // Did any changes occur in the last iteration?
+        let mut current_label_indices = label_indices.clone(); // Mutable copy that we update each iteration
+        // Track the cumulative mapping from original offsets to final offsets
+        let mut cumulative_offset_mapping: std::collections::BTreeMap<usize, usize> = std::collections::BTreeMap::new();
 
         tracing::info!(target: "codegen", "Starting jump relaxation optimization");
 
@@ -687,11 +692,28 @@ impl Codegen {
                     if let Some(jumps) = jump_table.get(&segment.offset) {
                         // Use the first jump (typically there's only one per offset)
                         if let Some(jump) = jumps.first() {
-                            // Look up the target label's offset
-                            match label_indices.get(&placeholder.label, &jump.scope_id) {
+                            // Look up the target label's offset using the CURRENT iteration's label indices
+                            match current_label_indices.get(&placeholder.label, &jump.scope_id) {
                                 Ok(Some(target_offset)) => {
                                     // Check if target fits in PUSH1 (0-255)
-                                    if target_offset <= 0xFF {
+                                    // OR if shrinking this jump would bring a forward target into PUSH1 range
+                                    let can_use_push1 = if target_offset <= 0xFF {
+                                        // Target already fits in PUSH1
+                                        true
+                                    } else if target_offset == 0x100 && target_offset > current_offset {
+                                        // Special case: target is at exactly 256 (0x100) and is a forward jump
+                                        // Shrinking PUSH2->PUSH1 saves 1 byte, moving target from 256 to 255
+                                        tracing::debug!(
+                                            target: "codegen",
+                                            "Forward jump to '{}' at 256 will fit in PUSH1 after relaxation",
+                                            placeholder.label
+                                        );
+                                        true
+                                    } else {
+                                        false
+                                    };
+
+                                    if can_use_push1 {
                                         tracing::debug!(
                                             target: "codegen",
                                             "Shrinking jump to '{}' at offset {} from PUSH2 to PUSH1 (target={})",
@@ -737,7 +759,39 @@ impl Codegen {
             }
 
             if changed {
-                tracing::debug!(target: "codegen", "Iteration {} made changes, will recalculate segment offsets", iteration);
+                tracing::debug!(target: "codegen", "Iteration {} made changes, will recalculate label positions", iteration);
+
+                // Recalculate all positions based on current segment sizes
+                let new_offsets = bytes.calculate_offsets();
+
+                // Build offset mapping for this iteration
+                let mut offset_mapping: std::collections::BTreeMap<usize, usize> = std::collections::BTreeMap::new();
+                for (segment_idx, segment) in bytes.iter().enumerate() {
+                    offset_mapping.insert(segment.offset, new_offsets[segment_idx]);
+                }
+
+                // Update the cumulative mapping
+                // For each original offset, update it to point to the latest calculated offset
+                if cumulative_offset_mapping.is_empty() {
+                    // First iteration: just copy the mapping
+                    cumulative_offset_mapping = offset_mapping.clone();
+                } else {
+                    // Subsequent iterations: chain the mappings
+                    // If we had original->iter1, and now have iter1->iter2, we want original->iter2
+                    for intermediate_offset in cumulative_offset_mapping.values_mut() {
+                        if let Some(&new_offset) = offset_mapping.get(intermediate_offset) {
+                            *intermediate_offset = new_offset;
+                        }
+                    }
+                }
+
+                // Update the label indices using this iteration's mapping
+                current_label_indices.update_offsets(&offset_mapping);
+
+                // Update segment offsets for next iteration
+                for (segment_idx, segment) in bytes.iter_mut().enumerate() {
+                    segment.offset = new_offsets[segment_idx];
+                }
             }
         }
 
@@ -747,7 +801,7 @@ impl Codegen {
             tracing::info!(target: "codegen", "Jump relaxation converged after {} iterations", iteration);
         }
 
-        Ok(bytes)
+        Ok((bytes, current_label_indices, cumulative_offset_mapping))
     }
 
     /// Resolves jump placeholders to their target offsets with optional size optimization.
@@ -772,15 +826,38 @@ impl Codegen {
         jump_table: &JumpTable,
         label_indices: &LabelIndices,
         relax_jumps: bool,
-    ) -> Result<(BytecodeSegments, Vec<Jump>), CodegenError> {
+    ) -> Result<(BytecodeSegments, Vec<Jump>, LabelIndices), CodegenError> {
         // Apply jump relaxation optimization if enabled
         // This will replace PUSH2 jumps with PUSH1 where possible, before final resolution
+        let jump_table_to_use: std::collections::BTreeMap<usize, Vec<Jump>>;
+        let label_indices_to_use: LabelIndices;
+        let jump_table_ref: &JumpTable;
+        let label_indices_ref: &LabelIndices;
+
         if relax_jumps {
-            bytes = Self::relax_jump_offsets(bytes, jump_table, label_indices)?;
+            // Perform jump relaxation, which updates bytecode, label indices, and returns offset mapping
+            let (relaxed_bytes, relaxed_label_indices, offset_mapping) = Self::relax_jump_offsets(bytes, jump_table, label_indices)?;
+            bytes = relaxed_bytes;
+
+            // Rebuild the jump_table using the offset mapping from relaxation
+            jump_table_to_use = jump_table
+                .iter()
+                .filter_map(|(old_offset, jumps)| offset_mapping.get(old_offset).map(|&new_offset| (new_offset, jumps.clone())))
+                .collect();
+
+            // Use the label indices returned from relaxation (already updated)
+            label_indices_to_use = relaxed_label_indices;
+
+            jump_table_ref = &jump_table_to_use;
+            label_indices_ref = &label_indices_to_use;
+        } else {
+            jump_table_ref = jump_table;
+            label_indices_ref = label_indices;
+            label_indices_to_use = label_indices.clone();
         }
 
         // Resolve all jumps using the new typed approach
-        let unmatched_jumps = bytes.resolve_jumps(jump_table, label_indices).map_err(|label_error| {
+        let unmatched_jumps = bytes.resolve_jumps(jump_table_ref, label_indices_ref).map_err(|label_error| {
             // Match on the typed error variants
             match label_error {
                 LabelError::DuplicateLabelAcrossSiblings(label_name) => {
@@ -828,7 +905,46 @@ impl Codegen {
             );
         }
 
-        Ok((bytes, unmatched_jumps))
+        // Validate __ASSERT_PC placeholders using post-relaxation offsets
+        // This must happen AFTER jump relaxation to ensure correct offset validation
+        // The segment.offset has been updated by relaxation, so we can use it directly
+        let offsets = bytes.calculate_offsets();
+        for (idx, segment) in bytes.iter().enumerate() {
+            if let Bytes::AssertPcPlaceholder(data) = &segment.bytes {
+                // Use the calculated offset which accounts for all relaxation
+                let actual_offset = offsets[idx];
+
+                if actual_offset != data.expected_offset {
+                    tracing::error!(
+                        target: "codegen",
+                        "PC assertion failed: expected 0x{:x}, got 0x{:x}",
+                        data.expected_offset,
+                        actual_offset
+                    );
+                    return Err(CodegenError {
+                        kind: CodegenErrorKind::AssertPcFailed(data.expected_offset, actual_offset),
+                        span: data.span.clone_box(),
+                        token: None,
+                    });
+                }
+
+                tracing::debug!(
+                    target: "codegen",
+                    "PC assertion passed: position is 0x{:x} as expected (after relaxation)",
+                    actual_offset
+                );
+            }
+        }
+
+        // Filter out __ASSERT_PC placeholders since they don't generate bytecode
+        let mut filtered_bytes = BytecodeSegments::new();
+        for segment in bytes.iter() {
+            if !matches!(segment.bytes, Bytes::AssertPcPlaceholder(_)) {
+                filtered_bytes.push(segment.clone());
+            }
+        }
+
+        Ok((filtered_bytes, unmatched_jumps, label_indices_to_use))
     }
 
     /// Helper associated function to fill circular codesize invocations.

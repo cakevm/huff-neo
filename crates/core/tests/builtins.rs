@@ -763,3 +763,37 @@ fn test_assert_pc_with_jump_and_multiple_labels() {
     // 00 = STOP
     assert_eq!(bytecode, "8061000c575b601161000f565b60225b00");
 }
+
+#[test]
+fn test_assert_pc_with_jump_relaxation() {
+    let source = r#"
+        #define macro MAIN() = takes(0) returns(0) {
+            target jump
+            target:
+                __ASSERT_PC(0x04)
+                stop
+        }
+    "#;
+
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    // Without relaxation: PUSH2 0x0005 (3 bytes) + JUMP (1 byte) + JUMPDEST (1 byte) = __ASSERT_PC at 0x05
+    let bytecode_without = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false);
+    // Should fail because __ASSERT_PC expects 0x04 but actual PC is 0x05
+    assert!(bytecode_without.is_err(), "Without relaxation, __ASSERT_PC(0x04) should fail (PC is 0x05)");
+
+    // With relaxation: PUSH1 0x04 (2 bytes) + JUMP (1 byte) + JUMPDEST (1 byte) = __ASSERT_PC at 0x04
+    let bytecode_with = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, true);
+    // After relaxation, __ASSERT_PC validates using post-relaxation offsets
+    assert!(bytecode_with.is_ok(), "With relaxation, __ASSERT_PC(0x04) should succeed (PC is 0x04)");
+
+    // Verify the bytecode is correct: 60 03 56 5b 00 (PUSH1 0x03, JUMP, JUMPDEST, STOP)
+    // The jump target is 0x03 (JUMPDEST), even though __ASSERT_PC checks position 0x04 (after JUMPDEST)
+    let bc = bytecode_with.unwrap();
+    assert_eq!(bc, "6003565b00", "Should be PUSH1 0x03, JUMP, JUMPDEST, STOP");
+}

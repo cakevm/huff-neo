@@ -208,6 +208,23 @@ impl DynConstructorArgPlaceholderData {
     }
 }
 
+/// Data for an __ASSERT_PC placeholder
+/// This placeholder generates no bytecode but validates the PC during bytecode generation
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct AssertPcPlaceholderData {
+    /// The expected program counter value
+    pub expected_offset: usize,
+    /// Source location for error reporting
+    pub span: AstSpan,
+}
+
+impl AssertPcPlaceholderData {
+    /// Create a new assert PC placeholder
+    pub fn new(expected_offset: usize, span: AstSpan) -> Self {
+        Self { expected_offset, span }
+    }
+}
+
 /// Bytecode with different types for placeholders
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Bytes {
@@ -219,6 +236,8 @@ pub enum Bytes {
     CircularCodesizePlaceholder(CircularCodesizePlaceholderData),
     /// Dynamic constructor arg placeholder
     DynConstructorArgPlaceholder(DynConstructorArgPlaceholderData),
+    /// Assert PC placeholder - validates program counter after jump relaxation
+    AssertPcPlaceholder(AssertPcPlaceholderData),
 }
 
 impl Bytes {
@@ -229,6 +248,7 @@ impl Bytes {
             Bytes::JumpPlaceholder(data) => data.to_hex(),
             Bytes::CircularCodesizePlaceholder(data) => data.to_hex(),
             Bytes::DynConstructorArgPlaceholder(data) => data.placeholder_string(),
+            Bytes::AssertPcPlaceholder(_) => String::new(), // Generates no bytecode
         }
     }
 
@@ -254,6 +274,7 @@ impl Bytes {
                 // 28 'x' characters = 14 bytes + arg_name + dest_offset
                 14 + (data.arg_name.len() / 2) + (data.dest_offset.len() / 2)
             }
+            Bytes::AssertPcPlaceholder(_) => 0, // Generates no bytecode
         }
     }
 
@@ -786,6 +807,18 @@ impl ScopedLabelIndices {
     /// Iterate over all labels
     pub fn iter(&self) -> impl Iterator<Item = (&String, &Vec<ScopedLabel>)> {
         self.labels.iter()
+    }
+
+    /// Update label offsets using a mapping from old offsets to new offsets
+    /// This is used after jump relaxation to update label positions
+    pub fn update_offsets(&mut self, offset_mapping: &BTreeMap<usize, usize>) {
+        for labels in self.labels.values_mut() {
+            for label in labels.iter_mut() {
+                if let Some(&new_offset) = offset_mapping.get(&label.offset) {
+                    label.offset = new_offset;
+                }
+            }
+        }
     }
 }
 
