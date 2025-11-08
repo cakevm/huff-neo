@@ -8,6 +8,7 @@
 - Fix `--relax-jumps` not updating label positions always correct during iterative optimization.
   - Fix jump table entries are now correctly updated after each relaxation iteration.
   - Fixes issue where jumps at the PUSH1/PUSH2 boundary (byte 255/256) were not optimized.
+  - Use correct PC for `__ASSERT_PC` after jump relaxation.
 
 ## [1.5.4] - 2025-11-07
 - Add support for `true` and `false` boolean literals in if conditions and macro arguments.

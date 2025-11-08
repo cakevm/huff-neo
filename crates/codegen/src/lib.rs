@@ -905,7 +905,46 @@ impl Codegen {
             );
         }
 
-        Ok((bytes, unmatched_jumps, label_indices_to_use))
+        // Validate __ASSERT_PC placeholders using post-relaxation offsets
+        // This must happen AFTER jump relaxation to ensure correct offset validation
+        // The segment.offset has been updated by relaxation, so we can use it directly
+        let offsets = bytes.calculate_offsets();
+        for (idx, segment) in bytes.iter().enumerate() {
+            if let Bytes::AssertPcPlaceholder(data) = &segment.bytes {
+                // Use the calculated offset which accounts for all relaxation
+                let actual_offset = offsets[idx];
+
+                if actual_offset != data.expected_offset {
+                    tracing::error!(
+                        target: "codegen",
+                        "PC assertion failed: expected 0x{:x}, got 0x{:x}",
+                        data.expected_offset,
+                        actual_offset
+                    );
+                    return Err(CodegenError {
+                        kind: CodegenErrorKind::AssertPcFailed(data.expected_offset, actual_offset),
+                        span: data.span.clone_box(),
+                        token: None,
+                    });
+                }
+
+                tracing::debug!(
+                    target: "codegen",
+                    "PC assertion passed: position is 0x{:x} as expected (after relaxation)",
+                    actual_offset
+                );
+            }
+        }
+
+        // Filter out __ASSERT_PC placeholders since they don't generate bytecode
+        let mut filtered_bytes = BytecodeSegments::new();
+        for segment in bytes.iter() {
+            if !matches!(segment.bytes, Bytes::AssertPcPlaceholder(_)) {
+                filtered_bytes.push(segment.clone());
+            }
+        }
+
+        Ok((filtered_bytes, unmatched_jumps, label_indices_to_use))
     }
 
     /// Helper associated function to fill circular codesize invocations.
