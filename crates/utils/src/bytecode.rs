@@ -787,6 +787,18 @@ impl ScopedLabelIndices {
     pub fn iter(&self) -> impl Iterator<Item = (&String, &Vec<ScopedLabel>)> {
         self.labels.iter()
     }
+
+    /// Update label offsets using a mapping from old offsets to new offsets
+    /// This is used after jump relaxation to update label positions
+    pub fn update_offsets(&mut self, offset_mapping: &BTreeMap<usize, usize>) {
+        for labels in self.labels.values_mut() {
+            for label in labels.iter_mut() {
+                if let Some(&new_offset) = offset_mapping.get(&label.offset) {
+                    label.offset = new_offset;
+                }
+            }
+        }
+    }
 }
 
 /// Type to map `Jump` labels to their bytecode indices (for backward compatibility)
