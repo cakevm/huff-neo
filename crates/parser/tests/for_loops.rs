@@ -58,7 +58,7 @@ fn test_for_loop_with_step() {
         ty: StatementType::ForLoop {
             variable: "i".to_string(),
             start: Expression::Literal { value: str_to_bytes32("00"), span: AstSpan(vec![Span { start: 54, end: 55, file: None }]) },
-            end: Expression::Literal { value: str_to_bytes32("10"), span: AstSpan(vec![Span { start: 57, end: 59, file: None }]) },
+            end: Expression::Literal { value: str_to_bytes32("0a"), span: AstSpan(vec![Span { start: 57, end: 59, file: None }]) },
             step: Some(Expression::Literal { value: str_to_bytes32("02"), span: AstSpan(vec![Span { start: 65, end: 66, file: None }]) }),
             body: vec![],
         },
@@ -356,7 +356,7 @@ fn test_for_loop_with_constant_step() {
         ty: StatementType::ForLoop {
             variable: "i".to_string(),
             start: Expression::Literal { value: str_to_bytes32("00"), span: AstSpan(vec![Span { start: 54, end: 55, file: None }]) },
-            end: Expression::Literal { value: str_to_bytes32("10"), span: AstSpan(vec![Span { start: 57, end: 59, file: None }]) },
+            end: Expression::Literal { value: str_to_bytes32("0a"), span: AstSpan(vec![Span { start: 57, end: 59, file: None }]) },
             step: Some(Expression::Constant { name: "STEP".to_string(), span: AstSpan(vec![Span { start: 65, end: 71, file: None }]) }),
             body: vec![],
         },
@@ -503,7 +503,7 @@ fn test_for_loop_with_arg_in_step() {
         ty: StatementType::ForLoop {
             variable: "i".to_string(),
             start: Expression::Literal { value: str_to_bytes32("00"), span: AstSpan(vec![Span { start: 63, end: 64, file: None }]) },
-            end: Expression::Literal { value: str_to_bytes32("10"), span: AstSpan(vec![Span { start: 66, end: 68, file: None }]) },
+            end: Expression::Literal { value: str_to_bytes32("0a"), span: AstSpan(vec![Span { start: 66, end: 68, file: None }]) },
             step: Some(Expression::ArgCall {
                 macro_name: String::new(),
                 name: "step_size".to_string(),

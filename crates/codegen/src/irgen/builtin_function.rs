@@ -11,8 +11,10 @@ use huff_neo_utils::error::{CodegenError, CodegenErrorKind};
 use huff_neo_utils::evm_version::EVMVersion;
 use huff_neo_utils::prelude::{
     Argument, AstSpan, BuiltinFunctionArg, BuiltinFunctionCall, BuiltinFunctionKind, Contract, MacroDefinition, PushValue, TableDefinition,
+    TableKind,
 };
 use huff_neo_utils::scope::ScopeManager;
+use std::collections::BTreeMap;
 
 /// Creates a CodegenError for invalid arguments
 fn invalid_arguments_error(msg: impl Into<String>, span: &AstSpan) -> CodegenError {
@@ -76,6 +78,7 @@ pub fn builtin_function_gen<'a>(
     offset: &mut usize,
     table_instances: &mut Jumps,
     utilized_tables: &mut Vec<TableDefinition>,
+    embedded_tables: &mut BTreeMap<String, usize>,
     circular_codesize_invocations: &mut CircularCodeSizeIndices,
     starting_offset: usize,
     bytes: &mut BytecodeSegments,
@@ -103,41 +106,123 @@ pub fn builtin_function_gen<'a>(
         }
         BuiltinFunctionKind::Tablestart => {
             let first_arg = extract_single_argument(bf, "__tablestart")?;
+            let table_name = first_arg.name.as_ref().unwrap();
+
             // Make sure the table exists
-            if let Some(t) = contract.find_table_by_name(first_arg.name.as_ref().unwrap()) {
-                tracing::debug!(target: "codegen", "Creating table instance for {} at offset {}", first_arg.name.as_ref().unwrap(), *offset);
-                let scope_id = scope_mgr.current_scope();
-                table_instances.push(Jump {
-                    label: first_arg.name.as_ref().unwrap().to_owned(),
-                    bytecode_index: *offset,
-                    span: bf.span.clone(),
-                    scope_id,
-                });
+            if let Some(t) = contract.find_table_by_name(table_name) {
+                // Check if the table was embedded
+                if let Some(&embedded_offset) = embedded_tables.get(table_name) {
+                    // Table was embedded - push the actual embedding offset directly
+                    let hex_offset = format!("{embedded_offset:04x}");
+                    let push_bytes = format!("61{hex_offset}"); // PUSH2
+
+                    tracing::debug!(
+                        target: "codegen",
+                        "__tablestart for embedded table \"{}\" at embedded offset 0x{:04x}",
+                        table_name,
+                        embedded_offset
+                    );
+
+                    bytes.push_with_offset(*offset, Bytes::Raw(push_bytes));
+                    *offset += 3;
+                } else {
+                    // Table not embedded - use placeholder for end-placement
+                    tracing::debug!(target: "codegen", "Creating table instance for {} at offset {}", table_name, *offset);
+                    let scope_id = scope_mgr.current_scope();
+                    table_instances.push(Jump { label: table_name.to_owned(), bytecode_index: *offset, span: bf.span.clone(), scope_id });
+
+                    bytes.push_with_offset(
+                        *offset,
+                        Bytes::JumpPlaceholder(JumpPlaceholderData::new(table_name.to_owned(), PushOpcode::Push2, String::new())),
+                    );
+                    *offset += 3;
+                }
+
                 if !utilized_tables.contains(&t) {
                     utilized_tables.push(t);
                 }
-
-                bytes.push_with_offset(
-                    *offset,
-                    Bytes::JumpPlaceholder(JumpPlaceholderData::new(
-                        first_arg.name.as_ref().unwrap().to_owned(),
-                        PushOpcode::Push2,
-                        String::new(),
-                    )),
-                );
-                *offset += 3;
             } else {
                 tracing::error!(
                     target: "codegen",
                     "MISSING TABLE PASSED TO __tablestart \"{}\"",
-                    first_arg.name.as_ref().unwrap()
+                    table_name
                 );
                 return Err(CodegenError {
-                    kind: CodegenErrorKind::InvalidMacroInvocation(first_arg.name.as_ref().unwrap().to_string()),
+                    kind: CodegenErrorKind::InvalidMacroInvocation(table_name.to_string()),
                     span: bf.span.clone_box(),
                     token: None,
                 });
             }
+        }
+        BuiltinFunctionKind::EmbedTable => {
+            let first_arg = extract_single_argument(bf, "__EMBED_TABLE")?;
+            let table_name = first_arg.name.as_ref().unwrap();
+
+            // Find the table definition
+            let table_def = if let Some(t) = contract.find_table_by_name(table_name) {
+                t
+            } else {
+                tracing::error!(
+                    target: "codegen",
+                    "MISSING TABLE PASSED TO __EMBED_TABLE \"{}\"",
+                    table_name
+                );
+                return Err(CodegenError {
+                    kind: CodegenErrorKind::InvalidMacroInvocation(table_name.to_string()),
+                    span: bf.span.clone_box(),
+                    token: None,
+                });
+            };
+
+            // Check if table was already embedded (we only allow one embedding per table)
+            if embedded_tables.contains_key(table_name) {
+                return Err(CodegenError {
+                    kind: CodegenErrorKind::DuplicateTableEmbedding(table_name.to_string()),
+                    span: bf.span.clone_box(),
+                    token: None,
+                });
+            }
+
+            // Track the embedding position (for __tablestart)
+            embedded_tables.insert(table_name.to_string(), *offset);
+
+            // Add table to utilized tables if not already there
+            if !utilized_tables.contains(&table_def) {
+                utilized_tables.push(table_def.clone());
+            }
+
+            // Generate the table bytecode inline
+            let table_code = match table_def.kind {
+                TableKind::CodeTable => {
+                    // Use the existing gen_table_bytecode_builtin function for code tables
+                    Codegen::gen_table_bytecode_builtin(contract, &table_def)?
+                }
+                TableKind::JumpTable | TableKind::JumpTablePacked => {
+                    // Generate jump table bytecode inline
+                    // We need access to label_indices from BytecodeRes, but we don't have it here
+                    // For now we only support code tables with __EMBED_TABLE
+                    return Err(CodegenError {
+                        kind: CodegenErrorKind::InvalidArguments(
+                            "Jump tables cannot be embedded inline with __EMBED_TABLE yet. Only code tables are supported.".to_string(),
+                        ),
+                        span: bf.span.clone_box(),
+                        token: None,
+                    });
+                }
+            };
+
+            // Insert the table bytecode at the current position
+            let table_size_bytes = table_code.len() / 2;
+            *offset += table_size_bytes;
+            bytes.push_with_offset(starting_offset, Bytes::Raw(table_code));
+
+            tracing::debug!(
+                target: "codegen",
+                "Embedded table \"{}\" at offset {}, size {} bytes",
+                table_name,
+                starting_offset,
+                table_size_bytes
+            );
         }
         BuiltinFunctionKind::FunctionSignature => {
             let push_value = eval_function_signature(contract, bf)?;
