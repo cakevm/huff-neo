@@ -326,6 +326,7 @@ impl<'a> Lexer<'a> {
                             | &Context::CodeTableBody
                             | &Context::Constant
                             | &Context::MacroArgs
+                            | &Context::ForLoopBody
                     ) && BuiltinFunctionKind::try_from(&word).is_ok()
                     {
                         TokenKind::BuiltinFunction(word)

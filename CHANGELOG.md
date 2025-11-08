@@ -17,6 +17,8 @@
   - `__tablestart(TABLE)` returns the inline embedding position for embedded tables.
 - Add support for `keccak256` opcode as an alias for `sha3` (fixes #145).
     - Both `keccak256` and `sha3` compile to the same EVM opcode (0x20).
+- Fix built-in functions not working inside if-statement bodies (fixes #144).
+    - Example: `if (true) { __RIGHTPAD(0x1234) }`
 
 ## [1.5.4] - 2025-11-07
 - Add support for `true` and `false` boolean literals in if conditions and macro arguments.
