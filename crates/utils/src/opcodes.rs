@@ -8,7 +8,7 @@ use crate::evm_version::SupportedEVMVersions;
 /// They are arranged in a particular order such that all the opcodes that have common
 /// prefixes are ordered alphabetically by decreasing length to avoid mismatch when lexing.
 /// Example : [origin, or] or [push32, ..., push3]
-pub const OPCODES: [&str; 151] = [
+pub const OPCODES: [&str; 152] = [
     "addmod",
     "address",
     "add",
@@ -66,6 +66,7 @@ pub const OPCODES: [&str; 151] = [
     "jumpdest",
     "jumpi",
     "jump",
+    "keccak256",
     "log0",
     "log1",
     "log2",
@@ -174,7 +175,8 @@ pub static OPCODES_MAP: phf::Map<&'static str, Opcode> = phf_map! {
     "or" => Opcode::Or,
     "xor" => Opcode::Xor,
     "not" => Opcode::Not,
-    "sha3" => Opcode::Sha3,
+    "sha3" => Opcode::Keccak256, // backward compatibility for huff-rs
+    "keccak256" => Opcode::Keccak256,
     "address" => Opcode::Address,
     "balance" => Opcode::Balance,
     "origin" => Opcode::Origin,
@@ -375,7 +377,8 @@ pub enum Opcode {
     /// Arithmetic Shift Right Operation
     Sar,
     /// Compute the Keccak-256 hash of a 32-byte word
-    Sha3,
+    #[strum(serialize = "keccak256", serialize = "sha3")]
+    Keccak256,
     /// Address of currently executing account
     Address,
     /// Balance of a given account
@@ -657,7 +660,7 @@ impl Opcode {
             Opcode::Shl => "1b",
             Opcode::Shr => "1c",
             Opcode::Sar => "1d",
-            Opcode::Sha3 => "20",
+            Opcode::Keccak256 => "20",
             Opcode::Address => "30",
             Opcode::Balance => "31",
             Opcode::Origin => "32",

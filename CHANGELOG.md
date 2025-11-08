@@ -15,6 +15,8 @@
   - Embeds table bytes at the current position instead of at the end of bytecode.
   - Each table can only be embedded once to avoid ambiguity.
   - `__tablestart(TABLE)` returns the inline embedding position for embedded tables.
+- Add support for `keccak256` opcode as an alias for `sha3` (fixes #145).
+    - Both `keccak256` and `sha3` compile to the same EVM opcode (0x20).
 
 ## [1.5.4] - 2025-11-07
 - Add support for `true` and `false` boolean literals in if conditions and macro arguments.
