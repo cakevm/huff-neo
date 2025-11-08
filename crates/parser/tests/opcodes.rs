@@ -188,3 +188,30 @@ fn test_push0() {
     let mut parser = Parser::new(tokens, None);
     parser.parse().unwrap();
 }
+
+#[test]
+fn test_keccak256_and_sha3_opcodes() {
+    // Test that both keccak256 and sha3 are recognized as valid opcodes
+    let source: &str = r#"
+        #define macro MAIN() = {
+            0x00 0x00 keccak256
+            0x00 0x00 sha3
+        }
+    "#;
+
+    // Parse tokens
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+
+    // Both should be recognized as the Keccak256 opcode
+    let keccak256_token = tokens
+        .iter()
+        .find(|t| matches!(t.kind, TokenKind::Opcode(Opcode::Keccak256)))
+        .expect("keccak256 should be recognized as Keccak256 opcode");
+    assert!(matches!(keccak256_token.kind, TokenKind::Opcode(Opcode::Keccak256)));
+
+    // This should parse correctly
+    let mut parser = Parser::new(tokens, None);
+    parser.parse().unwrap();
+}
