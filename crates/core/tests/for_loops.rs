@@ -324,3 +324,61 @@ fn test_for_loop_after_label() {
     let expected = "5b 6001 5f 6001 6002 5b 60ff";
     assert_eq!(bytecode.to_lowercase().replace(" ", ""), expected.to_lowercase().replace(" ", ""));
 }
+
+#[test]
+fn test_for_loop_decimal_vs_hex_bounds() {
+    // Ensure decimal literals and hex literals produce the same bytecode
+
+    let source_decimal = r#"
+        #define macro MAIN() = takes(0) returns(0) {
+            for(i in 0..255) {
+                <i>
+            }
+        }
+    "#;
+
+    let source_hex = r#"
+        #define macro MAIN() = takes(0) returns(0) {
+            for(i in 0..0xff) {
+                <i>
+            }
+        }
+    "#;
+
+    let bytecode_decimal = compile_to_bytecode(source_decimal).unwrap();
+    let bytecode_hex = compile_to_bytecode(source_hex).unwrap();
+
+    // Both should produce identical bytecode (255 iterations from 0x00 to 0xfe)
+    assert_eq!(bytecode_decimal, bytecode_hex, "Decimal 255 and hex 0xff should produce identical bytecode");
+
+    // Verify it's actually 255 iterations: should end with PUSH1 0xfe (254 in decimal)
+    assert!(bytecode_decimal.ends_with("60fe"), "Loop should end with PUSH1 0xfe (last iteration value 254)");
+}
+
+#[test]
+fn test_for_loop_decimal_16() {
+    // Test that decimal 16 equals hex 0x10
+    let source_decimal = r#"
+        #define macro MAIN() = takes(0) returns(0) {
+            for(i in 0..16) {
+                <i>
+            }
+        }
+    "#;
+
+    let source_hex = r#"
+        #define macro MAIN() = takes(0) returns(0) {
+            for(i in 0..0x10) {
+                <i>
+            }
+        }
+    "#;
+
+    let bytecode_decimal = compile_to_bytecode(source_decimal).unwrap();
+    let bytecode_hex = compile_to_bytecode(source_hex).unwrap();
+
+    assert_eq!(bytecode_decimal, bytecode_hex, "Decimal 16 and hex 0x10 should produce identical bytecode");
+
+    // Should end with PUSH1 0x0f (15 in decimal, last iteration)
+    assert!(bytecode_decimal.ends_with("600f"), "Loop should end with PUSH1 0x0f (last iteration value 15)");
+}

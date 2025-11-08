@@ -582,6 +582,8 @@ pub struct BytecodeRes {
     pub table_instances: Jumps,
     /// Utilized Tables
     pub utilized_tables: Vec<TableDefinition>,
+    /// Embedded Tables (table name -> first embedding offset)
+    pub embedded_tables: BTreeMap<String, usize>,
 }
 
 impl Display for BytecodeRes {
