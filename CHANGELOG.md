@@ -9,6 +9,14 @@
   - Fix jump table entries are now correctly updated after each relaxation iteration.
   - Fixes issue where jumps at the PUSH1/PUSH2 boundary (byte 255/256) were not optimized.
   - Use correct PC for `__ASSERT_PC` after jump relaxation.
+- Correctly handle decimal literals in for loop bounds (have been interpreted as hex before).
+  - Example: `for(i in 0..255)` and `for(i in 0..0xff)` are now equivalent.
+- Add `__EMBED_TABLE(TABLE_NAME)` builtin function to embed code tables inline.
+  - Embeds table bytes at the current position instead of at the end of bytecode.
+  - Each table can only be embedded once to avoid ambiguity.
+  - `__tablestart(TABLE)` returns the inline embedding position for embedded tables.
+- Add support for `keccak256` opcode as an alias for `sha3` (fixes #145).
+    - Both `keccak256` and `sha3` compile to the same EVM opcode (0x20).
 
 ## [1.5.4] - 2025-11-07
 - Add support for `true` and `false` boolean literals in if conditions and macro arguments.
