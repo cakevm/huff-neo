@@ -15,6 +15,8 @@
   - Embeds table bytes at the current position instead of at the end of bytecode.
   - Each table can only be embedded once to avoid ambiguity.
   - `__tablestart(TABLE)` returns the inline embedding position for embedded tables.
+- Fix built-in functions not working inside if-statement bodies (fixes #144).
+    - Example: `if (true) { __RIGHTPAD(0x1234) }`
 
 ## [1.5.4] - 2025-11-07
 - Add support for `true` and `false` boolean literals in if conditions and macro arguments.
