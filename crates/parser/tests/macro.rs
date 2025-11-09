@@ -255,7 +255,7 @@ fn macro_with_arg_calls() {
             Statement {
                 ty: StatementType::MacroInvocation(MacroInvocation {
                     macro_name: "LOAD_ELEMENT_FROM_KEYS".to_string(),
-                    args: vec![MacroArg::Literal(str_to_bytes32("00"))],
+                    args: vec![MacroArg::HexLiteral(str_to_bytes32("00"))],
                     span: AstSpan(vec![
                         Span { start: 283, end: 305, file: None },
                         Span { start: 305, end: 306, file: None },
@@ -289,7 +289,7 @@ fn macro_with_arg_calls() {
             Statement {
                 ty: StatementType::MacroInvocation(MacroInvocation {
                     macro_name: "STORE_ELEMENT_FROM_KEYS".to_string(),
-                    args: vec![MacroArg::Literal(str_to_bytes32("00"))],
+                    args: vec![MacroArg::HexLiteral(str_to_bytes32("00"))],
                     span: AstSpan(vec![
                         Span { start: 1000, end: 1023, file: None },
                         Span { start: 1023, end: 1024, file: None },
@@ -761,13 +761,7 @@ fn macro_with_builtin_fn_call() {
         statements: vec![Statement {
             ty: StatementType::BuiltinFunctionCall(BuiltinFunctionCall {
                 kind: BuiltinFunctionKind::Codesize,
-                args: vec![BuiltinFunctionArg::Argument(Argument {
-                    arg_type: None,
-                    name: Some("TEST".to_string()),
-                    indexed: false,
-                    arg_location: None,
-                    span: AstSpan(vec![Span { start: 77, end: 81, file: None }]),
-                })],
+                args: vec![BuiltinFunctionArg::Identifier("TEST".to_string(), AstSpan(vec![Span { start: 77, end: 81, file: None }]))],
                 span: AstSpan(vec![Span { start: 66, end: 76, file: None }, Span { start: 77, end: 81, file: None }]),
             }),
             span: AstSpan(vec![Span { start: 66, end: 76, file: None }, Span { start: 77, end: 81, file: None }]),
@@ -1214,13 +1208,7 @@ fn macro_with_assert_pc_literal() {
         statements: vec![Statement {
             ty: StatementType::BuiltinFunctionCall(BuiltinFunctionCall {
                 kind: BuiltinFunctionKind::AssertPc,
-                args: vec![BuiltinFunctionArg::Argument(Argument {
-                    arg_type: None,
-                    arg_location: None,
-                    name: Some("00".to_string()),
-                    indexed: false,
-                    span: AstSpan(vec![Span { start: 70, end: 74, file: None }]),
-                })],
+                args: vec![BuiltinFunctionArg::HexLiteral("00".to_string(), AstSpan(vec![Span { start: 70, end: 74, file: None }]))],
                 span: AstSpan(vec![Span { start: 58, end: 69, file: None }, Span { start: 70, end: 74, file: None }]),
             }),
             span: AstSpan(vec![Span { start: 58, end: 69, file: None }, Span { start: 70, end: 74, file: None }]),

@@ -17,6 +17,18 @@ pub fn constant_gen(name: &str, contract: &Contract, ir_byte_span: &AstSpan) -> 
             let hex_literal = str_to_bytes32(&bytes.as_str());
             Some(PushValue::from(hex_literal))
         }
+        ConstVal::String(_s) => {
+            // String constants cannot be used directly - they must be used with __BYTES
+            tracing::error!(target: "codegen", "STRING CONSTANT \"{}\" CANNOT BE USED DIRECTLY", constant.name);
+            return Err(CodegenError {
+                kind: CodegenErrorKind::StringConstantNotBytes(format!(
+                    "String constant [{}] cannot be pushed directly. Use __BYTES([{}]) to convert it to bytes.",
+                    name, name
+                )),
+                span: ir_byte_span.clone_box(),
+                token: None,
+            });
+        }
         ConstVal::StoragePointer(sp) => Some(PushValue::from(sp)),
         ConstVal::BuiltinFunctionCall(bf) => Some(Codegen::gen_builtin_bytecode(contract, bf, ir_byte_span.clone())?),
         ConstVal::Expression(expr) => {
@@ -77,6 +89,16 @@ pub fn evaluate_constant_value(name: &str, contract: &Contract, span: &AstSpan) 
             contract.evaluate_constant_expression(expr)?
         }
         ConstVal::StoragePointer(lit) => *lit,
+        ConstVal::String(_) => {
+            return Err(CodegenError {
+                kind: CodegenErrorKind::InvalidArguments(format!(
+                    "Constant [{}] is a string which cannot be evaluated to a numeric value",
+                    name
+                )),
+                span: span.clone_box(),
+                token: None,
+            });
+        }
         ConstVal::Noop => {
             return Err(CodegenError {
                 kind: CodegenErrorKind::InvalidArguments(format!(

@@ -1,10 +1,11 @@
 use crate::file::file_source::FileSource;
 use crate::file::span::Span;
 use crate::{opcodes::Opcode, types::PrimitiveEVMType};
+use std::fmt;
 use std::sync::Arc;
-use std::{fmt, fmt::Write};
 
-type Literal = [u8; 32];
+/// A 32-byte array representing a hexadecimal literal value
+pub type Literal = [u8; 32];
 
 /// A single Token
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -25,8 +26,8 @@ impl Token {
 /// The kind of token
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub enum TokenKind {
-    /// Bytes (hex always with an even number of characters)
-    Bytes(String),
+    /// Hexadecimal literal (e.g., 0x42, 0x1234) - hex string with even number of characters
+    HexLiteral(String),
     /// EOF Token
     Eof,
     /// A Comment
@@ -114,14 +115,12 @@ pub enum TokenKind {
     Colon,
     /// A pound
     Pound,
-    /// Number
-    Num(usize),
+    /// Integer literal (decimal number)
+    Integer(usize),
     /// A Space
     Whitespace,
     /// A string literal
     Str(String),
-    /// Hex
-    Literal(Literal),
     /// Opcode
     Opcode(Opcode),
     /// Huff label (aka PC)
@@ -182,7 +181,7 @@ impl TokenKind {
 impl fmt::Display for TokenKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let x = match self {
-            TokenKind::Bytes(s) => return write!(f, "0x{s}"),
+            TokenKind::HexLiteral(s) => return write!(f, "0x{s}"),
             TokenKind::Eof => "EOF",
             TokenKind::Comment(s) => return write!(f, "Comment({s})"),
             TokenKind::Div => "/",
@@ -226,16 +225,9 @@ impl fmt::Display for TokenKind {
             TokenKind::Colon => ":",
             TokenKind::Comma => ",",
             TokenKind::Pound => "#",
-            TokenKind::Num(num) => return write!(f, "{num}"),
+            TokenKind::Integer(num) => return write!(f, "{num}"),
             TokenKind::Whitespace => " ",
             TokenKind::Str(str) => str,
-            TokenKind::Literal(l) => {
-                let mut s = String::new();
-                for b in l.iter() {
-                    let _ = write!(&mut s, "{b:02x}");
-                }
-                return write!(f, "{s}");
-            }
             TokenKind::Opcode(o) => return write!(f, "{o}"),
             TokenKind::Label(s) => return write!(f, "{s}"),
             TokenKind::PrimitiveType(pt) => return write!(f, "{pt}"),

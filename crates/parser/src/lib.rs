@@ -11,7 +11,7 @@ use huff_neo_utils::bytecode::Bytes;
 use huff_neo_utils::file::remapper;
 use huff_neo_utils::{
     error::*,
-    prelude::{Span, bytes32_to_hex_string, str_to_bytes32},
+    prelude::{Span, str_to_bytes32},
     token::{Token, TokenKind},
     types::*,
 };
@@ -388,6 +388,10 @@ impl Parser {
                 self.consume();
                 ConstVal::Noop
             }
+            TokenKind::Str(s) => {
+                self.consume();
+                ConstVal::String(s)
+            }
             TokenKind::BuiltinFunction(f) => {
                 let curr_spans = vec![self.current_token.span.clone()];
                 self.match_kind(TokenKind::BuiltinFunction(String::default()))?;
@@ -395,12 +399,12 @@ impl Parser {
                 ConstVal::BuiltinFunctionCall(BuiltinFunctionCall { kind: BuiltinFunctionKind::from(f), args, span: AstSpan(curr_spans) })
             }
             // Simple hex literal without any operators - preserve original byte length
-            TokenKind::Bytes(hex_str) if !self.is_expression_context() => {
+            TokenKind::HexLiteral(hex_str) if !self.is_expression_context() => {
                 self.consume();
                 ConstVal::Bytes(Bytes::Raw(hex_str))
             }
             // Handle arithmetic expressions (including hex literals that are part of expressions)
-            TokenKind::Literal(_) | TokenKind::Bytes(_) | TokenKind::OpenParen | TokenKind::Sub | TokenKind::OpenBracket => {
+            TokenKind::HexLiteral(_) | TokenKind::OpenParen | TokenKind::Sub | TokenKind::OpenBracket => {
                 let expr = self.parse_constant_expression()?;
                 ConstVal::Expression(expr)
             }
@@ -486,18 +490,24 @@ impl Parser {
                             });
                         }
                     }
-                    // The value flag accepts a single literal as an argument
+                    // The value flag accepts a single literal as an argument (hex or boolean literal)
                     Ok(DecoratorFlag::Value(_)) => {
-                        if let TokenKind::Literal(l) = self.match_kind(TokenKind::Literal(Literal::default()))? {
-                            flags.push(DecoratorFlag::Value(l));
-                        } else {
-                            return Err(ParserError {
-                                kind: ParserErrorKind::InvalidDecoratorFlagArg(self.current_token.kind.clone()),
-                                hint: Some(format!("Expected literal for decorator flag: {s}")),
-                                spans: AstSpan(vec![self.current_token.span.clone()]),
-                                cursor: self.cursor,
-                            });
-                        }
+                        let literal_value = match &self.current_token.kind {
+                            TokenKind::HexLiteral(hex_str) => {
+                                let val = str_to_bytes32(hex_str);
+                                self.consume();
+                                val
+                            }
+                            _ => {
+                                return Err(ParserError {
+                                    kind: ParserErrorKind::InvalidDecoratorFlagArg(self.current_token.kind.clone()),
+                                    hint: Some(format!("Expected hex or boolean literal for decorator flag: {s}")),
+                                    spans: AstSpan(vec![self.current_token.span.clone()]),
+                                    cursor: self.cursor,
+                                });
+                            }
+                        };
+                        flags.push(DecoratorFlag::Value(literal_value));
                     }
                     Err(_) => {
                         tracing::error!(target: "parser", "DECORATOR FLAG NOT FOUND: {}", s);
@@ -601,9 +611,10 @@ impl Parser {
         tracing::info!(target: "parser", "PARSING MACRO BODY");
         while !self.check(TokenKind::CloseBrace) {
             match self.current_token.kind.clone() {
-                TokenKind::Literal(val) => {
+                TokenKind::HexLiteral(hex_str) => {
                     let curr_spans = vec![self.current_token.span.clone()];
-                    tracing::info!(target: "parser", "PARSING MACRO BODY: [LITERAL: {}]", hex::encode(val));
+                    let val = str_to_bytes32(&hex_str);
+                    tracing::info!(target: "parser", "PARSING MACRO BODY: [HEX LITERAL: {}]", hex::encode(val));
                     self.consume();
                     statements.push(Statement { ty: StatementType::Literal(val), span: AstSpan(curr_spans) });
                 }
@@ -615,23 +626,23 @@ impl Parser {
                     // If the opcode is a push that takes a literal value, we need to parse the next
                     // literal
                     if o.is_value_push() {
-                        match self.current_token.kind {
-                            TokenKind::Literal(val) => {
+                        match self.current_token.kind.clone() {
+                            TokenKind::HexLiteral(hex_str) => {
                                 let curr_spans = vec![self.current_token.span.clone()];
-                                tracing::info!(target: "parser", "PARSING MACRO BODY: [LITERAL: {}]", hex::encode(val));
-                                self.consume();
+                                let val = str_to_bytes32(&hex_str);
+                                tracing::info!(target: "parser", "PARSING MACRO BODY: [HEX LITERAL: {}]", hex::encode(val));
 
                                 // Check that the literal does not overflow the push size
-                                let hex_literal: String = bytes32_to_hex_string(&val, false);
-                                if o.push_overflows(&hex_literal) {
+                                if o.push_overflows(&hex_str) {
                                     return Err(ParserError {
                                         kind: ParserErrorKind::InvalidPush(o),
-                                        hint: Some(format!("Literal {hex_literal:?} contains too many bytes for opcode \"{o:?}\"")),
+                                        hint: Some(format!("Literal {hex_str:?} contains too many bytes for opcode \"{o:?}\"")),
                                         spans: AstSpan(curr_spans),
                                         cursor: self.cursor,
                                     });
                                 }
 
+                                self.consume();
                                 // Otherwise we can push the literal
                                 statements.push(Statement { ty: StatementType::Literal(val), span: AstSpan(curr_spans) });
                             }
@@ -960,8 +971,9 @@ impl Parser {
 
         while !self.check(TokenKind::CloseBrace) {
             match self.current_token.kind.clone() {
-                TokenKind::Literal(val) => {
+                TokenKind::HexLiteral(hex_str) => {
                     let curr_spans = vec![self.current_token.span.clone()];
+                    let val = str_to_bytes32(&hex_str);
                     self.consume();
                     statements.push(Statement { ty: StatementType::Literal(val), span: AstSpan(curr_spans) });
                 }
@@ -972,8 +984,9 @@ impl Parser {
                     if o.is_value_push() {
                         // Handle push with literal
                         match self.current_token.kind.clone() {
-                            TokenKind::Literal(val) => {
+                            TokenKind::HexLiteral(hex_str) => {
                                 let curr_spans = vec![self.current_token.span.clone()];
+                                let val = str_to_bytes32(&hex_str);
                                 self.consume();
                                 statements.push(Statement { ty: StatementType::Literal(val), span: AstSpan(curr_spans) });
                             }
@@ -1119,9 +1132,10 @@ impl Parser {
             && !self.check(TokenKind::If)
         {
             match self.current_token.kind.clone() {
-                TokenKind::Literal(val) => {
+                TokenKind::HexLiteral(hex_str) => {
                     let curr_spans = vec![self.current_token.span.clone()];
-                    tracing::info!(target: "parser", "PARSING LABEL BODY: [LITERAL: {}]", hex::encode(val));
+                    let val = str_to_bytes32(&hex_str);
+                    tracing::info!(target: "parser", "PARSING LABEL BODY: [HEX LITERAL: {}]", hex::encode(val));
                     self.consume();
                     statements.push(Statement { ty: StatementType::Literal(val), span: AstSpan(curr_spans) });
                 }
@@ -1264,44 +1278,15 @@ impl Parser {
 
             match &self.current_token.kind {
                 TokenKind::Str(s) => {
-                    args.push(BuiltinFunctionArg::Argument(Argument {
-                        name: Some(s.to_owned()), // Place the string in the "name" field
-                        arg_type: None,
-                        indexed: false,
-                        span: AstSpan(vec![self.current_token.span.clone()]),
-                        arg_location: None,
-                    }));
+                    args.push(BuiltinFunctionArg::StringLiteral(s.to_owned(), AstSpan(vec![self.current_token.span.clone()])));
                     self.consume();
                 }
-                TokenKind::Bytes(bytes) => {
-                    args.push(BuiltinFunctionArg::Argument(Argument {
-                        name: Some(bytes.to_owned()),
-                        arg_type: None,
-                        indexed: false,
-                        span: AstSpan(vec![self.current_token.span.clone()]),
-                        arg_location: None,
-                    }));
-                    self.consume();
-                }
-                TokenKind::Literal(l) => {
-                    args.push(BuiltinFunctionArg::Argument(Argument {
-                        // Place literal in the "name" field
-                        name: Some(bytes32_to_hex_string(l, false)),
-                        arg_location: None,
-                        arg_type: None,
-                        indexed: false,
-                        span: AstSpan(vec![self.current_token.span.clone()]),
-                    }));
+                TokenKind::HexLiteral(bytes) => {
+                    args.push(BuiltinFunctionArg::HexLiteral(bytes.to_owned(), AstSpan(vec![self.current_token.span.clone()])));
                     self.consume();
                 }
                 TokenKind::Ident(ident) => {
-                    args.push(BuiltinFunctionArg::Argument(Argument {
-                        name: Some(ident.to_owned()),
-                        arg_type: None,
-                        indexed: false,
-                        span: AstSpan(vec![self.current_token.span.clone()]),
-                        arg_location: None,
-                    }));
+                    args.push(BuiltinFunctionArg::Identifier(ident.to_owned(), AstSpan(vec![self.current_token.span.clone()])));
                     self.consume();
                 }
                 TokenKind::BuiltinFunction(builtin_ref) => {
@@ -1452,8 +1437,8 @@ impl Parser {
     pub fn parse_single_arg(&mut self) -> Result<usize, ParserError> {
         self.match_kind(TokenKind::OpenParen)?;
         let single_arg_span = vec![self.current_token.span.clone()];
-        let value: usize = match self.match_kind(TokenKind::Num(0)) {
-            Ok(TokenKind::Num(value)) => value,
+        let value: usize = match self.match_kind(TokenKind::Integer(0)) {
+            Ok(TokenKind::Integer(value)) => value,
             _ => {
                 return Err(ParserError {
                     kind: ParserErrorKind::InvalidSingleArg(self.current_token.kind.clone()),
@@ -1470,9 +1455,10 @@ impl Parser {
     /// Parse a single macro argument
     fn parse_single_macro_argument(&mut self) -> Result<MacroArg, ParserError> {
         match self.current_token.kind.clone() {
-            TokenKind::Literal(lit) => {
+            TokenKind::HexLiteral(hex_str) => {
+                let lit = str_to_bytes32(&hex_str);
                 self.consume();
-                Ok(MacroArg::Literal(lit))
+                Ok(MacroArg::HexLiteral(lit))
             }
             TokenKind::Opcode(o) => {
                 self.consume();
@@ -1566,8 +1552,9 @@ impl Parser {
         self.match_kind(TokenKind::OpenParen)?;
         while !self.check(TokenKind::CloseParen) {
             match self.current_token.kind.clone() {
-                TokenKind::Literal(lit) => {
-                    args.push(MacroArg::Literal(lit));
+                TokenKind::HexLiteral(hex_str) => {
+                    let lit = str_to_bytes32(&hex_str);
+                    args.push(MacroArg::HexLiteral(lit));
                     self.consume();
                 }
                 TokenKind::Opcode(o) => {
@@ -1731,7 +1718,7 @@ impl Parser {
                     statements.push(Statement { ty: StatementType::LabelCall(ident_str.to_string()), span: AstSpan(new_spans) });
                     self.consume();
                 }
-                TokenKind::Bytes(bytes) => {
+                TokenKind::HexLiteral(bytes) => {
                     if !is_code_table {
                         tracing::error!("Invalid JumpTable Body Token: {:?}", self.current_token.kind);
                         return Err(ParserError {
@@ -2165,18 +2152,13 @@ impl Parser {
     /// Parse primary expressions: literals, bracketed constants, and parenthesized expressions.
     fn parse_primary_expression(&mut self) -> Result<Expression, ParserError> {
         match self.current_token.kind.clone() {
-            TokenKind::Literal(lit) => {
-                let span = AstSpan(vec![self.current_token.span.clone()]);
-                self.consume();
-                Ok(Expression::Literal { value: lit, span })
-            }
-            TokenKind::Bytes(hex_str) => {
+            TokenKind::HexLiteral(hex_str) => {
                 // In Constant context, hex literals are lexed as Bytes instead of Literal
                 let span = AstSpan(vec![self.current_token.span.clone()]);
                 self.consume();
                 Ok(Expression::Literal { value: str_to_bytes32(&hex_str), span })
             }
-            TokenKind::Num(n) => {
+            TokenKind::Integer(n) => {
                 // Handle numeric literals (used in for loops)
                 // Convert decimal to hex string before passing to str_to_bytes32
                 let span = AstSpan(vec![self.current_token.span.clone()]);

@@ -5,7 +5,7 @@
 
 use crate::ast::span::AstSpan;
 use crate::error::{CodegenError, CodegenErrorKind};
-use crate::prelude::{Argument, BuiltinFunctionArg, BuiltinFunctionCall, Contract, PushValue};
+use crate::prelude::{BuiltinFunctionArg, BuiltinFunctionCall, Contract, PushValue};
 use alloy_primitives::{B256, hex, keccak256};
 
 /// Creates a CodegenError for invalid arguments
@@ -29,14 +29,6 @@ fn validate_arg_count(bf: &BuiltinFunctionCall, expected: usize, fn_name: &str) 
     Ok(())
 }
 
-/// Extracts a single Argument from the first position of a builtin function call
-fn extract_single_argument<'a>(bf: &'a BuiltinFunctionCall, fn_name: &str) -> Result<&'a Argument, CodegenError> {
-    match bf.args.first() {
-        Some(BuiltinFunctionArg::Argument(arg)) => Ok(arg),
-        _ => Err(invalid_arguments_error(format!("Incorrect arguments type passed to {}", fn_name), &bf.span)),
-    }
-}
-
 /// Formats hex string to have even length
 fn format_even_bytes(hex: String) -> String {
     if hex.len() % 2 == 1 { format!("0{}", hex) } else { hex }
@@ -45,37 +37,37 @@ fn format_even_bytes(hex: String) -> String {
 /// Evaluates __EVENT_HASH builtin function
 pub fn eval_event_hash(contract: &Contract, bf: &BuiltinFunctionCall) -> Result<PushValue, CodegenError> {
     validate_arg_count(bf, 1, "__EVENT_HASH")?;
-    let first_arg = extract_single_argument(bf, "__EVENT_HASH")?;
-    let hash = if let Some(event) = contract.events.iter().find(|e| first_arg.name.as_ref().unwrap().eq(&e.name)) {
-        event.hash
-    } else if let Some(s) = &first_arg.name {
-        keccak256(s).0
-    } else {
-        return Err(CodegenError {
-            kind: CodegenErrorKind::MissingEventInterface(first_arg.name.as_ref().unwrap().to_string()),
-            span: bf.span.clone_box(),
-            token: None,
-        });
+
+    let arg_str = match &bf.args[0] {
+        BuiltinFunctionArg::StringLiteral(s, _) => s.clone(),
+        BuiltinFunctionArg::Identifier(name, _) => name.clone(),
+        _ => {
+            return Err(invalid_arguments_error("Expected string literal or identifier as argument to __EVENT_HASH", &bf.span));
+        }
     };
+
+    let hash = if let Some(event) = contract.events.iter().find(|e| e.name.eq(&arg_str)) { event.hash } else { keccak256(&arg_str).0 };
     Ok(PushValue::from(hash))
 }
 
 /// Evaluates __FUNC_SIG builtin function
 pub fn eval_function_signature(contract: &Contract, bf: &BuiltinFunctionCall) -> Result<PushValue, CodegenError> {
     validate_arg_count(bf, 1, "__FUNC_SIG")?;
-    let first_arg = extract_single_argument(bf, "__FUNC_SIG")?;
-    let selector = if let Some(func) = contract.functions.iter().find(|f| first_arg.name.as_ref().unwrap().eq(&f.name)) {
+
+    let arg_str = match &bf.args[0] {
+        BuiltinFunctionArg::StringLiteral(s, _) => s.clone(),
+        BuiltinFunctionArg::Identifier(name, _) => name.clone(),
+        _ => {
+            return Err(invalid_arguments_error("Expected string literal or identifier as argument to __FUNC_SIG", &bf.span));
+        }
+    };
+
+    let selector = if let Some(func) = contract.functions.iter().find(|f| f.name.eq(&arg_str)) {
         func.signature
-    } else if let Some(error) = contract.errors.iter().find(|e| first_arg.name.as_ref().unwrap().eq(&e.name)) {
+    } else if let Some(error) = contract.errors.iter().find(|e| e.name.eq(&arg_str)) {
         error.selector
-    } else if let Some(s) = &first_arg.name {
-        keccak256(s)[..4].try_into().unwrap()
     } else {
-        return Err(CodegenError {
-            kind: CodegenErrorKind::MissingFunctionInterface(first_arg.name.as_ref().unwrap().to_string()),
-            span: bf.span.clone_box(),
-            token: None,
-        });
+        keccak256(&arg_str)[..4].try_into().unwrap()
     };
 
     // Left-pad the 4-byte selector to 32 bytes for B256
@@ -87,10 +79,10 @@ pub fn eval_function_signature(contract: &Contract, bf: &BuiltinFunctionCall) ->
 /// Evaluates __BYTES builtin function
 pub fn eval_builtin_bytes(bf: &BuiltinFunctionCall) -> Result<PushValue, CodegenError> {
     validate_arg_count(bf, 1, "__BYTES")?;
-    let first_arg = match bf.args[0] {
-        BuiltinFunctionArg::Argument(ref arg) => arg.name.clone().unwrap_or_default(),
+    let first_arg = match &bf.args[0] {
+        BuiltinFunctionArg::StringLiteral(s, _) => s.clone(),
         _ => {
-            return Err(invalid_arguments_error("Invalid argument type passed to __BYTES", &bf.span));
+            return Err(invalid_arguments_error("Expected string literal as argument to __BYTES", &bf.span));
         }
     };
 
@@ -134,7 +126,7 @@ pub fn eval_builtin_pad_simple(bf: &BuiltinFunctionCall, direction: PadDirection
     validate_arg_count(bf, 1, &direction.to_string())?;
 
     let first_arg = match &bf.args[0] {
-        BuiltinFunctionArg::Argument(arg) => arg.name.clone().unwrap_or_default(),
+        BuiltinFunctionArg::HexLiteral(hex, _) => hex.clone(),
         BuiltinFunctionArg::BuiltinFunctionCall(inner_call) => {
             // Recursively evaluate nested builtin calls
             let push_value = match inner_call.kind {
@@ -148,7 +140,10 @@ pub fn eval_builtin_pad_simple(bf: &BuiltinFunctionCall, direction: PadDirection
             push_value.to_hex_trimmed()
         }
         _ => {
-            return Err(invalid_arguments_error(format!("Invalid argument type passed to {direction}"), &bf.span));
+            return Err(invalid_arguments_error(
+                format!("Expected hex literal or builtin function call as argument to {direction}"),
+                &bf.span,
+            ));
         }
     };
 

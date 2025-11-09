@@ -274,7 +274,7 @@ impl<'a> Lexer<'a> {
                         && matches!(word.as_str(), "true" | "false")
                     {
                         debug!(target: "lexer", "FOUND BOOL '{:?}'", word);
-                        found_kind = Some(TokenKind::Literal(str_to_bytes32(if word.as_str() == "true" { "1" } else { "0" })));
+                        found_kind = Some(TokenKind::HexLiteral(if word.as_str() == "true" { "01".to_string() } else { "00".to_string() }));
                         self.eat_while(None, |c| c.is_alphanumeric());
                     }
 
@@ -627,7 +627,7 @@ impl<'a> Lexer<'a> {
         let (integer_str, start, end) = self.eat_while(Some(initial_char), |ch| ch.is_ascii_digit());
 
         let integer = integer_str.parse().unwrap();
-        let integer_token = TokenKind::Num(integer);
+        let integer_token = TokenKind::Integer(integer);
 
         Ok(Token { kind: integer_token, span: self.source.relative_span_by_pos(start, end) })
     }
@@ -641,26 +641,17 @@ impl<'a> Lexer<'a> {
             ));
         }
 
-        let kind = if matches!(self.context_stack.top(), &Context::CodeTableBody | &Context::Constant) {
-            // In code tables, or constant values the bytecode provided is of arbitrary length. We pass
-            // the code as an Ident, and parse it later.
-            if self.context_stack.top() == &Context::Constant && integer_str.len() > MAX_HEX_LITERAL_LENGTH {
-                return Err(LexicalError::new(
-                    LexicalErrorKind::HexLiteralTooLong(integer_str.clone()),
-                    self.source.relative_span_by_pos(start, end),
-                ));
-            }
-            let hex_string = format_even_bytes(integer_str[2..].to_lowercase());
-            TokenKind::Bytes(hex_string)
-        } else {
-            if integer_str.len() > MAX_HEX_LITERAL_LENGTH {
-                return Err(LexicalError::new(
-                    LexicalErrorKind::HexLiteralTooLong(integer_str.clone()),
-                    self.source.relative_span_by_pos(start, end),
-                ));
-            }
-            TokenKind::Literal(str_to_bytes32(integer_str[2..].as_ref()))
-        };
+        // Always produce Bytes token for hex literals to ensure consistent handling
+        // Validation of length is context-dependent
+        if self.context_stack.top() == &Context::Constant && integer_str.len() > MAX_HEX_LITERAL_LENGTH {
+            return Err(LexicalError::new(
+                LexicalErrorKind::HexLiteralTooLong(integer_str.clone()),
+                self.source.relative_span_by_pos(start, end),
+            ));
+        }
+
+        let hex_string = format_even_bytes(integer_str[2..].to_lowercase());
+        let kind = TokenKind::HexLiteral(hex_string);
 
         Ok(Token { kind, span: self.source.relative_span_by_pos(start, end) })
     }

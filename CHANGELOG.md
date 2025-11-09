@@ -5,6 +5,13 @@
 ## Unreleased
 - Fix constants defined with builtin functions not working in code tables (fixes #149).
   - Example: `#define constant C = __RIGHTPAD(0x)` can now be used in tables with `[C]`.
+- Add support for string literal constants with `__BYTES` builtin function.
+  - String constants can be defined: `#define constant GREETING = "hello"`.
+  - String constants must be used with `__BYTES`: `__BYTES([GREETING])` converts to UTF-8 bytes.
+  - Example: `#define constant MSG = "hello"` then `__BYTES([MSG])` produces `0x68656c6c6f`.
+- Add support for constant references in `__VERBATIM` builtin function.
+  - `__VERBATIM` can now accept constant references: `__VERBATIM([MY_CONSTANT])`.
+  - Example: `#define constant SIG = __FUNC_SIG("transfer(address,uint256)")` then `__VERBATIM([SIG])`.
 
 ## [1.5.5] - 2025-11-08
 - Fix `--relax-jumps` not updating label positions always correct during iterative optimization.

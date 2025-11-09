@@ -826,7 +826,7 @@ fn parses_doubledot_operator() {
     let tok = lexer.next();
     let unwrapped = tok.unwrap().unwrap();
     let num_span = Span::new(0..1, None);
-    assert_eq!(unwrapped, Token::new(TokenKind::Num(0), num_span));
+    assert_eq!(unwrapped, Token::new(TokenKind::Integer(0), num_span));
 
     // Lex '..'
     let tok = lexer.next();
@@ -838,7 +838,7 @@ fn parses_doubledot_operator() {
     let tok = lexer.next();
     let unwrapped = tok.unwrap().unwrap();
     let num_span = Span::new(3..5, None);
-    assert_eq!(unwrapped, Token::new(TokenKind::Num(10), num_span));
+    assert_eq!(unwrapped, Token::new(TokenKind::Integer(10), num_span));
 
     let _ = lexer.next(); // eof
     assert!(lexer.eof);

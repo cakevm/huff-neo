@@ -221,10 +221,10 @@ fn parses_assert_pc_with_literal() {
 
     let _ = lexer.next(); // open parenthesis
 
-    // Check literal argument
+    // Check hex literal argument
     let tok = lexer.next();
     let unwrapped = tok.unwrap().unwrap();
-    assert_eq!(unwrapped.kind, TokenKind::Literal(str_to_bytes32("00")));
+    assert_eq!(unwrapped.kind, TokenKind::HexLiteral("00".to_string()));
 
     let _ = lexer.next(); // close parenthesis
     let _ = lexer.next(); // whitespace

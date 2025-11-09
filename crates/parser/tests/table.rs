@@ -1,10 +1,10 @@
 use huff_neo_lexer::*;
 use huff_neo_parser::*;
-use huff_neo_utils::ast::abi::Argument;
 use huff_neo_utils::ast::span::AstSpan;
 use huff_neo_utils::file::full_file_source::FullFileSource;
 use huff_neo_utils::prelude::StatementType;
 use huff_neo_utils::prelude::*;
+use huff_neo_utils::token::Literal;
 
 #[test]
 fn table_with_no_body() {
@@ -144,13 +144,7 @@ fn code_table_builtin_func_sign() {
         table_definition.statements[0].ty,
         StatementType::BuiltinFunctionCall(BuiltinFunctionCall {
             kind: BuiltinFunctionKind::FunctionSignature,
-            args: vec![BuiltinFunctionArg::Argument(Argument {
-                arg_type: None,
-                arg_location: None,
-                name: Some("hello()".to_string()),
-                indexed: false,
-                span: AstSpan(vec![Span { start: 50, end: 59, file: None }])
-            })],
+            args: vec![BuiltinFunctionArg::StringLiteral("hello()".to_string(), AstSpan(vec![Span { start: 50, end: 59, file: None }]))],
             span: AstSpan(vec![Span { start: 39, end: 49, file: None }, Span { start: 50, end: 59, file: None }])
         })
     );

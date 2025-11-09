@@ -8,9 +8,9 @@ fn parses_single_hex() {
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
     let mut lexer = Lexer::new(flattened_source);
 
-    // The first and only token should be lexed as Literal(0xa57B)
+    // The first and only token should be lexed as HexLiteral(a57b)
     let tok = lexer.next().unwrap().unwrap();
-    assert_eq!(tok, Token::new(TokenKind::Literal(str_to_bytes32("a57B")), Span::new(0..6, None)));
+    assert_eq!(tok, Token::new(TokenKind::HexLiteral("a57b".to_string()), Span::new(0..6, None)));
 
     // We covered the whole source
     lexer.next();
@@ -23,9 +23,9 @@ fn parses_odd_len_hex() {
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
     let mut lexer = Lexer::new(flattened_source);
 
-    // The first and only token should be lexed as Literal(0x1)
+    // The first and only token should be lexed as HexLiteral(01) - odd length is padded to even
     let tok = lexer.next().unwrap().unwrap();
-    assert_eq!(tok, Token::new(TokenKind::Literal(str_to_bytes32("1")), Span::new(0..3, None)));
+    assert_eq!(tok, Token::new(TokenKind::HexLiteral("01".to_string()), Span::new(0..3, None)));
 
     // We covered the whole source
     lexer.next();
@@ -54,14 +54,14 @@ fn parses_bool() {
     assert_eq!(tokens[1].kind, TokenKind::Constant);
     assert_eq!(tokens[2].kind, TokenKind::Ident("CONSTANT_FALSE".to_string()));
     assert_eq!(tokens[3].kind, TokenKind::Assign);
-    assert_eq!(tokens[4].kind, TokenKind::Literal(str_to_bytes32("0")));
+    assert_eq!(tokens[4].kind, TokenKind::HexLiteral("00".to_string()));
 
     // Constant true
     assert_eq!(tokens[5].kind, TokenKind::Define);
     assert_eq!(tokens[6].kind, TokenKind::Constant);
     assert_eq!(tokens[7].kind, TokenKind::Ident("CONSTANT_TRUE".to_string()));
     assert_eq!(tokens[8].kind, TokenKind::Assign);
-    assert_eq!(tokens[9].kind, TokenKind::Literal(str_to_bytes32("1")));
+    assert_eq!(tokens[9].kind, TokenKind::HexLiteral("01".to_string()));
 
     // Macro
     assert_eq!(tokens[10].kind, TokenKind::Define);
@@ -70,8 +70,8 @@ fn parses_bool() {
     assert_eq!(tokens[13].kind, TokenKind::OpenParen);
     assert_eq!(tokens[14].kind, TokenKind::CloseParen);
     assert_eq!(tokens[15].kind, TokenKind::OpenBrace);
-    assert_eq!(tokens[16].kind, TokenKind::Literal(str_to_bytes32("0")));
-    assert_eq!(tokens[17].kind, TokenKind::Literal(str_to_bytes32("1")));
+    assert_eq!(tokens[16].kind, TokenKind::HexLiteral("00".to_string()));
+    assert_eq!(tokens[17].kind, TokenKind::HexLiteral("01".to_string()));
     assert_eq!(tokens[18].kind, TokenKind::CloseBrace);
     assert_eq!(tokens[19].kind, TokenKind::Eof);
 }
@@ -101,14 +101,14 @@ fn parse_true_false_name() {
     assert_eq!(tokens[1].kind, TokenKind::Constant);
     assert_eq!(tokens[2].kind, TokenKind::Ident("true".to_string()));
     assert_eq!(tokens[3].kind, TokenKind::Assign);
-    assert_eq!(tokens[4].kind, TokenKind::Literal(str_to_bytes32("1")));
+    assert_eq!(tokens[4].kind, TokenKind::HexLiteral("01".to_string()));
 
     // Constant true
     assert_eq!(tokens[5].kind, TokenKind::Define);
     assert_eq!(tokens[6].kind, TokenKind::Constant);
     assert_eq!(tokens[7].kind, TokenKind::Ident("false".to_string()));
     assert_eq!(tokens[8].kind, TokenKind::Assign);
-    assert_eq!(tokens[9].kind, TokenKind::Literal(str_to_bytes32("0")));
+    assert_eq!(tokens[9].kind, TokenKind::HexLiteral("00".to_string()));
 
     // Macro true
     assert_eq!(tokens[10].kind, TokenKind::Define);
@@ -117,7 +117,7 @@ fn parse_true_false_name() {
     assert_eq!(tokens[13].kind, TokenKind::OpenParen);
     assert_eq!(tokens[14].kind, TokenKind::CloseParen);
     assert_eq!(tokens[15].kind, TokenKind::OpenBrace);
-    assert_eq!(tokens[16].kind, TokenKind::Literal(str_to_bytes32("1")));
+    assert_eq!(tokens[16].kind, TokenKind::HexLiteral("01".to_string()));
     assert_eq!(tokens[17].kind, TokenKind::CloseBrace);
 
     // Macro false
@@ -127,7 +127,7 @@ fn parse_true_false_name() {
     assert_eq!(tokens[21].kind, TokenKind::OpenParen);
     assert_eq!(tokens[22].kind, TokenKind::CloseParen);
     assert_eq!(tokens[23].kind, TokenKind::OpenBrace);
-    assert_eq!(tokens[24].kind, TokenKind::Literal(str_to_bytes32("0")));
+    assert_eq!(tokens[24].kind, TokenKind::HexLiteral("00".to_string()));
     assert_eq!(tokens[25].kind, TokenKind::CloseBrace);
 
     assert_eq!(tokens[26].kind, TokenKind::Eof);

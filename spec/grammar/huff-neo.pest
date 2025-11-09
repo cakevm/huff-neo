@@ -150,6 +150,7 @@ error_definition = { "#" ~ "define" ~ "error" ~ identifier ~ parameter_list }
 //   #define constant MY_VALUE = 0x42
 //   #define constant TOTAL = [BASE] + [OFFSET]
 //   #define constant SIG = __FUNC_SIG("transfer(address,uint256)")
+//   #define constant GREETING = "hello"
 constant_definition = { "#" ~ "define" ~ "constant" ~ identifier ~ "=" ~ constant_definition_value }
 
 // ============================================================================
@@ -318,11 +319,16 @@ builtin_name_arg = { literal_string | ref_identifier }
 // Accept: hex literals or bracketed constant references
 builtin_assert_pc_arg = { literal_hex | ref_constant_bracketed }
 
+// Bytes builtin: __BYTES
+// Accept: string literals or string constant references (constants that are strings)
+builtin_bytes_arg = { literal_string | ref_constant_bracketed }
+
 // EXPRESSION PRIMARIES: Atomic values in compile-time expressions
 // Used in: constant definitions, for loop ranges, if conditions, value-based builtins
 // Includes:
 //   - Macro argument references (<arg>) for use in conditional compilation and loops
 //   - Boolean literals (true/false) for use in if conditions
+//   - String literals ("hello") for use in constant definitions
 // Note: Parenthesized expressions use conditional_expr to support both arithmetic and comparisons
 //       The context (arithmetic_expr vs conditional_expr) at the top level determines what's allowed
 primary = {
@@ -335,6 +341,7 @@ primary = {
     | literal_hex
     | literal_decimal
     | literal_boolean
+    | literal_string
 }
 
 // ============================================================================
@@ -492,6 +499,10 @@ label_definition = { identifier ~ ":" }
 //   __LEFTPAD([ADDRESS], 32)                  // Constant reference
 //   __ASSERT_PC([TARGET_PC])                  // Hex or constant reference
 //   __RIGHTPAD([A] + [B], 0x20)               // Arithmetic with constants
+//
+// String-based builtins:
+//   __BYTES("hello")                          // String literal
+//   __BYTES([GREETING])                       // String constant reference
 builtin_function_call = {
     "__FUNC_SIG" ~ "(" ~ builtin_name_arg ~ ")"
     | "__EVENT_HASH" ~ "(" ~ builtin_name_arg ~ ")"
@@ -503,7 +514,7 @@ builtin_function_call = {
     | "__LEFTPAD" ~ "(" ~ arithmetic_expr ~ "," ~ arithmetic_expr ~ ")"
     | "__CODECOPY_DYN_ARG" ~ "(" ~ literal_decimal ~ ")"
     | "__VERBATIM" ~ "(" ~ literal_hex ~ ")"
-    | "__BYTES" ~ "(" ~ literal_string ~ ")"
+    | "__BYTES" ~ "(" ~ builtin_bytes_arg ~ ")"
     | "__ASSERT_PC" ~ "(" ~ builtin_assert_pc_arg ~ ")"
 }
 

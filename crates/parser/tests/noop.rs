@@ -240,7 +240,7 @@ fn test_parses_noop_with_other_macro_args() {
         assert_eq!(mi.args.len(), 3);
 
         // First argument should be a literal
-        if let MacroArg::Literal(bytes) = &mi.args[0] {
+        if let MacroArg::HexLiteral(bytes) = &mi.args[0] {
             assert_eq!(bytes[31], 0x01);
         } else {
             panic!("Expected literal 0x01");
@@ -250,7 +250,7 @@ fn test_parses_noop_with_other_macro_args() {
         assert!(matches!(mi.args[1], MacroArg::Noop));
 
         // Third argument should be a literal
-        if let MacroArg::Literal(bytes) = &mi.args[2] {
+        if let MacroArg::HexLiteral(bytes) = &mi.args[2] {
             assert_eq!(bytes[31], 0x02);
         } else {
             panic!("Expected literal 0x02");
@@ -305,7 +305,7 @@ fn test_parses_noop_in_arg_macro_invocation() {
         assert!(matches!(args[0], MacroArg::Noop));
 
         // Second argument should be a literal
-        if let MacroArg::Literal(bytes) = &args[1] {
+        if let MacroArg::HexLiteral(bytes) = &args[1] {
             assert_eq!(bytes[31], 0x01);
         } else {
             panic!("Expected literal 0x01");

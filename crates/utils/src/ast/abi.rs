@@ -1,5 +1,5 @@
 use crate::ast::span::AstSpan;
-use crate::prelude::Literal;
+use crate::token::Literal;
 use serde::{Deserialize, Serialize};
 
 /// An argument's location

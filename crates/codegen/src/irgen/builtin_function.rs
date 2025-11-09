@@ -1,5 +1,5 @@
 use crate::Codegen;
-use crate::irgen::constants::{constant_gen, evaluate_constant_value};
+use crate::irgen::constants::{constant_gen, evaluate_constant_value, lookup_constant};
 use alloy_primitives::{B256, hex, keccak256};
 use huff_neo_utils::builtin_eval::{PadDirection, eval_builtin_bytes, eval_event_hash, eval_function_signature};
 use huff_neo_utils::bytecode::{
@@ -10,7 +10,7 @@ use huff_neo_utils::bytes_util::{bytes32_to_hex_string, format_even_bytes, pad_n
 use huff_neo_utils::error::{CodegenError, CodegenErrorKind};
 use huff_neo_utils::evm_version::EVMVersion;
 use huff_neo_utils::prelude::{
-    Argument, AstSpan, BuiltinFunctionArg, BuiltinFunctionCall, BuiltinFunctionKind, Contract, MacroDefinition, PushValue, TableDefinition,
+    AstSpan, BuiltinFunctionArg, BuiltinFunctionCall, BuiltinFunctionKind, ConstVal, Contract, MacroDefinition, PushValue, TableDefinition,
     TableKind,
 };
 use huff_neo_utils::scope::ScopeManager;
@@ -42,14 +42,6 @@ fn validate_arg_count(bf: &BuiltinFunctionCall, expected: usize, fn_name: &str) 
         ));
     }
     Ok(())
-}
-
-/// Extracts a single Argument from the first position of a builtin function call
-fn extract_single_argument<'a>(bf: &'a BuiltinFunctionCall, fn_name: &str) -> Result<&'a Argument, CodegenError> {
-    match bf.args.first() {
-        Some(BuiltinFunctionArg::Argument(arg)) => Ok(arg),
-        _ => Err(invalid_arguments_error(format!("Incorrect arguments type passed to {}", fn_name), &bf.span)),
-    }
 }
 
 /// Validates that a string contains only hexadecimal characters
@@ -105,8 +97,14 @@ pub fn builtin_function_gen<'a>(
             bytes.push_with_offset(starting_offset, Bytes::Raw(push_bytes));
         }
         BuiltinFunctionKind::Tablestart => {
-            let first_arg = extract_single_argument(bf, "__tablestart")?;
-            let table_name = first_arg.name.as_ref().unwrap();
+            validate_arg_count(bf, 1, "__tablestart")?;
+
+            let table_name = match &bf.args[0] {
+                BuiltinFunctionArg::Identifier(name, _) => name,
+                _ => {
+                    return Err(invalid_arguments_error("Expected identifier as argument to __tablestart", &bf.span));
+                }
+            };
 
             // Make sure the table exists
             if let Some(t) = contract.find_table_by_name(table_name) {
@@ -155,8 +153,14 @@ pub fn builtin_function_gen<'a>(
             }
         }
         BuiltinFunctionKind::EmbedTable => {
-            let first_arg = extract_single_argument(bf, "__EMBED_TABLE")?;
-            let table_name = first_arg.name.as_ref().unwrap();
+            validate_arg_count(bf, 1, "__EMBED_TABLE")?;
+
+            let table_name = match &bf.args[0] {
+                BuiltinFunctionArg::Identifier(name, _) => name,
+                _ => {
+                    return Err(invalid_arguments_error("Expected identifier as argument to __EMBED_TABLE", &bf.span));
+                }
+            };
 
             // Find the table definition
             let table_def = if let Some(t) = contract.find_table_by_name(table_name) {
@@ -256,15 +260,19 @@ pub fn builtin_function_gen<'a>(
         BuiltinFunctionKind::DynConstructorArg => {
             validate_arg_count(bf, 2, "__CODECOPY_DYN_ARG")?;
 
-            let BuiltinFunctionArg::Argument(ref first_arg) = bf.args[0] else {
-                return Err(invalid_arguments_error("Incorrect arguments type passed to __CODECOPY_DYN_ARG", &bf.span));
-            };
-            let BuiltinFunctionArg::Argument(ref second_arg) = bf.args[1] else {
-                return Err(invalid_arguments_error("Incorrect arguments type passed to __CODECOPY_DYN_ARG", &bf.span));
+            let arg_index = match &bf.args[0] {
+                BuiltinFunctionArg::HexLiteral(hex, _) => hex,
+                _ => {
+                    return Err(invalid_arguments_error("Expected hex literal as first argument to __CODECOPY_DYN_ARG", &bf.span));
+                }
             };
 
-            let arg_index = first_arg.name.as_ref().unwrap();
-            let dest_offset = second_arg.name.as_ref().unwrap();
+            let dest_offset = match &bf.args[1] {
+                BuiltinFunctionArg::HexLiteral(hex, _) => hex,
+                _ => {
+                    return Err(invalid_arguments_error("Expected hex literal as second argument to __CODECOPY_DYN_ARG", &bf.span));
+                }
+            };
 
             // Enforce that the arg index is 1 byte and that the dest offset is at max
             // 2 bytes.
@@ -288,19 +296,27 @@ pub fn builtin_function_gen<'a>(
             bytes.push_with_offset(
                 starting_offset,
                 Bytes::DynConstructorArgPlaceholder(DynConstructorArgPlaceholderData::new(
-                    first_arg.name.as_ref().unwrap().to_string(),
-                    pad_n_bytes(second_arg.name.as_ref().unwrap(), 2),
+                    arg_index.to_string(),
+                    pad_n_bytes(dest_offset, 2),
                 )),
             );
         }
         BuiltinFunctionKind::Verbatim => {
             validate_arg_count(bf, 1, "__VERBATIM")?;
 
-            let first_arg = extract_single_argument(bf, "__VERBATIM")?;
-            let verbatim_str = first_arg.name.as_ref().unwrap();
+            let verbatim_str = match &bf.args[0] {
+                BuiltinFunctionArg::HexLiteral(hex, _) => hex.clone(),
+                BuiltinFunctionArg::Constant(name, span) => {
+                    // Constant reference - resolve it
+                    constant_gen(name, contract, span)?.map(|pv| pv.to_hex_trimmed()).unwrap_or_default()
+                }
+                _ => {
+                    return Err(invalid_arguments_error("Expected hex literal or constant reference as argument to __VERBATIM", &bf.span));
+                }
+            };
 
             // check if verbatim was passed a hex string
-            if let Err(e) = validate_hex_string(verbatim_str, &bf.span) {
+            if let Err(e) = validate_hex_string(&verbatim_str, &bf.span) {
                 tracing::error!(
                     target: "codegen",
                     "INVALID HEX STRING PASSED TO __VERBATIM: \"{}\"",
@@ -310,14 +326,53 @@ pub fn builtin_function_gen<'a>(
             }
 
             tracing::debug!(target: "codegen", "INJECTING as verbatim: {}", verbatim_str);
-            let hex = format_even_bytes(verbatim_str.clone());
+            let hex = format_even_bytes(verbatim_str);
             let push_bytes = hex.to_string();
             *offset += hex.len() / 2;
 
             bytes.push_with_offset(starting_offset, Bytes::Raw(push_bytes));
         }
         BuiltinFunctionKind::Bytes => {
-            let push_value = eval_builtin_bytes(bf)?;
+            validate_arg_count(bf, 1, "__BYTES")?;
+
+            let string_value = match &bf.args[0] {
+                BuiltinFunctionArg::StringLiteral(s, _) => s.clone(),
+                BuiltinFunctionArg::Constant(name, span) => {
+                    // Constant reference - check what type it is
+                    let constant = lookup_constant(name, contract, span)?;
+                    match &constant.value {
+                        ConstVal::String(s) => s.clone(),
+                        ConstVal::BuiltinFunctionCall(inner_bf) if matches!(inner_bf.kind, BuiltinFunctionKind::Bytes) => {
+                            // Allow chained __BYTES constants
+                            eval_builtin_bytes(inner_bf)?.to_hex_trimmed()
+                        }
+                        _ => {
+                            return Err(invalid_arguments_error(
+                                format!("__BYTES requires a string literal or string constant. Constant [{}] is not a string.", name),
+                                &bf.span,
+                            ));
+                        }
+                    }
+                }
+                _ => {
+                    return Err(invalid_arguments_error("Expected string literal or constant reference as argument to __BYTES", &bf.span));
+                }
+            };
+
+            if string_value.is_empty() {
+                return Err(invalid_arguments_error("Empty string passed to __BYTES", &bf.span));
+            }
+
+            // Convert string to bytes and left-pad to 32 bytes
+            let bytes_slice = string_value.as_bytes();
+            if bytes_slice.len() > 32 {
+                return Err(invalid_arguments_error("Encoded bytes length exceeds 32 bytes", &bf.span));
+            }
+
+            let mut bytes_array = [0u8; 32];
+            bytes_array[32 - bytes_slice.len()..].copy_from_slice(bytes_slice);
+            let push_value = PushValue::from(bytes_array);
+
             let push_bytes = push_value.to_hex_with_opcode(evm_version);
             *offset += push_bytes.len() / 2;
             bytes.push_with_offset(starting_offset, Bytes::Raw(push_bytes));
@@ -327,29 +382,15 @@ pub fn builtin_function_gen<'a>(
 
             // Extract the expected position from the argument
             let expected_position = match &bf.args[0] {
-                BuiltinFunctionArg::Literal(lit) => {
-                    // Parse the literal value (lit is a &[u8; 32])
-                    let hex_str = bytes32_to_hex_string(lit, false);
-                    usize::from_str_radix(&hex_str, 16).map_err(|_| {
-                        invalid_arguments_error(format!("Invalid literal value passed to __ASSERT_PC: 0x{}", hex_str), &bf.span)
-                    })?
-                }
-                BuiltinFunctionArg::Argument(arg) => {
-                    // The parser may create an Argument with the hex value as the name
-                    if let Some(name) = &arg.name {
-                        // Try to parse as hex
-                        usize::from_str_radix(name, 16)
-                            .map_err(|_| invalid_arguments_error(format!("Invalid hex value passed to __ASSERT_PC: {}", name), &bf.span))?
-                    } else {
-                        return Err(invalid_arguments_error("Argument has no name", &bf.span));
-                    }
-                }
+                BuiltinFunctionArg::HexLiteral(hex_str, _) => usize::from_str_radix(hex_str, 16).map_err(|_| {
+                    invalid_arguments_error(format!("Invalid hex literal value passed to __ASSERT_PC: 0x{}", hex_str), &bf.span)
+                })?,
                 BuiltinFunctionArg::Constant(name, span) => {
                     // Evaluate constant directly to numeric value without generating bytecode
                     evaluate_constant_value(name, contract, span)?
                 }
                 _ => {
-                    return Err(invalid_arguments_error("Expected literal or constant value as argument to __ASSERT_PC", &bf.span));
+                    return Err(invalid_arguments_error("Expected hex literal or constant value as argument to __ASSERT_PC", &bf.span));
                 }
             };
 
@@ -388,24 +429,32 @@ fn codesize<'a>(
     bf: &BuiltinFunctionCall,
     relax_jumps: bool,
 ) -> Result<(usize, Bytes), CodegenError> {
-    let first_arg = extract_single_argument(bf, "__codesize")?;
-    let ir_macro = if let Some(m) = contract.find_macro_by_name(first_arg.name.as_ref().unwrap()) {
+    validate_arg_count(bf, 1, "__codesize")?;
+
+    let macro_name = match &bf.args[0] {
+        BuiltinFunctionArg::Identifier(name, _) => name,
+        _ => {
+            return Err(invalid_arguments_error("Expected identifier as argument to __codesize", &bf.span));
+        }
+    };
+
+    let ir_macro = if let Some(m) = contract.find_macro_by_name(macro_name) {
         m
     } else {
         tracing::error!(
             target: "codegen",
             "MISSING MACRO PASSED TO __codesize \"{}\"",
-            first_arg.name.as_ref().unwrap()
+            macro_name
         );
         return Err(CodegenError {
-            kind: CodegenErrorKind::MissingMacroDefinition(first_arg.name.as_ref().unwrap().to_string() /* yuck */),
+            kind: CodegenErrorKind::MissingMacroDefinition(macro_name.to_string()),
             span: bf.span.clone_box(),
             token: None,
         });
     };
 
     // Get the name of the macro being passed to __codesize
-    let codesize_arg = first_arg.name.as_ref().unwrap();
+    let codesize_arg = macro_name;
     let is_previous_parent = scope_mgr.macro_stack().iter().any(|def| def.name == *codesize_arg);
 
     // Special case:
@@ -462,28 +511,24 @@ fn codesize<'a>(
 /// For raw signatures: left-padded selector (PUSH4 equivalent).
 pub fn error(contract: &Contract, bf: &BuiltinFunctionCall) -> Result<PushValue, CodegenError> {
     validate_arg_count(bf, 1, "__ERROR")?;
-    let first_arg = extract_single_argument(bf, "__ERROR")?;
+
+    let arg_str = match &bf.args[0] {
+        BuiltinFunctionArg::StringLiteral(s, _) => s.clone(),
+        BuiltinFunctionArg::Identifier(name, _) => name.clone(),
+        _ => {
+            return Err(invalid_arguments_error("Expected string literal or identifier as argument to __ERROR", &bf.span));
+        }
+    };
 
     let mut bytes = [0u8; 32];
-    if let Some(error) = contract.errors.iter().find(|e| first_arg.name.as_ref().unwrap().eq(&e.name)) {
+    if let Some(error) = contract.errors.iter().find(|e| e.name.eq(&arg_str)) {
         // Put selector at start, right-padded with zeros (rest is already zero)
         bytes[0..4].copy_from_slice(&error.selector);
-    } else if let Some(s) = &first_arg.name {
-        let selector: [u8; 4] = keccak256(s)[..4].try_into().unwrap();
+    } else {
+        let selector: [u8; 4] = keccak256(&arg_str)[..4].try_into().unwrap();
         // Left-pad the selector (put at end)
         bytes[28..32].copy_from_slice(&selector);
-    } else {
-        tracing::error!(
-            target: "codegen",
-            "MISSING ERROR DEFINITION PASSED TO __ERROR: \"{}\"",
-            first_arg.name.as_ref().unwrap()
-        );
-        return Err(CodegenError {
-            kind: CodegenErrorKind::MissingErrorDefinition(first_arg.name.as_ref().unwrap().to_string()),
-            span: bf.span.clone_box(),
-            token: None,
-        });
-    };
+    }
 
     Ok(PushValue::from(bytes))
 }
@@ -493,20 +538,24 @@ pub fn error(contract: &Contract, bf: &BuiltinFunctionCall) -> Result<PushValue,
 /// Returns a tuple of (TableDefinition, bytecode_string) with the size of the specified jump table.
 /// The bytecode is a PUSH instruction with the table size in bytes.
 pub fn tablesize(contract: &Contract, bf: &BuiltinFunctionCall) -> Result<(TableDefinition, String), CodegenError> {
-    let first_arg = extract_single_argument(bf, "__tablesize")?;
-    let ir_table = if let Some(t) = contract.find_table_by_name(first_arg.name.as_ref().unwrap()) {
+    validate_arg_count(bf, 1, "__tablesize")?;
+
+    let table_name = match &bf.args[0] {
+        BuiltinFunctionArg::Identifier(name, _) => name.clone(),
+        _ => {
+            return Err(invalid_arguments_error("Expected identifier as argument to __tablesize", &bf.span));
+        }
+    };
+
+    let ir_table = if let Some(t) = contract.find_table_by_name(&table_name) {
         t
     } else {
         tracing::error!(
             target: "codegen",
             "MISSING TABLE PASSED TO __tablesize \"{}\"",
-            first_arg.name.as_ref().unwrap()
+            table_name
         );
-        return Err(CodegenError {
-            kind: CodegenErrorKind::InvalidMacroInvocation(first_arg.name.as_ref().unwrap().to_string() /* yuck */),
-            span: bf.span.clone_box(),
-            token: None,
-        });
+        return Err(CodegenError { kind: CodegenErrorKind::InvalidMacroInvocation(table_name), span: bf.span.clone_box(), token: None });
     };
     let Some(table_size) = ir_table.size else {
         return Err(CodegenError {
@@ -524,7 +573,7 @@ pub fn tablesize(contract: &Contract, bf: &BuiltinFunctionCall) -> Result<(Table
 pub fn builtin_pad(contract: &Contract, bf: &BuiltinFunctionCall, direction: PadDirection) -> Result<PushValue, CodegenError> {
     validate_arg_count(bf, 1, &direction.to_string())?;
     let first_arg = match &bf.args[0] {
-        BuiltinFunctionArg::Argument(arg) => arg.name.clone().unwrap_or_default(),
+        BuiltinFunctionArg::HexLiteral(hex, _) => hex.clone(),
         BuiltinFunctionArg::BuiltinFunctionCall(inner_call) => match inner_call.kind {
             BuiltinFunctionKind::FunctionSignature => eval_function_signature(contract, inner_call)?.to_hex_trimmed(),
             BuiltinFunctionKind::Bytes => eval_builtin_bytes(inner_call)?.to_hex_trimmed(),
@@ -538,7 +587,7 @@ pub fn builtin_pad(contract: &Contract, bf: &BuiltinFunctionCall, direction: Pad
             constant_gen(name, contract, span)?.map(|pv| pv.to_hex_trimmed()).unwrap_or_default() // __NOOP returns empty string
         }
         _ => {
-            tracing::error!(target: "codegen", "Invalid argument type passed to {direction}");
+            tracing::error!(target: "codegen", "Invalid argument type passed to {direction}: {:?}", bf.args[0]);
             return Err(invalid_arguments_error(format!("Invalid argument type passed to {direction}"), &bf.span));
         }
     };
