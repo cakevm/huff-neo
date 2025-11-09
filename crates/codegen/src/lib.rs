@@ -860,9 +860,13 @@ impl Codegen {
             bytes = relaxed_bytes;
 
             // Rebuild the jump_table using the offset mapping from relaxation
+            // For each jump, map its offset to the new offset, or keep the original if not in mapping
             jump_table_to_use = jump_table
                 .iter()
-                .filter_map(|(old_offset, jumps)| offset_mapping.get(old_offset).map(|&new_offset| (new_offset, jumps.clone())))
+                .map(|(old_offset, jumps)| {
+                    let new_offset = offset_mapping.get(old_offset).copied().unwrap_or(*old_offset);
+                    (new_offset, jumps.clone())
+                })
                 .collect();
 
             // Use the label indices returned from relaxation (already updated)
