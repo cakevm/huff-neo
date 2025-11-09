@@ -239,6 +239,15 @@ impl Codegen {
                             let literal = contract.evaluate_constant_expression(expr)?;
                             Bytes::Raw(bytes_util::bytes32_to_hex_string(&literal, false))
                         }
+                        ConstVal::BuiltinFunctionCall(bf) => {
+                            let push_value = Codegen::gen_builtin_bytecode(contract, bf, statement.span.clone())?;
+                            // Use full hex for padding functions (always 32 bytes), trimmed for others
+                            let hex_data = match bf.kind {
+                                BuiltinFunctionKind::LeftPad | BuiltinFunctionKind::RightPad => push_value.to_hex_full(),
+                                _ => push_value.to_hex_trimmed(),
+                            };
+                            Bytes::Raw(hex_data)
+                        }
                         _ => {
                             return Err(CodegenError {
                                 kind: CodegenErrorKind::InvalidArguments("Constant must be a hex literal or expression".to_string()),

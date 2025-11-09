@@ -3,6 +3,8 @@
 # Huff Neo Compiler changelog
 
 ## Unreleased
+- Fix constants defined with builtin functions not working in code tables (fixes #149).
+  - Example: `#define constant C = __RIGHTPAD(0x)` can now be used in tables with `[C]`.
 
 ## [1.5.5] - 2025-11-08
 - Fix `--relax-jumps` not updating label positions always correct during iterative optimization.
