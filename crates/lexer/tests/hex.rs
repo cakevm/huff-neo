@@ -23,9 +23,8 @@ fn parses_odd_len_hex() {
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
     let mut lexer = Lexer::new(flattened_source);
 
-    // The first and only token should be lexed as HexLiteral(01) - odd length is padded to even
     let tok = lexer.next().unwrap().unwrap();
-    assert_eq!(tok, Token::new(TokenKind::HexLiteral("01".to_string()), Span::new(0..3, None)));
+    assert_eq!(tok, Token::new(TokenKind::HexLiteral("1".to_string()), Span::new(0..3, None)));
 
     // We covered the whole source
     lexer.next();

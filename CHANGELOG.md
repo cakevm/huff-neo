@@ -3,6 +3,8 @@
 # Huff Neo Compiler changelog
 
 ## Unreleased
+- Fix `__RIGHTPAD()` incorrectly padding odd-length hex values.
+  - Example: `__RIGHTPAD(0x1af)` now produces `0x1af000...` instead of `0x01af00...`.
 
 ## [1.5.7] - 2025-11-09
 - Fix jump placeholders not resolved when `--relax-jumps` enabled but no optimization occurs.
