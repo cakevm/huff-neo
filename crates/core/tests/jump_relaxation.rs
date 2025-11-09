@@ -439,3 +439,67 @@ fn test_jump_relaxation_boundary_255() {
     assert!(bytecode_with.starts_with("60ff56"), "Should use PUSH1 0xFF for jump to byte 255");
     assert!(bytecode_with.ends_with("5b00"), "Should end with JUMPDEST STOP");
 }
+
+#[test]
+fn test_jump_resolution_with_no_relaxation_needed() {
+    // Test that jumps are correctly resolved when --relax-jumps is enabled but no optimization occurs.
+    // This contract has a label at position 0x189 (beyond PUSH1 range), requiring PUSH2.
+    // With 0x180 STOPs, the label cannot be optimized to PUSH1, so offset_mapping stays empty
+    let source = r#"
+        #define macro MAIN() = takes(0) returns(0) {
+            0x01 lbl jumpi
+
+            // Fill bytecode with 0x180 (384) STOPs to push label beyond PUSH1 range
+            for(i in 0..0x180) {
+                stop
+            }
+
+            __ASSERT_PC(0x186)
+            lbl:
+                0x01
+
+            0x01 lbl jumpi
+        }
+    "#;
+
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    // Generate with relaxation enabled
+    let bytecode = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, true).unwrap();
+
+    // Build expected bytecode in Rust:
+    // Source structure: 0x01 lbl jumpi, for(0..0x180) stop, lbl: 0x01, 0x01 lbl jumpi
+    //
+    // Label position calculation:
+    // - PUSH1 0x01 = 2 bytes (6001)
+    // - PUSH2 0xXXXX = 3 bytes (61XXXX)
+    // - JUMPI = 1 byte (57)
+    // - Total before STOPs: 6 bytes
+    // - After 0x180 (384) STOPs: 6 + 384 = 390 (0x186)
+    // - JUMPDEST at position 0x186
+    //
+    // Expected bytecode:
+    // PUSH1 0x01 = 6001
+    // PUSH2 0x0186 = 610186
+    // JUMPI = 57
+    // 0x180 STOPs = 00 repeated 384 times
+    // JUMPDEST = 5b
+    // PUSH1 0x01 = 6001
+    // PUSH1 0x01 = 6001
+    // PUSH2 0x0186 = 610186
+    // JUMPI = 57
+    let mut expected = String::from("6001 610186 57");
+    for _ in 0..0x180 {
+        expected.push_str("00");
+    }
+    expected.push_str("5b 6001 6001 610186 57");
+    expected = expected.replace(" ", "");
+
+    // Exact bytecode match confirms jumps are resolved correctly.
+    assert_eq!(bytecode, expected, "Bytecode should match exactly with all jumps resolved");
+}
