@@ -3,6 +3,8 @@
 # Huff Neo Compiler changelog
 
 ## Unreleased
+
+## [1.5.6] - 2025-11-09
 - Fix constants defined with builtin functions not working in code tables (fixes #149).
   - Example: `#define constant C = __RIGHTPAD(0x)` can now be used in tables with `[C]`.
 - Add support for string literal constants with `__BYTES` builtin function.
