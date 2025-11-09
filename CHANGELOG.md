@@ -3,6 +3,8 @@
 # Huff Neo Compiler changelog
 
 ## Unreleased
+
+## [1.5.7] - 2025-11-09
 - Fix jump placeholders not resolved when `--relax-jumps` enabled but no optimization occurs.
   - Jump placeholders (`xxxx`) remained unresolved in the bytecode.
 
