@@ -260,21 +260,19 @@ impl Contract {
                 StatementType::BuiltinFunctionCall(bfc) => {
                     tracing::debug!(target: "ast", "Deriving Storage Pointers: Found builtin function {:?}", bfc.kind);
                     for builtin_fn_arg in &bfc.args {
-                        let BuiltinFunctionArg::Argument(a) = builtin_fn_arg else { continue };
-                        if let Some(name) = &a.name {
-                            match self.macros.get(name) {
-                                Some(md) => {
-                                    if md.name.eq("CONSTRUCTOR") {
-                                        if !checking_constructor {
-                                            self.recurse_ast_constants_inner(md, storage_pointers, last_p, true, visited);
-                                        }
-                                    } else {
-                                        self.recurse_ast_constants_inner(md, storage_pointers, last_p, checking_constructor, visited);
+                        let BuiltinFunctionArg::Identifier(name, _) = builtin_fn_arg else { continue };
+                        match self.macros.get(name) {
+                            Some(md) => {
+                                if md.name.eq("CONSTRUCTOR") {
+                                    if !checking_constructor {
+                                        self.recurse_ast_constants_inner(md, storage_pointers, last_p, true, visited);
                                     }
+                                } else {
+                                    self.recurse_ast_constants_inner(md, storage_pointers, last_p, checking_constructor, visited);
                                 }
-                                None => {
-                                    tracing::warn!(target: "ast", "BUILTIN HAS ARG NAME \"{}\" BUT NOT FOUND IN AST!", name)
-                                }
+                            }
+                            None => {
+                                tracing::warn!(target: "ast", "BUILTIN HAS ARG NAME \"{}\" BUT NOT FOUND IN AST!", name)
                             }
                         }
                     }
@@ -319,7 +317,11 @@ impl Contract {
                             let new_value = str_to_bytes32(&format!("{old_p}"));
                             storage_pointers.push((const_name.to_string(), new_value));
                         }
-                        ConstVal::Bytes(_) | ConstVal::BuiltinFunctionCall(_) | ConstVal::Expression(_) | ConstVal::Noop => {
+                        ConstVal::Bytes(_)
+                        | ConstVal::String(_)
+                        | ConstVal::BuiltinFunctionCall(_)
+                        | ConstVal::Expression(_)
+                        | ConstVal::Noop => {
                             // Skip constants that are not free storage pointers
                         }
                         // This should never be reached, as we only assign free storage pointers
@@ -875,10 +877,10 @@ pub struct MacroInvocation {
 /// An argument passed when invoking a macro
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum MacroArg {
-    /// Macro Literal Argument
+    /// Hexadecimal literal argument
     ///
     /// Example: `MACRO(0x04)`, `MACRO(0x420)`
-    Literal(Literal),
+    HexLiteral(Literal),
     /// Macro Iden String Argument
     ///
     /// Example: `MACRO(my_label)`, `MACRO(SOME_CONSTANT)`
@@ -1034,6 +1036,8 @@ pub enum UnaryOp {
 pub enum ConstVal {
     /// Bytes value for the constant
     Bytes(Bytes),
+    /// String literal value for the constant
+    String(String),
     /// A Free Storage Pointer
     FreeStoragePointer(FreeStoragePointer),
     /// A Storage Pointer assigned by the compiler
@@ -1084,13 +1088,14 @@ pub struct Label {
 /// A Builtin Function Argument
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum BuiltinFunctionArg {
-    /// A Literal Argument
-    Literal(Literal),
+    /// A String Literal (quoted string)
+    StringLiteral(String, AstSpan),
+    /// An Identifier (macro name, table name, function name)
+    Identifier(String, AstSpan),
+    /// A Hex Literal (raw hex bytes)
+    HexLiteral(String, AstSpan),
     /// Builtin Function Call
     BuiltinFunctionCall(BuiltinFunctionCall),
-    // TODO: Remove this and replace with a better type
-    /// Abi Argument
-    Argument(Argument),
     /// Constant Argument
     Constant(String, AstSpan),
 }
@@ -1099,9 +1104,10 @@ impl BuiltinFunctionArg {
     /// Get the span of the Builtin Function Argument
     pub fn span(&self) -> AstSpan {
         match self {
-            BuiltinFunctionArg::Literal(_) => AstSpan::default(),
+            BuiltinFunctionArg::StringLiteral(_, span) => span.clone(),
+            BuiltinFunctionArg::Identifier(_, span) => span.clone(),
+            BuiltinFunctionArg::HexLiteral(_, span) => span.clone(),
             BuiltinFunctionArg::BuiltinFunctionCall(b) => b.span.clone(),
-            BuiltinFunctionArg::Argument(a) => a.span.clone(),
             BuiltinFunctionArg::Constant(_, span) => span.clone(),
         }
     }

@@ -67,6 +67,7 @@ pub mod lexer_context;
 pub mod scope;
 
 /// Prelude wraps common utilities.
+#[allow(ambiguous_glob_reexports)]
 pub mod prelude {
     pub use crate::ast::{abi::*, huff::*, span::*};
     pub use crate::file::span::*;

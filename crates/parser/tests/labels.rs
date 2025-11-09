@@ -207,13 +207,10 @@ pub fn builtins_under_labels() {
                     Statement {
                         ty: StatementType::BuiltinFunctionCall(BuiltinFunctionCall {
                             kind: BuiltinFunctionKind::Tablestart,
-                            args: vec![BuiltinFunctionArg::Argument(Argument {
-                                arg_type: None,
-                                name: Some(String::from("TEST_TABLE")),
-                                indexed: false,
-                                arg_location: None,
-                                span: AstSpan(vec![Span { start: 342, end: 352, file: None }]),
-                            })],
+                            args: vec![BuiltinFunctionArg::Identifier(
+                                String::from("TEST_TABLE"),
+                                AstSpan(vec![Span { start: 342, end: 352, file: None }]),
+                            )],
                             span: AstSpan(vec![Span { start: 329, end: 341, file: None }, Span { start: 342, end: 352, file: None }]),
                         }),
                         span: AstSpan(vec![Span { start: 329, end: 341, file: None }, Span { start: 342, end: 352, file: None }]),
@@ -221,13 +218,10 @@ pub fn builtins_under_labels() {
                     Statement {
                         ty: StatementType::BuiltinFunctionCall(BuiltinFunctionCall {
                             kind: BuiltinFunctionKind::Tablesize,
-                            args: vec![BuiltinFunctionArg::Argument(Argument {
-                                arg_type: None,
-                                name: Some(String::from("TEST_TABLE")),
-                                indexed: false,
-                                arg_location: None,
-                                span: AstSpan(vec![Span { start: 378, end: 388, file: None }]),
-                            })],
+                            args: vec![BuiltinFunctionArg::Identifier(
+                                String::from("TEST_TABLE"),
+                                AstSpan(vec![Span { start: 378, end: 388, file: None }]),
+                            )],
                             span: AstSpan(vec![Span { start: 366, end: 377, file: None }, Span { start: 378, end: 388, file: None }]),
                         }),
                         span: AstSpan(vec![Span { start: 366, end: 377, file: None }, Span { start: 378, end: 388, file: None }]),
@@ -235,13 +229,10 @@ pub fn builtins_under_labels() {
                     Statement {
                         ty: StatementType::BuiltinFunctionCall(BuiltinFunctionCall {
                             kind: BuiltinFunctionKind::Codesize,
-                            args: vec![BuiltinFunctionArg::Argument(Argument {
-                                arg_type: None,
-                                name: Some(String::from("SMALL_MACRO")),
-                                indexed: false,
-                                arg_location: None,
-                                span: AstSpan(vec![Span { start: 413, end: 424, file: None }]),
-                            })],
+                            args: vec![BuiltinFunctionArg::Identifier(
+                                String::from("SMALL_MACRO"),
+                                AstSpan(vec![Span { start: 413, end: 424, file: None }]),
+                            )],
                             span: AstSpan(vec![Span { start: 402, end: 412, file: None }, Span { start: 413, end: 424, file: None }]),
                         }),
                         span: AstSpan(vec![Span { start: 402, end: 412, file: None }, Span { start: 413, end: 424, file: None }]),
@@ -249,13 +240,10 @@ pub fn builtins_under_labels() {
                     Statement {
                         ty: StatementType::BuiltinFunctionCall(BuiltinFunctionCall {
                             kind: BuiltinFunctionKind::FunctionSignature,
-                            args: vec![BuiltinFunctionArg::Argument(Argument {
-                                arg_type: None,
-                                name: Some(String::from("myFunc")),
-                                indexed: false,
-                                arg_location: None,
-                                span: AstSpan(vec![Span { start: 449, end: 455, file: None }]),
-                            })],
+                            args: vec![BuiltinFunctionArg::Identifier(
+                                String::from("myFunc"),
+                                AstSpan(vec![Span { start: 449, end: 455, file: None }]),
+                            )],
                             span: AstSpan(vec![Span { start: 438, end: 448, file: None }, Span { start: 449, end: 455, file: None }]),
                         }),
                         span: AstSpan(vec![Span { start: 438, end: 448, file: None }, Span { start: 449, end: 455, file: None }]),
@@ -263,13 +251,10 @@ pub fn builtins_under_labels() {
                     Statement {
                         ty: StatementType::BuiltinFunctionCall(BuiltinFunctionCall {
                             kind: BuiltinFunctionKind::Error,
-                            args: vec![BuiltinFunctionArg::Argument(Argument {
-                                arg_type: None,
-                                name: Some(String::from("TestError")),
-                                indexed: false,
-                                arg_location: None,
-                                span: AstSpan(vec![Span { start: 477, end: 486, file: None }]),
-                            })],
+                            args: vec![BuiltinFunctionArg::Identifier(
+                                String::from("TestError"),
+                                AstSpan(vec![Span { start: 477, end: 486, file: None }]),
+                            )],
                             span: AstSpan(vec![Span { start: 469, end: 476, file: None }, Span { start: 477, end: 486, file: None }]),
                         }),
                         span: AstSpan(vec![Span { start: 469, end: 476, file: None }, Span { start: 477, end: 486, file: None }]),
@@ -277,13 +262,10 @@ pub fn builtins_under_labels() {
                     Statement {
                         ty: StatementType::BuiltinFunctionCall(BuiltinFunctionCall {
                             kind: BuiltinFunctionKind::RightPad,
-                            args: vec![BuiltinFunctionArg::Argument(Argument {
-                                arg_type: None,
-                                name: Some(String::from("bb")),
-                                indexed: false,
-                                arg_location: None,
-                                span: AstSpan(vec![Span { start: 511, end: 515, file: None }]),
-                            })],
+                            args: vec![BuiltinFunctionArg::HexLiteral(
+                                "bb".to_string(),
+                                AstSpan(vec![Span { start: 511, end: 515, file: None }]),
+                            )],
                             span: AstSpan(vec![Span { start: 500, end: 510, file: None }, Span { start: 511, end: 515, file: None }]),
                         }),
                         span: AstSpan(vec![Span { start: 500, end: 510, file: None }, Span { start: 511, end: 515, file: None }]),

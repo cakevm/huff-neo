@@ -515,6 +515,34 @@ fn test_bytes_builtin_too_large_error() {
 }
 
 #[test]
+fn test_bytes_builtin_with_hex_constant() {
+    let source: &str = r#"
+        #define constant MY_HEX = 0x1234
+
+        #define macro MAIN() = takes (0) returns (0) {
+            __BYTES([MY_HEX])
+        }
+    "#;
+
+    // Parse tokens
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+
+    // Parse the AST
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    // Codegen should fail - __BYTES requires string constants, not hex constants
+    let codegen_result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false);
+
+    assert!(codegen_result.is_err());
+    let err = codegen_result.unwrap_err();
+    assert!(matches!(err.kind, CodegenErrorKind::InvalidArguments(_)));
+}
+
+#[test]
 fn test_bytes_builtin_empty_string_error() {
     let source: &str = r#"
         #define macro MAIN() = takes (0) returns (0) {
@@ -542,6 +570,62 @@ fn test_bytes_builtin_empty_string_error() {
 
     assert!(codegen_result.is_err());
     assert_eq!(codegen_result.unwrap_err().kind, CodegenErrorKind::InvalidArguments(String::from("Empty string passed to __BYTES")));
+}
+
+#[test]
+fn test_bytes_builtin_with_string_constant() {
+    let source: &str = r#"
+        #define constant GREETING = "hello"
+
+        #define macro MAIN() = takes (0) returns (0) {
+            __BYTES([GREETING])
+        }
+    "#;
+
+    // Parse tokens
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+
+    // Parse the AST
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    // Generate runtime bytecode
+    let r_bytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
+
+    // "hello" = 0x68656c6c6f (UTF-8 bytes)
+    // 64 = PUSH5, value = 0x68656c6c6f
+    assert_eq!(&r_bytes[0..12], "6468656c6c6f");
+}
+
+#[test]
+fn test_string_constant_cannot_be_pushed_directly() {
+    let source: &str = r#"
+        #define constant GREETING = "hello"
+
+        #define macro MAIN() = takes (0) returns (0) {
+            [GREETING]
+        }
+    "#;
+
+    // Parse tokens
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+
+    // Parse the AST
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    // Codegen should fail with an error
+    let codegen_result = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false);
+
+    assert!(codegen_result.is_err());
+    let err = codegen_result.unwrap_err();
+    assert!(matches!(err.kind, CodegenErrorKind::StringConstantNotBytes(_)));
 }
 
 mod common;

@@ -284,8 +284,8 @@ pub fn bubble_arg_call<'a>(
                     // Original handling for other argument types
                     tracing::info!(target: "codegen", "GOT \"{:?}\" ARG FROM MACRO INVOCATION", arg);
                     match arg {
-                        MacroArg::Literal(l) => {
-                            tracing::info!(target: "codegen", "GOT LITERAL {} ARG FROM MACRO INVOCATION", bytes32_to_hex_string(l, false));
+                        MacroArg::HexLiteral(l) => {
+                            tracing::info!(target: "codegen", "GOT HEX LITERAL {} ARG FROM MACRO INVOCATION", bytes32_to_hex_string(l, false));
                             let push_bytes = literal_gen(evm_version, l);
                             *offset += push_bytes.len() / 2;
                             bytes.push_with_offset(starting_offset, Bytes::Raw(push_bytes));
@@ -386,6 +386,16 @@ pub fn bubble_arg_call<'a>(
                                     ConstVal::Bytes(bytes) => {
                                         let hex_literal: String = bytes.as_str().to_string();
                                         format!("{:02x}{hex_literal}", 95 + hex_literal.len() / 2)
+                                    }
+                                    ConstVal::String(_s) => {
+                                        return Err(CodegenError {
+                                            kind: CodegenErrorKind::StringConstantNotBytes(format!(
+                                                "String constant [{}] cannot be pushed directly. Use __BYTES([{}]) to convert it to bytes.",
+                                                iden, iden
+                                            )),
+                                            span: Box::new(target_macro_invoc.1.span.clone()),
+                                            token: None,
+                                        });
                                     }
                                     ConstVal::StoragePointer(sp) => {
                                         let hex_literal: String = bytes32_to_hex_string(sp, false);

@@ -185,6 +185,8 @@ pub enum CodegenErrorKind {
     MissingEventInterface(String),
     /// Missing Constant Definition
     MissingConstantDefinition(String),
+    /// String constant used directly instead of with __BYTES builtin
+    StringConstantNotBytes(String),
     /// Missing Error Definition
     MissingErrorDefinition(String),
     /// Abi Generation Failure
@@ -309,6 +311,9 @@ impl<W: Write> Report<W> for CodegenError {
             }
             CodegenErrorKind::MissingConstantDefinition(cd) => {
                 write!(f.out, "Missing Constant Definition for \"{cd}\"!")
+            }
+            CodegenErrorKind::StringConstantNotBytes(msg) => {
+                write!(f.out, "String constant cannot be used directly: \"{msg}\"")
             }
             CodegenErrorKind::MissingErrorDefinition(ed) => {
                 write!(f.out, "Missing Error Definition for \"{ed}\"!")
@@ -667,6 +672,9 @@ impl fmt::Display for CompilerError {
                 }
                 CodegenErrorKind::MissingConstantDefinition(_) => {
                     write!(f, "\nError: Missing Constant Definition\n{}\n", ce.span.error(None))
+                }
+                CodegenErrorKind::StringConstantNotBytes(msg) => {
+                    write!(f, "\nError: String constant cannot be used directly: {}\n{}\n", msg, ce.span.error(None))
                 }
                 CodegenErrorKind::MissingErrorDefinition(_) => {
                     write!(f, "\nError: Missing Error Definition\n{}\n", ce.span.error(None))

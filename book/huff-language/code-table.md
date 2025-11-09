@@ -40,3 +40,16 @@ somewhere within the contract.
 }
 ```
 
+### Usage of builtin function constants
+```javascript
+#define constant SIG = __FUNC_SIG("transfer(address,uint256)")
+#define constant PADDED = __RIGHTPAD(0x42)
+
+#define table CODE_TABLE {
+    [SIG]       // Function selector from constant
+    [PADDED]    // Padded value from constant
+}
+```
+
+This is particularly useful when you want to reuse computed builtin values in multiple places, including both code and data tables.
+

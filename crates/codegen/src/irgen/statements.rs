@@ -30,8 +30,8 @@ fn evaluate_expression_with_context<'a>(
                 {
                     // Found the argument - now evaluate it
                     match arg_value {
-                        MacroArg::Literal(lit) => {
-                            // Direct literal value
+                        MacroArg::HexLiteral(lit) => {
+                            // Direct hex literal value
                             return Ok(*lit);
                         }
                         MacroArg::Ident(ident_name) => {
@@ -41,6 +41,16 @@ fn evaluate_expression_with_context<'a>(
                                     ConstVal::Bytes(bytes) => {
                                         use huff_neo_utils::bytes_util::str_to_bytes32;
                                         return Ok(str_to_bytes32(&bytes.as_str()));
+                                    }
+                                    ConstVal::String(_s) => {
+                                        return Err(CodegenError {
+                                            kind: CodegenErrorKind::StringConstantNotBytes(format!(
+                                                "String constant cannot be used in expressions. Use __BYTES([{}]) to convert it to bytes.",
+                                                ident_name
+                                            )),
+                                            span: arg_span.clone_box(),
+                                            token: None,
+                                        });
                                     }
                                     ConstVal::Expression(const_expr) => {
                                         return contract.evaluate_constant_expression(const_expr);

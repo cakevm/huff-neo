@@ -1,6 +1,5 @@
 use huff_neo_lexer::*;
 use huff_neo_parser::*;
-use huff_neo_utils::ast::abi::Argument;
 use huff_neo_utils::ast::span::AstSpan;
 use huff_neo_utils::file::full_file_source::FullFileSource;
 use huff_neo_utils::prelude::*;
@@ -78,13 +77,10 @@ fn test_parses_func_sign_constant() {
             name: "FUNC".to_string(),
             value: ConstVal::BuiltinFunctionCall(BuiltinFunctionCall {
                 kind: BuiltinFunctionKind::FunctionSignature,
-                args: vec![BuiltinFunctionArg::Argument(Argument {
-                    arg_type: None,
-                    arg_location: None,
-                    name: Some("hello()".to_string()),
-                    indexed: false,
-                    span: AstSpan(vec![Span { start: 35, end: 44, file: None }])
-                })],
+                args: vec![BuiltinFunctionArg::StringLiteral(
+                    "hello()".to_string(),
+                    AstSpan(vec![Span { start: 35, end: 44, file: None }])
+                )],
                 span: AstSpan(vec![Span { start: 24, end: 34, file: None }]),
             }),
             span: AstSpan(vec![

@@ -1,6 +1,6 @@
 use huff_neo_lexer::*;
 use huff_neo_utils::file::full_file_source::FullFileSource;
-use huff_neo_utils::prelude::{Span, Token, TokenKind, str_to_bytes32};
+use huff_neo_utils::prelude::{Span, Token, TokenKind};
 
 #[test]
 fn parses_decorator() {
@@ -46,11 +46,11 @@ fn parses_decorator() {
         let returns_span = Span::new(23..24, None);
         assert_eq!(unwrapped, Token::new(TokenKind::OpenParen, returns_span.clone()));
 
-        // 0x01
+        // 0x01 hex literal
         let tok = lexer.next();
         let unwrapped = tok.unwrap().unwrap();
         let returns_span = Span::new(24..28, None);
-        assert_eq!(unwrapped, Token::new(TokenKind::Literal(str_to_bytes32("01")), returns_span.clone()));
+        assert_eq!(unwrapped, Token::new(TokenKind::HexLiteral("01".to_string()), returns_span.clone()));
 
         // )
         let tok = lexer.next();

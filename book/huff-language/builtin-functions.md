@@ -38,16 +38,67 @@ Pushes the code size of the macro or function passed to the stack.
 ### `__tablestart(<table>)` and `__tablesize(<table>)`
 These functions related to Jump Tables are described in the next section.
 
-### `__VERBATIM(<hex>)`
+### `__VERBATIM(<hex>|<constant>)`
 This function is used to insert raw hex data into the compiled bytecode. It is useful for inserting raw opcodes or data into the compiled bytecode.
 
-### `__BYTES(<string>)`
-This function allows to insert a string as UTF-8 encoded bytes into the compiled bytecode. The resulting bytecode is limited to 32 bytes.
+You can pass either:
+- A hex literal directly: `__VERBATIM(0x1234)`
+- A constant reference: `__VERBATIM([MY_CONSTANT])`
 
-#### Example
+#### Examples
+
+**Direct hex literal:**
 ```javascript
 #define macro MAIN() = takes (0) returns (0) {
-    __BYTES("hello") // Will push UTF-8 encoded string (PUSH5 0x68656c6c6f)
+    __VERBATIM(0x1234)  // Inserts raw bytes 0x1234
+}
+```
+
+**Constant reference:**
+```javascript
+#define constant SIG = __FUNC_SIG("transfer(address,uint256)")
+
+#define macro MAIN() = takes (0) returns (0) {
+    __VERBATIM([SIG])  // Inserts the function selector bytes
+}
+```
+
+### `__BYTES(<string>|<string constant>)`
+This function converts a string to UTF-8 encoded bytes and inserts them into the compiled bytecode. The resulting bytecode is limited to 32 bytes.
+
+You can pass either:
+- A string literal directly: `__BYTES("hello")`
+- A string constant reference: `__BYTES([GREETING])` where `GREETING` is a string constant
+
+**Note:** `__BYTES` only accepts string values. Hex constants are not allowed and will result in a compilation error.
+
+#### Examples
+
+**Direct string literal:**
+```javascript
+#define macro MAIN() = takes (0) returns (0) {
+    __BYTES("hello")  // Compiles to: PUSH5 0x68656c6c6f
+}
+```
+
+**String constant reference:**
+```javascript
+#define constant GREETING = "hello"
+#define constant ERROR_MSG = "Unauthorized"
+
+#define macro MAIN() = takes (0) returns (0) {
+    __BYTES([GREETING])    // Compiles to: PUSH5 0x68656c6c6f
+    __BYTES([ERROR_MSG])   // Compiles to: PUSH12 0x556e617574686f72697a6564
+}
+```
+
+**Chained `__BYTES` constants:**
+```javascript
+#define constant MSG = "test"
+#define constant MSG_BYTES = __BYTES([MSG])
+
+#define macro MAIN() = takes (0) returns (0) {
+    [MSG_BYTES]  // Uses the pre-computed bytes
 }
 ```
 

@@ -56,14 +56,14 @@ fn parse_arg_call_invocation_with_literal_args() {
         assert_eq!(args.len(), 2);
 
         // Check first argument is literal 0x01
-        if let MacroArg::Literal(bytes) = &args[0] {
+        if let MacroArg::HexLiteral(bytes) = &args[0] {
             assert_eq!(bytes[31], 0x01);
         } else {
             panic!("Expected literal 0x01");
         }
 
         // Check second argument is literal 0x02
-        if let MacroArg::Literal(bytes) = &args[1] {
+        if let MacroArg::HexLiteral(bytes) = &args[1] {
             assert_eq!(bytes[31], 0x02);
         } else {
             panic!("Expected literal 0x02");
@@ -138,7 +138,7 @@ fn parse_arg_call_invocation_with_arg_ref() {
         assert_eq!(args.len(), 2);
 
         // Check first argument is literal
-        if let MacroArg::Literal(bytes) = &args[0] {
+        if let MacroArg::HexLiteral(bytes) = &args[0] {
             assert_eq!(bytes[31], 0x10);
         } else {
             panic!("Expected literal 0x10");
@@ -180,7 +180,7 @@ fn parse_multiple_arg_call_invocations() {
         assert_eq!(arg_name, "m1");
         assert_eq!(args.len(), 1);
 
-        if let MacroArg::Literal(bytes) = &args[0] {
+        if let MacroArg::HexLiteral(bytes) = &args[0] {
             assert_eq!(bytes[31], 0x01);
         } else {
             panic!("Expected literal 0x01");
@@ -195,7 +195,7 @@ fn parse_multiple_arg_call_invocations() {
         assert_eq!(arg_name, "m2");
         assert_eq!(args.len(), 1);
 
-        if let MacroArg::Literal(bytes) = &args[0] {
+        if let MacroArg::HexLiteral(bytes) = &args[0] {
             assert_eq!(bytes[31], 0x02);
         } else {
             panic!("Expected literal 0x02");
@@ -232,7 +232,7 @@ fn parse_nested_macro_with_arg_invocation() {
             assert_eq!(arg_name, "m");
             assert_eq!(args.len(), 1);
 
-            if let MacroArg::Literal(bytes) = &args[0] {
+            if let MacroArg::HexLiteral(bytes) = &args[0] {
                 assert_eq!(bytes[31], 0x05);
             } else {
                 panic!("Expected literal 0x05");
@@ -380,7 +380,7 @@ fn parse_nested_arg_macro_invocation_with_args() {
             assert_eq!(inner_args.len(), 2);
 
             // Check first inner argument is literal 0x42
-            if let MacroArg::Literal(bytes) = &inner_args[0] {
+            if let MacroArg::HexLiteral(bytes) = &inner_args[0] {
                 assert_eq!(bytes[31], 0x42);
             } else {
                 panic!("Expected literal 0x42");

@@ -44,7 +44,7 @@ fn constant_uneven_hex_literal_length() {
     assert_eq!(tokens[1].kind, TokenKind::Constant);
     assert_eq!(tokens[2].kind, TokenKind::Ident("TEST".to_string()));
     assert_eq!(tokens[3].kind, TokenKind::Assign);
-    assert_eq!(tokens[4].kind, TokenKind::Bytes("01".to_string()));
+    assert_eq!(tokens[4].kind, TokenKind::HexLiteral("01".to_string()));
 }
 
 #[test]
@@ -58,7 +58,7 @@ fn constant_leading_zeros_hex_literal() {
     assert_eq!(tokens[1].kind, TokenKind::Constant);
     assert_eq!(tokens[2].kind, TokenKind::Ident("TEST".to_string()));
     assert_eq!(tokens[3].kind, TokenKind::Assign);
-    assert_eq!(tokens[4].kind, TokenKind::Bytes("000000000000000000000000000000000000000000000000000000010203".to_string()));
+    assert_eq!(tokens[4].kind, TokenKind::HexLiteral("000000000000000000000000000000000000000000000000000000010203".to_string()));
 }
 
 #[test]
