@@ -591,7 +591,15 @@ pub fn builtin_pad(contract: &Contract, bf: &BuiltinFunctionCall, direction: Pad
             return Err(invalid_arguments_error(format!("Invalid argument type passed to {direction}"), &bf.span));
         }
     };
-    let hex = format_even_bytes(first_arg);
+
+    // Ensure hex string has even length for decoding
+    // For RIGHTPAD with odd-length hex, append "0" on the right to preserve visual appearance
+    // For LEFTPAD with odd-length hex, prepend "0" on the left
+    let hex = if first_arg.len() % 2 == 1 {
+        if direction == PadDirection::Right { format!("{first_arg}0") } else { format!("0{first_arg}") }
+    } else {
+        first_arg
+    };
 
     // Parse hex string to bytes
     let hex_bytes = hex::decode(&hex).map_err(|_| invalid_hex_error(&hex, &bf.span))?;

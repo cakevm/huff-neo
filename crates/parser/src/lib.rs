@@ -1673,7 +1673,10 @@ impl Parser {
                 let mut unknown_size = false;
                 for s in &table_statements {
                     if let StatementType::Code(c) = &s.ty {
-                        table_size += c.len();
+                        // Calculate bytes for this hex string
+                        // Each pair of hex digits represents 1 byte
+                        // div_ceil rounds up for odd-length strings (e.g., "abc" = 3 chars → 2 bytes)
+                        table_size += c.len().div_ceil(2);
                     } else if let StatementType::BuiltinFunctionCall(_) = &s.ty {
                         unknown_size = true;
                     } else if let StatementType::Constant(_) = &s.ty {
@@ -1687,7 +1690,7 @@ impl Parser {
                         });
                     }
                 }
-                if unknown_size { None } else { Some(table_size / 2) }
+                if unknown_size { None } else { Some(table_size) }
             }
         };
 

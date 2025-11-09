@@ -166,7 +166,7 @@ fn code_table_uneven_bytes() {
 
     assert_eq!(parse_result.tables[0].size, Some(str_to_bytes32("2")));
     assert_eq!(parse_result.tables[0].statements.len(), 1);
-    assert_eq!(parse_result.tables[0].statements[0].ty, StatementType::Code("0a23".to_string()));
+    assert_eq!(parse_result.tables[0].statements[0].ty, StatementType::Code("a23".to_string()));
 }
 
 #[test]

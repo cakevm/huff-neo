@@ -650,7 +650,9 @@ impl<'a> Lexer<'a> {
             ));
         }
 
-        let hex_string = format_even_bytes(integer_str[2..].to_lowercase());
+        // Preserve the original hex string without normalization to even length
+        // This allows padding functions and other consumers to determine the user's intent
+        let hex_string = integer_str[2..].to_lowercase();
         let kind = TokenKind::HexLiteral(hex_string);
 
         Ok(Token { kind, span: self.source.relative_span_by_pos(start, end) })

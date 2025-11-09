@@ -29,11 +29,6 @@ fn validate_arg_count(bf: &BuiltinFunctionCall, expected: usize, fn_name: &str) 
     Ok(())
 }
 
-/// Formats hex string to have even length
-fn format_even_bytes(hex: String) -> String {
-    if hex.len() % 2 == 1 { format!("0{}", hex) } else { hex }
-}
-
 /// Evaluates __EVENT_HASH builtin function
 pub fn eval_event_hash(contract: &Contract, bf: &BuiltinFunctionCall) -> Result<PushValue, CodegenError> {
     validate_arg_count(bf, 1, "__EVENT_HASH")?;
@@ -147,7 +142,14 @@ pub fn eval_builtin_pad_simple(bf: &BuiltinFunctionCall, direction: PadDirection
         }
     };
 
-    let hex = format_even_bytes(first_arg);
+    // Ensure hex string has even length for decoding
+    // For RIGHTPAD with odd-length hex, append "0" on the right to preserve visual appearance
+    // For LEFTPAD with odd-length hex, prepend "0" on the left
+    let hex = if first_arg.len() % 2 == 1 {
+        if direction == PadDirection::Right { format!("{first_arg}0") } else { format!("0{first_arg}") }
+    } else {
+        first_arg
+    };
 
     // Parse hex string to bytes
     let hex_bytes = hex::decode(&hex).map_err(|_| invalid_hex_error(&hex, &bf.span))?;

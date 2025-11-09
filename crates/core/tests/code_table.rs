@@ -541,3 +541,81 @@ fn test_code_table_builtin_constant_mixed() {
     // 0xDEADBEEF = deadbeef
     assert_eq!(mbytes, "60 28 61 0005 abcd00000000000000000000000000000000000000000000000000000000000070a08231 deadbeef".replace(" ", ""));
 }
+
+#[test]
+fn test_code_table_rightpad_odd_length_hex() {
+    let source: &str = r#"
+        #define table CODE_TABLE {
+            __RIGHTPAD(0x123)
+        }
+
+        #define macro MAIN() = takes(0) returns (0) {
+            __tablesize(CODE_TABLE)
+            __tablestart(CODE_TABLE)
+        }
+    "#;
+
+    // Parse tokens
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+
+    // Parse the AST
+    let mut contract = parser.parse().unwrap();
+
+    // Derive storage pointers
+    contract.derive_storage_pointers();
+
+    // Instantiate Codegen
+    let cg = Codegen::new();
+
+    // The codegen instance should have no artifact
+    assert!(cg.artifact.is_none());
+
+    // Have the Codegen create the constructor bytecode
+    let mbytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
+
+    // 60 = PUSH1, 20 = 32 bytes table size, 61 = PUSH2, 0005 = 5 bytes table start
+    // __RIGHTPAD(0x123) produces 32 bytes with 0x123 at the start, padded right with zeros
+    assert_eq!(mbytes, "60 20 61 0005 1230000000000000000000000000000000000000000000000000000000000000".replace(" ", ""));
+}
+
+#[test]
+fn test_code_table_leftpad_odd_length_hex() {
+    let source: &str = r#"
+        #define table CODE_TABLE {
+            __LEFTPAD(0x123)
+        }
+
+        #define macro MAIN() = takes(0) returns (0) {
+            __tablesize(CODE_TABLE)
+            __tablestart(CODE_TABLE)
+        }
+    "#;
+
+    // Parse tokens
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+
+    // Parse the AST
+    let mut contract = parser.parse().unwrap();
+
+    // Derive storage pointers
+    contract.derive_storage_pointers();
+
+    // Instantiate Codegen
+    let cg = Codegen::new();
+
+    // The codegen instance should have no artifact
+    assert!(cg.artifact.is_none());
+
+    // Have the Codegen create the constructor bytecode
+    let mbytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
+
+    // 60 = PUSH1, 20 = 32 bytes table size, 61 = PUSH2, 0005 = 5 bytes table start
+    // __LEFTPAD(0x123) produces 32 bytes with 0x123 at the start, padded left with zeros
+    assert_eq!(mbytes, "60 20 61 0005 0000000000000000000000000000000000000000000000000000000000000123".replace(" ", ""));
+}
