@@ -3,7 +3,7 @@ mod common;
 #[test]
 fn test_rightpad_in_constant_reference() {
     let source = r#"
-        #define constant C1 = __RIGHTPAD(0x)
+        #define constant C1 = __RIGHTPAD(0x0)
         #define constant C2 = [C1]
 
         #define macro MAIN() = takes(0) returns(0) {
@@ -12,7 +12,7 @@ fn test_rightpad_in_constant_reference() {
     "#;
 
     let bytecode = common::compile_to_bytecode(source).unwrap();
-    // __RIGHTPAD(0x) produces 32 zero bytes, optimized to PUSH1 0x00
+    // __RIGHTPAD(0x0) produces 32 zero bytes, optimized to PUSH1 0x00
     assert_eq!(bytecode, "5f"); // PUSH0 (0x5f) in Shanghai+ or PUSH1 0x00 in earlier versions
 }
 
