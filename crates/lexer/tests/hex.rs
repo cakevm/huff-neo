@@ -1,6 +1,18 @@
 use huff_neo_lexer::Lexer;
+use huff_neo_utils::error::LexicalErrorKind;
 use huff_neo_utils::file::full_file_source::FullFileSource;
 use huff_neo_utils::prelude::*;
+
+#[test]
+fn rejects_empty_hex_literal() {
+    let source = "0x";
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let mut lexer = Lexer::new(flattened_source);
+
+    let tok = lexer.next().unwrap();
+    assert!(tok.is_err());
+    assert_eq!(tok.unwrap_err().kind, LexicalErrorKind::InvalidHexLiteral("0x".to_string()));
+}
 
 #[test]
 fn parses_single_hex() {

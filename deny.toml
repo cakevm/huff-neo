@@ -34,6 +34,8 @@ ignore = [
   "RUSTSEC-2024-0437",
   # paste is unmaintained - hhttps://rustsec.org/advisories/RUSTSEC-2024-0436
   "RUSTSEC-2024-0436",
+  # number_prefix is unmaintained - https://rustsec.org/advisories/RUSTSEC-2025-0119
+  "RUSTSEC-2025-0119",
 ]
 yanked = "warn"
 
@@ -41,4 +43,4 @@ yanked = "warn"
 multiple-versions = "allow"
 
 [sources]
-allow-git = ["https://github.com/foundry-rs/foundry"]
+allow-git = ["https://github.com/foundry-rs/foundry", "https://github.com/paradigmxyz/solar"]

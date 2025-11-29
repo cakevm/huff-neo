@@ -3,8 +3,12 @@
 # Huff Neo Compiler changelog
 
 ## Unreleased
+
+## [1.5.8] - 2025-11-29
 - Fix `__RIGHTPAD()` incorrectly padding odd-length hex values.
   - Example: `__RIGHTPAD(0x1af)` now produces `0x1af000...` instead of `0x01af00...`.
+- Reject `0x` as valid hex value. Before it was treated as `0x00` (fixes #154).
+- Update to foundry v1.5.0.
 
 ## [1.5.7] - 2025-11-09
 - Fix jump placeholders not resolved when `--relax-jumps` enabled but no optimization occurs.

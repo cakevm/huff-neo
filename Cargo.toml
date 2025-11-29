@@ -6,12 +6,12 @@ resolver = "2"
 
 [workspace.package]
 edition = "2024"
-homepage = "https://github.com/foundry-rs/huff-neo"
+homepage = "https://huff-neo.rs"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/foundry-rs/huff-neo"
 rust-version = "1.89"
-version = "1.5.7"
+version = "1.5.8"
 
 [workspace.dependencies]
 huff-neo-codegen = { path = "crates/codegen" }
@@ -44,24 +44,24 @@ yansi = "1.0.1"
 
 # alloy
 alloy-dyn-abi = { version = "1.4.1", default-features = false }
-alloy-evm = { version = "0.22.3", default-features = false }
+alloy-evm = { version = "0.24.1", default-features = false }
 alloy-primitives = { version = "1.4.1", default-features = false, features = ["std"] }
 
 # revm
-op-revm = { version = "11.1.2", default-features = false }
-revm = { version = "30.2.0", default-features = false, features = ["optional_no_base_fee"] }
+op-revm = { version = "14.0.0", default-features = false }
+revm = { version = "33.0.0", default-features = false, features = ["optional_no_base_fee"] }
 
 # foundry
-anvil = { git = "https://github.com/foundry-rs/foundry", rev = "f0e7140" }
-foundry-cli = { git = "https://github.com/foundry-rs/foundry", rev = "f0e7140" }
-foundry-common = { git = "https://github.com/foundry-rs/foundry", rev = "f0e7140" }
+anvil = { git = "https://github.com/foundry-rs/foundry", tag = "v1.5.0" }
+foundry-cli = { git = "https://github.com/foundry-rs/foundry", tag = "v1.5.0" }
+foundry-common = { git = "https://github.com/foundry-rs/foundry", tag = "v1.5.0" }
 foundry-compilers = { version = "0.19.5", default-features = false }
-foundry-config = { git = "https://github.com/foundry-rs/foundry", rev = "f0e7140" }
-foundry-debugger = { git = "https://github.com/foundry-rs/foundry", rev = "f0e7140" }
-foundry-evm = { git = "https://github.com/foundry-rs/foundry", rev = "f0e7140" }
-foundry-evm-core = { git = "https://github.com/foundry-rs/foundry", rev = "f0e7140" }
-foundry-evm-networks = { git = "https://github.com/foundry-rs/foundry", rev = "f0e7140" }
-foundry-evm-traces = { git = "https://github.com/foundry-rs/foundry", rev = "f0e7140" }
+foundry-config = { git = "https://github.com/foundry-rs/foundry", tag = "v1.5.0" }
+foundry-debugger = { git = "https://github.com/foundry-rs/foundry", tag = "v1.5.0" }
+foundry-evm = { git = "https://github.com/foundry-rs/foundry", tag = "v1.5.0" }
+foundry-evm-core = { git = "https://github.com/foundry-rs/foundry", tag = "v1.5.0" }
+foundry-evm-networks = { git = "https://github.com/foundry-rs/foundry", tag = "v1.5.0" }
+foundry-evm-traces = { git = "https://github.com/foundry-rs/foundry", tag = "v1.5.0" }
 
 # serde
 serde = { version = "1.0.219", features = ["derive", "rc"] }
@@ -101,4 +101,4 @@ lto = "fat"
 
 [patch.crates-io]
 # patch foundry-cli - unresolved import `solar::interface::MIN_SOLIDITY_VERSION`
-solar = { package = "solar-compiler", git = "https://github.com/paradigmxyz/solar.git", rev = "0bea5f0" }
+solar = { package = "solar-compiler", git = "https://github.com/paradigmxyz/solar.git", rev = "1f28069" }

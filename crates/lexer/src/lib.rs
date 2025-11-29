@@ -653,6 +653,15 @@ impl<'a> Lexer<'a> {
         // Preserve the original hex string without normalization to even length
         // This allows padding functions and other consumers to determine the user's intent
         let hex_string = integer_str[2..].to_lowercase();
+
+        // Hex literals must have at least one digit after "0x"
+        if hex_string.is_empty() {
+            return Err(LexicalError::new(
+                LexicalErrorKind::InvalidHexLiteral(integer_str.clone()),
+                self.source.relative_span_by_pos(start, end),
+            ));
+        }
+
         let kind = TokenKind::HexLiteral(hex_string);
 
         Ok(Token { kind, span: self.source.relative_span_by_pos(start, end) })
