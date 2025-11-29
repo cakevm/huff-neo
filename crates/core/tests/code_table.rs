@@ -376,7 +376,7 @@ fn test_reuse_code_table_multiple_times_macro() {
 #[test]
 fn test_code_table_builtin_constant_rightpad() {
     let source: &str = r#"
-        #define constant C = __RIGHTPAD(0x)
+        #define constant C = __RIGHTPAD(0x0)
 
         #define table T {
             [C]
@@ -410,7 +410,7 @@ fn test_code_table_builtin_constant_rightpad() {
     let mbytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
 
     // 60 = PUSH1, 20 = 32 bytes table size, 61 = PUSH2, 0005 = 5 bytes table start
-    // RIGHTPAD(0x) produces 32 bytes of zeros
+    // RIGHTPAD(0x0) produces 32 bytes of zeros
     assert_eq!(mbytes, "60 20 61 0005 0000000000000000000000000000000000000000000000000000000000000000".replace(" ", ""));
 }
 
