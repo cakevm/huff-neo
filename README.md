@@ -20,11 +20,35 @@ Feel free to join the Telegram chat [here](https://t.me/huff_neo)
 
 The Huff Neo Compiler `hnc` can be used as drop-in replacement for `huffc`. This repository is a hard-fork from [huff-rs](https://github.com/huff-language/huff-rs), hopefully until [huff2](https://github.com/huff-language/huff2) is available. The compiler comes with update dependencies, improved codebase, and several fixes (see [CHANGELOG](https://github.com/cakevm/huff-neo/blob/main/CHANGELOG.md)). This compiler is for all those that require a production-ready compiler right now, as the original repository is archived and not supported anymore. As before, be warned that you are responsible for the contracts you deploy. Find the documentation [here](https://cakevm.github.io/huff-neo/).
 
-**Highlights:**
-- Fixed line number and lexing/parsing error reporting
-- Additional error handling and more details for debugging
-- Migration from `ethers` to `alloy` and using latest `revm` version
-- Improved stability and updated all dependencies
+**New Language Features:**
+- Compile-time `for` loops for repetitive code generation
+- Compile-time `if`/`else if`/`else` conditionals
+- First-class macros (pass macros as arguments to other macros)
+- Arithmetic expressions in constants (`+`, `-`, `*`, `/`, `%`)
+- String literal constants with `__BYTES()` conversion
+
+**New Built-in Functions:**
+- `__LEFTPAD()` - Left pad hex in code tables
+- `__BYTES()` - Convert strings to UTF-8 bytes
+- `__ASSERT_PC()` - Compile-time bytecode position assertions
+- `__EMBED_TABLE()` - Embed code tables inline
+
+**Compiler Improvements:**
+- Proper label scoping prevents overwrites in macro invocations
+- `--relax-jumps` flag optimizes PUSH2→PUSH1 for smaller bytecode
+- Built-in functions work in constants and code tables
+- Built-in functions can be passed as macro arguments
+- Fixed line number and error reporting
+- Migration from `ethers` to `alloy`, latest `revm` version
+
+**EVM Support:**
+- `CLZ` opcode (Osaka upgrade)
+
+**Test Runner:**
+- Refactored with Foundry's debugging support
+- Mainnet forking support
+
+For a complete comparison with `huffc`, see the [documentation](https://cakevm.github.io/huff-neo/get-started/comparison-to-huff-rs.html).
 
 Feel free to report any issues. Since there is more than just the compiler, the [foundry-huff-neo](https://github.com/cakevm/foundry-huff-neo) has you covered for testing and deployment, and [huff-neo-toolchain](https://github.com/cakevm/huff-neo-toolchain) for your CI/CD needs.
 
