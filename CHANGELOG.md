@@ -3,6 +3,10 @@
 # Huff Neo Compiler changelog
 
 ## Unreleased
+- Add support to pass builtin functions to `__VERBATIM`.
+  - `__VERBATIM` can now wrap builtins that generate PUSH + value, stripping the PUSH opcode.
+  - Supported: `__FUNC_SIG`, `__EVENT_HASH`, `__BYTES`, `__ERROR`, `__RIGHTPAD`, `__LEFTPAD`.
+  - Example: `__VERBATIM(__FUNC_SIG("withdraw(uint256)"))` emits raw 4-byte selector without PUSH4.
 
 ## [1.5.8] - 2025-11-29
 - Fix `__RIGHTPAD()` incorrectly padding odd-length hex values.

@@ -631,6 +631,42 @@ fn test_string_constant_cannot_be_pushed_directly() {
 mod common;
 
 #[test]
+fn test_error_builtin() {
+    let source: &str = r#"
+        #define error CustomError()
+
+        #define macro MAIN() = takes(0) returns(0) {
+            __ERROR(CustomError)
+        }
+    "#;
+
+    // Parse tokens
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+
+    // Parse the AST
+    let mut contract = parser.parse().unwrap();
+
+    // Derive storage pointers
+    contract.derive_storage_pointers();
+
+    // Instantiate Codegen
+    let cg = Codegen::new();
+
+    // The codegen instance should have no artifact
+    assert!(cg.artifact.is_none());
+
+    // Have Codegen create the runtime bytecode
+    let r_bytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
+    // __ERROR with error definition: PUSH32 + selector right-padded to 32 bytes
+    // keccak256("CustomError()")[0:4] = 0x09caebf3
+    // 7f = PUSH32
+    assert_eq!(r_bytes, "7f09caebf300000000000000000000000000000000000000000000000000000000");
+}
+
+#[test]
 fn test_assert_pc_success() {
     let source: &str = r#"
         #define macro MAIN() = takes(0) returns(0) {
