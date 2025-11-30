@@ -310,8 +310,29 @@ pub fn builtin_function_gen<'a>(
                     // Constant reference - resolve it
                     constant_gen(name, contract, span)?.map(|pv| pv.to_hex_trimmed()).unwrap_or_default()
                 }
+                BuiltinFunctionArg::BuiltinFunctionCall(inner_call) => {
+                    // Nested builtin function - evaluate and strip PUSH opcode
+                    match inner_call.kind {
+                        BuiltinFunctionKind::FunctionSignature => eval_function_signature(contract, inner_call)?.to_hex_trimmed(),
+                        BuiltinFunctionKind::Bytes => eval_builtin_bytes(inner_call)?.to_hex_trimmed(),
+                        BuiltinFunctionKind::EventHash => eval_event_hash(contract, inner_call)?.to_hex_trimmed(),
+                        BuiltinFunctionKind::Error => error(contract, inner_call)?.to_hex_trimmed(),
+                        // Padding functions always produce 32 bytes - use to_hex_full() to preserve
+                        BuiltinFunctionKind::RightPad => builtin_pad(contract, inner_call, PadDirection::Right)?.to_hex_full(),
+                        BuiltinFunctionKind::LeftPad => builtin_pad(contract, inner_call, PadDirection::Left)?.to_hex_full(),
+                        _ => {
+                            return Err(invalid_arguments_error(
+                                "Invalid builtin function passed to __VERBATIM. Supported: __FUNC_SIG, __EVENT_HASH, __BYTES, __ERROR, __RIGHTPAD, __LEFTPAD",
+                                &bf.span,
+                            ));
+                        }
+                    }
+                }
                 _ => {
-                    return Err(invalid_arguments_error("Expected hex literal or constant reference as argument to __VERBATIM", &bf.span));
+                    return Err(invalid_arguments_error(
+                        "Expected hex literal, constant reference, or builtin function as argument to __VERBATIM",
+                        &bf.span,
+                    ));
                 }
             };
 

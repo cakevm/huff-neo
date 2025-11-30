@@ -323,6 +323,11 @@ builtin_assert_pc_arg = { literal_hex | ref_constant_bracketed }
 // Accept: string literals or string constant references (constants that are strings)
 builtin_bytes_arg = { literal_string | ref_constant_bracketed }
 
+// Verbatim builtin: __VERBATIM
+// Accept: hex literals, constant references, or builtin function calls (strips PUSH opcode)
+// Example: __VERBATIM(0x1234), __VERBATIM([MY_CONST]), __VERBATIM(__FUNC_SIG("transfer(address,uint256)"))
+builtin_verbatim_arg = { literal_hex | ref_constant_bracketed | invoke_builtin }
+
 // EXPRESSION PRIMARIES: Atomic values in compile-time expressions
 // Used in: constant definitions, for loop ranges, if conditions, value-based builtins
 // Includes:
@@ -513,7 +518,7 @@ builtin_function_call = {
     | "__RIGHTPAD" ~ "(" ~ arithmetic_expr ~ "," ~ arithmetic_expr ~ ")"
     | "__LEFTPAD" ~ "(" ~ arithmetic_expr ~ "," ~ arithmetic_expr ~ ")"
     | "__CODECOPY_DYN_ARG" ~ "(" ~ literal_decimal ~ ")"
-    | "__VERBATIM" ~ "(" ~ literal_hex ~ ")"
+    | "__VERBATIM" ~ "(" ~ builtin_verbatim_arg ~ ")"
     | "__BYTES" ~ "(" ~ builtin_bytes_arg ~ ")"
     | "__ASSERT_PC" ~ "(" ~ builtin_assert_pc_arg ~ ")"
 }

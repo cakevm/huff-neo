@@ -38,12 +38,23 @@ Pushes the code size of the macro or function passed to the stack.
 ### `__tablestart(<table>)` and `__tablesize(<table>)`
 These functions related to Jump Tables are described in the next section.
 
-### `__VERBATIM(<hex>|<constant>)`
-This function is used to insert raw hex data into the compiled bytecode. It is useful for inserting raw opcodes or data into the compiled bytecode.
+### `__VERBATIM(<hex>|<constant>|<builtin function>)`
+This function is used to insert raw hex data into the compiled bytecode without a PUSH opcode. It is useful for inserting raw opcodes or data into the compiled bytecode.
 
-You can pass either:
+You can pass:
 - A hex literal directly: `__VERBATIM(0x1234)`
 - A constant reference: `__VERBATIM([MY_CONSTANT])`
+- A builtin function that normally generates PUSH + value
+
+When wrapping a builtin function, `__VERBATIM` strips the PUSH opcode and emits only the raw value bytes.
+
+Supported nested builtins:
+- `__FUNC_SIG` - emits 4-byte selector (without PUSH4)
+- `__EVENT_HASH` - emits 32-byte hash (without PUSH32)
+- `__BYTES` - emits N-byte UTF-8 (without PUSHX)
+- `__ERROR` - emits error selector (without PUSH)
+- `__RIGHTPAD` - emits 32-byte right-padded value (without PUSH32)
+- `__LEFTPAD` - emits 32-byte left-padded value (without PUSH32)
 
 #### Examples
 
@@ -60,6 +71,19 @@ You can pass either:
 
 #define macro MAIN() = takes (0) returns (0) {
     __VERBATIM([SIG])  // Inserts the function selector bytes
+}
+```
+
+**Nested builtin function:**
+```javascript
+#define macro MAIN() = takes (0) returns (0) {
+    // __FUNC_SIG normally produces: 632e1a7d4d (PUSH4 + selector)
+    // __VERBATIM strips the PUSH4, emitting just: 2e1a7d4d
+    __VERBATIM(__FUNC_SIG("withdraw(uint256)"))
+
+    // __RIGHTPAD normally produces: 7f1234...000 (PUSH32 + 32 bytes)
+    // __VERBATIM strips the PUSH32, emitting just the 32 bytes
+    __VERBATIM(__RIGHTPAD(0x1234))
 }
 ```
 
