@@ -4,6 +4,9 @@
 
 ## Unreleased
 
+## [1.5.10] - 2025-12-24
+- Fix broken npm release workflow.
+
 ## [1.5.9] - 2025-12-24
 - Add support to pass builtin functions to `__VERBATIM`.
   - `__VERBATIM` can now wrap builtins that generate PUSH + value, stripping the PUSH opcode.
