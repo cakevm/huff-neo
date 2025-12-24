@@ -22,13 +22,13 @@ pub enum SupportedEVMVersions {
     /// Prague/Electra - No new opcodes
     ///
     /// Meta: <https://eips.ethereum.org/EIPS/eip-7600>
-    #[default]
     Prague,
     /// Fulu/Osaka - Introduced CLZ
     ///
     ///
     /// Meta: <https://eips.ethereum.org/EIPS/eip-7607>
     /// CLZ: <https://eips.ethereum.org/EIPS/eip-7939>
+    #[default]
     Osaka,
 }
 

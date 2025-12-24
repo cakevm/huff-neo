@@ -9,6 +9,9 @@ jobs:
   release-npm:
     name: Release NPM
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write  # Required for OIDC
 
     steps:
       - uses: actions/checkout@v4
@@ -16,6 +19,11 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.ref }}
       - uses: dtolnay/rust-toolchain@stable
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
 
       - name: Get version tag
         id: vars
@@ -31,11 +39,6 @@ jobs:
           PACKAGE_VERSION: ${{ steps.vars.outputs.tag }}
         run: .github/scripts/make_package.sh
 
-      - name: Authenticate with NPM
-        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
-
       - name: Publish to NPM
-        run: npm publish
+        run: npm publish --provenance --access public
         working-directory: ./crates/js/pkg
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

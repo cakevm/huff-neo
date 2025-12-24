@@ -1,7 +1,6 @@
 [book]
 authors = ["Huff Contributors"]
 language = "en"
-multilingual = false
 src = "book"
 title = "Huff Langugage / huff-neo - Documentation"
 
