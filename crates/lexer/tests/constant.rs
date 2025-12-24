@@ -8,9 +8,9 @@ fn constant_hex_literal_too_long() {
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
     let lexer = Lexer::new(flattened_source);
     for token_result in lexer {
-        if token_result.is_err() {
+        if let Err(err) = token_result {
             assert_eq!(
-                token_result.unwrap_err().kind,
+                err.kind,
                 LexicalErrorKind::HexLiteralTooLong("0x000000000000000000000000000000000000000000000000000000000000000000".to_string())
             );
             return;
@@ -25,8 +25,8 @@ fn constant_invalid_hex_literal() {
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
     let lexer = Lexer::new(flattened_source);
     for tok in lexer {
-        if tok.is_err() {
-            assert_eq!(tok.unwrap_err().kind, LexicalErrorKind::InvalidHexLiteral("0x0x".to_string()));
+        if let Err(err) = tok {
+            assert_eq!(err.kind, LexicalErrorKind::InvalidHexLiteral("0x0x".to_string()));
             return;
         }
     }
