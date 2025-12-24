@@ -120,6 +120,8 @@ jobs:
           sudo apt update && sudo apt install gcc-multilib
           .github/scripts/check_wasm.sh
       - name: Install Wasm Pack
-        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+        uses: jetli/wasm-pack-action@v0.4.0
+        with:
+          version: 'latest'
       - name: Build wasm package
         run: .github/scripts/make_package.sh
