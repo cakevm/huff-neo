@@ -123,5 +123,6 @@ jobs:
         uses: jetli/wasm-pack-action@v0.4.0
         with:
           version: 'latest'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Build wasm package
         run: .github/scripts/make_package.sh
