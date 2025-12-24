@@ -4,6 +4,9 @@
 
 ## Unreleased
 
+## [1.5.11] - 2025-12-24
+- Fix broken npm release workflow.
+
 ## [1.5.10] - 2025-12-24
 - Fix broken npm release workflow.
 
