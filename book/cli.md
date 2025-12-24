@@ -7,33 +7,38 @@ library, the [compiler](https://github.com/cakevm/huff-neo)'s CLI offers some ad
 ## Options
 
 ```plaintext
-hnc 0.3.0
 Huff Language Compiler built in Pure Rust.
 
-USAGE:
-    hnc [OPTIONS] [PATH] [SUBCOMMAND]
+Usage: hnc [OPTIONS] [PATH] [COMMAND]
 
-ARGS:
-    <PATH>    The contract(s) to compile
+Commands:
+  test  Test subcommand
+  help  Print this message or the help of the given subcommand(s)
 
-OPTIONS:
-    -a, --artifacts                       Whether to generate artifacts or not
-    -b, --bytecode                        Generate and log bytecode
-    -c, --constants <CONSTANTS>...        Override / set constants for the compilation environment
-    -d, --output-directory <OUTPUTDIR>    The output directory [default: ./artifacts]
-    -g, --interface [<INTERFACE>...]      Generate solidity interface for a Huff artifact
-    -h, --help                            Print help information
-    -i, --inputs <INPUTS>...              The input constructor arguments
-    -n, --interactive                     Interactively input the constructor args
-    -o, --output <OUTPUT>                 The output file path
-    -r, --bin-runtime                     Generate and log runtime bytecode
-    -s, --source-path <SOURCE>            The contracts source path [default: ./contracts]
-    -v, --verbose                         Verbose output
-    -V, --version                         Print version information
+Arguments:
+  [PATH]  The contract(s) to compile
 
-SUBCOMMANDS:
-    help    Print this message or the help of the given subcommand(s)
-    test    Test subcommand
+Options:
+  -s, --source-path <SOURCE>              The contracts source path [default: ./contracts]
+  -o, --output <OUTPUT>                   The output file path
+  -d, --output-directory <OUTPUTDIR>      The output directory [default: ./artifacts]
+  -i, --inputs <INPUTS>...                The input constructor arguments
+  -n, --interactive                       Interactively input the constructor args
+  -a, --artifacts                         Whether to generate artifacts or not
+      --relax-jumps                       Apply branch relaxation to minimize deployment gas
+  -g, --interface [<INTERFACE>...]        Generate solidity interface for a Huff artifact
+  -b, --bytecode                          Generate and log bytecode
+  -r, --bin-runtime                       Generate and log runtime bytecode
+  -p, --print                             Prints out to the terminal
+  -v, --verbose                           Verbose output
+  -l, --label-indices                     Prints out the jump label PC indices for the specified contract
+  -c, --constants <CONSTANTS>...          Override / set constants for the compilation environment
+  -m, --alt-main <ALTERNATIVE_MAIN>       Compile a specific macro
+  -t, --alt-constructor <ALT_CONSTRUCTOR> Compile a specific constructor macro
+  -e, --evm-version <EVM_VERSION>         Set the EVM version [default: osaka]
+      --flattened-source                  Output the flattened source code with all dependencies resolved
+  -V, --version                           Print version
+  -h, --help                              Print help
 ```
 
 ### `-a` Artifacts
@@ -87,6 +92,33 @@ Example:
 hnc ./src/ERC20.huff -d ./my_artifacts
 ```
 
+### `-e` EVM Version
+
+Arguments: `<EVM_VERSION>`, Default: `osaka`
+
+Passing the `-e` flag allows you to set the target EVM version for compilation.
+This determines which opcodes are available. Supported versions:
+- `paris` - PREVRANDAO
+- `shanghai` - PUSH0
+- `cancun` - TLOAD, TSTORE, MCOPY, BLOBHASH, BLOBBASEFEE
+- `prague` - No new opcodes
+- `osaka` - CLZ (default)
+
+Example:
+```shell
+hnc ./src/ERC20.huff -e cancun
+```
+
+### `--flattened-source`
+
+Passing the `--flattened-source` flag outputs the flattened source code with all
+dependencies and includes resolved into a single output.
+
+Example:
+```shell
+hnc ./src/ERC20.huff --flattened-source
+```
+
 ### `-g` Interface
 
 Passing the `-g` flag will generate a Solidity interface for the Huff contract
@@ -115,6 +147,29 @@ Example (assuming `ERC20.huff`'s constructor accepts a String and a uint):
 hnc ./src/ERC20.huff -i "TestToken", 18
 ```
 
+### `-l` Label Indices
+
+Passing the `-l` flag prints out the jump label PC (program counter) indices
+for the specified contract. This is useful for debugging and understanding
+where labels resolve to in the final bytecode.
+
+Example:
+```shell
+hnc ./src/ERC20.huff -l
+```
+
+### `-m` Alternative Main
+
+Arguments: `<ALTERNATIVE_MAIN>`
+
+Passing the `-m` flag allows you to compile a specific macro as the main
+entry point instead of the default `MAIN` macro.
+
+Example:
+```shell
+hnc ./src/Contract.huff -m MY_CUSTOM_MAIN
+```
+
 ### `-n` Interactive Inputs
 
 Passing the `-n` flag allows you to input constructor arguments
@@ -137,6 +192,27 @@ Example:
 hnc ./src/ERC20.huff -o ./artifact.json
 ```
 
+### `-p` Print
+
+Passing the `-p` flag prints the compilation output to the terminal.
+
+Example:
+```shell
+hnc ./src/ERC20.huff -p
+```
+
+### `--relax-jumps`
+
+Passing the `--relax-jumps` flag applies branch relaxation to minimize deployment
+gas costs. When enabled, all pushes for jumps will be minimized to PUSH1 where
+possible. This can reduce deployment gas costs but has no effect on runtime gas
+costs. Only applies to label references used in JUMPI and JUMP opcodes.
+
+Example:
+```shell
+hnc ./src/ERC20.huff --relax-jumps -b
+```
+
 ### `-s` Source Path
 
 Arguments: `<CONTRACTS_FOLDER>`, Default: `./contracts`
@@ -147,6 +223,18 @@ for Huff contracts.
 Example:
 ```shell
 hnc -s ./src/
+```
+
+### `-t` Alternative Constructor
+
+Arguments: `<ALTERNATIVE_CONSTRUCTOR>`
+
+Passing the `-t` flag allows you to compile a specific macro as the constructor
+entry point instead of the default `CONSTRUCTOR` macro.
+
+Example:
+```shell
+hnc ./src/Contract.huff -t MY_CUSTOM_CONSTRUCTOR
 ```
 
 ### `-r` Runtime Bytecode
