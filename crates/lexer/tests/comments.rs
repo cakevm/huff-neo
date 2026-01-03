@@ -141,3 +141,51 @@ fn multi_line_comments() {
     assert!(lexer.eof);
     assert_eq!(source.len() - 1, 47);
 }
+
+#[test]
+fn single_line_comment_with_utf8_arrow() {
+    // Test that UTF-8 arrow character in comments doesn't break subsequent token spans
+    // Arrow (→) is 3 bytes (UTF-8: e2 86 92)
+    let source = "// a → b\n#define macro X() = takes(0) returns(0) {}";
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let mut lexer = Lexer::new(flattened_source);
+
+    // Comment: "// a → b" = 2 + 1 + 1 + 1 + 3 + 1 + 1 = 10 bytes (positions 0-10)
+    let tok = lexer.next();
+    let unwrapped = tok.unwrap().unwrap();
+    let comment_span = Span::new(0..10, None);
+    assert_eq!(unwrapped, Token::new(TokenKind::Comment("// a → b".to_string()), comment_span));
+
+    // The next token should be the newline character parsed as whitespace
+    let tok = lexer.next();
+    let unwrapped = tok.unwrap().unwrap();
+    let ws_span = Span::new(10..11, None);
+    assert_eq!(unwrapped, Token::new(TokenKind::Whitespace, ws_span));
+
+    // #define should start at byte 11, not byte 9 (verifies UTF-8 byte positions are correct)
+    let tok = lexer.next();
+    let unwrapped = tok.unwrap().unwrap();
+    let define_span = Span::new(11..18, None);
+    assert_eq!(unwrapped, Token::new(TokenKind::Define, define_span));
+}
+
+#[test]
+fn multi_line_comment_with_utf8_arrow() {
+    // Test that UTF-8 arrow character in block comments doesn't break subsequent token spans
+    // Arrow (→) is 3 bytes (UTF-8: e2 86 92)
+    let source = "/* a → b */#define macro X() = takes(0) returns(0) {}";
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let mut lexer = Lexer::new(flattened_source);
+
+    // Comment: "/* a → b */" = 2 + 1 + 1 + 1 + 3 + 1 + 1 + 1 + 2 = 13 bytes (positions 0-13)
+    let tok = lexer.next();
+    let unwrapped = tok.unwrap().unwrap();
+    let comment_span = Span::new(0..13, None);
+    assert_eq!(unwrapped, Token::new(TokenKind::Comment("/* a → b */".to_string()), comment_span));
+
+    // #define should start at byte 13, not byte 11 (verifies UTF-8 byte positions are correct)
+    let tok = lexer.next();
+    let unwrapped = tok.unwrap().unwrap();
+    let define_span = Span::new(13..20, None);
+    assert_eq!(unwrapped, Token::new(TokenKind::Define, define_span));
+}

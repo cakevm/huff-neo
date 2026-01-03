@@ -4,6 +4,11 @@
 
 ## Unreleased
 
+## [1.5.12] - 2026-01-03
+- Fix lexer not handling UTF-8 characters correctly in comments.
+  - Multi-byte UTF-8 characters (e.g., `→`) in comments caused incorrect span positions for subsequent tokens.
+  - The lexer now properly tracks byte positions instead of character indices.
+
 ## [1.5.11] - 2025-12-24
 - Fix broken npm release workflow.
 

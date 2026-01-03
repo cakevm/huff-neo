@@ -7,7 +7,6 @@ use huff_neo_utils::prelude::*;
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::collections::HashMap;
-use std::iter::Enumerate;
 use std::{iter::Peekable, str::Chars};
 use tracing::{debug, error};
 
@@ -44,9 +43,11 @@ const MAX_HEX_LITERAL_LENGTH: usize = 66;
 pub struct Lexer<'a> {
     /// The source code as peekable chars.
     /// WARN: SHOULD NEVER BE MODIFIED!
-    pub chars: Peekable<Enumerate<Chars<'a>>>,
-    /// The current position in the source code.
+    pub chars: Peekable<Chars<'a>>,
+    /// The byte offset of the last consumed character.
     position: usize,
+    /// The byte offset after the last consumed character (position of next char).
+    byte_offset: usize,
     /// The previous lexed Token.
     /// NOTE: Cannot be a whitespace.
     pub lookback: Option<Token>,
@@ -63,8 +64,9 @@ pub type TokenResult = Result<Token, LexicalError>;
 impl<'a> Lexer<'a> {
     pub fn new(source: FullFileSource<'a>) -> Self {
         Lexer {
-            chars: source.source.chars().enumerate().peekable(),
+            chars: source.source.chars().peekable(),
             position: 0,
+            byte_offset: 0,
             lookback: None,
             eof: false,
             context_stack: ContextStack::new(),
@@ -72,16 +74,19 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    /// Consumes the next character
+    /// Consumes the next character and updates byte position tracking.
+    /// After calling, `position` holds the byte offset of the consumed char,
+    /// and `byte_offset` holds the byte offset after it.
     pub fn consume(&mut self) -> Option<char> {
-        let (index, c) = self.chars.next()?;
-        self.position = index;
+        let c = self.chars.next()?;
+        self.position = self.byte_offset;
+        self.byte_offset += c.len_utf8();
         Some(c)
     }
 
     /// Try to peek at the next character from the source
     pub fn peek(&mut self) -> Option<char> {
-        self.chars.peek().map(|(_, c)| *c)
+        self.chars.peek().copied()
     }
 
     fn next_token(&mut self) -> TokenResult {
@@ -133,7 +138,7 @@ impl<'a> Lexer<'a> {
                                 }
 
                                 Ok(TokenKind::Comment(comment_string)
-                                    .into_token_with_span(self.source.relative_span_by_pos(start, self.position + 1)))
+                                    .into_token_with_span(self.source.relative_span_by_pos(start, self.byte_offset)))
                             }
                             _ => self.single_char_token(TokenKind::Div),
                         }
@@ -160,13 +165,14 @@ impl<'a> Lexer<'a> {
                     if let Some(kind) = found_kind {
                         Ok(kind.into_token_with_span(self.source.relative_span_by_pos(start, end)))
                     } else if self.context_stack.top() == &Context::Global && self.peek().unwrap() == '[' {
-                        Ok(TokenKind::Pound.into_token_with_span(self.source.relative_span_by_pos(self.position, self.position + 1)))
+                        // Return Pound token for just the '#' character
+                        Ok(TokenKind::Pound.into_token_with_span(self.source.relative_span_by_pos(start, start + 1)))
                     } else {
                         // Otherwise we don't support # prefixed identifiers
                         error!(target: "lexer", "INVALID '#' CHARACTER USAGE in context {:?}", self.context_stack.top());
                         return Err(LexicalError::new(
                             LexicalErrorKind::InvalidCharacter('#'),
-                            self.source.relative_span_by_pos(self.position, self.position + 1),
+                            self.source.relative_span_by_pos(start, end),
                         ));
                     }
                 }
@@ -217,17 +223,14 @@ impl<'a> Lexer<'a> {
                         if new_context.is_some() && self.context_stack.top() != &Context::Global {
                             debug!(target: "lexer", "POP CONTEXT {:?}", self.context_stack.top());
                             self.context_stack.pop(1).map_err(|_| {
-                                LexicalError::new(
-                                    LexicalErrorKind::StackUnderflow,
-                                    self.source.relative_span_by_pos(self.position, self.position + 1),
-                                )
+                                LexicalError::new(LexicalErrorKind::StackUnderflow, self.source.relative_span_by_pos(start, end))
                             })?;
                         }
                         // Verify that the context is correct
                         if new_context.is_some() && self.context_stack.top() != &Context::Global {
                             return Err(LexicalError::new(
                                 LexicalErrorKind::UnexpectedContext(self.context_stack.top().clone()),
-                                self.source.relative_span_by_pos(self.position, self.position + 1),
+                                self.source.relative_span_by_pos(start, end),
                             ));
                         }
                         // Push the new context
@@ -342,10 +345,8 @@ impl<'a> Lexer<'a> {
                     // Check if next char is also '=' for EqualEqual (==)
                     if self.peek() == Some('=') {
                         let start = self.position;
-                        self.consume(); // consume first '='
                         self.consume(); // consume second '='
-                        let end = self.position;
-                        Ok(TokenKind::EqualEqual.into_token_with_span(self.source.relative_span_by_pos(start, end)))
+                        Ok(TokenKind::EqualEqual.into_token_with_span(self.source.relative_span_by_pos(start, self.byte_offset)))
                     } else {
                         self.single_char_token(TokenKind::Assign)
                     }
@@ -354,10 +355,8 @@ impl<'a> Lexer<'a> {
                     // Check if next char is '=' for NotEqual (!=)
                     if self.peek() == Some('=') {
                         let start = self.position;
-                        self.consume(); // consume '!'
                         self.consume(); // consume '='
-                        let end = self.position;
-                        Ok(TokenKind::NotEqual.into_token_with_span(self.source.relative_span_by_pos(start, end)))
+                        Ok(TokenKind::NotEqual.into_token_with_span(self.source.relative_span_by_pos(start, self.byte_offset)))
                     } else {
                         // '!' by itself is logical NOT
                         self.single_char_token(TokenKind::Not)
@@ -394,7 +393,7 @@ impl<'a> Lexer<'a> {
                         self.context_stack.pop(1).map_err(|_| {
                             LexicalError::new(
                                 LexicalErrorKind::StackUnderflow,
-                                self.source.relative_span_by_pos(self.position, self.position + 1),
+                                self.source.relative_span_by_pos(self.position, self.byte_offset),
                             )
                         })?
                     }
@@ -422,7 +421,7 @@ impl<'a> Lexer<'a> {
                         self.context_stack.pop(1).map_err(|_| {
                             LexicalError::new(
                                 LexicalErrorKind::StackUnderflow,
-                                self.source.relative_span_by_pos(self.position, self.position + 1),
+                                self.source.relative_span_by_pos(self.position, self.byte_offset),
                             )
                         })?;
                     }
@@ -436,10 +435,8 @@ impl<'a> Lexer<'a> {
                     // Check if next char is '=' for LessEqual (<=)
                     if self.peek() == Some('=') {
                         let start = self.position;
-                        self.consume(); // consume '<'
                         self.consume(); // consume '='
-                        let end = self.position;
-                        Ok(TokenKind::LessEqual.into_token_with_span(self.source.relative_span_by_pos(start, end)))
+                        Ok(TokenKind::LessEqual.into_token_with_span(self.source.relative_span_by_pos(start, self.byte_offset)))
                     } else {
                         self.single_char_token(TokenKind::LeftAngle)
                     }
@@ -448,10 +445,8 @@ impl<'a> Lexer<'a> {
                     // Check if next char is '=' for GreaterEqual (>=)
                     if self.peek() == Some('=') {
                         let start = self.position;
-                        self.consume(); // consume '>'
                         self.consume(); // consume '='
-                        let end = self.position;
-                        Ok(TokenKind::GreaterEqual.into_token_with_span(self.source.relative_span_by_pos(start, end)))
+                        Ok(TokenKind::GreaterEqual.into_token_with_span(self.source.relative_span_by_pos(start, self.byte_offset)))
                     } else {
                         self.single_char_token(TokenKind::RightAngle)
                     }
@@ -461,15 +456,15 @@ impl<'a> Lexer<'a> {
                 '.' => {
                     // Check if next char is also '.' for DoubleDot (..)
                     if self.peek() == Some('.') {
+                        let start = self.position;
                         self.consume(); // consume the second '.'
-                        Ok(TokenKind::DoubleDot
-                            .into_token_with_span(self.source.relative_span_by_pos(self.position - 1, self.position + 1)))
+                        Ok(TokenKind::DoubleDot.into_token_with_span(self.source.relative_span_by_pos(start, self.byte_offset)))
                     } else {
                         // Single dot is not supported
                         error!(target: "lexer", "UNSUPPORTED TOKEN '.'");
                         return Err(LexicalError::new(
                             LexicalErrorKind::InvalidCharacter('.'),
-                            self.source.relative_span_by_pos(self.position, self.position),
+                            self.source.relative_span_by_pos(self.position, self.byte_offset),
                         ));
                     }
                 }
@@ -487,7 +482,7 @@ impl<'a> Lexer<'a> {
                     error!(target: "lexer", "UNSUPPORTED TOKEN '{}'", ch);
                     return Err(LexicalError::new(
                         LexicalErrorKind::InvalidCharacter(ch),
-                        self.source.relative_span_by_pos(self.position, self.position),
+                        self.source.relative_span_by_pos(self.position, self.byte_offset),
                     ));
                 }
             }?;
@@ -578,7 +573,7 @@ impl<'a> Lexer<'a> {
     }
 
     fn single_char_token(&self, token_kind: TokenKind) -> TokenResult {
-        Ok(token_kind.into_token_with_span(self.source.relative_span_by_pos(self.position, self.position + 1)))
+        Ok(token_kind.into_token_with_span(self.source.relative_span_by_pos(self.position, self.byte_offset)))
     }
 
     /// Keeps consuming tokens as long as the predicate is satisfied
@@ -599,10 +594,7 @@ impl<'a> Lexer<'a> {
             // cursor If not, return word. The next character will be analyzed on the
             // next iteration of next_token, Which will increment the cursor
             if !predicate(peek_char) {
-                // Position currently points to the last consumed character
-                // We need to add its byte length to get the end position
-                let end_position = if word.is_empty() { self.position } else { self.position + word.chars().last().unwrap().len_utf8() };
-                return (word, start, end_position);
+                return (word, start, self.byte_offset);
             }
             word.push(peek_char);
 
@@ -611,16 +603,7 @@ impl<'a> Lexer<'a> {
             self.consume();
         }
 
-        // After consuming all characters, position points to the last consumed character
-        // We need to add the length of that last character to get the end position
-        let end_position = if word.is_empty() {
-            self.position
-        } else {
-            // Get the byte length of the last character and add it to position
-            self.position + word.chars().last().unwrap().len_utf8()
-        };
-
-        (word, start, end_position)
+        (word, start, self.byte_offset)
     }
 
     fn eat_digit(&mut self, initial_char: char) -> TokenResult {
