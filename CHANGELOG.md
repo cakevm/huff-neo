@@ -4,6 +4,11 @@
 
 ## Unreleased
 
+## [1.5.13] - 2026-01-18
+- Add support for `true` and `false` keywords as constant override values via `-c` CLI flag.
+  - Example: `hnc test.huff -c DEBUG=true`
+  - `true` is equivalent to `0x01`, `false` is equivalent to `0x00`.
+
 ## [1.5.12] - 2026-01-03
 - Fix lexer not handling UTF-8 characters correctly in comments.
   - Multi-byte UTF-8 characters (e.g., `→`) in comments caused incorrect span positions for subsequent tokens.

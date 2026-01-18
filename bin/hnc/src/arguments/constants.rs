@@ -39,13 +39,21 @@ pub fn parse_constant_overrides(constants: &[String]) -> Result<BTreeMap<&str, B
                 return Err(ConstantParseError::InvalidIdentifier(key.to_string()));
             }
 
-            // Strip '0x' prefix from hex value
-            let hex_value = value.strip_prefix("0x").ok_or_else(|| ConstantParseError::MissingHexPrefix(value.to_string()))?;
+            // Handle true/false keywords, otherwise parse hex value
+            let hex_value = if value == "true" {
+                "01"
+            } else if value == "false" {
+                "00"
+            } else {
+                // Strip '0x' prefix from hex value
+                let hex = value.strip_prefix("0x").ok_or_else(|| ConstantParseError::MissingHexPrefix(value.to_string()))?;
 
-            // Validate hex string is non-empty and contains only valid hex digits
-            if hex_value.is_empty() || !hex_value.chars().all(|c| c.is_ascii_hexdigit()) {
-                return Err(ConstantParseError::InvalidHexValue(value.to_string()));
-            }
+                // Validate hex string is non-empty and contains only valid hex digits
+                if hex.is_empty() || !hex.chars().all(|c| c.is_ascii_hexdigit()) {
+                    return Err(ConstantParseError::InvalidHexValue(value.to_string()));
+                }
+                hex
+            };
 
             Ok((key, Bytes::Raw(hex_value.to_string())))
         })
@@ -148,5 +156,34 @@ mod tests {
         let input = vec!["TEST=0xGG".to_string()];
         let result = parse_constant_overrides(&input);
         assert!(matches!(result, Err(ConstantParseError::InvalidHexValue(_))));
+    }
+
+    #[test]
+    fn test_parse_bool_true_converts_to_hex_01() {
+        let input = vec!["DEBUG=true".to_string()];
+        let result = parse_constant_overrides(&input);
+        assert!(result.is_ok());
+        let map = result.unwrap();
+        assert_eq!(map.get("DEBUG").unwrap().as_str(), "01");
+    }
+
+    #[test]
+    fn test_parse_bool_false_converts_to_hex_00() {
+        let input = vec!["DEBUG=false".to_string()];
+        let result = parse_constant_overrides(&input);
+        assert!(result.is_ok());
+        let map = result.unwrap();
+        assert_eq!(map.get("DEBUG").unwrap().as_str(), "00");
+    }
+
+    #[test]
+    fn test_parse_mixed_bool_and_hex_values() {
+        let input = vec!["ENABLED=true".to_string(), "DISABLED=false".to_string(), "VALUE=0xff".to_string()];
+        let result = parse_constant_overrides(&input);
+        assert!(result.is_ok());
+        let map = result.unwrap();
+        assert_eq!(map.get("ENABLED").unwrap().as_str(), "01");
+        assert_eq!(map.get("DISABLED").unwrap().as_str(), "00");
+        assert_eq!(map.get("VALUE").unwrap().as_str(), "ff");
     }
 }

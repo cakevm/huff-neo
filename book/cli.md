@@ -73,11 +73,14 @@ hnc ./src/ERC20.huff -b
 
 Arguments: `[CONSTANTS]`
 
-Passing the `-c` flag allows you to override and set constants for the current compilation environment. Literals must be supplied in `0x` format and be <= 32 bytes.
+Passing the `-c` flag allows you to override and set constants for the current compilation environment. Values can be:
+- Hex literals in `0x` format (up to 32 bytes)
+- `true` (equivalent to `0x01`)
+- `false` (equivalent to `0x00`)
 
 Example:
 ```shell
-hnc ./Test.huff -c MY_CONST=0x01 MY_OTHER_CONST=0xa57b
+hnc ./Test.huff -c MY_CONST=0x01 MY_OTHER_CONST=0xa57b DEBUG=true
 ```
 
 ### `-d` Output directory
