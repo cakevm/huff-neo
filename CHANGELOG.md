@@ -6,7 +6,7 @@
 
 ## [1.5.13] - 2026-01-18
 - Add support for `true` and `false` keywords as constant override values via `-c` CLI flag.
-  - Example: `hnc ./Test.huff -c DEBUG=true`
+  - Example: `hnc test.huff -c DEBUG=true`
   - `true` is equivalent to `0x01`, `false` is equivalent to `0x00`.
 
 ## [1.5.12] - 2026-01-03
