@@ -38,6 +38,8 @@ ignore = [
   "RUSTSEC-2025-0119",
   # unsoundness of safe `reciprocal_mg10` - https://rustsec.org/advisories/RUSTSEC-2025-0137
   "RUSTSEC-2025-0137",
+  # `IterMut` violates Stacked Borrows - https://rustsec.org/advisories/RUSTSEC-2026-0002
+  "RUSTSEC-2026-0002",
 ]
 yanked = "warn"
 

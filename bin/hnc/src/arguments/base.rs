@@ -69,7 +69,7 @@ pub struct HuffArgs {
     #[clap(short = 'l', long = "label-indices")]
     pub label_indices: bool,
 
-    /// Override / set constants for the compilation environment.
+    /// Override / set constants for the compilation environment. Accepts hex values (0x...) or true/false.
     #[clap(short = 'c', long = "constants", num_args = 1..)]
     pub constants: Option<Vec<String>>,
 
