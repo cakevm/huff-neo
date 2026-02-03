@@ -9,6 +9,7 @@
   - Compilation now fails if the runtime bytecode exceeds the EIP-170 limit.
   - Use `--no-size-limit` flag to bypass this check.
 - Increase maximum loop iterations from 10,000 to 100,000.
+- Update to foundry v1.6.0-rc1.
 
 ## [1.5.13] - 2026-01-18
 - Add support for `true` and `false` keywords as constant override values via `-c` CLI flag.

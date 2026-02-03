@@ -41,15 +41,26 @@ impl TestRunner {
         let mut changes = HashMap::default();
         let account = match basic_account {
             Some(mut account_info) => {
+                let original_info = Box::new(account_info.clone());
                 account_info.balance = amount;
-                Account { info: account_info, transaction_id: 0, storage: Default::default(), status: AccountStatus::Touched }
+                Account {
+                    info: account_info,
+                    original_info,
+                    transaction_id: 0,
+                    storage: Default::default(),
+                    status: AccountStatus::Touched,
+                }
             }
-            None => Account {
-                info: AccountInfo { balance: amount, nonce: 0, code_hash: B256::ZERO, code: None },
-                transaction_id: 0,
-                storage: Default::default(),
-                status: AccountStatus::Created,
-            },
+            None => {
+                let info = AccountInfo { balance: amount, nonce: 0, code_hash: B256::ZERO, code: None, account_id: None };
+                Account {
+                    original_info: Box::new(info.clone()),
+                    info,
+                    transaction_id: 0,
+                    storage: Default::default(),
+                    status: AccountStatus::Created,
+                }
+            }
         };
 
         changes.insert(address, account);
@@ -68,20 +79,32 @@ impl TestRunner {
         let mut changes = HashMap::default();
         let account = match basic_account {
             Some(mut account_info) => {
+                let original_info = Box::new(account_info.clone());
                 account_info.code = Some(Bytecode::new_raw(Bytes::from(hex::decode(code).expect("Invalid code"))));
-                Account { info: account_info, transaction_id: 0, storage: Default::default(), status: AccountStatus::Touched }
+                Account {
+                    info: account_info,
+                    original_info,
+                    transaction_id: 0,
+                    storage: Default::default(),
+                    status: AccountStatus::Touched,
+                }
             }
-            None => Account {
-                info: AccountInfo {
+            None => {
+                let info = AccountInfo {
                     balance: U256::ZERO,
                     nonce: 0,
                     code_hash: B256::ZERO,
                     code: Some(Bytecode::new_raw(Bytes::from(hex::decode(code).expect("Invalid code")))),
-                },
-                transaction_id: 0,
-                storage: Default::default(),
-                status: AccountStatus::Created,
-            },
+                    account_id: None,
+                };
+                Account {
+                    original_info: Box::new(info.clone()),
+                    info,
+                    transaction_id: 0,
+                    storage: Default::default(),
+                    status: AccountStatus::Created,
+                }
+            }
         };
 
         changes.insert(address, account);
