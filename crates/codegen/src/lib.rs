@@ -38,6 +38,9 @@ pub(crate) const MAX_MACRO_RECURSION_DEPTH: usize = 100;
 /// though typical contracts converge in a few iterations.
 const JUMP_RELAXATION_MAX_ITERATIONS: usize = 20;
 
+/// EIP-170 contract size limit (24576 bytes)
+pub const EIP170_CONTRACT_SIZE_LIMIT: usize = 24576;
+
 /// Compiles Huff contracts into EVM bytecode.
 ///
 /// Transforms a Contract AST into executable bytecode, handling macro expansion,
@@ -1133,6 +1136,7 @@ impl Codegen {
     /// * `args` - A vector of Tokens representing constructor arguments
     /// * `main_bytecode` - The compiled MAIN Macro bytecode
     /// * `constructor_bytecode` - The compiled `CONSTRUCTOR` Macro bytecode
+    /// * `no_size_limit` - Skip the EIP-170 contract size limit check
     #[allow(clippy::too_many_arguments)]
     pub fn churn(
         &mut self,
@@ -1143,6 +1147,7 @@ impl Codegen {
         has_custom_bootstrap: bool,
         main_source_map: Option<Vec<SourceMapEntry>>,
         constructor_source_map: Option<Vec<SourceMapEntry>>,
+        no_size_limit: bool,
     ) -> Result<Artifact, CodegenError> {
         let artifact: &mut Artifact = if let Some(art) = &mut self.artifact {
             art
@@ -1156,6 +1161,15 @@ impl Codegen {
 
         let contract_length = main_bytecode.len() / 2;
         let constructor_length = constructor_bytecode.len() / 2;
+
+        // Check contract size limit (EIP-170)
+        if !no_size_limit && contract_length > Self::EIP170_CONTRACT_SIZE_LIMIT {
+            return Err(CodegenError {
+                kind: CodegenErrorKind::ContractSizeLimitExceeded(contract_length, Self::EIP170_CONTRACT_SIZE_LIMIT),
+                span: AstSpan(vec![Span { start: 0, end: 0, file: Some(file) }]).boxed(),
+                token: None,
+            });
+        }
 
         // Sort constructor arguments so that statically sized args are inserted last.
         args.sort_by(|a, b| {

@@ -48,7 +48,16 @@ fn test_erc20_compile() {
     // Churn
     let mut cg = Codegen::new();
     let paris_artifact = cg
-        .churn(Arc::clone(file_source), vec![], &paris_main_bytecode, &paris_constructor_bytecode, paris_has_custom_bootstrap, None, None)
+        .churn(
+            Arc::clone(file_source),
+            vec![],
+            &paris_main_bytecode,
+            &paris_constructor_bytecode,
+            paris_has_custom_bootstrap,
+            None,
+            None,
+            false,
+        )
         .unwrap();
 
     // Full expected bytecode output (generated from huff-neo)
@@ -57,7 +66,16 @@ fn test_erc20_compile() {
     assert_eq!(paris_artifact.bytecode.to_lowercase(), expected_paris_bytecode.to_lowercase());
 
     let shanghai_artifact = cg
-        .churn(Arc::clone(file_source), vec![], &shanghai_main_bytecode, &shanghai_constructor_bytecode, has_custom_bootstrap, None, None)
+        .churn(
+            Arc::clone(file_source),
+            vec![],
+            &shanghai_main_bytecode,
+            &shanghai_constructor_bytecode,
+            has_custom_bootstrap,
+            None,
+            None,
+            false,
+        )
         .unwrap();
 
     let expected_shanghai_bytecode = "335f5561017e80600d3d393df35f3560e01c8063a9059cbb1461004757806340c10f19146100cb57806370a082311461012f57806318160ddd14610147578063095ea7b314610151578063dd62ed3e14610165575b600435336024358160015f525f6020015260405f20548082116100c7578190038260015f525f6020015260405f205582819060015f525f6020015260405f2054018360015f525f6020015260405f20555f527fddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef60205fa360015f5260205ff35b5f5ffd5b5f5433146100d7575f5ffd5b6004355f60243582819060015f525f6020015260405f2054018360015f525f6020015260405f205580600254016002555f527fddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef60205fa35b60043560015f525f6020015260405f20545f5260205ff35b6002545f5260205ff35b602435600435335f525f6020015260405f20555b6024356004355f525f6020015260405f20545f5260205ff3";

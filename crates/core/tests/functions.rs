@@ -115,7 +115,7 @@ fn test_function() {
     let rbytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
     // Churn
     let mut cg = Codegen::new();
-    let artifact = cg.churn(Arc::clone(&Arc::new(FileSource::default())), vec![], &rbytes, "", false, None, None).unwrap();
+    let artifact = cg.churn(Arc::clone(&Arc::new(FileSource::default())), vec![], &rbytes, "", false, None, None, false).unwrap();
     assert_eq!(
         artifact.bytecode,
         String::from(
@@ -213,7 +213,7 @@ fn test_nested_function() {
     let rbytes = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
     // Churn
     let mut cg = Codegen::new();
-    let artifact = cg.churn(Arc::clone(&Arc::new(FileSource::default())), vec![], &rbytes, "", false, None, None).unwrap();
+    let artifact = cg.churn(Arc::clone(&Arc::new(FileSource::default())), vec![], &rbytes, "", false, None, None, false).unwrap();
     assert_eq!(
         artifact.bytecode,
         String::from(
