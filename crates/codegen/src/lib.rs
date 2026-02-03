@@ -1163,9 +1163,9 @@ impl Codegen {
         let constructor_length = constructor_bytecode.len() / 2;
 
         // Check contract size limit (EIP-170)
-        if !no_size_limit && contract_length > Self::EIP170_CONTRACT_SIZE_LIMIT {
+        if !no_size_limit && contract_length > EIP170_CONTRACT_SIZE_LIMIT {
             return Err(CodegenError {
-                kind: CodegenErrorKind::ContractSizeLimitExceeded(contract_length, Self::EIP170_CONTRACT_SIZE_LIMIT),
+                kind: CodegenErrorKind::ContractSizeLimitExceeded(contract_length, EIP170_CONTRACT_SIZE_LIMIT),
                 span: AstSpan(vec![Span { start: 0, end: 0, file: Some(file) }]).boxed(),
                 token: None,
             });

@@ -45,10 +45,10 @@ fn test_contract_size_limit_exceeded() {
     // Verify the bytecode exceeds the limit
     let bytecode_size = main_bytecode.len() / 2;
     assert!(
-        bytecode_size > Codegen::EIP170_CONTRACT_SIZE_LIMIT,
+        bytecode_size > EIP170_CONTRACT_SIZE_LIMIT,
         "Test contract should exceed EIP-170 limit. Size: {} bytes, Limit: {} bytes",
         bytecode_size,
-        Codegen::EIP170_CONTRACT_SIZE_LIMIT
+        EIP170_CONTRACT_SIZE_LIMIT
     );
 
     // Churn with size limit enforced - should fail
@@ -61,7 +61,7 @@ fn test_contract_size_limit_exceeded() {
     match err.kind {
         CodegenErrorKind::ContractSizeLimitExceeded(size, limit) => {
             assert_eq!(size, bytecode_size);
-            assert_eq!(limit, Codegen::EIP170_CONTRACT_SIZE_LIMIT);
+            assert_eq!(limit, EIP170_CONTRACT_SIZE_LIMIT);
         }
         other => panic!("Expected ContractSizeLimitExceeded error, got: {:?}", other),
     }
@@ -85,10 +85,10 @@ fn test_contract_size_limit_bypassed() {
     // Verify the bytecode exceeds the limit
     let bytecode_size = main_bytecode.len() / 2;
     assert!(
-        bytecode_size > Codegen::EIP170_CONTRACT_SIZE_LIMIT,
+        bytecode_size > EIP170_CONTRACT_SIZE_LIMIT,
         "Test contract should exceed EIP-170 limit. Size: {} bytes, Limit: {} bytes",
         bytecode_size,
-        Codegen::EIP170_CONTRACT_SIZE_LIMIT
+        EIP170_CONTRACT_SIZE_LIMIT
     );
 
     // Churn with size limit bypassed - should succeed
@@ -120,10 +120,10 @@ fn test_contract_within_size_limit() {
     // Verify the bytecode is within the limit
     let bytecode_size = main_bytecode.len() / 2;
     assert!(
-        bytecode_size <= Codegen::EIP170_CONTRACT_SIZE_LIMIT,
+        bytecode_size <= EIP170_CONTRACT_SIZE_LIMIT,
         "Test contract should be within EIP-170 limit. Size: {} bytes, Limit: {} bytes",
         bytecode_size,
-        Codegen::EIP170_CONTRACT_SIZE_LIMIT
+        EIP170_CONTRACT_SIZE_LIMIT
     );
 
     // Churn with size limit enforced - should succeed
