@@ -37,6 +37,7 @@ Options:
   -t, --alt-constructor <ALT_CONSTRUCTOR> Compile a specific constructor macro
   -e, --evm-version <EVM_VERSION>         Set the EVM version [default: osaka]
       --flattened-source                  Output the flattened source code with all dependencies resolved
+      --no-size-limit                     Skip the contract size limit check (EIP-170: 24576 bytes)
   -V, --version                           Print version
   -h, --help                              Print help
 ```
@@ -120,6 +121,17 @@ dependencies and includes resolved into a single output.
 Example:
 ```shell
 hnc ./src/ERC20.huff --flattened-source
+```
+
+### `--no-size-limit`
+
+Passing the `--no-size-limit` flag bypasses the EIP-170 contract size limit check.
+By default, compilation fails if the runtime bytecode exceeds 24,576 bytes (the
+maximum deployable contract size on Ethereum mainnet).
+
+Example:
+```shell
+hnc ./src/LargeContract.huff -b --no-size-limit
 ```
 
 ### `-g` Interface
