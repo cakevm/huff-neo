@@ -116,6 +116,7 @@ fn main() {
         cached: use_cache,
         file_provider: Arc::new(FileSystemFileProvider {}),
         relax_jumps: cli.relax_jumps,
+        no_size_limit: cli.no_size_limit,
     };
 
     // Handle flattened source output

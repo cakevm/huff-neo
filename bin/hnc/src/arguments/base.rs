@@ -85,6 +85,10 @@ pub struct HuffArgs {
     #[clap(short = 'e', long = "evm-version")]
     pub evm_version: Option<String>,
 
+    /// Skip the contract size limit check (EIP-170: 24576 bytes)
+    #[clap(long = "no-size-limit")]
+    pub no_size_limit: bool,
+
     /// Test subcommand
     #[clap(subcommand)]
     pub test: Option<TestCommands>,

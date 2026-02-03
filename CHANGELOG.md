@@ -4,6 +4,12 @@
 
 ## Unreleased
 
+## [1.5.14] - 2026-02-03
+- **Breaking**: Enforce EIP-170 contract size limit (24,576 bytes) by default.
+  - Compilation now fails if the runtime bytecode exceeds the EIP-170 limit.
+  - Use `--no-size-limit` flag to bypass this check.
+- Increase maximum loop iterations from 10,000 to 100,000.
+
 ## [1.5.13] - 2026-01-18
 - Add support for `true` and `false` keywords as constant override values via `-c` CLI flag.
   - Example: `hnc test.huff -c DEBUG=true`

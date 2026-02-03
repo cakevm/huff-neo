@@ -84,6 +84,8 @@ pub struct Compiler<'a, 'l> {
     pub file_provider: Arc<dyn FileProvider>,
     /// Whether to apply jump relaxation optimization
     pub relax_jumps: bool,
+    /// Skip the contract size limit validation (EIP-170: 24576 bytes)
+    pub no_size_limit: bool,
 }
 
 impl<'a, 'l> Compiler<'a, 'l> {
@@ -115,6 +117,7 @@ impl<'a, 'l> Compiler<'a, 'l> {
             cached,
             file_provider: Arc::new(FileSystemFileProvider {}),
             relax_jumps: false,
+            no_size_limit: false,
         }
     }
 
@@ -146,6 +149,7 @@ impl<'a, 'l> Compiler<'a, 'l> {
             cached: false,
             file_provider: Arc::new(InMemoryFileProvider::new(file_sources)),
             relax_jumps: false,
+            no_size_limit: false,
         }
     }
 
@@ -559,6 +563,7 @@ impl<'a, 'l> Compiler<'a, 'l> {
             has_custom_bootstrap,
             Some(main_source_map),
             Some(constructor_source_map),
+            self.no_size_limit,
         );
         match churn_res {
             Ok(mut artifact) => {

@@ -273,6 +273,8 @@ pub enum CodegenErrorKind {
     /// Exceeded maximum iterations in bubble_arg_call when bubbling up through nested macro calls
     /// First parameter is the argument name, second is the maximum allowed iterations
     BubbleArgLimitExceeded(String, usize),
+    /// Contract bytecode exceeds the EIP-170 size limit (size, limit)
+    ContractSizeLimitExceeded(usize, usize),
 }
 
 impl Spanned for CodegenError {
@@ -426,6 +428,9 @@ impl<W: Write> Report<W> for CodegenError {
                     "Exceeded maximum iterations ({}) while bubbling argument '<{}>' up through nested macro calls",
                     max_iterations, arg_name
                 )
+            }
+            CodegenErrorKind::ContractSizeLimitExceeded(size, limit) => {
+                write!(f.out, "Contract bytecode size ({} bytes) exceeds EIP-170 limit ({} bytes)", size, limit)
             }
         }
     }
@@ -833,6 +838,15 @@ impl fmt::Display for CompilerError {
                         "\nError: Exceeded maximum iterations ({}) while bubbling argument '<{}>' up through nested macro calls\n{}\n",
                         max_iterations,
                         arg_name,
+                        ce.span.error(None)
+                    )
+                }
+                CodegenErrorKind::ContractSizeLimitExceeded(size, limit) => {
+                    write!(
+                        f,
+                        "\nError: Contract bytecode size ({} bytes) exceeds EIP-170 limit ({} bytes)\nUse --no-size-limit to skip this check\n{}\n",
+                        size,
+                        limit,
                         ce.span.error(None)
                     )
                 }

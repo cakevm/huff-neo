@@ -923,7 +923,7 @@ pub fn statement_gen<'a>(
             }
 
             // Maximum iterations safety check
-            const MAX_LOOP_ITERATIONS: usize = 10_000;
+            const MAX_LOOP_ITERATIONS: usize = 100_000;
             let mut current = start_u256;
             let mut iteration_count = 0;
 
