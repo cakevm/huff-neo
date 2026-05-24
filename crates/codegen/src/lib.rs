@@ -104,8 +104,8 @@ impl MainBytecodeOutput {
 
 /// Constructor macro bytecode produced by phase 1, prior to table resolution and bootstrap insertion.
 ///
-/// The unresolved [`BytecodeRes`] is forwarded to [`Codegen::build_artifact`] (phase 2) which knows
-/// the bootstrap size and runtime layout, and finalizes `__tablestart` resolution from there.
+/// The unresolved [`BytecodeRes`] is forwarded to [`Codegen::assemble_artifact`] (phase 2) which
+/// knows the bootstrap size and runtime layout, and finalizes `__tablestart` resolution from there.
 #[derive(Debug, Clone)]
 pub struct ConstructorMacroBytecode {
     /// Unresolved bytecode result for the constructor macro body.
