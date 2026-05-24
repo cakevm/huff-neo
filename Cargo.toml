@@ -44,6 +44,7 @@ yansi = "1.0.1"
 
 # alloy
 alloy-dyn-abi = { version = "1.5.7", default-features = false }
+alloy-eips = { version = "2.0.1", default-features = false }
 alloy-evm = { version = "0.33.2", default-features = false }
 alloy-primitives = { version = "1.5.7", default-features = false, features = ["std"] }
 

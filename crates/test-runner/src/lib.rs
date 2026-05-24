@@ -30,6 +30,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 pub use crate::runner::Env;
+pub use revm::context::TxEnv;
 
 /// Prelude wraps all modules within the crate
 pub mod prelude {

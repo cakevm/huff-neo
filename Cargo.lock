@@ -4669,6 +4669,7 @@ dependencies = [
 name = "hnc"
 version = "1.5.15"
 dependencies = [
+ "alloy-eips 2.0.1",
  "alloy-primitives",
  "assert_cmd",
  "assert_fs",

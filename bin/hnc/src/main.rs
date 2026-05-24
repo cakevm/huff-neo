@@ -11,6 +11,7 @@ mod arguments;
 use crate::arguments::base::TestCommands;
 use crate::arguments::base::{HuffArgs, get_input};
 use crate::arguments::constants::parse_constant_overrides;
+use alloy_eips::eip7825::MAX_TX_GAS_LIMIT_OSAKA;
 use alloy_primitives::hex;
 use clap::{CommandFactory, Parser};
 use comfy_table::{Cell, Color, Row, Table, modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL};
@@ -19,7 +20,7 @@ use foundry_evm_traces::InternalTraceMode;
 use huff_neo_codegen::Codegen;
 use huff_neo_core::Compiler;
 use huff_neo_test_runner::{
-    AnvilInspector, Env, HuffTester, HuffTesterConfig,
+    AnvilInspector, Env, HuffTester, HuffTesterConfig, TxEnv,
     prelude::{ReportKind, print_test_report},
 };
 use huff_neo_utils::ast::span::AstSpan;
@@ -247,7 +248,10 @@ fn main() {
                 }
             }
 
-            let (evm_env, tx_env, fork_block_number) = rt.block_on(evm_opts.env()).unwrap();
+            let (evm_env, mut tx_env, fork_block_number): (_, TxEnv, _) = rt.block_on(evm_opts.env()).unwrap();
+            // EIP-7825 caps any single transaction at 16M gas; foundry's default tx gas limit (~1B)
+            // exceeds this and trips `CallerGasLimitMoreThanBlock`.
+            tx_env.gas_limit = tx_env.gas_limit.min(MAX_TX_GAS_LIMIT_OSAKA);
             let mut env = Env { evm_env, tx: tx_env };
 
             // Set the sender address if provided.
