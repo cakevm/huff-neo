@@ -39,6 +39,45 @@ as the contract's runtime bytecode. If the constructor contains a `RETURN` opcod
 will not include this bootstrap, and it will instead instantiate the contract with the code returned
 by the constructor.
 
+#### Table scopes in `CONSTRUCTOR` and `MAIN`
+
+Tables referenced via `__tablestart` sit in different parts of the deployment bytecode depending
+on which scope references them:
+
+```text
+[ctor_body][bootstrap][main_body][main_tables][ctor_only_tables][args]
+                      ==============================
+                      runtime — stored on-chain
+```
+
+- Referenced from `MAIN` → emitted inside the runtime; `__tablestart(T)` is the offset within the
+  runtime.
+- Referenced only from `CONSTRUCTOR` → emitted in the deployment tail past `main`. The constructor
+  can read it during deployment, but it is **not** stored on-chain.
+- Referenced from both → emitted once in the runtime section. The constructor's `__tablestart(T)`
+  resolves into that shared copy; no duplicate is written to the tail.
+
+Example of a shared table read from both scopes:
+
+```javascript
+#define table CONFIG {
+    0x00000000000000000000000000000000000000000000000000000000deadbeef
+    0x00000000000000000000000000000000000000000000000000000000cafebabe
+}
+
+#define macro CONSTRUCTOR() = takes (0) returns (0) {
+    // Copy CONFIG into memory at 0x00 and store the first word in slot 0.
+    __tablesize(CONFIG) __tablestart(CONFIG) 0x00 codecopy
+    0x00 mload 0x00 sstore
+}
+
+#define macro MAIN() = takes (0) returns (0) {
+    // Read the second word of CONFIG and return it.
+    __tablestart(CONFIG) 0x20 add 0x00 codecopy
+    0x20 0x00 return
+}
+```
+
 ### Macro Arguments
 
 Macros can accept arguments, which can be used within the macro itself or passed as reference. These arguments can be labels, opcodes, literals, constants, or other macro calls. Since macros are inlined at compile time, their arguments are also inlined and not evaluated at runtime.

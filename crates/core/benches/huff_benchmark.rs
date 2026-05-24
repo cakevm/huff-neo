@@ -90,8 +90,8 @@ fn codegen_erc20_benchmark(c: &mut Criterion) {
     // Isolate codegen to benchmark
     c.bench_function("Codegen: ERC-20", |b| b.iter(|| {
         // Create main and constructor bytecode
-        let main_bytecode = Codegen::generate_main_bytecode(evm_version,&contract, None, false).unwrap();
-        let (constructor_bytecode, has_custom_bootstrap) = Codegen::generate_constructor_bytecode(evm_version,&contract, None, false).unwrap();
+        let main_bytecode = Codegen::generate_main_bytecode(evm_version, &contract, None, false).unwrap();
+        let (constructor_bytecode, has_custom_bootstrap) = Codegen::generate_constructor_bytecode(evm_version, &contract, None, false).unwrap();
 
         // Churn
         let mut cg = Codegen::new();
@@ -138,7 +138,7 @@ fn erc20_compilation_benchmark(c: &mut Criterion) {
         let evm_version = &EVMVersion::default();
 
         // Create main and constructor bytecode
-        let main_bytecode = Codegen::generate_main_bytecode(evm_version,&contract, None, false).unwrap();
+        let main_bytecode = Codegen::generate_main_bytecode(evm_version, &contract, None, false).unwrap();
         let (constructor_bytecode, has_custom_bootstrap) = Codegen::generate_constructor_bytecode(evm_version, &contract, None, false).unwrap();
 
         // Churn
@@ -187,7 +187,7 @@ fn erc721_compilation_benchmark(c: &mut Criterion) {
 
         // Create main and constructor bytecode
         let main_bytecode = Codegen::generate_main_bytecode(evm_version, &contract, None, false).unwrap();
-        let (constructor_bytecode, has_custom_bootstrap) = Codegen::generate_constructor_bytecode(evm_version,&contract, None, false).unwrap();
+        let (constructor_bytecode, has_custom_bootstrap) = Codegen::generate_constructor_bytecode(evm_version, &contract, None, false).unwrap();
 
         // Churn
         let mut cg = Codegen::new();

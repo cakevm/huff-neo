@@ -96,10 +96,12 @@ fn test_dyn_constructor_arg_builtin() {
         false,
     );
 
+    // CODECOPY source offset for the first dynamic arg is its absolute position in deployment
+    // bytecode: ctor_body_len (0) + bootstrap_size (9) + main_len (17) = 26 = 0x1a.
     assert_eq!(
         final_bytecode.unwrap().bytecode,
         String::from(
-            "60118060093d393df3610007610020526100076100116100403974657374696e6700000000000000000000000000000000000000000000000000"
+            "60118060093d393df36100076100205261000761001a6100403974657374696e6700000000000000000000000000000000000000000000000000"
         )
     );
 }
