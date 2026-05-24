@@ -11,7 +11,7 @@ license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/cakevm/huff-neo"
 rust-version = "1.89"
-version = "1.5.14"
+version = "1.5.15"
 
 [workspace.dependencies]
 huff-neo-codegen = { path = "crates/codegen" }
@@ -43,26 +43,25 @@ wasm-bindgen = "0.2.100"
 yansi = "1.0.1"
 
 # alloy
-alloy-dyn-abi = { version = "1.5.2", default-features = false }
-alloy-evm = { version = "0.26.3", default-features = false }
-alloy-primitives = { version = "1.5.2", default-features = false, features = ["std"] }
+alloy-dyn-abi = { version = "1.5.7", default-features = false }
+alloy-evm = { version = "0.33.2", default-features = false }
+alloy-primitives = { version = "1.5.7", default-features = false, features = ["std"] }
 
 # revm
-op-revm = { version = "15.0.0", default-features = false }
-revm = { version = "34.0.0", default-features = false, features = ["optional_no_base_fee"] }
+op-revm = { version = "19.0.0", default-features = false }
+revm = { version = "38.0.0", default-features = false, features = ["optional_no_base_fee"] }
 
 # foundry
-anvil = { git = "https://github.com/foundry-rs/foundry", tag = "v1.6.0-rc1" }
-foundry-cli = { git = "https://github.com/foundry-rs/foundry", tag = "v1.6.0-rc1" }
-foundry-common = { git = "https://github.com/foundry-rs/foundry", tag = "v1.6.0-rc1" }
-foundry-compilers = { version = "0.19.14", default-features = false }
-foundry-config = { git = "https://github.com/foundry-rs/foundry", tag = "v1.6.0-rc1" }
-foundry-debugger = { git = "https://github.com/foundry-rs/foundry", tag = "v1.6.0-rc1" }
-foundry-evm = { git = "https://github.com/foundry-rs/foundry", tag = "v1.6.0-rc1" }
-foundry-evm-core = { git = "https://github.com/foundry-rs/foundry", tag = "v1.6.0-rc1" }
-foundry-evm-networks = { git = "https://github.com/foundry-rs/foundry", tag = "v1.6.0-rc1" }
-foundry-evm-traces = { git = "https://github.com/foundry-rs/foundry", tag = "v1.6.0-rc1" }
-
+anvil = { git = "https://github.com/foundry-rs/foundry", tag = "v1.7.1" }
+foundry-cli = { git = "https://github.com/foundry-rs/foundry", tag = "v1.7.1" }
+foundry-common = { git = "https://github.com/foundry-rs/foundry", tag = "v1.7.1" }
+foundry-compilers = { version = "0.20.0", default-features = false }
+foundry-config = { git = "https://github.com/foundry-rs/foundry", tag = "v1.7.1" }
+foundry-debugger = { git = "https://github.com/foundry-rs/foundry", tag = "v1.7.1" }
+foundry-evm = { git = "https://github.com/foundry-rs/foundry", tag = "v1.7.1" }
+foundry-evm-core = { git = "https://github.com/foundry-rs/foundry", tag = "v1.7.1" }
+foundry-evm-networks = { git = "https://github.com/foundry-rs/foundry", tag = "v1.7.1" }
+foundry-evm-traces = { git = "https://github.com/foundry-rs/foundry", tag = "v1.7.1" }
 
 # serde
 serde = { version = "1.0.219", features = ["derive", "rc"] }
@@ -79,7 +78,6 @@ assert_fs = "1.1.3"
 criterion = "0.7.0"
 predicates = "3.1.3"
 rayon = "1.10.0"
-
 
 [profile.test]
 debug = "full"
@@ -103,3 +101,22 @@ lto = "fat"
 [patch.crates-io]
 # patch solar to match foundry's version
 solar = { package = "solar-compiler", git = "https://github.com/paradigmxyz/solar.git", rev = "530f129" }
+
+# reth-core (required by foundry v1.7.1)
+reth-codecs = { git = "https://github.com/paradigmxyz/reth-core", rev = "6b12498" }
+reth-codecs-derive = { git = "https://github.com/paradigmxyz/reth-core", rev = "6b12498" }
+reth-primitives-traits = { git = "https://github.com/paradigmxyz/reth-core", rev = "6b12498" }
+reth-zstd-compressors = { git = "https://github.com/paradigmxyz/reth-core", rev = "6b12498" }
+
+# op-revm / op-alloy / alloy-op-evm (must match foundry v1.7.1)
+alloy-op-evm = { git = "https://github.com/ethereum-optimism/optimism", rev = "42f5117c2e7de0614cd3b96f274d0a3078f9701c" }
+alloy-op-hardforks = { git = "https://github.com/ethereum-optimism/optimism", rev = "42f5117c2e7de0614cd3b96f274d0a3078f9701c" }
+op-alloy-consensus = { git = "https://github.com/ethereum-optimism/optimism", rev = "42f5117c2e7de0614cd3b96f274d0a3078f9701c" }
+op-alloy-network = { git = "https://github.com/ethereum-optimism/optimism", rev = "42f5117c2e7de0614cd3b96f274d0a3078f9701c" }
+op-alloy-rpc-types = { git = "https://github.com/ethereum-optimism/optimism", rev = "42f5117c2e7de0614cd3b96f274d0a3078f9701c" }
+op-revm = { git = "https://github.com/ethereum-optimism/optimism", rev = "42f5117c2e7de0614cd3b96f274d0a3078f9701c" }
+
+# tempo — unify crates.io versions (pulled by mpp) with foundry's git rev
+tempo-alloy = { git = "https://github.com/tempoxyz/tempo", rev = "1e5a82dff207e2cbd6cecdcfb8ff3cd2e39baa69" }
+tempo-contracts = { git = "https://github.com/tempoxyz/tempo", rev = "1e5a82dff207e2cbd6cecdcfb8ff3cd2e39baa69" }
+tempo-primitives = { git = "https://github.com/tempoxyz/tempo", rev = "1e5a82dff207e2cbd6cecdcfb8ff3cd2e39baa69" }

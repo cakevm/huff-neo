@@ -19,8 +19,8 @@ use alloy_primitives::map::AddressHashMap;
 pub use anvil::eth::backend::mem::inspector::AnvilInspector;
 use foundry_compilers::{compilers::solc::SolcLanguage, multi::MultiCompilerLanguage};
 use foundry_debugger::Debugger;
-use foundry_evm::Env;
 use foundry_evm::backend::Backend;
+use foundry_evm::core::evm::EthEvmNetwork;
 use foundry_evm::fork::CreateFork;
 use foundry_evm::traces::{InternalTraceMode, SparsedTraceArena, TraceKind};
 use foundry_evm_traces::debug::{ArtifactData, ContractSources, SourceData};
@@ -28,6 +28,8 @@ use revm::database::CacheDB;
 use revm::primitives::hardfork::SpecId;
 use std::path::PathBuf;
 use std::sync::Arc;
+
+pub use crate::runner::Env;
 
 /// Prelude wraps all modules within the crate
 pub mod prelude {
@@ -150,7 +152,7 @@ impl<'t> HuffTester<'t> {
             .macros
             .into_iter()
             .map(|macro_def| {
-                let db = Backend::spawn(self.config.fork.take())
+                let db = Backend::<EthEvmNetwork>::spawn(self.config.fork.take())
                     .map_err(|_| RunnerError::GenericError("Failed to spawn backend".to_string()))?;
                 let mut cache_db = CacheDB::new(db);
                 self.runner.run_test(&mut cache_db, macro_def, self.ast)

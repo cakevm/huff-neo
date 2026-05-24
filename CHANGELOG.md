@@ -3,6 +3,9 @@
 # Huff Neo Compiler changelog
 
 ## Unreleased
+
+## [1.5.15] - 2026-05-24
+- Update to foundry v1.7.1.
 - Fix `__tablestart` in `CONSTRUCTOR` corrupting the auto-generated bootstrap. Tables were placed
   between the constructor body and the bootstrap, so execution fell into table bytes before the
   bootstrap ran. Constructor-only tables now sit past `main` in the deployment tail; tables shared

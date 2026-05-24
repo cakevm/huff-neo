@@ -19,7 +19,7 @@ use foundry_evm_traces::InternalTraceMode;
 use huff_neo_codegen::Codegen;
 use huff_neo_core::Compiler;
 use huff_neo_test_runner::{
-    AnvilInspector, HuffTester, HuffTesterConfig,
+    AnvilInspector, Env, HuffTester, HuffTesterConfig,
     prelude::{ReportKind, print_test_report},
 };
 use huff_neo_utils::ast::span::AstSpan;
@@ -247,7 +247,8 @@ fn main() {
                 }
             }
 
-            let mut env = rt.block_on(evm_opts.evm_env()).unwrap();
+            let (evm_env, tx_env, fork_block_number) = rt.block_on(evm_opts.env()).unwrap();
+            let mut env = Env { evm_env, tx: tx_env };
 
             // Set the sender address if provided.
             if let Some(sender) = test_args.evm.sender {
@@ -266,12 +267,13 @@ fn main() {
                 InternalTraceMode::None
             };
 
+            let chain_id = env.evm_env.cfg_env.chain_id;
             let tester_config = HuffTesterConfig::new()
                 .set_debug(test_args.debug)
                 .set_decode_internal(decode_internal)
                 .evm_spec(config.evm_spec_id())
                 .sender(evm_opts.sender)
-                .with_fork(evm_opts.get_fork(&config, env.clone()))
+                .with_fork(evm_opts.get_fork(&config, chain_id, fork_block_number))
                 .enable_isolation(evm_opts.isolate)
                 .target_address(test_args.target_address);
 
