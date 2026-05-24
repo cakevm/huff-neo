@@ -11,6 +11,7 @@ mod arguments;
 use crate::arguments::base::TestCommands;
 use crate::arguments::base::{HuffArgs, get_input};
 use crate::arguments::constants::parse_constant_overrides;
+use alloy_eips::eip7825::MAX_TX_GAS_LIMIT_OSAKA;
 use alloy_primitives::hex;
 use clap::{CommandFactory, Parser};
 use comfy_table::{Cell, Color, Row, Table, modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL};
@@ -19,7 +20,7 @@ use foundry_evm_traces::InternalTraceMode;
 use huff_neo_codegen::Codegen;
 use huff_neo_core::Compiler;
 use huff_neo_test_runner::{
-    AnvilInspector, HuffTester, HuffTesterConfig,
+    AnvilInspector, Env, HuffTester, HuffTesterConfig, TxEnv,
     prelude::{ReportKind, print_test_report},
 };
 use huff_neo_utils::ast::span::AstSpan;
@@ -247,7 +248,11 @@ fn main() {
                 }
             }
 
-            let mut env = rt.block_on(evm_opts.evm_env()).unwrap();
+            let (evm_env, mut tx_env, fork_block_number): (_, TxEnv, _) = rt.block_on(evm_opts.env()).unwrap();
+            // EIP-7825 caps any single transaction at 16M gas; foundry's default tx gas limit (~1B)
+            // exceeds this and trips `CallerGasLimitMoreThanBlock`.
+            tx_env.gas_limit = tx_env.gas_limit.min(MAX_TX_GAS_LIMIT_OSAKA);
+            let mut env = Env { evm_env, tx: tx_env };
 
             // Set the sender address if provided.
             if let Some(sender) = test_args.evm.sender {
@@ -266,12 +271,13 @@ fn main() {
                 InternalTraceMode::None
             };
 
+            let chain_id = env.evm_env.cfg_env.chain_id;
             let tester_config = HuffTesterConfig::new()
                 .set_debug(test_args.debug)
                 .set_decode_internal(decode_internal)
                 .evm_spec(config.evm_spec_id())
                 .sender(evm_opts.sender)
-                .with_fork(evm_opts.get_fork(&config, env.clone()))
+                .with_fork(evm_opts.get_fork(&config, chain_id, fork_block_number))
                 .enable_isolation(evm_opts.isolate)
                 .target_address(test_args.target_address);
 

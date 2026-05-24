@@ -1,7 +1,7 @@
 use crate::prelude::{ReportKind, TestResult, TestStatus};
 use comfy_table::{Attribute, Cell, Color, ContentArrangement, Row, Table, modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL};
 use foundry_evm::decode::decode_console_logs;
-use foundry_evm::inspectors::TracingInspector;
+use foundry_evm::inspectors::{LogCollector, TracingInspector};
 use foundry_evm::traces::{
     CallTraceDecoderBuilder, SparsedTraceArena, decode_trace_arena, identifier::SignaturesIdentifier, render_trace_arena_inner,
 };
@@ -56,8 +56,8 @@ pub async fn print_test_report(results: Vec<TestResult>, report_kind: ReportKind
                 }
 
                 let num_logs = match result.inspector.log_collector {
-                    Some(ref log_collector) => log_collector.logs.len(),
-                    None => 0,
+                    Some(LogCollector::Capture { ref logs }) => logs.len(),
+                    _ => 0,
                 };
 
                 if let Some(return_data) = result.return_data.clone() {
@@ -65,8 +65,8 @@ pub async fn print_test_report(results: Vec<TestResult>, report_kind: ReportKind
                     println!("{} {return_data}", if num_logs == 0 { "└─" } else { "├─" });
                 }
 
-                if let Some(ref log_collector) = result.inspector.log_collector {
-                    let filtered_logs = decode_console_logs(&log_collector.logs);
+                if let Some(LogCollector::Capture { ref logs }) = result.inspector.log_collector {
+                    let filtered_logs = decode_console_logs(logs);
                     if !filtered_logs.is_empty() {
                         println!("├─ {}", Paint::cyan("CONSOLE LOGS"));
                         for (i, log) in filtered_logs.iter().enumerate() {

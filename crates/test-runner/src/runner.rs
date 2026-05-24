@@ -1,20 +1,23 @@
 use crate::prelude::{RunnerError, TestResult, TestStatus};
-use alloy_evm::Evm;
+use alloy_evm::{Evm, EvmEnv, EvmFactory, eth::EthEvmFactory};
 use alloy_primitives::{Address, B256, Bytes, U256, hex};
-use anvil::eth::backend::executor::new_evm_with_inspector;
 use anvil::eth::backend::mem::inspector::AnvilInspector;
-use foundry_evm::Env;
 use foundry_evm::backend::DatabaseError;
-use foundry_evm_networks::NetworkConfigs;
 use huff_neo_codegen::Codegen;
 use huff_neo_utils::ast::huff::{DecoratorFlag, MacroDefinition};
 use huff_neo_utils::prelude::{CompilerError, Contract, EVMVersion, pad_n_bytes};
-use op_revm::OpTransaction;
 use revm::context::result::{ExecutionResult, Output};
 use revm::context::{TransactTo, TxEnv};
 use revm::state::{Account, AccountInfo, AccountStatus, Bytecode};
 use revm::{Context, Database, DatabaseCommit, ExecuteCommitEvm, MainBuilder, MainContext};
 use std::collections::HashMap;
+
+/// Container for EVM environment (cfg + block) and transaction.
+#[derive(Clone, Debug, Default)]
+pub struct Env {
+    pub evm_env: EvmEnv,
+    pub tx: TxEnv,
+}
 
 /// The test runner allows execution of test macros within an in-memory REVM
 /// instance.
@@ -158,10 +161,12 @@ impl TestRunner {
         let address = match er {
             ExecutionResult::Success { output: Output::Create(_, Some(addr)), .. } => addr,
 
-            ExecutionResult::Revert { gas_used, output } => {
+            ExecutionResult::Revert { gas, output, .. } => {
+                let gas_used = gas.tx_gas_used();
                 return Err(RunnerError::DeploymentError(format!("Deployment reverted gas_used={gas_used}, output={output:?}")));
             }
-            ExecutionResult::Halt { reason, gas_used } => {
+            ExecutionResult::Halt { reason, gas, .. } => {
+                let gas_used = gas.tx_gas_used();
                 return Err(RunnerError::DeploymentError(format!("Deployment halted gas_used={gas_used}, reason={reason:?}")));
             }
             ExecutionResult::Success { output, .. } => {
@@ -194,20 +199,18 @@ impl TestRunner {
 
         self.set_balance(db, env.tx.caller, U256::MAX)?;
 
-        let tx = OpTransaction::<TxEnv> { base: env.tx, enveloped_tx: None, deposit: Default::default() };
-        let foundry_env = anvil::eth::backend::env::Env { evm_env: env.evm_env.clone(), tx, networks: NetworkConfigs::default() };
-
         let mut inspector = self.inspector.clone();
-        let mut evm = new_evm_with_inspector(db, &foundry_env, &mut inspector);
+        let mut evm = EthEvmFactory::default().create_evm_with_inspector(db, env.evm_env.clone(), &mut inspector);
 
         // Send our CALL transaction
-        let execution_result = evm.transact_commit(foundry_env.tx).map_err(|e| RunnerError::TransactError(format!("{e:?}")))?;
+        let execution_result = evm.transact_commit(env.tx).map_err(|e| RunnerError::TransactError(format!("{e:?}")))?;
 
         // Extract execution params
-        let (gas_used, status) = match &execution_result {
-            ExecutionResult::Success { gas_used, .. } => (gas_used, TestStatus::Success),
-            ExecutionResult::Revert { gas_used, .. } => (gas_used, TestStatus::Revert),
-            ExecutionResult::Halt { gas_used, .. } => (gas_used, TestStatus::Revert),
+        let gas_used = execution_result.tx_gas_used();
+        let status = match &execution_result {
+            ExecutionResult::Success { .. } => TestStatus::Success,
+            ExecutionResult::Revert { .. } => TestStatus::Revert,
+            ExecutionResult::Halt { .. } => TestStatus::Revert,
         };
 
         // Check if the transaction was successful

@@ -18,6 +18,7 @@ huff-neo-core.workspace = true
 huff-neo-test-runner.workspace = true
 huff-neo-utils.workspace = true
 
+alloy-eips.workspace = true
 alloy-primitives.workspace = true
 clap.workspace = true
 comfy-table.workspace = true
