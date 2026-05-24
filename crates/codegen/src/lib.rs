@@ -62,6 +62,59 @@ pub struct Codegen {
     pub constructor_bytecode: Option<String>,
 }
 
+/// Output of [`Codegen::gen_table_bytecode`].
+///
+/// Body bytecode (with `__tablestart` placeholders filled), the table bytecode emitted by this call,
+/// and the absolute deployment-bytecode offsets at which those tables sit.
+#[derive(Debug, Default, Clone)]
+pub struct TableBytecodeOutput {
+    /// Body bytecode hex string, with all `__tablestart` placeholders replaced.
+    pub body: String,
+    /// Table bytecode hex string for tables emitted by this call. The caller decides where to place
+    /// this in the overall deployment bytecode.
+    pub tables: String,
+    /// Map of locally-emitted table name to its absolute deployment-bytecode offset.
+    pub local_table_offsets: HashMap<String, usize>,
+    /// Source map for the body bytecode.
+    pub source_map: Vec<SourceMapEntry>,
+}
+
+/// Output of [`Codegen::generate_main_bytecode_with_sourcemap`].
+///
+/// `bytecode` is the runtime bytes (body + appended tables). `table_offsets` maps each
+/// runtime-resident table to its offset within the runtime. The constructor finalization step uses
+/// `table_offsets` to dedupe any `__tablestart` reference shared with main.
+#[derive(Debug, Default, Clone)]
+pub struct MainBytecodeOutput {
+    /// Full main/runtime bytecode (body + appended tables) as a hex string.
+    pub bytecode: String,
+    /// Source map for the runtime bytecode body.
+    pub source_map: Vec<SourceMapEntry>,
+    /// Per-table runtime-relative offsets for tables appended to the runtime body.
+    pub table_offsets: HashMap<String, usize>,
+}
+
+impl MainBytecodeOutput {
+    /// Byte offset within the runtime at which the appended tables begin (equivalently, the length
+    /// of the runtime body). When no tables are appended, this equals the full runtime length.
+    pub fn body_len(&self) -> usize {
+        self.table_offsets.values().min().copied().unwrap_or(self.bytecode.len() / 2)
+    }
+}
+
+/// Constructor macro bytecode produced by phase 1, prior to table resolution and bootstrap insertion.
+///
+/// The unresolved [`BytecodeRes`] is forwarded to [`Codegen::build_artifact`] (phase 2) which knows
+/// the bootstrap size and runtime layout, and finalizes `__tablestart` resolution from there.
+#[derive(Debug, Clone)]
+pub struct ConstructorMacroBytecode {
+    /// Unresolved bytecode result for the constructor macro body.
+    pub bytecode_res: BytecodeRes,
+    /// `true` when the constructor body already contains a `RETURN` (`0xf3`) opcode, indicating the
+    /// user supplies their own deployment bootstrap and the compiler should not emit one.
+    pub has_custom_bootstrap: bool,
+}
+
 impl Codegen {
     /// Public associated function to instantiate a new Codegen instance.
     pub fn new() -> Self {
@@ -82,19 +135,22 @@ impl Codegen {
         alternative_main: Option<String>,
         relax_jumps: bool,
     ) -> Result<String, CodegenError> {
-        let (bytecode, _source_map) = Self::generate_main_bytecode_with_sourcemap(evm_version, contract, alternative_main, relax_jumps)?;
-        Ok(bytecode)
+        let out = Self::generate_main_bytecode_with_sourcemap(evm_version, contract, alternative_main, relax_jumps)?;
+        Ok(out.bytecode)
     }
 
     /// Compiles the contract's main macro into bytecode with source map.
     ///
-    /// Like `generate_main_bytecode`, but also returns a source map for debugging.
+    /// Returns the full main bytecode (body + appended tables), its source map, the length of the
+    /// body section (offset at which the runtime tables begin), and the per-table runtime offsets.
+    /// `build_artifact` uses the body length and table offsets to dedupe constructor-side
+    /// `__tablestart` references into the runtime copy.
     pub fn generate_main_bytecode_with_sourcemap(
         evm_version: &EVMVersion,
         contract: &Contract,
         alternative_main: Option<String>,
         relax_jumps: bool,
-    ) -> Result<(String, Vec<SourceMapEntry>), CodegenError> {
+    ) -> Result<MainBytecodeOutput, CodegenError> {
         // Update table sizes
         let contract = Self::update_table_size(evm_version, contract)?;
 
@@ -114,29 +170,43 @@ impl Codegen {
 
         tracing::debug!(target: "codegen", "Generated main bytecode. Appending table bytecode...");
 
-        // Generate the fully baked bytecode
-        Codegen::gen_table_bytecode(&contract, bytecode_res)
+        // Main bytecode is not shifted by a bootstrap and has no upstream dedup map.
+        let table_out = Codegen::gen_table_bytecode(&contract, bytecode_res, 0, &HashMap::new())?;
+        let bytecode = format!("{}{}", table_out.body, table_out.tables);
+        Ok(MainBytecodeOutput { bytecode, source_map: table_out.source_map, table_offsets: table_out.local_table_offsets })
     }
 
-    /// Generates constructor bytecode from a Contract AST
+    /// Generates the constructor section in isolation: macro body with all `__tablestart`
+    /// placeholders resolved against locally-emitted tables.
+    ///
+    /// This standalone form (tables sitting directly after the body) does not include the
+    /// deployment-time auto-bootstrap and is **not** the layout that ends up in the deployed
+    /// artifact — use [`Codegen::churn`] for the final assembly. This function exists for tools
+    /// and tests that want to inspect just the constructor section.
     pub fn generate_constructor_bytecode(
         evm_version: &EVMVersion,
         contract: &Contract,
         alternative_constructor: Option<String>,
         relax_jumps: bool,
     ) -> Result<(String, bool), CodegenError> {
-        let ((bytecode, _source_map), has_custom) =
-            Self::generate_constructor_bytecode_with_sourcemap(evm_version, contract, alternative_constructor, relax_jumps)?;
-        Ok((bytecode, has_custom))
+        let (ctor, contract) = Self::generate_constructor_macro_bytecode(evm_version, contract, alternative_constructor, relax_jumps)?;
+        let has_custom_bootstrap = ctor.has_custom_bootstrap;
+        let out = Codegen::gen_table_bytecode(&contract, ctor.bytecode_res, 0, &HashMap::new())?;
+        Ok((format!("{}{}", out.body, out.tables), has_custom_bootstrap))
     }
 
-    /// Generates constructor bytecode with source map from a Contract AST
-    pub fn generate_constructor_bytecode_with_sourcemap(
+    /// Generates constructor macro bytecode without resolving `__tablestart` placeholders.
+    ///
+    /// This is phase 1 of constructor codegen. Table positions and `__tablestart` resolution depend
+    /// on the auto-bootstrap size and the runtime layout, which are only known once `build_artifact`
+    /// has both the constructor body and the compiled main bytecode in hand. Phase 2 runs inside
+    /// `build_artifact` via [`Codegen::gen_table_bytecode`].
+    pub fn generate_constructor_macro_bytecode(
         evm_version: &EVMVersion,
         contract: &Contract,
         alternative_constructor: Option<String>,
         relax_jumps: bool,
-    ) -> Result<((String, Vec<SourceMapEntry>), bool), CodegenError> {
+    ) -> Result<(ConstructorMacroBytecode, Contract), CodegenError> {
         // Update table sizes
         let contract = Self::update_table_size(evm_version, contract)?;
 
@@ -154,14 +224,13 @@ impl Codegen {
         let bytecode_res: BytecodeRes =
             Codegen::macro_to_bytecode(evm_version, c_macro, &contract, &mut scope_mgr, 0, false, None, relax_jumps)?;
 
-        // Check if the constructor performs its own code generation
+        // A constructor body containing a RETURN means the user is supplying their own deployment
+        // bootstrap; suppress the compiler's auto-bootstrap in that case.
         let has_custom_bootstrap = bytecode_res.bytes.iter().any(|seg| seg.bytes.as_str() == "f3");
 
         tracing::info!(target: "codegen", "Constructor is self-generating: {}", has_custom_bootstrap);
 
-        let (bytecode, source_map) = Codegen::gen_table_bytecode(&contract, bytecode_res)?;
-
-        Ok(((bytecode, source_map), has_custom_bootstrap))
+        Ok((ConstructorMacroBytecode { bytecode_res, has_custom_bootstrap }, contract))
     }
 
     /// Update the table size in the contract that was not know at the time of parsing
@@ -273,10 +342,20 @@ impl Codegen {
         Ok(byte_code)
     }
 
-    /// Appends table bytecode to the end of the BytecodeRes output.
-    /// Fills table JUMPDEST placeholders.
-    /// Returns both the bytecode string and the source map
-    pub fn gen_table_bytecode(contract: &Contract, res: BytecodeRes) -> Result<(String, Vec<SourceMapEntry>), CodegenError> {
+    /// Appends table bytecode for tables referenced by `res` and fills `__tablestart` placeholders.
+    ///
+    /// `base_offset` is added to every locally-emitted table's offset before resolution — used by the
+    /// constructor pathway to push tables past the auto-bootstrap and main bytecode.
+    ///
+    /// `external_table_offsets` lets the caller resolve `__tablestart` to a table emitted somewhere
+    /// else (e.g. shared with the runtime). Tables found here are not emitted locally; their offset
+    /// is used directly when filling placeholders.
+    pub fn gen_table_bytecode(
+        contract: &Contract,
+        res: BytecodeRes,
+        base_offset: usize,
+        external_table_offsets: &HashMap<String, usize>,
+    ) -> Result<TableBytecodeOutput, CodegenError> {
         if !res.unmatched_jumps.is_empty() {
             let labels = res.unmatched_jumps.iter().map(|uj| uj.label.to_string()).collect::<Vec<String>>();
             tracing::error!(
@@ -334,9 +413,11 @@ impl Codegen {
             program_counter += instruction_bytecode_length; // Advance PC by the bytecode length
         }
 
-        let mut bytecode = res.bytes.into_iter().map(|seg| seg.bytes.as_str().to_string()).collect::<String>();
-        let mut table_offsets: HashMap<String, usize> = HashMap::new(); // table name -> bytecode offset
-        let mut table_offset = bytecode.len() / 2;
+        let mut body = res.bytes.into_iter().map(|seg| seg.bytes.as_str().to_string()).collect::<String>();
+        let body_len = body.len() / 2;
+        let mut tables_bytecode = String::new();
+        let mut local_table_offsets: HashMap<String, usize> = HashMap::new();
+        let mut table_offset = body_len + base_offset;
 
         res.utilized_tables.iter().try_for_each(|jt| {
             // Skip tables that were embedded inline
@@ -344,8 +425,13 @@ impl Codegen {
                 tracing::debug!(target: "codegen", "Skipping embedded table \"{}\" from end-placement", jt.name);
                 return Ok(());
             }
+            // Skip tables resolved via an external (dedup) map
+            if external_table_offsets.contains_key(&jt.name) {
+                tracing::debug!(target: "codegen", "Resolving table \"{}\" via external offset map", jt.name);
+                return Ok(());
+            }
 
-            table_offsets.insert(jt.name.to_string(), table_offset);
+            local_table_offsets.insert(jt.name.to_string(), table_offset);
 
             let Some(table_size) = &jt.size else {
                 return Err(CodegenError {
@@ -371,7 +457,7 @@ impl Codegen {
             if jt.kind == TableKind::CodeTable {
                 let table_code = Codegen::gen_table_bytecode_builtin(contract, jt)?;
 
-                bytecode = format!("{bytecode}{table_code}");
+                tables_bytecode.push_str(&table_code);
                 return Ok(());
             }
 
@@ -413,19 +499,22 @@ impl Codegen {
                 Ok(())
             })?;
             tracing::info!(target: "codegen", "SUCCESSFULLY GENERATED BYTECODE FOR TABLE: \"{}\"", jt.name);
-            bytecode = format!("{bytecode}{table_code}");
+            tables_bytecode.push_str(&table_code);
             Ok(())
         })?;
 
         res.table_instances.iter().for_each(|jump| {
-            // Check both end-placed tables and embedded tables
-            let offset_opt = table_offsets.get(&jump.label).or_else(|| res.embedded_tables.get(&jump.label));
+            // Resolution order: locally-emitted, then external (dedup) map, then embedded inline.
+            let offset_opt = local_table_offsets
+                .get(&jump.label)
+                .or_else(|| external_table_offsets.get(&jump.label))
+                .or_else(|| res.embedded_tables.get(&jump.label));
 
             if let Some(o) = offset_opt {
-                let before = &bytecode[0..jump.bytecode_index * 2 + 2];
-                let after = &bytecode[jump.bytecode_index * 2 + 6..];
+                let before = &body[0..jump.bytecode_index * 2 + 2];
+                let after = &body[jump.bytecode_index * 2 + 6..];
 
-                bytecode = format!("{before}{}{after}", pad_n_bytes(format!("{o:02x}").as_str(), 2));
+                body = format!("{before}{}{after}", pad_n_bytes(format!("{o:02x}").as_str(), 2));
                 tracing::info!(target: "codegen", "FILLED JUMPDEST FOR LABEL \"{}\"", jump.label);
             } else {
                 tracing::error!(
@@ -436,7 +525,7 @@ impl Codegen {
             }
         });
 
-        Ok((bytecode, source_map))
+        Ok(TableBytecodeOutput { body, tables: tables_bytecode, local_table_offsets, source_map })
     }
 
     /// Generates bytecode from a macro definition.
@@ -1129,24 +1218,73 @@ impl Codegen {
         Ok(bytes)
     }
 
-    /// Generate a codegen artifact
+    /// Back-compat shim for assembly from raw bytecode strings.
     ///
-    /// # Arguments
+    /// Synthesizes [`MainBytecodeOutput`] and [`ConstructorMacroBytecode`] from raw hex strings and
+    /// forwards to [`Codegen::assemble_artifact`]. Use this when you have pre-baked main and
+    /// constructor bytecode (e.g. existing snapshot tests) and do not need the table-dedup pathway.
     ///
-    /// * `args` - A vector of Tokens representing constructor arguments
-    /// * `main_bytecode` - The compiled MAIN Macro bytecode
-    /// * `constructor_bytecode` - The compiled `CONSTRUCTOR` Macro bytecode
-    /// * `no_size_limit` - Skip the EIP-170 contract size limit check
+    /// Behaves identically to the structured API for inputs that contain no tables.
     #[allow(clippy::too_many_arguments)]
     pub fn churn(
         &mut self,
         file: Arc<FileSource>,
-        mut args: Vec<alloy_dyn_abi::DynSolValue>,
+        args: Vec<alloy_dyn_abi::DynSolValue>,
         main_bytecode: &str,
         constructor_bytecode: &str,
         has_custom_bootstrap: bool,
         main_source_map: Option<Vec<SourceMapEntry>>,
         constructor_source_map: Option<Vec<SourceMapEntry>>,
+        no_size_limit: bool,
+    ) -> Result<Artifact, CodegenError> {
+        let main = MainBytecodeOutput {
+            bytecode: main_bytecode.to_string(),
+            source_map: main_source_map.unwrap_or_default(),
+            table_offsets: HashMap::new(),
+        };
+        let constructor = if constructor_bytecode.is_empty() {
+            None
+        } else {
+            let mut bytes = BytecodeSegments::new();
+            bytes.push_with_offset(0, Bytes::Raw(constructor_bytecode.to_string()));
+            let bytecode_res = BytecodeRes { bytes, ..Default::default() };
+            Some(ConstructorMacroBytecode { bytecode_res, has_custom_bootstrap })
+        };
+        // The shim does not have a fully-populated Contract — but with no utilized tables in the
+        // synthesized constructor BytecodeRes, gen_table_bytecode never inspects table definitions.
+        let contract = Contract::default();
+        let mut artifact = self.assemble_artifact(file, &contract, args, main, constructor, no_size_limit)?;
+        // Preserve the caller-supplied constructor source map (the shim doesn't generate one).
+        artifact.constructor_map = constructor_source_map;
+        Ok(artifact)
+    }
+
+    /// Generate a codegen artifact.
+    ///
+    /// Deployment bytecode is laid out as:
+    ///   `[ctor_body][bootstrap?][main_bytecode][ctor_only_tables][constructor_args]`
+    ///
+    /// A `__tablestart(T)` reference inside the constructor is resolved against a runtime-resident
+    /// copy of `T` when `main` already emits one (no duplicate); otherwise the table is appended
+    /// once to the deployment tail and the constructor's reference points there.
+    ///
+    /// # Arguments
+    ///
+    /// * `contract` — contract AST with table sizes populated by `update_table_size`. Used to read
+    ///   table definitions during constructor table finalization.
+    /// * `args` — encoded constructor arguments, appended at the very end of the deployment bytes.
+    /// * `main` — main/runtime bytecode plus its body length and per-table offsets within the runtime.
+    /// * `constructor` — phase-1 constructor macro output; `None` when the contract has no
+    ///   `CONSTRUCTOR` macro (deployment becomes just `bootstrap + main`).
+    /// * `no_size_limit` — skip the EIP-170 runtime size check.
+    #[allow(clippy::too_many_arguments)]
+    pub fn assemble_artifact(
+        &mut self,
+        file: Arc<FileSource>,
+        contract: &Contract,
+        mut args: Vec<alloy_dyn_abi::DynSolValue>,
+        main: MainBytecodeOutput,
+        constructor: Option<ConstructorMacroBytecode>,
         no_size_limit: bool,
     ) -> Result<Artifact, CodegenError> {
         let artifact: &mut Artifact = if let Some(art) = &mut self.artifact {
@@ -1156,11 +1294,9 @@ impl Codegen {
             self.artifact.as_mut().unwrap()
         };
 
-        // Move `main_bytecode` to the heap so that it can be modified if need be.
-        let mut main_bytecode = String::from(main_bytecode);
+        let MainBytecodeOutput { bytecode: mut main_bytecode, source_map: main_source_map, table_offsets: main_table_offsets } = main;
 
         let contract_length = main_bytecode.len() / 2;
-        let constructor_length = constructor_bytecode.len() / 2;
 
         // Check contract size limit (EIP-170)
         if !no_size_limit && contract_length > EIP170_CONTRACT_SIZE_LIMIT {
@@ -1170,6 +1306,59 @@ impl Codegen {
                 token: None,
             });
         }
+
+        // Compute the constructor body length and bootstrap size first, since the bootstrap size
+        // depends on the body length but not on constructor-only table sizes (under the new layout
+        // where constructor-only tables sit past main).
+        let (ctor_body_len, has_custom_bootstrap) = match &constructor {
+            // `Bytes::len()` returns size in bytes (not hex chars), so no further division needed.
+            Some(c) => (c.bytecode_res.bytes.iter().map(|seg| seg.bytes.len()).sum::<usize>(), c.has_custom_bootstrap),
+            None => (0, false),
+        };
+
+        // Bootstrap size depends only on body lengths (not table sizes).
+        // 9 bytes baseline (PUSH1 size, DUP1, PUSH1 offset, RETURNDATASIZE, CODECOPY, RETURNDATASIZE, RETURN);
+        // grows by 1 if PUSH2 is needed for contract_length, grows by another 1 if PUSH2 is needed
+        // for the runtime offset (= bootstrap_size + ctor_body_len).
+        let mut bootstrap_code_size = 9;
+        let contract_size = if contract_length < 256 {
+            // 60 = PUSH1
+            format!("60{}", pad_n_bytes(format!("{contract_length:x}").as_str(), 1))
+        } else {
+            bootstrap_code_size += 1;
+            // 61 = PUSH2
+            format!("61{}", pad_n_bytes(format!("{contract_length:x}").as_str(), 2))
+        };
+        let contract_code_offset = if (bootstrap_code_size + ctor_body_len) < 256 {
+            format!("60{}", pad_n_bytes(format!("{:x}", bootstrap_code_size + ctor_body_len).as_str(), 1))
+        } else {
+            bootstrap_code_size += 1;
+            format!("61{}", pad_n_bytes(format!("{:x}", bootstrap_code_size + ctor_body_len).as_str(), 2))
+        };
+
+        // 80 = DUP1; 3d = RETURNDATASIZE; 39 = CODECOPY; 3d = RETURNDATASIZE; f3 = RETURN.
+        // Suppressed entirely when the user supplies their own bootstrap (constructor contains RETURN).
+        let bootstrap_code =
+            if has_custom_bootstrap { String::default() } else { format!("{contract_size}80{contract_code_offset}3d393df3") };
+        let effective_bootstrap_size = if has_custom_bootstrap { 0 } else { bootstrap_code_size };
+
+        // Finalize constructor table resolution now that the layout is known.
+        // Constructor-only tables sit past main_bytecode in the deployment tail.
+        // Shared tables resolve into the runtime-resident copy at runtime_start + main_offset.
+        let runtime_start_in_deployment = ctor_body_len + effective_bootstrap_size;
+        // gen_table_bytecode internally adds body_len; only shift by what comes between body end
+        // and the constructor-only tables (bootstrap + main_bytecode).
+        let ctor_tables_base_offset = effective_bootstrap_size + contract_length;
+        let external_table_offsets: HashMap<String, usize> =
+            main_table_offsets.iter().map(|(name, off)| (name.clone(), runtime_start_in_deployment + off)).collect();
+
+        let (constructor_body, ctor_only_tables, constructor_source_map) = match constructor {
+            Some(c) => {
+                let out = Codegen::gen_table_bytecode(contract, c.bytecode_res, ctor_tables_base_offset, &external_table_offsets)?;
+                (out.body, out.tables, Some(out.source_map))
+            }
+            None => (String::new(), String::new(), None),
+        };
 
         // Sort constructor arguments so that statically sized args are inserted last.
         args.sort_by(|a, b| {
@@ -1182,7 +1371,10 @@ impl Codegen {
             }
         });
 
-        let mut arg_offset_acc = contract_length;
+        // `__CODECOPY_DYN_ARG` placeholders in main_bytecode are filled with the absolute
+        // deployment-bytecode offset where each argument's content sits. Args are appended past
+        // ctor_only_tables, so the first arg lives at runtime_start + contract_length + ctor_only_tables_len.
+        let mut arg_offset_acc = runtime_start_in_deployment + contract_length + ctor_only_tables.len() / 2;
         let encoded: Vec<Vec<u8>> = args
             .into_iter()
             .enumerate()
@@ -1245,37 +1437,12 @@ impl Codegen {
             });
         }
 
-        // Constructor size optimizations
-        let mut bootstrap_code_size = 9;
-        let contract_size = if contract_length < 256 {
-            // 60 = PUSH1
-            format!("60{}", pad_n_bytes(format!("{contract_length:x}").as_str(), 1))
-        } else {
-            bootstrap_code_size += 1;
-            // 61 = PUSH2
-            format!("61{}", pad_n_bytes(format!("{contract_length:x}").as_str(), 2))
-        };
-        let contract_code_offset = if (bootstrap_code_size + constructor_length) < 256 {
-            format!("60{}", pad_n_bytes(format!("{:x}", bootstrap_code_size + constructor_length).as_str(), 1))
-        } else {
-            bootstrap_code_size += 1;
-
-            format!("61{}", pad_n_bytes(format!("{:x}", bootstrap_code_size + constructor_length).as_str(), 2))
-        };
-
-        // 80 = DUP1
-        // 3d = RETURNDATASIZE, 39 = CODECOPY, 3d = RETURNDATASIZE, f3 = RETURN
-        let bootstrap_code =
-            if has_custom_bootstrap { String::default() } else { format!("{contract_size}80{contract_code_offset}3d393df3") };
-
-        // Generate the final bytecode
-        let constructor_code = format!("{constructor_bytecode}{bootstrap_code}");
-        artifact.bytecode = format!("{constructor_code}{main_bytecode}{constructor_args}").to_lowercase();
+        artifact.bytecode = format!("{constructor_body}{bootstrap_code}{main_bytecode}{ctor_only_tables}{constructor_args}").to_lowercase();
         artifact.runtime = main_bytecode.to_lowercase();
         artifact.file = file;
 
         // Set source maps if provided
-        artifact.runtime_map = main_source_map;
+        artifact.runtime_map = Some(main_source_map);
         artifact.constructor_map = constructor_source_map;
 
         Ok(artifact.clone())

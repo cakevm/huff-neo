@@ -3,6 +3,22 @@
 # Huff Neo Compiler changelog
 
 ## Unreleased
+- Fix `__tablestart` in `CONSTRUCTOR` corrupting the auto-generated bootstrap. Tables were placed
+  between the constructor body and the bootstrap, so execution fell into table bytes before the
+  bootstrap ran. Constructor-only tables now sit past `main` in the deployment tail; tables shared
+  between `CONSTRUCTOR` and `MAIN` are emitted once (in the runtime) and the constructor's
+  `__tablestart` resolves into that copy.
+
+  ```text
+  before: [ctor_body][ctor_tables][bootstrap][main_body][main_tables][args]
+                                  ↑ unreachable
+
+  after:  [ctor_body][bootstrap][main_body][main_tables][ctor_only_tables][args]
+                                ========================
+                                deployed runtime code
+  ```
+
+  Note: `--relax-jumps` only shrinks JUMP/JUMPI placeholders; `__tablestart` stays `PUSH2`.
 
 ## [1.5.14] - 2026-02-03
 - **Breaking**: Enforce EIP-170 contract size limit (24,576 bytes) by default.

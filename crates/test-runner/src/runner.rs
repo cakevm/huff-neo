@@ -268,9 +268,12 @@ impl TestRunner {
         let res = Codegen::macro_to_bytecode(&evm_version, m, &contract, &mut scope_mgr, 0, false, None, false)
             .map_err(|e| RunnerError::CompilerError(CompilerError::CodegenError(e)))?;
 
-        // Generate table bytecode for compiled test macro
-        let (bytecode, source_map) =
-            Codegen::gen_table_bytecode(&contract, res).map_err(|e| RunnerError::CompilerError(CompilerError::CodegenError(e)))?;
+        // Generate table bytecode for compiled test macro. Test macros run standalone (no
+        // bootstrap, no upstream dedup target), so base_offset = 0 and the external map is empty.
+        let table_out = Codegen::gen_table_bytecode(&contract, res, 0, &std::collections::HashMap::new())
+            .map_err(|e| RunnerError::CompilerError(CompilerError::CodegenError(e)))?;
+        let bytecode = format!("{}{}", table_out.body, table_out.tables);
+        let source_map = table_out.source_map;
 
         // Deploy compiled test macro
         let address = match self.target_address {

@@ -30,16 +30,38 @@ name = "ring"
 
 [advisories]
 ignore = [
-  # protobuf may crash due to uncontrolled recursion - https://rustsec.org/advisories/RUSTSEC-2024-0437
-  "RUSTSEC-2024-0437",
-  # paste is unmaintained - hhttps://rustsec.org/advisories/RUSTSEC-2024-0436
+  # paste is unmaintained - https://rustsec.org/advisories/RUSTSEC-2024-0436
   "RUSTSEC-2024-0436",
-  # number_prefix is unmaintained - https://rustsec.org/advisories/RUSTSEC-2025-0119
-  "RUSTSEC-2025-0119",
   # unsoundness of safe `reciprocal_mg10` - https://rustsec.org/advisories/RUSTSEC-2025-0137
   "RUSTSEC-2025-0137",
-  # `IterMut` violates Stacked Borrows - https://rustsec.org/advisories/RUSTSEC-2026-0002
-  "RUSTSEC-2026-0002",
+  # bytes: integer overflow in `BytesMut::reserve` - https://rustsec.org/advisories/RUSTSEC-2026-0007
+  "RUSTSEC-2026-0007",
+  # bytes: potential undefined behavior when dereferencing Buf struct - https://rustsec.org/advisories/RUSTSEC-2026-0008
+  "RUSTSEC-2026-0008",
+  # chrono: RFC 2822 parsing DoS - https://rustsec.org/advisories/RUSTSEC-2026-0009
+  "RUSTSEC-2026-0009",
+  # keccak ARMv8 backend unsoundness - https://rustsec.org/advisories/RUSTSEC-2026-0012
+  "RUSTSEC-2026-0012",
+  # aws-lc CN validation logic error - https://rustsec.org/advisories/RUSTSEC-2026-0044
+  "RUSTSEC-2026-0044",
+  # aws-lc AES-CCM tag verification timing side channel - https://rustsec.org/advisories/RUSTSEC-2026-0045
+  "RUSTSEC-2026-0045",
+  # aws-lc PKCS7_verify certificate chain validation bypass - https://rustsec.org/advisories/RUSTSEC-2026-0046
+  "RUSTSEC-2026-0046",
+  # aws-lc PKCS7_verify signature validation bypass - https://rustsec.org/advisories/RUSTSEC-2026-0047
+  "RUSTSEC-2026-0047",
+  # aws-lc CRL distribution point scope check logic error - https://rustsec.org/advisories/RUSTSEC-2026-0048
+  "RUSTSEC-2026-0048",
+  # webpki/rustls CRL distribution-point matching logic - https://rustsec.org/advisories/RUSTSEC-2026-0049
+  "RUSTSEC-2026-0049",
+  # rand is unsound with a custom logger - https://rustsec.org/advisories/RUSTSEC-2026-0097
+  "RUSTSEC-2026-0097",
+  # webpki URI name constraints accepted incorrectly - https://rustsec.org/advisories/RUSTSEC-2026-0098
+  "RUSTSEC-2026-0098",
+  # webpki wildcard DNS name constraint logic - https://rustsec.org/advisories/RUSTSEC-2026-0099
+  "RUSTSEC-2026-0099",
+  # webpki CRL `onlySomeReasons` parsing panic - https://rustsec.org/advisories/RUSTSEC-2026-0104
+  "RUSTSEC-2026-0104",
 ]
 yanked = "warn"
 
@@ -47,4 +69,4 @@ yanked = "warn"
 multiple-versions = "allow"
 
 [sources]
-allow-git = ["https://github.com/foundry-rs/foundry", "https://github.com/paradigmxyz/solar"]
+allow-git = ["https://github.com/foundry-rs/foundry", "https://github.com/paradigmxyz/solar", "https://github.com/tempoxyz/tempo"]

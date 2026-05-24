@@ -482,7 +482,7 @@ impl<'a, 'l> Compiler<'a, 'l> {
 
         // Primary Bytecode Generation
         let mut cg = Codegen::new();
-        let (main_bytecode, main_source_map) = match Codegen::generate_main_bytecode_with_sourcemap(
+        let main = match Codegen::generate_main_bytecode_with_sourcemap(
             self.evm_version,
             &contract,
             self.alternative_main.clone(),
@@ -509,62 +509,59 @@ impl<'a, 'l> Compiler<'a, 'l> {
                 return Err(CompilerError::CodegenError(e));
             }
         };
-        tracing::info!(target: "core", "MAIN BYTECODE GENERATED [{}]", main_bytecode);
+        tracing::info!(target: "core", "MAIN BYTECODE GENERATED [{}]", main.bytecode);
 
-        // Generate Constructor Bytecode
+        // Order of constructor assembly:
+        //   1. generate_constructor_macro_bytecode — expand the macro into raw bytes, detect
+        //      whether the body contains its own RETURN (custom bootstrap).
+        //   2. assemble_artifact (below) — given main's table offsets and the now-known body
+        //      length, compute bootstrap size, then call gen_table_bytecode to fill
+        //      __tablestart placeholders and emit constructor-only tables into the deployment tail.
+        //   3. Concatenate [ctor_body][bootstrap][main_bytecode][ctor_only_tables][args].
         let inputs = self.get_constructor_args();
-        let ((constructor_bytecode, constructor_source_map), has_custom_bootstrap) =
-            match Codegen::generate_constructor_bytecode_with_sourcemap(
-                self.evm_version,
-                &contract,
-                self.alternative_constructor.clone(),
-                self.relax_jumps,
-            ) {
-                Ok(result) => result,
-                Err(mut e) => {
-                    // Return any errors except if the inputs is empty and the constructor
-                    // definition is missing
-                    if e.kind != CodegenErrorKind::MissingMacroDefinition("CONSTRUCTOR".to_string()) || !inputs.is_empty() {
-                        // Add File Source to Span
-                        let mut errs = e
-                            .span
-                            .0
-                            .into_iter()
-                            .map(|mut s| {
-                                if s.file.is_none() {
-                                    s.file = Some(Arc::clone(&file));
-                                }
-                                s
-                            })
-                            .collect::<Vec<Span>>();
-                        errs.dedup();
-                        e.span = AstSpan(errs).boxed();
-                        tracing::error!(target: "codegen", "Constructor inputs provided, but contract missing \"CONSTRUCTOR\" macro!");
-                        return Err(CompilerError::CodegenError(e));
-                    }
-
-                    // If the kind is a missing constructor we can ignore it
-                    tracing::warn!(target: "codegen", "Contract has no \"CONSTRUCTOR\" macro definition!");
-                    ((String::default(), Vec::new()), false)
+        let (constructor, contract_for_churn) = match Codegen::generate_constructor_macro_bytecode(
+            self.evm_version,
+            &contract,
+            self.alternative_constructor.clone(),
+            self.relax_jumps,
+        ) {
+            Ok((ctor, updated_contract)) => (Some(ctor), updated_contract),
+            Err(mut e) => {
+                // Return any errors except if the inputs is empty and the constructor
+                // definition is missing
+                if e.kind != CodegenErrorKind::MissingMacroDefinition("CONSTRUCTOR".to_string()) || !inputs.is_empty() {
+                    // Add File Source to Span
+                    let mut errs = e
+                        .span
+                        .0
+                        .into_iter()
+                        .map(|mut s| {
+                            if s.file.is_none() {
+                                s.file = Some(Arc::clone(&file));
+                            }
+                            s
+                        })
+                        .collect::<Vec<Span>>();
+                    errs.dedup();
+                    e.span = AstSpan(errs).boxed();
+                    tracing::error!(target: "codegen", "Constructor inputs provided, but contract missing \"CONSTRUCTOR\" macro!");
+                    return Err(CompilerError::CodegenError(e));
                 }
-            };
-        tracing::info!(target: "core", "CONSTRUCTOR BYTECODE GENERATED [{}]", constructor_bytecode);
+
+                // If the kind is a missing constructor we can ignore it
+                tracing::warn!(target: "codegen", "Contract has no \"CONSTRUCTOR\" macro definition!");
+                // Still need an updated contract for churn (table sizes populated).
+                let updated_contract = Codegen::update_table_size(self.evm_version, &contract).map_err(CompilerError::CodegenError)?;
+                (None, updated_contract)
+            }
+        };
 
         // Encode Constructor Arguments
         let encoded_inputs = Codegen::encode_constructor_args(inputs);
         tracing::info!(target: "core", "ENCODED {} INPUTS", encoded_inputs.len());
 
         // Generate Artifact with ABI
-        let churn_res = cg.churn(
-            file,
-            encoded_inputs,
-            &main_bytecode,
-            &constructor_bytecode,
-            has_custom_bootstrap,
-            Some(main_source_map),
-            Some(constructor_source_map),
-            self.no_size_limit,
-        );
+        let churn_res = cg.assemble_artifact(file, &contract_for_churn, encoded_inputs, main, constructor, self.no_size_limit);
         match churn_res {
             Ok(mut artifact) => {
                 // Then we can have the code gen output the artifact
