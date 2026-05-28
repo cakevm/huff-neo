@@ -53,7 +53,7 @@ pub struct HuffArgs {
     #[clap(short = 'b', long = "bytecode")]
     pub bytecode: bool,
 
-    /// Generate and log runtime bytecode.
+    /// Generate and log runtime bytecode. Errors if CONSTRUCTOR returns custom bytes (runtime ≠ MAIN).
     #[clap(short = 'r', long = "bin-runtime")]
     pub bin_runtime: bool,
 

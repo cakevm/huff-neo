@@ -1439,6 +1439,7 @@ impl Codegen {
 
         artifact.bytecode = format!("{constructor_body}{bootstrap_code}{main_bytecode}{ctor_only_tables}{constructor_args}").to_lowercase();
         artifact.runtime = main_bytecode.to_lowercase();
+        artifact.has_custom_bootstrap = has_custom_bootstrap;
         artifact.file = file;
 
         // Set source maps if provided
