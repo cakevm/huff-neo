@@ -433,6 +433,16 @@ fn main() {
     }
 
     if cli.bin_runtime {
+        if let Some(a) = artifacts.iter().find(|a| a.has_custom_bootstrap) {
+            eprintln!(
+                "{}",
+                Paint::red(&format!(
+                    "Cannot emit runtime bytecode for \"{}\": the contract defines a CONSTRUCTOR that returns its own bytecode, so the deployed runtime is determined at deployment time and not statically equal to the compiled MAIN macro. Use --bytecode (-b) to emit the creation bytecode instead.",
+                    a.file.path
+                ))
+            );
+            exit(1);
+        }
         match sources.len() {
             1 => {
                 if cli.bytecode {

@@ -106,6 +106,11 @@ pub struct Artifact {
     pub constructor_map: Option<Vec<SourceMapEntry>>,
     /// Source map for runtime
     pub runtime_map: Option<Vec<SourceMapEntry>>,
+    /// True when the user's CONSTRUCTOR returns its own bytecode, suppressing the auto-bootstrap.
+    /// In that case the deployed runtime is whatever the constructor returns and is not
+    /// statically known to equal the compiled MAIN macro.
+    #[serde(default)]
+    pub has_custom_bootstrap: bool,
 }
 
 impl Artifact {

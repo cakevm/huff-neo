@@ -3,6 +3,9 @@
 # Huff Neo Compiler changelog
 
 ## Unreleased
+- `hnc --bin-runtime` (`-r`) now errors when the contract's `CONSTRUCTOR` returns its own bytecode,
+  instead of silently emitting `MAIN`, which would not match the deployed runtime. Constructors
+  that only initialize state (no `RETURN`) are unaffected.
 
 ## [1.5.15] - 2026-05-24
 - Update to foundry v1.7.1.
