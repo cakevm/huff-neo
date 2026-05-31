@@ -35,6 +35,39 @@ __RIGHTPAD(0x123)
 ### `__codesize(<macro>|<function>)`
 Pushes the code size of the macro or function passed to the stack.
 
+#### `__codesize(RUNTIME)`
+`RUNTIME` is a reserved argument that resolves at compile time to the byte length of the runtime section as the compiler emits it — `MAIN`'s body plus its appended runtime tables. Usable in both `MAIN` and `CONSTRUCTOR` (directly or via a derived `#define constant`).
+
+The runtime size is self-referential when used from `MAIN` (the embedded value contributes to the size it measures). The compiler resolves this by iterating `MAIN` codegen to a fixed point — typically converges in 2–3 passes. EIP-170 bounds the value at PUSH2, so widths never grow beyond two bytes.
+
+Not allowed inside a code table — code tables contribute to the runtime size, so embedding the runtime size inside one would create a circular dependency in table sizing. `RUNTIME` is also reserved as a macro name; `#define macro RUNTIME() = { ... }` is rejected.
+
+This enables Solidity-style immutables without on-chain arithmetic. `CONSTRUCTOR` copies `MAIN` to memory, writes immutable values past it, and returns the combined region. `MAIN` reads each immutable at a compile-time literal offset:
+
+```javascript
+#define constant IMMUTABLE_1 = __codesize(RUNTIME)
+#define constant IMMUTABLE_2 = [IMMUTABLE_1] + 0x20
+#define constant RETURN_LEN  = [IMMUTABLE_2] + 0x20
+
+#define macro CONSTRUCTOR() = {
+    // Copy MAIN to memory at offset 0.
+    [IMMUTABLE_1] __codesize(CONSTRUCTOR) 0x00 codecopy
+
+    // Append two immutables past it.
+    0x11 [IMMUTABLE_1] mstore
+    0x22 [IMMUTABLE_2] mstore
+
+    // Return runtime + immutables.
+    [RETURN_LEN] 0x00 return
+}
+
+#define macro MAIN() = {
+    // Read the second immutable at a compile-time literal offset.
+    0x20 [IMMUTABLE_2] 0x00 codecopy
+    0x20 0x00 return
+}
+```
+
 ### `__tablestart(<table>)` and `__tablesize(<table>)`
 These functions related to Jump Tables are described in the next section.
 

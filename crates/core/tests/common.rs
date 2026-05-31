@@ -44,6 +44,7 @@ pub fn compile_to_deployment(source: &str) -> String {
 
     let evm = &EVMVersion::default();
     let main = Codegen::generate_main_bytecode_with_sourcemap(evm, &contract, None, false).unwrap();
+    contract.runtime_size = Some(main.bytecode.len() / 2);
     let (constructor, updated_contract) = match Codegen::generate_constructor_macro_bytecode(evm, &contract, None, false) {
         Ok((ctor, updated)) => (Some(ctor), updated),
         Err(_) => (None, Codegen::update_table_size(evm, &contract).unwrap()),

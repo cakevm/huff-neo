@@ -103,6 +103,7 @@ fn example() {
       events: vec![],
       tables: vec![],
       labels: HashSet::new(),
+      runtime_size: None,
     };
     
     // Generate the main bytecode
@@ -166,6 +167,7 @@ fn example() {
         events: vec![],
         tables: vec![],
         labels: HashSet::new(),
+        runtime_size: None,
     };
 
     // Generate the constructor bytecode

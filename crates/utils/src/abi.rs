@@ -37,6 +37,7 @@
 //!     flattened_source: None,
 //!     source_files: vec![],
 //!     source_map: vec![],
+//!     runtime_size: None,
 //! };
 //!
 //! // Create an ABI using that generate contract

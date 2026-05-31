@@ -1,6 +1,7 @@
 use crate::Codegen;
 use crate::irgen::constants::{constant_gen, evaluate_constant_value, lookup_constant};
-use alloy_primitives::{B256, hex, keccak256};
+use alloy_primitives::{B256, U256, hex, keccak256};
+use huff_neo_utils::ast::huff::RUNTIME_CODESIZE_ARG;
 use huff_neo_utils::builtin_eval::{PadDirection, eval_builtin_bytes, eval_event_hash, eval_function_signature};
 use huff_neo_utils::bytecode::{
     AssertPcPlaceholderData, BytecodeRes, BytecodeSegments, Bytes, CircularCodeSizeIndices, CircularCodesizePlaceholderData,
@@ -458,6 +459,21 @@ fn codesize<'a>(
             return Err(invalid_arguments_error("Expected identifier as argument to __codesize", &bf.span));
         }
     };
+
+    // Magic argument: RUNTIME resolves to the byte length of the runtime section
+    // (MAIN body + appended runtime tables). MAIN-side use converges via iterative MAIN
+    // codegen; constructor-side use sees the converged value.
+    if macro_name == RUNTIME_CODESIZE_ARG {
+        let size = contract.runtime_size.ok_or_else(|| CodegenError {
+            kind: CodegenErrorKind::RuntimeSizeNotComputed,
+            span: bf.span.clone_box(),
+            token: None,
+        })?;
+        let push_value = PushValue::from(U256::from(size).to_be_bytes::<32>());
+        let push_bytes = push_value.to_hex_with_opcode(evm_version);
+        let offset = push_bytes.len() / 2;
+        return Ok((offset, Bytes::Raw(push_bytes)));
+    }
 
     let ir_macro = if let Some(m) = contract.find_macro_by_name(macro_name) {
         m

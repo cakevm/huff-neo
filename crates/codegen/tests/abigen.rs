@@ -34,6 +34,7 @@ fn constructs_valid_abi() {
         flattened_source: None,
         source_files: vec![],
         source_map: vec![],
+        runtime_size: None,
     };
 
     // Generate the abi from the contract
@@ -78,6 +79,7 @@ fn missing_constructor_fails() {
         flattened_source: None,
         source_files: vec![],
         source_map: vec![],
+        runtime_size: None,
     };
 
     // Generate the abi from the contract

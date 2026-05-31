@@ -579,6 +579,19 @@ impl Parser {
             });
         }
 
+        // RUNTIME is reserved as the magic argument to __codesize(RUNTIME).
+        if macro_name == RUNTIME_CODESIZE_ARG {
+            tracing::error!(target: "parser", "RESERVED MACRO NAME: {RUNTIME_CODESIZE_ARG}");
+            return Err(ParserError {
+                kind: ParserErrorKind::InvalidMacroName,
+                hint: Some(format!(
+                    "{RUNTIME_CODESIZE_ARG} is reserved (used by __codesize({RUNTIME_CODESIZE_ARG})) and cannot be used as a macro name."
+                )),
+                spans: AstSpan(self.spans.clone()),
+                cursor: self.cursor,
+            });
+        }
+
         tracing::info!(target: "parser", "PARSING MACRO: \"{}\"", macro_name);
 
         let macro_arguments = self.parse_args(true, false, false)?;
