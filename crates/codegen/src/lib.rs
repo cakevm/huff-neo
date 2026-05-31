@@ -4,9 +4,10 @@
 #![forbid(unsafe_code)]
 
 use crate::irgen::builtin_function::builtin_pad;
-use alloy_primitives::hex;
+use alloy_primitives::{U256, hex};
 use huff_neo_utils::ast::huff::*;
 use huff_neo_utils::ast::span::AstSpan;
+use huff_neo_utils::builtin_eval::{PadDirection, eval_builtin_bytes, eval_event_hash, eval_function_signature};
 use huff_neo_utils::bytes_util::str_to_bytes32;
 use huff_neo_utils::file::file_source::FileSource;
 use huff_neo_utils::scope::ScopeManager;
@@ -37,6 +38,14 @@ pub(crate) const MAX_MACRO_RECURSION_DEPTH: usize = 100;
 /// This limit prevents infinite loops in pathological cases where convergence fails,
 /// though typical contracts converge in a few iterations.
 const JUMP_RELAXATION_MAX_ITERATIONS: usize = 20;
+
+/// Maximum number of MAIN codegen passes used to converge `__codesize(RUNTIME)`.
+///
+/// When MAIN (or a constant referenced by MAIN) uses `__codesize(RUNTIME)`, the runtime size
+/// depends on the embedded value, which depends on the runtime size. Each pass recompiles MAIN
+/// with the previous pass's measured size. PUSH widths only grow (never shrink) across passes,
+/// and EIP-170 caps the value at PUSH2, so convergence is normally 2–3 iterations.
+const MAIN_RUNTIME_SIZE_MAX_ITERATIONS: usize = 10;
 
 /// EIP-170 contract size limit (24576 bytes)
 pub const EIP170_CONTRACT_SIZE_LIMIT: usize = 24576;
@@ -146,6 +155,33 @@ impl Codegen {
     /// `build_artifact` uses the body length and table offsets to dedupe constructor-side
     /// `__tablestart` references into the runtime copy.
     pub fn generate_main_bytecode_with_sourcemap(
+        evm_version: &EVMVersion,
+        contract: &Contract,
+        alternative_main: Option<String>,
+        relax_jumps: bool,
+    ) -> Result<MainBytecodeOutput, CodegenError> {
+        // Iterate to a fixed point on `__codesize(RUNTIME)`. Each pass recompiles MAIN with the
+        // previous pass's measured runtime size. PUSH widths only grow across passes, EIP-170
+        // caps them at PUSH2, so we converge in a handful of iterations.
+        let mut iter_contract = contract.clone();
+        let mut current_size = iter_contract.runtime_size.unwrap_or(0);
+        for _ in 0..MAIN_RUNTIME_SIZE_MAX_ITERATIONS {
+            iter_contract.runtime_size = Some(current_size);
+            let result = Self::generate_main_bytecode_inner(evm_version, &iter_contract, alternative_main.clone(), relax_jumps)?;
+            let new_size = result.bytecode.len() / 2;
+            if new_size == current_size {
+                return Ok(result);
+            }
+            current_size = new_size;
+        }
+        Err(CodegenError {
+            kind: CodegenErrorKind::RuntimeSizeNotConverged(MAIN_RUNTIME_SIZE_MAX_ITERATIONS),
+            span: AstSpan(vec![]).boxed(),
+            token: None,
+        })
+    }
+
+    fn generate_main_bytecode_inner(
         evm_version: &EVMVersion,
         contract: &Contract,
         alternative_main: Option<String>,
@@ -271,13 +307,20 @@ impl Codegen {
     /// Generates bytecode for a builtin function call used for constants, code tables, etc.
     /// Returns a PushValue that can be converted to bytecode with or without opcode
     pub fn gen_builtin_bytecode(contract: &Contract, bf: &BuiltinFunctionCall, span: AstSpan) -> Result<PushValue, CodegenError> {
-        use huff_neo_utils::builtin_eval::{PadDirection, eval_builtin_bytes, eval_event_hash, eval_function_signature};
         match bf.kind {
             BuiltinFunctionKind::FunctionSignature => eval_function_signature(contract, bf),
             BuiltinFunctionKind::Bytes => eval_builtin_bytes(bf),
             BuiltinFunctionKind::EventHash => eval_event_hash(contract, bf),
             BuiltinFunctionKind::LeftPad => builtin_pad(contract, bf, PadDirection::Left),
             BuiltinFunctionKind::RightPad => builtin_pad(contract, bf, PadDirection::Right),
+            _ if is_runtime_codesize(bf) => {
+                let size = contract.runtime_size.ok_or_else(|| CodegenError {
+                    kind: CodegenErrorKind::RuntimeSizeNotComputed,
+                    span: span.clone_box(),
+                    token: None,
+                })?;
+                Ok(PushValue::from(U256::from(size).to_be_bytes::<32>()))
+            }
             _ => Err(CodegenError {
                 kind: CodegenErrorKind::UnsupportedBuiltinFunction(format!("{}", bf.kind)),
                 span: span.boxed(),
@@ -295,6 +338,13 @@ impl Codegen {
                     byte_code = format!("{byte_code}{code}");
                 }
                 StatementType::BuiltinFunctionCall(bf) => {
+                    if is_runtime_codesize(bf) {
+                        return Err(CodegenError {
+                            kind: CodegenErrorKind::CodesizeRuntimeInCodeTable,
+                            span: statement.span.clone_box(),
+                            token: None,
+                        });
+                    }
                     let push_value = Codegen::gen_builtin_bytecode(contract, bf, statement.span.clone())?;
                     // Use full hex for padding functions (always 32 bytes), trimmed for others
                     let hex_data = match bf.kind {

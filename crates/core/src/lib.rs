@@ -511,6 +511,10 @@ impl<'a, 'l> Compiler<'a, 'l> {
         };
         tracing::info!(target: "core", "MAIN BYTECODE GENERATED [{}]", main.bytecode);
 
+        // Expose the runtime byte length to constructor codegen so `__codesize(RUNTIME)`
+        // (directly or via a derived constant) resolves.
+        contract.runtime_size = Some(main.bytecode.len() / 2);
+
         // Order of constructor assembly:
         //   1. generate_constructor_macro_bytecode — expand the macro into raw bytes, detect
         //      whether the body contains its own RETURN (custom bootstrap).

@@ -223,6 +223,14 @@ pub enum CodegenErrorKind {
     MissingTableSize(String),
     /// Unsupported Builtin Function
     UnsupportedBuiltinFunction(String),
+    /// `__codesize(RUNTIME)` referenced before the runtime size has been computed (e.g. when
+    /// the constructor is compiled in isolation without first generating MAIN).
+    RuntimeSizeNotComputed,
+    /// `__codesize(RUNTIME)` referenced inside a code table. Code tables contribute to the
+    /// runtime size, so embedding the runtime size inside one creates a circular dependency.
+    CodesizeRuntimeInCodeTable,
+    /// MAIN codegen failed to converge on a stable runtime size within the iteration cap.
+    RuntimeSizeNotConverged(usize),
     /// Unsupported Statement Type
     UnsupportedStatementType(String),
     /// Duplicate Label in Same Scope
@@ -356,6 +364,15 @@ impl<W: Write> Report<W> for CodegenError {
             }
             CodegenErrorKind::UnsupportedBuiltinFunction(bf) => {
                 write!(f.out, "Unsupported Builtin Function: \"{bf}\"")
+            }
+            CodegenErrorKind::RuntimeSizeNotComputed => {
+                write!(f.out, "__codesize(RUNTIME) cannot be resolved here: MAIN bytecode has not been generated yet")
+            }
+            CodegenErrorKind::CodesizeRuntimeInCodeTable => {
+                write!(f.out, "__codesize(RUNTIME) is not allowed inside a code table")
+            }
+            CodegenErrorKind::RuntimeSizeNotConverged(iterations) => {
+                write!(f.out, "__codesize(RUNTIME) did not converge after {iterations} MAIN codegen iterations")
             }
             CodegenErrorKind::UnsupportedStatementType(st) => {
                 write!(f.out, "Unsupported Statement Type: \"{st}\"")
@@ -728,6 +745,23 @@ impl fmt::Display for CompilerError {
                 }
                 CodegenErrorKind::UnsupportedBuiltinFunction(bf) => {
                     write!(f, "\nError: Unsupported Builtin Function: \"{bf}\"\n{}\n", ce.span.error(None))
+                }
+                CodegenErrorKind::RuntimeSizeNotComputed => {
+                    write!(
+                        f,
+                        "\nError: __codesize(RUNTIME) cannot be resolved here: MAIN bytecode has not been generated yet\n{}\n",
+                        ce.span.error(None)
+                    )
+                }
+                CodegenErrorKind::CodesizeRuntimeInCodeTable => {
+                    write!(f, "\nError: __codesize(RUNTIME) is not allowed inside a code table\n{}\n", ce.span.error(None))
+                }
+                CodegenErrorKind::RuntimeSizeNotConverged(iterations) => {
+                    write!(
+                        f,
+                        "\nError: __codesize(RUNTIME) did not converge after {iterations} MAIN codegen iterations\n{}\n",
+                        ce.span.error(None)
+                    )
                 }
                 CodegenErrorKind::UnsupportedStatementType(st) => {
                     write!(f, "\nError: Unsupported Statement Type: \"{st}\"\n{}\n", ce.span.error(None))

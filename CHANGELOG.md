@@ -6,6 +6,13 @@
 - `hnc --bin-runtime` (`-r`) now errors when the contract's `CONSTRUCTOR` returns its own bytecode,
   instead of silently emitting `MAIN`, which would not match the deployed runtime. Constructors
   that only initialize state (no `RETURN`) are unaffected.
+- Add `__codesize(RUNTIME)`: resolves at compile time to the byte length of the runtime section
+  (MAIN body + appended runtime tables). Usable in bothmake pre-releaseCONSTRUCTOR (directly or via a
+  derived `#define constant`). The self-referential MAIN-side case converges via iterative MAIN
+  codegen, bounded by EIP-170 (at most PUSH2). Enables Solidity-style immutables that the
+  runtime reads at compile-time literal offsets, with no runtime `codesize` arithmetic. Not
+  allowed inside code tables (would create a circular sizing dependency). `RUNTIME` is reserved
+  as a macro name.
 
 ## [1.5.15] - 2026-05-24
 - Update to foundry v1.7.1.

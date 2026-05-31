@@ -8,6 +8,7 @@ use crate::{
     evm_version::EVMVersion,
     opcodes::{OPCODES_MAP, Opcode},
     prelude::{MacroArg::Ident, Span, TokenKind},
+    push_value::PushValue,
 };
 use alloy_primitives::U256;
 use indexmap::IndexMap;
@@ -21,6 +22,10 @@ use std::{
 
 /// A contained literal
 pub type Literal = [u8; 32];
+
+/// Reserved identifier accepted as the argument to `__codesize` to query the byte length of
+/// the runtime section (MAIN body + appended runtime tables). Disallowed as a user macro name.
+pub const RUNTIME_CODESIZE_ARG: &str = "RUNTIME";
 
 /// A File Path
 ///
@@ -62,6 +67,15 @@ pub struct Contract {
     pub source_files: Vec<(String, String)>,
     /// Mapping from flattened position to (file_index, original_position)
     pub source_map: Vec<(usize, usize, usize)>, // (flattened_start, file_id, original_start)
+    /// Byte length of the runtime section. Set before constructor codegen so
+    /// `__codesize(RUNTIME)` resolves; references from any other context error.
+    pub runtime_size: Option<usize>,
+}
+
+/// Returns true if `bf` is a `__codesize(RUNTIME)` call (single identifier arg `RUNTIME`).
+pub fn is_runtime_codesize(bf: &BuiltinFunctionCall) -> bool {
+    matches!(bf.kind, BuiltinFunctionKind::Codesize)
+        && matches!(bf.args.as_slice(), [BuiltinFunctionArg::Identifier(name, _)] if name == RUNTIME_CODESIZE_ARG)
 }
 
 impl Contract {
@@ -518,6 +532,16 @@ impl Contract {
                             BuiltinFunctionKind::Bytes => eval_builtin_bytes(bf)?,
                             BuiltinFunctionKind::RightPad => eval_builtin_pad_simple(bf, PadDirection::Right)?,
                             BuiltinFunctionKind::LeftPad => eval_builtin_pad_simple(bf, PadDirection::Left)?,
+                            // __codesize(RUNTIME) — other __codesize(MACRO) calls depend on
+                            // layout details unavailable in constant context.
+                            _ if is_runtime_codesize(bf) => {
+                                let size = self.runtime_size.ok_or_else(|| CodegenError {
+                                    kind: CodegenErrorKind::RuntimeSizeNotComputed,
+                                    span: span.clone_box(),
+                                    token: None,
+                                })?;
+                                PushValue::from(U256::from(size).to_be_bytes::<32>())
+                            }
                             _ => {
                                 return Err(CodegenError {
                                     kind: CodegenErrorKind::UnsupportedBuiltinFunction(format!("{}", bf.kind)),
