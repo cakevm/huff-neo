@@ -7,7 +7,7 @@
   instead of silently emitting `MAIN`, which would not match the deployed runtime. Constructors
   that only initialize state (no `RETURN`) are unaffected.
 - Add `__codesize(RUNTIME)`: resolves at compile time to the byte length of the runtime section
-  (MAIN body + appended runtime tables). Usable in bothmake pre-releaseCONSTRUCTOR (directly or via a
+  (MAIN body + appended runtime tables). Usable in both MAIN and CONSTRUCTOR (directly or via a
   derived `#define constant`). The self-referential MAIN-side case converges via iterative MAIN
   codegen, bounded by EIP-170 (at most PUSH2). Enables Solidity-style immutables that the
   runtime reads at compile-time literal offsets, with no runtime `codesize` arithmetic. Not
