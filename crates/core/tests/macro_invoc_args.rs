@@ -446,6 +446,39 @@ fn test_constant_macro_arg() {
 }
 
 #[test]
+fn test_constant_macro_arg_odd_nibble_literal() {
+    // A constant whose literal has an odd number of hex digits must be byte-aligned
+    // when passed as a macro argument, exactly as when used directly via `[ODD]`.
+    // Emitting the raw literal produced an odd-length, misaligned bytecode.
+    let source = r#"
+            #define constant ODD = 0x140
+
+            #define macro P(v) = takes(0) returns(1) {
+                <v>
+            }
+
+            #define macro MAIN() = takes(0) returns(0) {
+                P(ODD) pop stop
+            }
+        "#;
+
+    // Lex + Parse
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    let evm_version = EVMVersion::default();
+
+    let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None, false).unwrap();
+
+    // PUSH2 0x0140, POP, STOP - left-padded to a whole number of bytes
+    assert_eq!(main_bytecode.to_lowercase(), "6101405000");
+}
+
+#[test]
 fn test_bubbled_label_call_macro_arg() {
     let source = r#"
             #define macro MACRO_A(zero) = takes(0) returns(0) {
