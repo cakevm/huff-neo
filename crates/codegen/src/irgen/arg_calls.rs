@@ -384,8 +384,9 @@ pub fn bubble_arg_call<'a>(
                                 tracing::info!(target: "codegen", "ARGCALL IS CONSTANT: {:?}", const_value);
                                 let push_bytes = match &const_value {
                                     ConstVal::Bytes(bytes) => {
-                                        let hex_literal: String = bytes.as_str().to_string();
-                                        format!("{:02x}{hex_literal}", 95 + hex_literal.len() / 2)
+                                        // Normalize so odd-nibble literals (e.g. 0x140) are byte-aligned,
+                                        // matching the direct `[CONST]` path.
+                                        literal_gen(evm_version, &str_to_bytes32(&bytes.as_str()))
                                     }
                                     ConstVal::String(_s) => {
                                         return Err(CodegenError {
