@@ -21,8 +21,26 @@ allow = [
 
 [advisories]
 ignore = [
-  # paste is unmaintained - https://rustsec.org/advisories/RUSTSEC-2024-0436
+  # paste is unmaintained. Compile-time proc-macro dependency only, no runtime impact, and no
+  # maintained drop-in replacement in the pinned dependency graph.
+  # https://rustsec.org/advisories/RUSTSEC-2024-0436
   "RUSTSEC-2024-0436",
+  # crossbeam-utils: invalid pointer deref in the `fmt::Pointer` impl for `Atomic`/`Shared`.
+  # No fixed release exists yet (0.8.22 is latest) and hnc never debug-formats those types.
+  # https://rustsec.org/advisories/RUSTSEC-2026-0204
+  "RUSTSEC-2026-0204",
+  # git2: potential UB in `Remote::list()`. Only pulled transitively (shadow-rs build-time git
+  # info, foundry); hnc does not call the affected API and no newer 0.20.x release is available.
+  # https://rustsec.org/advisories/RUSTSEC-2026-0183
+  "RUSTSEC-2026-0183",
+  # git2: potential UB constructing a `Signature` from a buffer-created `BlameHunk`. Same
+  # transitive-only exposure as above; not reachable from hnc and no fixed release available.
+  # https://rustsec.org/advisories/RUSTSEC-2026-0184
+  "RUSTSEC-2026-0184",
+  # proc-macro-error2 is unmaintained. Compile-time proc-macro dependency only, no runtime
+  # impact, and no maintained drop-in replacement in the pinned dependency graph.
+  # https://rustsec.org/advisories/RUSTSEC-2026-0173
+  "RUSTSEC-2026-0173",
 ]
 yanked = "warn"
 

@@ -1271,9 +1271,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.102"
+version = "1.0.104"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f202df86484c868dbad7eaa557ef785d5c66295e41b460ef922eca0723b842c"
+checksum = "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470"
 
 [[package]]
 name = "arbitrary"
@@ -2751,9 +2751,9 @@ dependencies = [
 
 [[package]]
 name = "crossbeam-utils"
-version = "0.8.21"
+version = "0.8.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d0a5c400df2834b80a4c3327b3aad3a4c4cd4de0629063962b03235697506a28"
+checksum = "61803da095bee82a81bb1a452ecc25d3b2f1416d1897eb86430c6159ef717c17"
 
 [[package]]
 name = "crossterm"
@@ -4683,7 +4683,7 @@ dependencies = [
 
 [[package]]
 name = "hnc"
-version = "1.5.16"
+version = "1.5.17"
 dependencies = [
  "alloy-eips 2.0.1",
  "alloy-primitives",
@@ -4764,7 +4764,7 @@ checksum = "df3b46402a9d5adb4c86a0cf463f42e19994e3ee891101b1841f30a545cb49a9"
 
 [[package]]
 name = "huff-neo-codegen"
-version = "1.5.16"
+version = "1.5.17"
 dependencies = [
  "alloy-dyn-abi",
  "alloy-primitives",
@@ -4777,7 +4777,7 @@ dependencies = [
 
 [[package]]
 name = "huff-neo-core"
-version = "1.5.16"
+version = "1.5.17"
 dependencies = [
  "alloy-dyn-abi",
  "alloy-primitives",
@@ -4797,7 +4797,7 @@ dependencies = [
 
 [[package]]
 name = "huff-neo-js"
-version = "1.5.16"
+version = "1.5.17"
 dependencies = [
  "huff-neo-core",
  "huff-neo-utils",
@@ -4810,7 +4810,7 @@ dependencies = [
 
 [[package]]
 name = "huff-neo-lexer"
-version = "1.5.16"
+version = "1.5.17"
 dependencies = [
  "huff-neo-utils",
  "lazy_static",
@@ -4820,7 +4820,7 @@ dependencies = [
 
 [[package]]
 name = "huff-neo-parser"
-version = "1.5.16"
+version = "1.5.17"
 dependencies = [
  "alloy-primitives",
  "huff-neo-lexer",
@@ -4831,7 +4831,7 @@ dependencies = [
 
 [[package]]
 name = "huff-neo-test-runner"
-version = "1.5.16"
+version = "1.5.17"
 dependencies = [
  "alloy-evm",
  "alloy-primitives",
@@ -4858,7 +4858,7 @@ dependencies = [
 
 [[package]]
 name = "huff-neo-utils"
-version = "1.5.16"
+version = "1.5.17"
 dependencies = [
  "alloy-dyn-abi",
  "alloy-primitives",

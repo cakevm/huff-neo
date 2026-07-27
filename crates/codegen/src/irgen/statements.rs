@@ -319,7 +319,7 @@ pub fn statement_gen<'a>(
                 let scope_id = huff_neo_utils::scope::ScopeId::new(vec![], 0);
                 jump_table.insert(
                     *offset + stack_swaps.len() + 3, // PUSH2 + 2 bytes + stack_swaps.len()
-                    vec![Jump { label: format!("goto_{}", &ir_macro.name), bytecode_index: 0, span: s.span.clone(), scope_id }],
+                    vec![Jump { label: format!("goto_{}", ir_macro.name), bytecode_index: 0, span: s.span.clone(), scope_id }],
                 );
 
                 // Get span info for this statement
@@ -348,7 +348,7 @@ pub fn statement_gen<'a>(
                 bytes.push_with_offset(
                     *offset + stack_swaps.len() + 3, // PUSH2 + 2 bytes + stack_swaps.len()
                     Bytes::JumpPlaceholder(JumpPlaceholderData::new(
-                        format!("goto_{}", &ir_macro.name),
+                        format!("goto_{}", ir_macro.name),
                         PushOpcode::Push2,
                         format!("{}{}", Opcode::Jump, Opcode::Jumpdest),
                     )),

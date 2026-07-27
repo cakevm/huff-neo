@@ -240,32 +240,28 @@ pub fn bubble_arg_call<'a>(
                                         relax_jumps,
                                     );
                                     // Note: macro_to_bytecode already pops the macro from scope_mgr
-                                    match result {
-                                        Ok(expanded) => {
-                                            let byte_len: usize = expanded.bytes.iter().map(|seg| seg.bytes.len()).sum();
-                                            bytes.extend(expanded.bytes);
-                                            *offset += byte_len;
+                                    let expanded = result?;
+                                    let byte_len: usize = expanded.bytes.iter().map(|seg| seg.bytes.len()).sum();
+                                    bytes.extend(expanded.bytes);
+                                    *offset += byte_len;
 
-                                            // Handle jumps and tables
-                                            for jump in expanded.unmatched_jumps {
-                                                if let Some(existing) = jump_table.get_mut(&jump.bytecode_index) {
-                                                    existing.push(jump);
-                                                } else {
-                                                    jump_table.insert(jump.bytecode_index, vec![jump]);
-                                                }
-                                            }
-                                            for table_instance in expanded.table_instances {
-                                                table_instances.push(table_instance);
-                                            }
-                                            for table in expanded.utilized_tables {
-                                                if !utilized_tables.contains(&table) {
-                                                    utilized_tables.push(table);
-                                                }
-                                            }
-                                            return Ok(());
+                                    // Handle jumps and tables
+                                    for jump in expanded.unmatched_jumps {
+                                        if let Some(existing) = jump_table.get_mut(&jump.bytecode_index) {
+                                            existing.push(jump);
+                                        } else {
+                                            jump_table.insert(jump.bytecode_index, vec![jump]);
                                         }
-                                        Err(e) => return Err(e),
                                     }
+                                    for table_instance in expanded.table_instances {
+                                        table_instances.push(table_instance);
+                                    }
+                                    for table in expanded.utilized_tables {
+                                        if !utilized_tables.contains(&table) {
+                                            utilized_tables.push(table);
+                                        }
+                                    }
+                                    return Ok(());
                                 } else {
                                     return Err(CodegenError {
                                         kind: CodegenErrorKind::MissingMacroDefinition(actual_macro_name),
@@ -487,30 +483,26 @@ pub fn bubble_arg_call<'a>(
                                         );
                                         // Note: macro_to_bytecode already pops the macro from scope_mgr
 
-                                        match result {
-                                            Ok(expanded_macro) => {
-                                                let byte_len: usize = expanded_macro.bytes.iter().map(|seg| seg.bytes.len()).sum();
-                                                bytes.extend(expanded_macro.bytes);
-                                                *offset += byte_len;
+                                        let expanded_macro = result?;
+                                        let byte_len: usize = expanded_macro.bytes.iter().map(|seg| seg.bytes.len()).sum();
+                                        bytes.extend(expanded_macro.bytes);
+                                        *offset += byte_len;
 
-                                                // Bubble up jumps and tables
-                                                for unmatched_jump in expanded_macro.unmatched_jumps {
-                                                    let existing_jumps =
-                                                        jump_table.get(&unmatched_jump.bytecode_index).cloned().unwrap_or_else(Vec::new);
-                                                    let mut new_jumps = existing_jumps;
-                                                    new_jumps.push(unmatched_jump.clone());
-                                                    jump_table.insert(unmatched_jump.bytecode_index, new_jumps);
-                                                }
-                                                for table_instance in expanded_macro.table_instances {
-                                                    table_instances.push(table_instance);
-                                                }
-                                                for table in expanded_macro.utilized_tables {
-                                                    if !utilized_tables.contains(&table) {
-                                                        utilized_tables.push(table);
-                                                    }
-                                                }
+                                        // Bubble up jumps and tables
+                                        for unmatched_jump in expanded_macro.unmatched_jumps {
+                                            let existing_jumps =
+                                                jump_table.get(&unmatched_jump.bytecode_index).cloned().unwrap_or_else(Vec::new);
+                                            let mut new_jumps = existing_jumps;
+                                            new_jumps.push(unmatched_jump.clone());
+                                            jump_table.insert(unmatched_jump.bytecode_index, new_jumps);
+                                        }
+                                        for table_instance in expanded_macro.table_instances {
+                                            table_instances.push(table_instance);
+                                        }
+                                        for table in expanded_macro.utilized_tables {
+                                            if !utilized_tables.contains(&table) {
+                                                utilized_tables.push(table);
                                             }
-                                            Err(e) => return Err(e),
                                         }
                                     } else {
                                         return Err(CodegenError {

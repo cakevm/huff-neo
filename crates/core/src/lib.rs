@@ -229,10 +229,7 @@ impl<'a, 'l> Compiler<'a, 'l> {
                 // Unpack recursed dependencies into FileSources
                 let mut files = vec![];
                 for fs in recursed_file_sources {
-                    match fs {
-                        Ok(f) => files.push(f),
-                        Err(e) => return Err(e),
-                    }
+                    files.push(fs?);
                 }
                 tracing::info!(target: "core", "COMPILER RECURSED {} FILE DEPENDENCIES", files.len());
 
@@ -314,10 +311,7 @@ impl<'a, 'l> Compiler<'a, 'l> {
         // Unpack recursed dependencies into FileSources
         let mut files = vec![];
         for fs in recursed_file_sources {
-            match fs {
-                Ok(f) => files.push(f),
-                Err(e) => return Err(e),
-            }
+            files.push(fs?);
         }
         tracing::info!(target: "core", "COMPILER RECURSED {} FILE DEPENDENCIES", files.len());
 

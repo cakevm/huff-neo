@@ -1447,12 +1447,12 @@ impl Codegen {
                             format!(
                                 "{}{}{}{:04x}{}{}{}{}{:04x}{}{:04x}{}",
                                 Opcode::Push2,    // PUSH2
-                                &tok_len,         // len(bytes)
+                                tok_len,          // len(bytes)
                                 Opcode::Push2,    // PUSH2
                                 len_ptr,          // <len_mem_ptr>
                                 Opcode::Mstore,   // MSTORE
                                 Opcode::Push2,    // PUSH2
-                                &tok_len,         // len(bytes)
+                                tok_len,          // len(bytes)
                                 Opcode::Push2,    // PUSH2
                                 arg_offset_acc,   // <contents_code_ptr>
                                 Opcode::Push2,    // PUSH2

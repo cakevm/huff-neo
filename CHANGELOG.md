@@ -3,8 +3,11 @@
 # Huff Neo Compiler changelog
 
 ## Unreleased
+
+## [1.5.17] - 2026-07-27
 - Fix corrupted bytecode when a constant with an odd number of hex digits (e.g. `0x140`) is passed
   as a macro argument. The PUSH data is now byte-aligned, matching the direct `[CONST]` path.
+- Update dependencies.
 
 ## [1.5.16] - 2026-05-31
 - Add `__codesize(RUNTIME)`: resolves at compile time to the byte length of the runtime section

@@ -59,7 +59,7 @@ impl Span {
                             "\n     {}|\n  > {} | {}\n     {}|",
                             padding,
                             line_num,
-                            &s[line_start.to_owned()..line_end].replace('\n', ""),
+                            s[line_start.to_owned()..line_end].replace('\n', ""),
                             padding
                         )
                     })
