@@ -32,6 +32,7 @@ Options:
   -p, --print                             Prints out to the terminal
   -v, --verbose                           Verbose output
   -l, --label-indices                     Prints out the jump label PC indices for the specified contract
+      --format <FORMAT>                   Output format for the label indices [default: table] [possible values: table, json]
   -c, --constants <CONSTANTS>...          Override / set constants for the compilation environment
   -m, --alt-main <ALTERNATIVE_MAIN>       Compile a specific macro
   -t, --alt-constructor <ALT_CONSTRUCTOR> Compile a specific constructor macro
@@ -171,6 +172,24 @@ where labels resolve to in the final bytecode.
 Example:
 ```shell
 hnc ./src/ERC20.huff -l
+```
+
+Add `--format json` to get machine-readable output for scripts. Each entry
+contains the label name, its PC offset as a decimal integer, and the macro
+scope path (just `["MAIN"]` for labels defined directly in `MAIN`):
+
+```shell
+hnc ./src/ERC20.huff -l --format json
+```
+
+```json
+[
+  {
+    "label": "inner",
+    "offset": 9,
+    "scope": ["MAIN", "INNER_5"]
+  }
+]
 ```
 
 ### `-m` Alternative Main

@@ -141,3 +141,45 @@ fn bin_runtime_succeeds_without_constructor() {
 
     tmp.close().unwrap();
 }
+
+#[test]
+fn label_indices_json_includes_scoped_labels() {
+    let mut cmd = cargo_bin_cmd!("hnc");
+    let tmp = assert_fs::TempDir::new().unwrap();
+    let file = tmp.child("code.huff");
+    file.write_str(
+        r#"
+#define macro INNER() = {
+    inner jump
+    inner:
+}
+
+#define macro MAIN() = {
+    start jump
+    start:
+    INNER()
+}
+"#,
+    )
+    .unwrap();
+
+    let output = cmd.current_dir(&tmp).args(["code.huff", "-l", "--format", "json"]).output().unwrap();
+    assert!(output.status.success());
+
+    let labels: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(
+        labels,
+        serde_json::json!([
+            { "label": "inner", "offset": 9, "scope": ["MAIN", "INNER_5"] },
+            { "label": "start", "offset": 4, "scope": ["MAIN"] },
+        ])
+    );
+
+    tmp.close().unwrap();
+}
+
+#[test]
+fn format_requires_label_indices() {
+    let mut cmd = cargo_bin_cmd!("hnc");
+    cmd.args(["code.huff", "--format", "json"]).assert().failure().stderr(predicate::str::contains("--label-indices"));
+}
