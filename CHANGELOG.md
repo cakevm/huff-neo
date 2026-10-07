@@ -6,9 +6,10 @@
 
 ## [1.5.18] - 2026-10-07
 - Fix macro arguments after `__codesize(<macro>)` not being resolved (fixes #173).
+- Add `hnc -l --format json` for machine-readable label indices.
 - Update to foundry v1.8.5 (requires Rust 1.98).
-- Update dependencies.
 - Update README and book that huff2 is discontinued.
+- Update dependencies.
 
 ## [1.5.17] - 2026-07-27
 - Fix corrupted bytecode when a constant with an odd number of hex digits (e.g. `0x140`) is passed

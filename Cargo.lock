@@ -5398,6 +5398,7 @@ dependencies = [
  "huff-neo-utils",
  "predicates",
  "serde",
+ "serde_json",
  "shadow-rs",
  "thiserror 2.0.18",
  "tokio",

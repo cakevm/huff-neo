@@ -9,7 +9,7 @@
 mod arguments;
 
 use crate::arguments::base::TestCommands;
-use crate::arguments::base::{HuffArgs, get_input};
+use crate::arguments::base::{HuffArgs, LabelFormat, get_input};
 use crate::arguments::constants::parse_constant_overrides;
 use alloy_eips::eip7825::MAX_TX_GAS_LIMIT_OSAKA;
 use alloy_primitives::hex;
@@ -30,6 +30,7 @@ use huff_neo_utils::file::full_file_source::OutputLocation;
 use huff_neo_utils::prelude::{
     BytecodeRes, CodegenError, CodegenErrorKind, CompilerError, EVMVersion, Span, export_interfaces, gen_sol_interfaces,
 };
+use serde_json::json;
 use std::process::exit;
 use std::{sync::Arc, time::Instant};
 use yansi::Paint;
@@ -185,6 +186,24 @@ fn main() {
                     )
                 );
                 exit(1);
+            }
+
+            if cli.format == LabelFormat::Json {
+                let labels: Vec<_> = bytecode_res
+                    .label_indices
+                    .iter()
+                    .flat_map(|(label, scoped_labels)| {
+                        scoped_labels.iter().map(move |sl| {
+                            json!({
+                                "label": label,
+                                "offset": sl.offset,
+                                "scope": sl.scope_id.path,
+                            })
+                        })
+                    })
+                    .collect();
+                println!("{}", serde_json::to_string_pretty(&labels).unwrap());
+                return;
             }
 
             // Format the label indices nicely in a table

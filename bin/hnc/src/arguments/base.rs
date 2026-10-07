@@ -1,5 +1,5 @@
 use crate::arguments::test::TestArgs;
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 use huff_neo_utils::error::CompilerError;
 use huff_neo_utils::file::unpack_files::unpack_files;
 use std::io::Write;
@@ -69,6 +69,10 @@ pub struct HuffArgs {
     #[clap(short = 'l', long = "label-indices")]
     pub label_indices: bool,
 
+    /// Output format for the label indices.
+    #[clap(long = "format", value_enum, default_value_t = LabelFormat::Table, requires = "label_indices")]
+    pub format: LabelFormat,
+
     /// Override / set constants for the compilation environment. Accepts hex values (0x...) or true/false.
     #[clap(short = 'c', long = "constants", num_args = 1..)]
     pub constants: Option<Vec<String>>,
@@ -100,6 +104,16 @@ pub struct HuffArgs {
     /// Print version
     #[arg(short = 'V', long = "version")]
     pub version_long: bool,
+}
+
+/// Output format for the jump label PC indices
+#[derive(ValueEnum, Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum LabelFormat {
+    /// Human-readable table
+    #[default]
+    Table,
+    /// Machine-readable JSON array
+    Json,
 }
 
 #[derive(Subcommand, Clone, Debug)]
