@@ -50,6 +50,27 @@ fn test_codesize_builtin() {
 }
 
 #[test]
+fn test_codesize_builtin_preserves_macro_args() {
+    // Measuring another macro must not disturb the invoking macro's argument scope,
+    // so args resolve on both sides of the builtin.
+    let source: &str = r#"
+        #define macro HELPER() = takes(0) returns(0) { stop }
+
+        #define macro BUILTIN_TEST(a, b) = takes(0) returns(3) {
+            <a> __codesize(HELPER) <b>
+        }
+
+        #define macro MAIN() = takes(0) returns(0) {
+            BUILTIN_TEST(0xaa, 0xbb)
+        }
+    "#;
+
+    let bytecode = compile_to_bytecode(source).unwrap();
+    // PUSH1 0xaa, PUSH1 0x01 (size of HELPER), PUSH1 0xbb
+    assert_eq!(bytecode, "60aa600160bb");
+}
+
+#[test]
 fn test_dyn_constructor_arg_builtin() {
     let source: &str = r#"
         #define macro MAIN() = {

@@ -8,7 +8,7 @@ use huff_neo_utils::ast::huff::{DecoratorFlag, MacroDefinition};
 use huff_neo_utils::prelude::{CompilerError, Contract, EVMVersion, pad_n_bytes};
 use revm::context::result::{ExecutionResult, Output};
 use revm::context::{TransactTo, TxEnv};
-use revm::state::{Account, AccountInfo, AccountStatus, Bytecode};
+use revm::state::{Account, AccountInfo, Bytecode};
 use revm::{Context, Database, DatabaseCommit, ExecuteCommitEvm, MainBuilder, MainContext};
 use std::collections::HashMap;
 
@@ -44,25 +44,13 @@ impl TestRunner {
         let mut changes = HashMap::default();
         let account = match basic_account {
             Some(mut account_info) => {
-                let original_info = Box::new(account_info.clone());
+                let original_info = account_info.clone();
                 account_info.balance = amount;
-                Account {
-                    info: account_info,
-                    original_info,
-                    transaction_id: 0,
-                    storage: Default::default(),
-                    status: AccountStatus::Touched,
-                }
+                Account::from(original_info).with_info(account_info).with_touched_mark()
             }
             None => {
                 let info = AccountInfo { balance: amount, nonce: 0, code_hash: B256::ZERO, code: None, account_id: None };
-                Account {
-                    original_info: Box::new(info.clone()),
-                    info,
-                    transaction_id: 0,
-                    storage: Default::default(),
-                    status: AccountStatus::Created,
-                }
+                Account::from(info).with_created_mark()
             }
         };
 
@@ -82,15 +70,9 @@ impl TestRunner {
         let mut changes = HashMap::default();
         let account = match basic_account {
             Some(mut account_info) => {
-                let original_info = Box::new(account_info.clone());
+                let original_info = account_info.clone();
                 account_info.code = Some(Bytecode::new_raw(Bytes::from(hex::decode(code).expect("Invalid code"))));
-                Account {
-                    info: account_info,
-                    original_info,
-                    transaction_id: 0,
-                    storage: Default::default(),
-                    status: AccountStatus::Touched,
-                }
+                Account::from(original_info).with_info(account_info).with_touched_mark()
             }
             None => {
                 let info = AccountInfo {
@@ -100,13 +82,7 @@ impl TestRunner {
                     code: Some(Bytecode::new_raw(Bytes::from(hex::decode(code).expect("Invalid code")))),
                     account_id: None,
                 };
-                Account {
-                    original_info: Box::new(info.clone()),
-                    info,
-                    transaction_id: 0,
-                    storage: Default::default(),
-                    status: AccountStatus::Created,
-                }
+                Account::from(info).with_created_mark()
             }
         };
 

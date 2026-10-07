@@ -181,7 +181,10 @@ impl<'t> HuffTester<'t> {
             return Err(RunnerError::GenericError("No trace found".to_string()));
         };
 
-        let traces = [(TraceKind::Execution, SparsedTraceArena { arena: trace_area.into_traces(), ignored: Default::default() })];
+        let traces = [(
+            TraceKind::Execution,
+            SparsedTraceArena { arena: trace_area.into_traces(), ignored: Default::default(), diagnostics: Default::default() },
+        )];
 
         eprintln!("DEBUG: Starting debugger for test: {}", test_result.name);
         eprintln!("DEBUG: Has source map: {}", test_result.source_map.is_some());
@@ -220,6 +223,7 @@ impl<'t> HuffTester<'t> {
                             language: MultiCompilerLanguage::Solc(SolcLanguage::Solidity),
                             path: PathBuf::from(file_path),
                             contract_definitions: vec![(file_name, 0..source_content.len())],
+                            debug_scopes: Vec::new(),
                         };
                         file_map.insert(file_id as u32, Arc::new(source_data));
                     }
@@ -235,6 +239,7 @@ impl<'t> HuffTester<'t> {
                         language: MultiCompilerLanguage::Solc(SolcLanguage::Solidity),
                         path: PathBuf::from("test.huff"),
                         contract_definitions: vec![("test".to_string(), 0..source_code.len())],
+                        debug_scopes: Vec::new(),
                     };
                     file_map.insert(0u32, Arc::new(source_data));
                 }

@@ -511,7 +511,9 @@ fn codesize<'a>(
         let placeholder = Bytes::CircularCodesizePlaceholder(CircularCodesizePlaceholderData::new(codesize_arg.to_string()));
         (2, placeholder)
     } else {
-        // We will still need to recurse to get accurate values
+        // We will still need to recurse to get accurate values. The target macro gets its own
+        // scope frame; `macro_to_bytecode` pops it when done, leaving the caller's frame intact.
+        scope_mgr.push_macro(ir_macro, *offset);
         let res: BytecodeRes = match Codegen::macro_to_bytecode(
             evm_version,
             ir_macro,
