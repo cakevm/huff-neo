@@ -18,7 +18,7 @@ Feel free to join the Telegram chat [here](https://t.me/huff_neo)
 
 # Huff Neo Compiler
 
-The Huff Neo Compiler `hnc` can be used as drop-in replacement for `huffc`. This repository is a hard-fork from [huff-rs](https://github.com/huff-language/huff-rs), hopefully until [huff2](https://github.com/huff-language/huff2) is available. The compiler comes with update dependencies, improved codebase, and several fixes (see [CHANGELOG](https://github.com/cakevm/huff-neo/blob/main/CHANGELOG.md)). This compiler is for all those that require a production-ready compiler right now, as the original repository is archived and not supported anymore. As before, be warned that you are responsible for the contracts you deploy. Find the documentation [here](https://cakevm.github.io/huff-neo/).
+The Huff Neo Compiler `hnc` can be used as drop-in replacement for `huffc`. This repository is a hard-fork from [huff-rs](https://github.com/huff-language/huff-rs), which is archived and discontinued, as is its planned successor [huff2](https://github.com/huff-language/huff2). The compiler comes with update dependencies, improved codebase, and several fixes (see [CHANGELOG](https://github.com/cakevm/huff-neo/blob/main/CHANGELOG.md)). This compiler is for all those that require a production-ready Huff compiler. As before, be warned that you are responsible for the contracts you deploy. Find the documentation [here](https://cakevm.github.io/huff-neo/).
 
 **New Language Features:**
 - Compile-time `for` loops for repetitive code generation
@@ -82,10 +82,6 @@ Supported IDEs:
 |------------------------------------------------------------------------|----------|--------|
 | [intellij-huff-plugin](https://github.com/cakevm/intellij-huff-plugin) | IntelliJ | ✅      |
 
-
-## How about huff2?
-
-We are very happy that someone picked up the work. In the meantime we still need some compiler to work with. We are trying to keep the original compiler up-to-date with the latest dependencies. Many, many thanks in advance to the [huff2](https://github.com/huff-language/huff2) team!
 
 ## Installation
 

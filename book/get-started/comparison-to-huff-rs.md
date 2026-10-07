@@ -1,6 +1,6 @@
 ## There is `huff-rs` and `huff-neo`?
 
-Yes, there are two versions of the Huff compiler. The original compiler, `huff-rs` is no longer maintained. There is a plan to revive it as [huff2](https://github.com/huff-language/huff2), but since it is a new development from scratch, it is unknown when it will have feature parity with the original compiler. `huff-neo` tries to step-in and continues the development and also tries to evolve the Huff language where necessary.
+Yes, there are two versions of the Huff compiler. The original compiler, `huff-rs` is no longer maintained, and its planned successor [huff2](https://github.com/huff-language/huff2) has been discontinued. `huff-neo` tries to step-in and continues the development and also tries to evolve the Huff language where necessary.
 
 ## New in `huff-neo`
 There are some new features in `huff-neo` that are not available in `huffc`.

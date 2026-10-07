@@ -172,7 +172,7 @@ When making changes to language features or behavior, always update the correspo
 
 ## Version and Dependencies
 
-- Rust 1.89+ required
+- Rust 1.98+ required
 - Uses Alloy for Ethereum types (replacing ethers)
 - REVM for EVM execution in tests
 - Foundry integration for testing infrastructure

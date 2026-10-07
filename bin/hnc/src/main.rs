@@ -16,7 +16,7 @@ use alloy_primitives::hex;
 use clap::{CommandFactory, Parser};
 use comfy_table::{Cell, Color, Row, Table, modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL};
 use foundry_cli::utils::LoadConfig;
-use foundry_evm_traces::InternalTraceMode;
+use foundry_evm_traces::{InternalTraceMode, TracingInspectorConfig};
 use huff_neo_codegen::Codegen;
 use huff_neo_core::Compiler;
 use huff_neo_test_runner::{
@@ -242,13 +242,13 @@ fn main() {
                 inspector = inspector.with_log_collector();
             }
             if test_args.verbosity > 3 || test_args.debug {
-                inspector = inspector.with_steps_tracing();
+                inspector = inspector.with_tracing_config(TracingInspectorConfig::all().with_state_diffs());
                 if test_args.verbosity > 3 {
                     inspector = inspector.with_trace_printer();
                 }
             }
 
-            let (evm_env, mut tx_env, fork_block_number): (_, TxEnv, _) = rt.block_on(evm_opts.env()).unwrap();
+            let (evm_env, mut tx_env, resolved_fork): (_, TxEnv, _) = rt.block_on(evm_opts.env_resolved()).unwrap();
             // EIP-7825 caps any single transaction at 16M gas; foundry's default tx gas limit (~1B)
             // exceeds this and trips `CallerGasLimitMoreThanBlock`.
             tx_env.gas_limit = tx_env.gas_limit.min(MAX_TX_GAS_LIMIT_OSAKA);
@@ -277,7 +277,7 @@ fn main() {
                 .set_decode_internal(decode_internal)
                 .evm_spec(config.evm_spec_id())
                 .sender(evm_opts.sender)
-                .with_fork(evm_opts.get_fork(&config, chain_id, fork_block_number))
+                .with_fork(evm_opts.get_fork_resolved(&config, chain_id, resolved_fork.as_ref()))
                 .enable_isolation(evm_opts.isolate)
                 .target_address(test_args.target_address);
 

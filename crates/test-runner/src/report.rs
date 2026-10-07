@@ -109,7 +109,7 @@ async fn print_call_trace(tracer: TracingInspector) -> eyre::Result<()> {
     let decoder = CallTraceDecoderBuilder::new().with_signature_identifier(identifier).build();
 
     // Decode and render the trace
-    let mut arena = SparsedTraceArena { arena: tracer.into_traces(), ignored: Default::default() };
+    let mut arena = SparsedTraceArena { arena: tracer.into_traces(), ignored: Default::default(), diagnostics: Default::default() };
     decode_trace_arena(&mut arena, &decoder).await;
 
     println!("├─ {}", Paint::cyan("TRACES"));
