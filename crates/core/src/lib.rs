@@ -84,7 +84,7 @@ pub struct Compiler<'a, 'l> {
     pub file_provider: Arc<dyn FileProvider>,
     /// Whether to apply jump relaxation optimization
     pub relax_jumps: bool,
-    /// Skip the contract size limit validation (EIP-170: 24576 bytes)
+    /// Skip the contract and initcode size limit validation (EIP-170/EIP-3860, raised by EIP-7954 in Amsterdam)
     pub no_size_limit: bool,
 }
 
@@ -559,7 +559,8 @@ impl<'a, 'l> Compiler<'a, 'l> {
         tracing::info!(target: "core", "ENCODED {} INPUTS", encoded_inputs.len());
 
         // Generate Artifact with ABI
-        let churn_res = cg.assemble_artifact(file, &contract_for_churn, encoded_inputs, main, constructor, self.no_size_limit);
+        let churn_res =
+            cg.assemble_artifact(self.evm_version, file, &contract_for_churn, encoded_inputs, main, constructor, self.no_size_limit);
         match churn_res {
             Ok(mut artifact) => {
                 // Then we can have the code gen output the artifact

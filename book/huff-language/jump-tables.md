@@ -9,7 +9,8 @@ single jump rather than many conditional jumps.
 
 There are two different kinds of Jump Tables in Huff: `Regular` and
 `Packed`. Regular Jump Tables store jumpdest PCs as full 32 byte
-words, and packed Jump Tables store them each as 2 bytes. Therefore,
+words, and packed Jump Tables store them each as 2 bytes (so their labels must lie within the
+first 64 KiB of the code, otherwise compilation fails). Therefore,
 packed jumptables are cheaper to copy into memory, but they are more
 expensive to pull a PC out of due to the bitshifting required. The
 opposite is true for Regular Jump Tables.
@@ -17,7 +18,10 @@ opposite is true for Regular Jump Tables.
 There are two builtin functions related to jumptables.
 
 ### `__tablestart(TABLE)`
-Pushes the program counter (PC) of the start of the table passed to the stack.
+Pushes the program counter (PC) of the start of the table passed to the stack. The offset is
+pushed with `PUSH2`, so the table must start within the first 64 KiB of the code. This always
+holds for runtime code; a table used only by a `CONSTRUCTOR` is placed after the runtime and can
+exceed it in a large deployment, which is reported as an error.
 
 ### `__tablesize(TABLE)`
 Pushes the code size of the table passed to the stack.

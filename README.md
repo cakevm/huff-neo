@@ -43,6 +43,7 @@ The Huff Neo Compiler `hnc` can be used as drop-in replacement for `huffc`. This
 
 **EVM Support:**
 - `CLZ` opcode (Osaka upgrade)
+- `SLOTNUM`, `DUPN`, `SWAPN`, `EXCHANGE` opcodes and larger contract size limits (Glamsterdam upgrade, `-e amsterdam`)
 
 **Test Runner:**
 - Refactored with Foundry's debugging support

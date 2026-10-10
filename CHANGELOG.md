@@ -4,6 +4,25 @@
 
 ## Unreleased
 
+## [1.6.0] - 2026-10-10
+- Add Glamsterdam support with `-e amsterdam` (Osaka stays the default).
+  - Add opcodes `slotnum` (EIP-7843) and `dupn <n>`, `swapn <n>`, `exchange <n> <m>` (EIP-8024).
+  - Raise the contract size limits to 64 KiB runtime / 128 KiB initcode (EIP-7954).
+  - Use PUSH3 for jump targets beyond 64 KiB, so constructors larger than 64 KiB compile.
+  - Run `hnc test` on the hardfork selected with `-e`, with gas based on its transaction cost (EIP-2780).
+- **Breaking**: Enforce the initcode size limit (EIP-3860, 49,152 bytes before Amsterdam) by default.
+  - Use `--no-size-limit` flag to bypass this check.
+- Add constants, macro arguments, loop variables, and expressions as opcode operands.
+  - Example: `dupn [DEPTH]`, `swapn <depth>`, `push2 [SIZE]`, `dupn (<i> + 17)`
+- Add support for loop variables in nested loop bounds, `if` conditions, and macro arguments.
+- Add support for decimal literals in macro arguments and constants.
+  - Example: `MACRO(18)`, `#define constant C = 5`
+- Fix `__codesize(<macro>)` used inside `<macro>`.
+  - Jumps after it could land one byte early.
+  - When `<macro>` was invoked from another macro, it pushed the outer macro's size.
+- Fix `--relax-jumps` with `__tablestart` after a jump and with jumps inside invoked macros.
+- Fix `hnc test --fork-url` forking only for the first test; later tests ran on an empty chain.
+
 ## [1.5.18] - 2026-10-07
 - Fix macro arguments after `__codesize(<macro>)` not being resolved (fixes #173).
 - Add `hnc -l --format json` for machine-readable label indices.

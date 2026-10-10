@@ -18,11 +18,17 @@ use huff_neo_utils::{
     bytes_util,
     error::CodegenError,
     opcodes::Opcode,
-    prelude::{CodegenErrorKind, EVMVersion, PushValue, Span, format_even_bytes, pad_n_bytes},
+    prelude::{CodegenErrorKind, EVMVersion, PushValue, Span, deploy_bootstrap, format_even_bytes, pad_n_bytes},
     types::EToken,
 };
 use regex::Regex;
-use std::{cmp::Ordering, collections::HashMap, fs, path::Path, sync::Arc};
+use std::{
+    cmp::Ordering,
+    collections::{BTreeMap, HashMap},
+    fs,
+    path::Path,
+    sync::Arc,
+};
 
 mod irgen;
 use crate::irgen::prelude::*;
@@ -44,11 +50,8 @@ const JUMP_RELAXATION_MAX_ITERATIONS: usize = 20;
 /// When MAIN (or a constant referenced by MAIN) uses `__codesize(RUNTIME)`, the runtime size
 /// depends on the embedded value, which depends on the runtime size. Each pass recompiles MAIN
 /// with the previous pass's measured size. PUSH widths only grow (never shrink) across passes,
-/// and EIP-170 caps the value at PUSH2, so convergence is normally 2–3 iterations.
+/// and the contract size limit caps the value at PUSH3, so convergence is normally 2–3 iterations.
 const MAIN_RUNTIME_SIZE_MAX_ITERATIONS: usize = 10;
-
-/// EIP-170 contract size limit (24576 bytes)
-pub const EIP170_CONTRACT_SIZE_LIMIT: usize = 24576;
 
 /// Compiles Huff contracts into EVM bytecode.
 ///
@@ -124,6 +127,61 @@ pub struct ConstructorMacroBytecode {
     pub has_custom_bootstrap: bool,
 }
 
+/// Direction in which span-dependent pushes (jump targets, self-referencing `__codesize`) may change
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ResizeMode {
+    /// Grow pushes whose value does not fit
+    Widen,
+    /// Shrink PUSH2 jumps to PUSH1 where the target fits
+    Shrink,
+}
+
+/// Mapping from segment offsets before resizing span-dependent pushes to the offsets after it
+pub type OffsetMapping = BTreeMap<usize, usize>;
+
+/// Bytecode whose span-dependent pushes have stable widths
+#[derive(Debug, Clone)]
+pub struct ResizedBytecode {
+    /// Bytecode with the resized pushes
+    pub bytes: BytecodeSegments,
+    /// Label positions after resizing
+    pub label_indices: LabelIndices,
+    /// Mapping from original to new segment offsets
+    pub offset_mapping: OffsetMapping,
+}
+
+/// Bytecode whose jumps are resolved as far as their labels are known
+#[derive(Debug, Clone)]
+pub struct FilledJumps {
+    /// Bytecode with resolved jumps
+    pub bytes: BytecodeSegments,
+    /// Jumps whose label is not defined in the bytecode
+    pub unmatched_jumps: Vec<Jump>,
+    /// Final label positions
+    pub label_indices: LabelIndices,
+    /// Mapping from original to final segment offsets
+    pub offset_mapping: OffsetMapping,
+}
+
+/// Translates a segment offset to its position after resizing; offsets without a segment stay put
+fn remap_offset(offset_mapping: &OffsetMapping, offset: usize) -> usize {
+    offset_mapping.get(&offset).copied().unwrap_or(offset)
+}
+
+/// Moves jump table entries to the offsets their jumps have after resizing
+fn remap_jump_table(jump_table: &JumpTable, offset_mapping: &OffsetMapping) -> JumpTable {
+    jump_table.iter().map(|(&offset, jumps)| (remap_offset(offset_mapping, offset), jumps.clone())).collect()
+}
+
+/// Translates a code boundary from original segment offsets to the segment offsets after resizing.
+///
+/// A boundary is either the start of a segment or the end of the code (`end_offset` after
+/// resizing).
+fn current_offset(original_offsets: &[usize], current_offsets: &[usize], end_offset: usize, original: usize) -> usize {
+    let segment_idx = original_offsets.partition_point(|&offset| offset < original);
+    current_offsets.get(segment_idx).copied().unwrap_or(end_offset)
+}
+
 impl Codegen {
     /// Public associated function to instantiate a new Codegen instance.
     pub fn new() -> Self {
@@ -161,8 +219,8 @@ impl Codegen {
         relax_jumps: bool,
     ) -> Result<MainBytecodeOutput, CodegenError> {
         // Iterate to a fixed point on `__codesize(RUNTIME)`. Each pass recompiles MAIN with the
-        // previous pass's measured runtime size. PUSH widths only grow across passes, EIP-170
-        // caps them at PUSH2, so we converge in a handful of iterations.
+        // previous pass's measured runtime size. PUSH widths only grow across passes, the contract
+        // size limit caps them at PUSH3, so we converge in a handful of iterations.
         let mut iter_contract = contract.clone();
         let mut current_size = iter_contract.runtime_size.unwrap_or(0);
         for _ in 0..MAIN_RUNTIME_SIZE_MAX_ITERATIONS {
@@ -201,8 +259,7 @@ impl Codegen {
         scope_mgr.push_macro(m_macro, 0);
 
         // For each MacroInvocation Statement, recurse into bytecode
-        let bytecode_res: BytecodeRes =
-            Codegen::macro_to_bytecode(evm_version, m_macro, &contract, &mut scope_mgr, 0, false, None, relax_jumps)?;
+        let bytecode_res: BytecodeRes = Codegen::macro_to_bytecode(evm_version, m_macro, &contract, &mut scope_mgr, 0, false, relax_jumps)?;
 
         tracing::debug!(target: "codegen", "Generated main bytecode. Appending table bytecode...");
 
@@ -257,8 +314,7 @@ impl Codegen {
         scope_mgr.push_macro(c_macro, 0);
 
         // For each MacroInvocation Statement, recurse into bytecode
-        let bytecode_res: BytecodeRes =
-            Codegen::macro_to_bytecode(evm_version, c_macro, &contract, &mut scope_mgr, 0, false, None, relax_jumps)?;
+        let bytecode_res: BytecodeRes = Codegen::macro_to_bytecode(evm_version, c_macro, &contract, &mut scope_mgr, 0, false, relax_jumps)?;
 
         // A constructor body containing a RETURN means the user is supplying their own deployment
         // bootstrap; suppress the compiler's auto-bootstrap in that case.
@@ -514,6 +570,8 @@ impl Codegen {
             // For all other tables
             tracing::info!(target: "codegen", "GENERATING BYTECODE FOR TABLE: \"{}\"", jt.name);
 
+            // Packed jump tables store each destination in 2 bytes, regular ones in 32 bytes
+            let is_packed = jt.kind == TableKind::JumpTablePacked;
             let mut table_code = String::new();
             jt.statements.iter().try_for_each(|s| {
                 match &s.ty {
@@ -535,12 +593,19 @@ impl Codegen {
                                 });
                             }
                         };
+                        if is_packed && offset > 0xFFFF {
+                            return Err(CodegenError {
+                                kind: CodegenErrorKind::OffsetExceedsTwoBytes(
+                                    format!("label \"{label}\" in packed jump table \"{}\"", jt.name),
+                                    offset,
+                                ),
+                                span: s.span.clone_box(),
+                                token: None,
+                            });
+                        }
                         let hex = format_even_bytes(format!("{offset:02x}"));
 
-                        table_code = format!(
-                            "{table_code}{}",
-                            pad_n_bytes(hex.as_str(), if matches!(jt.kind, TableKind::JumpTablePacked) { 0x02 } else { 0x20 },)
-                        );
+                        table_code = format!("{table_code}{}", pad_n_bytes(hex.as_str(), if is_packed { 0x02 } else { 0x20 },));
                     }
                     _ => {
                         return Err(CodegenError { kind: CodegenErrorKind::InvalidMacroStatement, span: jt.span.clone_box(), token: None });
@@ -553,14 +618,22 @@ impl Codegen {
             Ok(())
         })?;
 
-        res.table_instances.iter().for_each(|jump| {
+        for jump in res.table_instances.iter() {
             // Resolution order: locally-emitted, then external (dedup) map, then embedded inline.
             let offset_opt = local_table_offsets
                 .get(&jump.label)
                 .or_else(|| external_table_offsets.get(&jump.label))
                 .or_else(|| res.embedded_tables.get(&jump.label));
 
-            if let Some(o) = offset_opt {
+            if let Some(&o) = offset_opt {
+                // `__tablestart` reserves a PUSH2, so the table must start within the first 64 KiB
+                if o > 0xFFFF {
+                    return Err(CodegenError {
+                        kind: CodegenErrorKind::OffsetExceedsTwoBytes(format!("table \"{}\" referenced by __tablestart", jump.label), o),
+                        span: jump.span.clone_box(),
+                        token: None,
+                    });
+                }
                 let before = &body[0..jump.bytecode_index * 2 + 2];
                 let after = &body[jump.bytecode_index * 2 + 6..];
 
@@ -573,7 +646,7 @@ impl Codegen {
                     jump.label
                 );
             }
-        });
+        }
 
         Ok(TableBytecodeOutput { body, tables: tables_bytecode, local_table_offsets, source_map })
     }
@@ -590,7 +663,6 @@ impl Codegen {
     /// * `scope_mgr` - Call stack for tracking macro invocations and scope
     /// * `offset` - Starting bytecode offset
     /// * `recursing_constructor` - Whether compiling within a constructor
-    /// * `circular_codesize_invocations` - Tracks __CODESIZE recursion to prevent infinite loops
     /// * `relax_jumps` - Enable jump size optimization
     ///
     /// # Returns
@@ -604,7 +676,6 @@ impl Codegen {
         scope_mgr: &mut ScopeManager<'a>,
         mut offset: usize,
         recursing_constructor: bool,
-        circular_codesize_invocations: Option<&mut CircularCodeSizeIndices>,
         relax_jumps: bool,
     ) -> Result<BytecodeRes, CodegenError> {
         // Safety check to prevent infinite recursion
@@ -631,8 +702,7 @@ impl Codegen {
         let mut table_instances = Jumps::new();
         let mut utilized_tables: Vec<TableDefinition> = Vec::new();
         let mut embedded_tables = std::collections::BTreeMap::new();
-        let mut ccsi = CircularCodeSizeIndices::new();
-        let circular_codesize_invocations = circular_codesize_invocations.unwrap_or(&mut ccsi);
+        let start_offset = offset;
 
         // Loop through all intermediate bytecode representations generated from the AST
         for ir_byte in ir_bytes.iter() {
@@ -686,7 +756,6 @@ impl Codegen {
                         &mut table_instances,
                         &mut utilized_tables,
                         &mut embedded_tables,
-                        circular_codesize_invocations,
                         starting_offset,
                         relax_jumps,
                     )?;
@@ -729,7 +798,8 @@ impl Codegen {
 
         // Add functions (outlined macros) to the end of the bytecode if the scope length == 1
         // (i.e., we're at the top level of recursion)
-        if scope_mgr.depth() == 1 {
+        let is_top_level = scope_mgr.depth() == 1;
+        if is_top_level {
             let bytes_before = bytes.len();
             bytes = Codegen::append_functions(
                 evm_version,
@@ -752,225 +822,209 @@ impl Codegen {
             scope_mgr.pop_macro();
         }
 
-        // Fill JUMPDEST placeholders
-        let (new_bytes, unmatched_jumps, updated_label_indices) =
-            Codegen::fill_unmatched(bytes.clone(), &jump_table, &label_indices, relax_jumps)?;
-        let label_indices = updated_label_indices; // Use the updated indices (which account for relaxation)
+        // `__codesize` self-references of this macro measure this invocation, which is complete now
+        bytes.measure_circular_codesize(&macro_def.name, start_offset, start_offset + bytes.total_byte_size());
+
+        // Fill JUMPDEST placeholders. Resizing a jump moves all code after it, so jumps are resized
+        // and resolved once by the top-level macro, when all code is laid out. Nested macros only
+        // settle the width of their own `__codesize` self-references and pass their jumps up.
+        let segment_count = bytes.len();
+        let FilledJumps { mut bytes, unmatched_jumps, label_indices, offset_mapping } = if is_top_level {
+            Codegen::fill_unmatched(bytes, &jump_table, &label_indices, relax_jumps)?
+        } else {
+            let widened = Codegen::widen_jump_offsets(bytes, &JumpTable::new(), &label_indices);
+            let unmatched_jumps = remap_jump_table(&jump_table, &widened.offset_mapping)
+                .into_iter()
+                .flat_map(|(offset, jumps)| jumps.into_iter().map(move |jump| Jump { bytecode_index: offset, ..jump }))
+                .collect();
+            FilledJumps {
+                bytes: widened.bytes,
+                unmatched_jumps,
+                label_indices: widened.label_indices,
+                offset_mapping: widened.offset_mapping,
+            }
+        };
+        // `__tablestart` placeholders are filled later by position, so move them with the resized code
+        for table_instance in table_instances.iter_mut() {
+            table_instance.bytecode_index = remap_offset(&offset_mapping, table_instance.bytecode_index);
+        }
 
         // Adjust spans if bytes changed
-        if new_bytes.len() != bytes.len() {
-            // If the byte count changed, we need to rebuild the spans vector
+        if bytes.len() != segment_count {
+            // If the segment count changed, we need to rebuild the spans vector
             // For now, just ensure it has the same length
-            while spans.len() < new_bytes.len() {
+            while spans.len() < bytes.len() {
                 spans.push(None);
             }
         }
-        let bytes = new_bytes;
 
-        // Fill in circular codesize invocations
-        // Workout how to increase the offset the correct amount within here if it is longer than 2
-        // bytes
-        let new_bytes = Codegen::fill_circular_codesize_invocations(bytes.clone(), circular_codesize_invocations, &macro_def.name)?;
-
-        // Adjust spans if bytes changed
-        if new_bytes.len() != bytes.len() {
-            while spans.len() < new_bytes.len() {
-                spans.push(None);
-            }
-        }
-        let bytes = new_bytes;
+        // Fill in `__codesize` self-references. Values inside nested macros are provisional: the
+        // top-level macro fills them again after resizing all jumps.
+        let growth = bytes.resolve_circular_codesize();
+        debug_assert_eq!(growth, 0, "circular codesize placeholders must be widened before jump resolution");
 
         tracing::info!(target: "codegen", "BytecodeRes created with {} bytes and {} spans", bytes.len(), spans.len());
         Ok(BytecodeRes { bytes, spans, label_indices, unmatched_jumps, table_instances, utilized_tables, embedded_tables })
     }
 
-    /// Optimize PUSH2 (2-byte) jumps to PUSH1 (1-byte) jumps where possible.
+    /// Shrinks PUSH2 jumps to PUSH1 where the target fits in one byte.
     ///
-    /// ## Overview
-    ///
-    /// Implements Szymanski's "Start Big and Shrink" algorithm for jump relaxation.
-    /// Iteratively attempts to shrink PUSH2 (2-byte) jumps to PUSH1 (1-byte) jumps
-    /// when the target label is within 0-255 byte range.
-    ///
-    /// The algorithm:
-    /// 1. Starts with all jumps as PUSH2 (2 bytes)
-    /// 2. Reads existing label positions from `label_indices` (populated during codegen)
-    /// 3. Attempts to shrink PUSH2 → PUSH1 where target ≤ 0xFF
-    /// 4. Updates segment byte offsets and repeats until convergence or max iterations
-    ///
-    /// Jump relaxation using iterative offset recalculation ("Start big and shrink" approach)
-    /// for span-dependent instructions. Based on techniques described in:
-    /// Thomas G. Szymanski, "Assembling Code for Machines with Span-Dependent Instructions",
-    /// CACM 21(4), 1978, p. 300-308.
+    /// Jump relaxation for span-dependent instructions ("start big and shrink"), an iterative
+    /// variant of the technique described in Thomas G. Szymanski, "Assembling Code for Machines
+    /// with Span-Dependent Instructions", CACM 21(4), 1978, p. 300-308.
     /// See also: <https://www.complang.tuwien.ac.at/anton/assembling-span-dependent.html>
     ///
-    /// This is a simpler iterative variant of Szymanski's original graph-based algorithm.
-    /// It iteratively optimizes jump instructions from PUSH2 to PUSH1 when targets fit
-    /// within 0-255 bytes. Each iteration updates segment byte offsets since shrinking one
-    /// jump affects the position of all subsequent segments.
+    /// Shrinking only moves code backwards, so it never pushes a target out of range of a jump that
+    /// was widened before.
     ///
-    /// ## Arguments
-    /// * `bytes` - The bytecode segments containing jump placeholders
-    /// * `jump_table` - Table mapping offsets to Jump metadata
-    /// * `label_indices` - Scoped label positions
+    /// Returns the relaxed bytecode, updated label indices, and a mapping from original to new
+    /// segment offsets.
+    pub fn relax_jump_offsets(bytes: BytecodeSegments, jump_table: &JumpTable, label_indices: &LabelIndices) -> ResizedBytecode {
+        Self::resize_span_dependent_pushes(bytes, jump_table, label_indices, ResizeMode::Shrink)
+    }
+
+    /// Widens jumps and self-referencing `__codesize` pushes whose value no longer fits.
     ///
-    /// ## Returns
-    /// * `Ok((BytecodeSegments, LabelIndices, offset_mapping))` - Optimized bytecode, updated label indices, and mapping from original to new offsets
-    /// * `Err(CodegenError)` - If optimization fails
-    pub fn relax_jump_offsets(
+    /// Jumps start as PUSH2 and self-referencing `__codesize` pushes as PUSH1. Code beyond 64 KiB
+    /// (possible in initcode from Amsterdam) needs PUSH3 targets, and a macro's own size can need a
+    /// wider push than first assumed. Widening moves all following code, so this repeats until no
+    /// push changes ("start small and grow"); it always terminates because pushes only grow.
+    ///
+    /// Returns the widened bytecode, updated label indices, and a mapping from original to new
+    /// segment offsets.
+    pub fn widen_jump_offsets(bytes: BytecodeSegments, jump_table: &JumpTable, label_indices: &LabelIndices) -> ResizedBytecode {
+        Self::resize_span_dependent_pushes(bytes, jump_table, label_indices, ResizeMode::Widen)
+    }
+
+    /// Repeatedly resizes span-dependent pushes until their widths are stable.
+    ///
+    /// After every round that changed a width, segment offsets and label positions are recomputed,
+    /// since a different width moves all code that follows.
+    fn resize_span_dependent_pushes(
         mut bytes: BytecodeSegments,
         jump_table: &JumpTable,
         label_indices: &LabelIndices,
-    ) -> Result<(BytecodeSegments, LabelIndices, std::collections::BTreeMap<usize, usize>), CodegenError> {
+        mode: ResizeMode,
+    ) -> ResizedBytecode {
+        // The jump table is keyed by the original segment offsets. Code of a nested macro does not
+        // start at 0, so recomputed offsets are relative to its first segment.
+        let original_offsets: Vec<usize> = bytes.iter().map(|segment| segment.offset).collect();
+        let base_offset = original_offsets.first().copied().unwrap_or(0);
+        let mut current_label_indices = label_indices.clone();
+        let mut cumulative_offset_mapping: OffsetMapping = original_offsets.iter().map(|&o| (o, o)).collect();
+        // Shrinking is an optimization and may stop early; widening must reach a fixed point and
+        // widens at least one push per round, so it is bounded by the number of segments
+        let max_iterations = match mode {
+            ResizeMode::Shrink => JUMP_RELAXATION_MAX_ITERATIONS,
+            ResizeMode::Widen => bytes.len() + 1,
+        };
+
         let mut iteration = 0;
-        let mut changed = true; // Did any changes occur in the last iteration?
-        let mut current_label_indices = label_indices.clone(); // Mutable copy that we update each iteration
-        // Track the cumulative mapping from original offsets to final offsets
-        let mut cumulative_offset_mapping: std::collections::BTreeMap<usize, usize> = std::collections::BTreeMap::new();
-
-        tracing::info!(target: "codegen", "Starting jump relaxation optimization");
-
-        while changed && iteration < JUMP_RELAXATION_MAX_ITERATIONS {
+        let mut changed = true;
+        while changed && iteration < max_iterations {
             changed = false;
             iteration += 1;
 
-            // Calculate current segment byte offsets (accounting for any size changes)
-            let offsets = bytes.calculate_offsets();
+            let offsets: Vec<usize> = bytes.calculate_offsets().into_iter().map(|offset| base_offset + offset).collect();
+            let total_length = bytes.total_byte_size();
+            let end_offset = base_offset + total_length;
 
-            tracing::debug!(target: "codegen", "Relaxation iteration {} - checking {} segments", iteration, bytes.len());
-
-            // Iterate through all segments looking for jump placeholders
             for (segment_idx, segment) in bytes.iter_mut().enumerate() {
-                if let Bytes::JumpPlaceholder(ref mut placeholder) = segment.bytes {
-                    // Only optimize if currently PUSH2
-                    if placeholder.push_opcode != PushOpcode::Push2 {
-                        continue;
-                    }
-
-                    // Get the current bytecode offset for this segment
-                    let current_offset = offsets[segment_idx];
-
-                    // Find the corresponding jump in the jump table
-                    if let Some(jumps) = jump_table.get(&segment.offset) {
-                        // Use the first jump (typically there's only one per offset)
-                        if let Some(jump) = jumps.first() {
-                            // Look up the target label's offset using the CURRENT iteration's label indices
-                            match current_label_indices.get(&placeholder.label, &jump.scope_id) {
-                                Ok(Some(target_offset)) => {
-                                    // Check if target fits in PUSH1 (0-255)
-                                    // OR if shrinking this jump would bring a forward target into PUSH1 range
-                                    let can_use_push1 = if target_offset <= 0xFF {
-                                        // Target already fits in PUSH1
-                                        true
-                                    } else if target_offset == 0x100 && target_offset > current_offset {
-                                        // Special case: target is at exactly 256 (0x100) and is a forward jump
-                                        // Shrinking PUSH2->PUSH1 saves 1 byte, moving target from 256 to 255
-                                        tracing::debug!(
-                                            target: "codegen",
-                                            "Forward jump to '{}' at 256 will fit in PUSH1 after relaxation",
-                                            placeholder.label
-                                        );
-                                        true
-                                    } else {
-                                        false
-                                    };
-
-                                    if can_use_push1 {
-                                        tracing::debug!(
-                                            target: "codegen",
-                                            "Shrinking jump to '{}' at offset {} from PUSH2 to PUSH1 (target={})",
-                                            placeholder.label,
-                                            current_offset,
-                                            target_offset
-                                        );
-
-                                        // Shrink from PUSH2 to PUSH1
-                                        placeholder.push_opcode = PushOpcode::Push1;
-                                        changed = true;
-                                    } else {
-                                        tracing::trace!(
-                                            target: "codegen",
-                                            "Jump to '{}' at offset {} remains PUSH2 (target={})",
-                                            placeholder.label,
-                                            current_offset,
-                                            target_offset
-                                        );
-                                    }
-                                }
-                                Ok(None) => {
-                                    // Label not found - will be handled by fill_unmatched later
-                                    tracing::trace!(
-                                        target: "codegen",
-                                        "Label '{}' not found during relaxation, will be resolved later",
-                                        placeholder.label
-                                    );
-                                }
-                                Err(e) => {
-                                    // Error looking up label - will be handled by fill_unmatched later
-                                    tracing::trace!(
-                                        target: "codegen",
-                                        "Error looking up label '{}' during relaxation: {:?}",
-                                        placeholder.label,
-                                        e
-                                    );
-                                }
+                match segment.bytes {
+                    Bytes::JumpPlaceholder(ref mut placeholder) => {
+                        let Some(jump) = jump_table.get(&original_offsets[segment_idx]).and_then(|jumps| jumps.first()) else {
+                            continue;
+                        };
+                        // Unknown labels are reported by `fill_unmatched` after resizing
+                        let Ok(Some(target_offset)) = current_label_indices.get(&placeholder.label, &jump.scope_id) else {
+                            continue;
+                        };
+                        let new_opcode = match mode {
+                            ResizeMode::Widen if !placeholder.push_opcode.can_represent(target_offset) => {
+                                Some(PushOpcode::optimal_for(target_offset))
                             }
+                            // A forward target at exactly 0x100 moves to 0xff once this jump shrinks
+                            ResizeMode::Shrink
+                                if placeholder.push_opcode == PushOpcode::Push2
+                                    && (target_offset <= 0xFF || (target_offset == 0x100 && target_offset > offsets[segment_idx])) =>
+                            {
+                                Some(PushOpcode::Push1)
+                            }
+                            _ => None,
+                        };
+                        if let Some(new_opcode) = new_opcode {
+                            tracing::debug!(
+                                target: "codegen",
+                                "Resizing jump to '{}' at offset {} from {:?} to {:?} (target={})",
+                                placeholder.label,
+                                offsets[segment_idx],
+                                placeholder.push_opcode,
+                                new_opcode,
+                                target_offset
+                            );
+                            placeholder.push_opcode = new_opcode;
+                            changed = true;
                         }
                     }
+                    Bytes::CircularCodesizePlaceholder(ref mut placeholder) if mode == ResizeMode::Widen => {
+                        let size = placeholder.measured_range.map_or(total_length, |(start, end)| {
+                            current_offset(&original_offsets, &offsets, end_offset, end)
+                                - current_offset(&original_offsets, &offsets, end_offset, start)
+                        });
+                        if !placeholder.push_opcode.can_represent(size) {
+                            placeholder.push_opcode = PushOpcode::optimal_for(size);
+                            changed = true;
+                        }
+                    }
+                    _ => {}
                 }
             }
 
             if changed {
-                tracing::debug!(target: "codegen", "Iteration {} made changes, will recalculate label positions", iteration);
-
                 // Recalculate all positions based on current segment sizes
-                let new_offsets = bytes.calculate_offsets();
+                let new_offsets: Vec<usize> = bytes.calculate_offsets().into_iter().map(|offset| base_offset + offset).collect();
+                let offset_mapping: OffsetMapping =
+                    bytes.iter().zip(&new_offsets).map(|(segment, &new_offset)| (segment.offset, new_offset)).collect();
 
-                // Build offset mapping for this iteration
-                let mut offset_mapping: std::collections::BTreeMap<usize, usize> = std::collections::BTreeMap::new();
-                for (segment_idx, segment) in bytes.iter().enumerate() {
-                    offset_mapping.insert(segment.offset, new_offsets[segment_idx]);
+                for final_offset in cumulative_offset_mapping.values_mut() {
+                    *final_offset = remap_offset(&offset_mapping, *final_offset);
                 }
-
-                // Update the cumulative mapping
-                // For each original offset, update it to point to the latest calculated offset
-                if cumulative_offset_mapping.is_empty() {
-                    // First iteration: just copy the mapping
-                    cumulative_offset_mapping = offset_mapping.clone();
-                } else {
-                    // Subsequent iterations: chain the mappings
-                    // If we had original->iter1, and now have iter1->iter2, we want original->iter2
-                    for intermediate_offset in cumulative_offset_mapping.values_mut() {
-                        if let Some(&new_offset) = offset_mapping.get(intermediate_offset) {
-                            *intermediate_offset = new_offset;
-                        }
-                    }
-                }
-
-                // Update the label indices using this iteration's mapping
                 current_label_indices.update_offsets(&offset_mapping);
-
-                // Update segment offsets for next iteration
-                for (segment_idx, segment) in bytes.iter_mut().enumerate() {
-                    segment.offset = new_offsets[segment_idx];
+                for (segment, new_offset) in bytes.iter_mut().zip(new_offsets) {
+                    segment.offset = new_offset;
                 }
             }
         }
 
-        if iteration >= JUMP_RELAXATION_MAX_ITERATIONS {
-            tracing::warn!(target: "codegen", "Jump relaxation hit max iterations ({})", JUMP_RELAXATION_MAX_ITERATIONS);
+        if changed {
+            tracing::warn!(target: "codegen", "{:?} of span-dependent pushes hit max iterations ({})", mode, max_iterations);
         } else {
-            tracing::info!(target: "codegen", "Jump relaxation converged after {} iterations", iteration);
+            tracing::info!(target: "codegen", "{:?} of span-dependent pushes converged after {} iterations", mode, iteration);
         }
 
-        Ok((bytes, current_label_indices, cumulative_offset_mapping))
+        // Move the code measured by `__codesize` self-references along with the resized code
+        let final_offsets: Vec<usize> = bytes.iter().map(|segment| segment.offset).collect();
+        let final_end_offset = base_offset + bytes.total_byte_size();
+        for segment in bytes.iter_mut() {
+            if let Bytes::CircularCodesizePlaceholder(ref mut placeholder) = segment.bytes
+                && let Some((start, end)) = placeholder.measured_range
+            {
+                placeholder.measured_range = Some((
+                    current_offset(&original_offsets, &final_offsets, final_end_offset, start),
+                    current_offset(&original_offsets, &final_offsets, final_end_offset, end),
+                ));
+            }
+        }
+
+        ResizedBytecode { bytes, label_indices: current_label_indices, offset_mapping: cumulative_offset_mapping }
     }
 
     /// Resolves jump placeholders to their target offsets with optional size optimization.
     ///
     /// Replaces jump placeholders with actual bytecode offsets by looking up labels in the
-    /// label index. When `relax_jumps` is enabled, optimizes PUSH2 jumps to PUSH1 where
-    /// targets fit within a single byte (0-255).
+    /// label index. Jumps whose target does not fit in PUSH2 are widened first; when
+    /// `relax_jumps` is enabled, PUSH2 jumps are then shrunk to PUSH1 where targets fit within a
+    /// single byte (0-255).
     ///
     /// ## Arguments
     ///
@@ -981,49 +1035,31 @@ impl Codegen {
     ///
     /// ## Returns
     ///
-    /// Returns resolved bytecode and any unmatched jumps, or an error for label conflicts
-    /// or invalid jump targets.
+    /// Returns resolved bytecode, any unmatched jumps, the final label positions, and a mapping
+    /// from original to final segment offsets, or an error for label conflicts or invalid jump
+    /// targets.
     pub fn fill_unmatched(
-        mut bytes: BytecodeSegments,
+        bytes: BytecodeSegments,
         jump_table: &JumpTable,
         label_indices: &LabelIndices,
         relax_jumps: bool,
-    ) -> Result<(BytecodeSegments, Vec<Jump>, LabelIndices), CodegenError> {
-        // Apply jump relaxation optimization if enabled
-        // This will replace PUSH2 jumps with PUSH1 where possible, before final resolution
-        let jump_table_to_use: std::collections::BTreeMap<usize, Vec<Jump>>;
-        let label_indices_to_use: LabelIndices;
-        let jump_table_ref: &JumpTable;
-        let label_indices_ref: &LabelIndices;
-
+    ) -> Result<FilledJumps, CodegenError> {
+        // Widen pushes that do not fit first, then optionally shrink jumps to PUSH1. Shrinking only
+        // moves code backwards, so widened jumps keep fitting.
+        let ResizedBytecode { mut bytes, mut label_indices, mut offset_mapping } =
+            Self::widen_jump_offsets(bytes, jump_table, label_indices);
         if relax_jumps {
-            // Perform jump relaxation, which updates bytecode, label indices, and returns offset mapping
-            let (relaxed_bytes, relaxed_label_indices, offset_mapping) = Self::relax_jump_offsets(bytes, jump_table, label_indices)?;
-            bytes = relaxed_bytes;
-
-            // Rebuild the jump_table using the offset mapping from relaxation
-            // For each jump, map its offset to the new offset, or keep the original if not in mapping
-            jump_table_to_use = jump_table
-                .iter()
-                .map(|(old_offset, jumps)| {
-                    let new_offset = offset_mapping.get(old_offset).copied().unwrap_or(*old_offset);
-                    (new_offset, jumps.clone())
-                })
-                .collect();
-
-            // Use the label indices returned from relaxation (already updated)
-            label_indices_to_use = relaxed_label_indices;
-
-            jump_table_ref = &jump_table_to_use;
-            label_indices_ref = &label_indices_to_use;
-        } else {
-            jump_table_ref = jump_table;
-            label_indices_ref = label_indices;
-            label_indices_to_use = label_indices.clone();
+            let relaxed = Self::relax_jump_offsets(bytes, &remap_jump_table(jump_table, &offset_mapping), &label_indices);
+            bytes = relaxed.bytes;
+            label_indices = relaxed.label_indices;
+            for final_offset in offset_mapping.values_mut() {
+                *final_offset = remap_offset(&relaxed.offset_mapping, *final_offset);
+            }
         }
 
         // Resolve all jumps using the new typed approach
-        let unmatched_jumps = bytes.resolve_jumps(jump_table_ref, label_indices_ref).map_err(|label_error| {
+        let resized_jump_table = remap_jump_table(jump_table, &offset_mapping);
+        let unmatched_jumps = bytes.resolve_jumps(&resized_jump_table, &label_indices).map_err(|label_error| {
             // Match on the typed error variants
             match label_error {
                 LabelError::DuplicateLabelAcrossSiblings(label_name) => {
@@ -1110,68 +1146,7 @@ impl Codegen {
             }
         }
 
-        Ok((filtered_bytes, unmatched_jumps, label_indices_to_use))
-    }
-
-    /// Helper associated function to fill circular codesize invocations.
-    ///
-    /// ## Overview
-    ///
-    /// This function should run after all other code generation has been completed.
-    /// If there are placeholders for circular codesize invocations, this function will
-    /// fill them in with the correct offset.
-    ///
-    /// If there are multiple invocations of the same macro, the function will take into
-    /// account the total number of invocations and increase its offset accordingly.
-    ///
-    /// On success, returns a tuple of generated bytes.
-    /// On failure, returns a CodegenError.
-    pub fn fill_circular_codesize_invocations(
-        mut bytes: BytecodeSegments,
-        circular_codesize_invocations: &CircularCodeSizeIndices,
-        macro_name: &str,
-    ) -> Result<BytecodeSegments, CodegenError> {
-        // Get the number of circular codesize invocations
-        let num_invocations = circular_codesize_invocations.len();
-        if num_invocations == 0 {
-            return Ok(bytes);
-        }
-
-        tracing::debug!(target: "codegen", "Circular Codesize Invocation: Bytes before expansion: {:#?}", bytes);
-
-        // Calculate initial size
-        let length: usize = bytes.iter().map(|seg| seg.bytes.len()).sum::<usize>();
-
-        // Determine if any placeholders will need to grow from PUSH1 to PUSH2
-        // This is needed to calculate the correct final size
-        let offset_increase = if length > 255 { 1 } else { 0 };
-        // Codesize will increase by 1 byte for every codesize that grows to PUSH2
-        let extended_length = length + (offset_increase * num_invocations);
-
-        // Resolve all circular codesize placeholders with the calculated extended size
-        let growth_offsets = bytes.resolve_circular_codesize(circular_codesize_invocations, macro_name, extended_length);
-
-        // Apply offset adjustments for segments that come after grown placeholders
-        for segment in bytes.iter_mut() {
-            // Check if any growth happened before this segment
-            let growth_before: usize =
-                growth_offsets.iter().filter(|(growth_offset, _)| *growth_offset < segment.offset).map(|(_, growth)| growth).sum();
-
-            if growth_before > 0 {
-                // This segment comes after some growth, adjust its offset
-                segment.offset += growth_before;
-            }
-        }
-
-        tracing::debug!(
-            target: "codegen",
-            "Circular codesize resolution complete: {} placeholders resolved, {} bytes of growth, final size: {}",
-            num_invocations,
-            growth_offsets.iter().map(|(_, g)| g).sum::<usize>(),
-            extended_length
-        );
-
-        Ok(bytes)
+        Ok(FilledJumps { bytes: filtered_bytes, unmatched_jumps, label_indices, offset_mapping })
     }
 
     /// Helper associated function to append functions to the end of the bytecode.
@@ -1223,7 +1198,7 @@ impl Codegen {
             // This is a chicken-and-egg problem: we need offsets to generate code, but need code to know offsets
             // Solution: Generate into a temporary buffer first
             scope_mgr.push_macro(macro_def, current_offset);
-            let temp_res = Codegen::macro_to_bytecode(evm_version, macro_def, contract, scope_mgr, current_offset + 1, false, None, false)?;
+            let temp_res = Codegen::macro_to_bytecode(evm_version, macro_def, contract, scope_mgr, current_offset + 1, false, false)?;
             let macro_code_len = temp_res.bytes.iter().map(|seg| seg.bytes.len()).sum::<usize>();
             let stack_swaps_len = macro_def.returns;
             current_offset += macro_code_len + stack_swaps_len + 2; // JUMPDEST + MACRO_CODE_LEN + stack_swaps.len() + JUMP
@@ -1237,7 +1212,7 @@ impl Codegen {
             scope_mgr.push_macro(macro_def, func_offset);
 
             // Add 1 to starting offset to account for the JUMPDEST opcode
-            let mut res = Codegen::macro_to_bytecode(evm_version, macro_def, contract, scope_mgr, func_offset + 1, false, None, false)?;
+            let mut res = Codegen::macro_to_bytecode(evm_version, macro_def, contract, scope_mgr, func_offset + 1, false, false)?;
 
             for j in res.unmatched_jumps.iter_mut() {
                 let new_index = j.bytecode_index;
@@ -1278,6 +1253,7 @@ impl Codegen {
     #[allow(clippy::too_many_arguments)]
     pub fn churn(
         &mut self,
+        evm_version: &EVMVersion,
         file: Arc<FileSource>,
         args: Vec<alloy_dyn_abi::DynSolValue>,
         main_bytecode: &str,
@@ -1303,7 +1279,7 @@ impl Codegen {
         // The shim does not have a fully-populated Contract — but with no utilized tables in the
         // synthesized constructor BytecodeRes, gen_table_bytecode never inspects table definitions.
         let contract = Contract::default();
-        let mut artifact = self.assemble_artifact(file, &contract, args, main, constructor, no_size_limit)?;
+        let mut artifact = self.assemble_artifact(evm_version, file, &contract, args, main, constructor, no_size_limit)?;
         // Preserve the caller-supplied constructor source map (the shim doesn't generate one).
         artifact.constructor_map = constructor_source_map;
         Ok(artifact)
@@ -1320,16 +1296,18 @@ impl Codegen {
     ///
     /// # Arguments
     ///
+    /// * `evm_version` — target EVM version; selects the runtime and initcode size limits.
     /// * `contract` — contract AST with table sizes populated by `update_table_size`. Used to read
     ///   table definitions during constructor table finalization.
     /// * `args` — encoded constructor arguments, appended at the very end of the deployment bytes.
     /// * `main` — main/runtime bytecode plus its body length and per-table offsets within the runtime.
     /// * `constructor` — phase-1 constructor macro output; `None` when the contract has no
     ///   `CONSTRUCTOR` macro (deployment becomes just `bootstrap + main`).
-    /// * `no_size_limit` — skip the EIP-170 runtime size check.
+    /// * `no_size_limit` — skip the runtime and initcode size checks.
     #[allow(clippy::too_many_arguments)]
     pub fn assemble_artifact(
         &mut self,
+        evm_version: &EVMVersion,
         file: Arc<FileSource>,
         contract: &Contract,
         mut args: Vec<alloy_dyn_abi::DynSolValue>,
@@ -1348,10 +1326,10 @@ impl Codegen {
 
         let contract_length = main_bytecode.len() / 2;
 
-        // Check contract size limit (EIP-170)
-        if !no_size_limit && contract_length > EIP170_CONTRACT_SIZE_LIMIT {
+        // Check the runtime size limit (EIP-170, raised by EIP-7954 from Amsterdam)
+        if !no_size_limit && contract_length > evm_version.max_code_size() {
             return Err(CodegenError {
-                kind: CodegenErrorKind::ContractSizeLimitExceeded(contract_length, EIP170_CONTRACT_SIZE_LIMIT),
+                kind: CodegenErrorKind::ContractSizeLimitExceeded(contract_length, evm_version.max_code_size()),
                 span: AstSpan(vec![Span { start: 0, end: 0, file: Some(file) }]).boxed(),
                 token: None,
             });
@@ -1367,30 +1345,9 @@ impl Codegen {
         };
 
         // Bootstrap size depends only on body lengths (not table sizes).
-        // 9 bytes baseline (PUSH1 size, DUP1, PUSH1 offset, RETURNDATASIZE, CODECOPY, RETURNDATASIZE, RETURN);
-        // grows by 1 if PUSH2 is needed for contract_length, grows by another 1 if PUSH2 is needed
-        // for the runtime offset (= bootstrap_size + ctor_body_len).
-        let mut bootstrap_code_size = 9;
-        let contract_size = if contract_length < 256 {
-            // 60 = PUSH1
-            format!("60{}", pad_n_bytes(format!("{contract_length:x}").as_str(), 1))
-        } else {
-            bootstrap_code_size += 1;
-            // 61 = PUSH2
-            format!("61{}", pad_n_bytes(format!("{contract_length:x}").as_str(), 2))
-        };
-        let contract_code_offset = if (bootstrap_code_size + ctor_body_len) < 256 {
-            format!("60{}", pad_n_bytes(format!("{:x}", bootstrap_code_size + ctor_body_len).as_str(), 1))
-        } else {
-            bootstrap_code_size += 1;
-            format!("61{}", pad_n_bytes(format!("{:x}", bootstrap_code_size + ctor_body_len).as_str(), 2))
-        };
-
-        // 80 = DUP1; 3d = RETURNDATASIZE; 39 = CODECOPY; 3d = RETURNDATASIZE; f3 = RETURN.
         // Suppressed entirely when the user supplies their own bootstrap (constructor contains RETURN).
-        let bootstrap_code =
-            if has_custom_bootstrap { String::default() } else { format!("{contract_size}80{contract_code_offset}3d393df3") };
-        let effective_bootstrap_size = if has_custom_bootstrap { 0 } else { bootstrap_code_size };
+        let (bootstrap_code, effective_bootstrap_size) =
+            if has_custom_bootstrap { (String::default(), 0) } else { deploy_bootstrap(contract_length, ctor_body_len) };
 
         // Finalize constructor table resolution now that the layout is known.
         // Constructor-only tables sit past main_bytecode in the deployment tail.
@@ -1425,6 +1382,8 @@ impl Codegen {
         // deployment-bytecode offset where each argument's content sits. Args are appended past
         // ctor_only_tables, so the first arg lives at runtime_start + contract_length + ctor_only_tables_len.
         let mut arg_offset_acc = runtime_start_in_deployment + contract_length + ctor_only_tables.len() / 2;
+        // The filled-in PUSH2 can only address the first 64 KiB of the deployment bytecode
+        let mut oversized_arg_offset = None;
         let encoded: Vec<Vec<u8>> = args
             .into_iter()
             .enumerate()
@@ -1437,6 +1396,9 @@ impl Codegen {
                     let tok_len = hex::encode(&encoded[62..64]);
                     let rep_regex = Regex::new(format!("xxxxxxxxxxxxxxxxxxxxxxxxxxxx{i:02x}\\d{{4}}").as_str()).unwrap();
                     rep_regex.find_iter(main_bytecode.clone().as_str()).for_each(|s| {
+                        if arg_offset_acc > 0xFFFF {
+                            oversized_arg_offset = Some(arg_offset_acc);
+                        }
                         // TODO: Enforce that the arg type is a literal so that this unwrap is safe.
                         let len_ptr = usize::from_str_radix(&s.as_str()[30..34], 16).unwrap();
                         let contents_ptr = len_ptr + 0x20;
@@ -1477,6 +1439,14 @@ impl Codegen {
         let hex_args: Vec<String> = encoded.iter().map(|tok| hex::encode(tok.as_slice())).collect();
         let constructor_args = hex_args.join("");
 
+        if let Some(offset) = oversized_arg_offset {
+            return Err(CodegenError {
+                kind: CodegenErrorKind::OffsetExceedsTwoBytes("dynamic constructor argument for __CODECOPY_DYN_ARG".to_string(), offset),
+                span: AstSpan(vec![Span { start: 0, end: 0, file: Some(file) }]).boxed(),
+                token: None,
+            });
+        }
+
         // Sucks that we can't provide a span on this error. Need to refactor at some point.
         if main_bytecode.contains('x') {
             tracing::error!(target = "codegen", "Failed to fill `__CODECOPY_DYN_ARG` placeholders. Dynamic argument index is invalid.");
@@ -1487,7 +1457,19 @@ impl Codegen {
             });
         }
 
-        artifact.bytecode = format!("{constructor_body}{bootstrap_code}{main_bytecode}{ctor_only_tables}{constructor_args}").to_lowercase();
+        let deployment_bytecode = format!("{constructor_body}{bootstrap_code}{main_bytecode}{ctor_only_tables}{constructor_args}");
+
+        // Check the initcode size limit (EIP-3860, raised by EIP-7954 from Amsterdam)
+        let initcode_length = deployment_bytecode.len() / 2;
+        if !no_size_limit && initcode_length > evm_version.max_initcode_size() {
+            return Err(CodegenError {
+                kind: CodegenErrorKind::InitcodeSizeLimitExceeded(initcode_length, evm_version.max_initcode_size()),
+                span: AstSpan(vec![Span { start: 0, end: 0, file: Some(file) }]).boxed(),
+                token: None,
+            });
+        }
+
+        artifact.bytecode = deployment_bytecode.to_lowercase();
         artifact.runtime = main_bytecode.to_lowercase();
         artifact.has_custom_bootstrap = has_custom_bootstrap;
         artifact.file = file;

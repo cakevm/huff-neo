@@ -1,6 +1,6 @@
 use crate::{errors::RunnerError, runner::TestRunner, types::TestResult};
 use alloy_primitives::Address;
-use huff_neo_utils::prelude::{Contract, MacroDefinition};
+use huff_neo_utils::prelude::{Contract, EVMVersion, MacroDefinition, SupportedEVMVersions};
 
 /// The runner module
 pub mod runner;
@@ -58,6 +58,8 @@ pub struct HuffTesterConfig {
     pub isolation: bool,
     /// The target address for the contract
     pub target_address: Option<Address>,
+    /// The EVM version the test macros are compiled for
+    pub evm_version: EVMVersion,
 }
 
 impl HuffTesterConfig {
@@ -99,6 +101,23 @@ impl HuffTesterConfig {
         self.target_address = target_address;
         self
     }
+
+    pub fn evm_version(mut self, evm_version: EVMVersion) -> Self {
+        self.evm_version = evm_version;
+        self
+    }
+}
+
+/// Returns the REVM hardfork that matches a Huff EVM version
+pub fn spec_id_for(version: &SupportedEVMVersions) -> SpecId {
+    match version {
+        SupportedEVMVersions::Paris => SpecId::MERGE,
+        SupportedEVMVersions::Shanghai => SpecId::SHANGHAI,
+        SupportedEVMVersions::Cancun => SpecId::CANCUN,
+        SupportedEVMVersions::Prague => SpecId::PRAGUE,
+        SupportedEVMVersions::Osaka => SpecId::OSAKA,
+        SupportedEVMVersions::Amsterdam => SpecId::AMSTERDAM,
+    }
 }
 
 /// The core struct of the huff-tests crate.
@@ -136,7 +155,7 @@ impl<'t> HuffTester<'t> {
                 }
                 macros
             },
-            runner: TestRunner::new(env, inspector, config.target_address),
+            runner: TestRunner::new(env, inspector, config.target_address, config.evm_version),
             config,
         }
     }
@@ -153,7 +172,8 @@ impl<'t> HuffTester<'t> {
             .macros
             .into_iter()
             .map(|macro_def| {
-                let db = Backend::<EthEvmNetwork>::spawn(self.config.fork.take())
+                // Every test gets its own backend; each one must fork the same chain state
+                let db = Backend::<EthEvmNetwork>::spawn(self.config.fork.clone())
                     .map_err(|_| RunnerError::GenericError("Failed to spawn backend".to_string()))?;
                 let mut cache_db = CacheDB::new(db);
                 self.runner.run_test(&mut cache_db, macro_def, self.ast)

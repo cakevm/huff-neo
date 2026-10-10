@@ -1,3 +1,4 @@
+use alloy_primitives::{U256, hex};
 use phf::phf_map;
 use std::fmt;
 use strum_macros::{AsRefStr, EnumString};
@@ -8,7 +9,7 @@ use crate::evm_version::SupportedEVMVersions;
 /// They are arranged in a particular order such that all the opcodes that have common
 /// prefixes are ordered alphabetically by decreasing length to avoid mismatch when lexing.
 /// Example : [origin, or] or [push32, ..., push3]
-pub const OPCODES: [&str; 152] = [
+pub const OPCODES: [&str; 156] = [
     "addmod",
     "address",
     "add",
@@ -52,7 +53,9 @@ pub const OPCODES: [&str; 152] = [
     "dup7",
     "dup8",
     "dup9",
+    "dupn",
     "eq",
+    "exchange",
     "exp",
     "extcodecopy",
     "extcodehash",
@@ -135,6 +138,7 @@ pub const OPCODES: [&str; 152] = [
     "shr",
     "signextend",
     "sload",
+    "slotnum",
     "slt",
     "smod",
     "sstore",
@@ -157,6 +161,7 @@ pub const OPCODES: [&str; 152] = [
     "swap7",
     "swap8",
     "swap9",
+    "swapn",
     "timestamp",
     "tload",
     "tstore",
@@ -200,6 +205,7 @@ pub static OPCODES_MAP: phf::Map<&'static str, Opcode> = phf_map! {
     "chainid" => Opcode::Chainid,
     "clz" => Opcode::Clz,
     "selfbalance" => Opcode::Selfbalance,
+    "slotnum" => Opcode::Slotnum,
     "pop" => Opcode::Pop,
     "mload" => Opcode::Mload,
     "mstore" => Opcode::Mstore,
@@ -294,12 +300,15 @@ pub static OPCODES_MAP: phf::Map<&'static str, Opcode> = phf_map! {
     "dup14" => Opcode::Dup14,
     "dup15" => Opcode::Dup15,
     "dup16" => Opcode::Dup16,
+    "dupn" => Opcode::Dupn,
     "swap11" => Opcode::Swap11,
     "swap12" => Opcode::Swap12,
     "swap13" => Opcode::Swap13,
     "swap14" => Opcode::Swap14,
     "swap15" => Opcode::Swap15,
     "swap16" => Opcode::Swap16,
+    "swapn" => Opcode::Swapn,
+    "exchange" => Opcode::Exchange,
     "log0" => Opcode::Log0,
     "log1" => Opcode::Log1,
     "log2" => Opcode::Log2,
@@ -435,6 +444,8 @@ pub enum Opcode {
     Blobhash,
     /// Blob base fee of the current block.
     Blobbasefee,
+    /// Beacon chain slot number of the current block
+    Slotnum,
     /// Removes an Item from the Stack
     Pop,
     /// Loads a word from Memory
@@ -557,6 +568,8 @@ pub enum Opcode {
     Dup15,
     /// Duplicates the 16th stack item
     Dup16,
+    /// Duplicate the Nth stack item (17 <= N <= 235), with N given by an immediate byte
+    Dupn,
     /// Exchange the top two stack items
     Swap1,
     /// Exchange the first and third stack items
@@ -589,6 +602,10 @@ pub enum Opcode {
     Swap15,
     /// Exchange the first and seventeenth stack items
     Swap16,
+    /// Exchange the first and (N+1)th stack items (17 <= N <= 235), with N given by an immediate byte
+    Swapn,
+    /// Exchange the (N+1)th and (M+1)th stack items, with N and M given by an immediate byte
+    Exchange,
     /// Append Log Record with no Topics
     Log0,
     /// Append Log Record with 1 Topic
@@ -690,6 +707,7 @@ impl Opcode {
             Opcode::Basefee => "48",
             Opcode::Blobhash => "49",
             Opcode::Blobbasefee => "4a",
+            Opcode::Slotnum => "4b",
             Opcode::Pop => "50",
             Opcode::Mload => "51",
             Opcode::Mstore => "52",
@@ -775,6 +793,9 @@ impl Opcode {
             Opcode::Log2 => "a2",
             Opcode::Log3 => "a3",
             Opcode::Log4 => "a4",
+            Opcode::Dupn => "e6",
+            Opcode::Swapn => "e7",
+            Opcode::Exchange => "e8",
             Opcode::Create => "f0",
             Opcode::Call => "f1",
             Opcode::Callcode => "f2",
@@ -846,6 +867,85 @@ impl Opcode {
         literal.to_string()
     }
 
+    /// Number of value bytes following a PUSH1..PUSH32 opcode, or `None` for any other opcode
+    pub fn push_size(&self) -> Option<usize> {
+        if !self.is_value_push() {
+            return None;
+        }
+        u8::from_str_radix(&self.string(), 16).ok().map(|byte| (byte - 0x5f) as usize)
+    }
+
+    /// Number of stack-position operands an opcode encodes in its immediate byte (EIP-8024)
+    ///
+    /// `dupn <n>` and `swapn <n>` take one operand, `exchange <n> <m>` takes two. Every other
+    /// opcode returns 0.
+    pub fn stack_immediate_operands(&self) -> usize {
+        match self {
+            Opcode::Dupn | Opcode::Swapn => 1,
+            Opcode::Exchange => 2,
+            _ => 0,
+        }
+    }
+
+    /// Returns true if the opcode is followed by a one-byte stack immediate (EIP-8024)
+    pub fn has_stack_immediate(&self) -> bool {
+        self.stack_immediate_operands() > 0
+    }
+
+    /// Encodes the stack operands of a DUPN, SWAPN or EXCHANGE into its immediate byte
+    ///
+    /// Operands use the same numbering as the EIP: `dupn 17` behaves like a `dup17`, `swapn 17`
+    /// like a `swap17`, and `exchange n m` swaps the (n+1)th and (m+1)th stack items.
+    ///
+    /// Returns `None` if the operands cannot be represented. The encoding never produces a byte
+    /// that would be read as JUMPDEST or PUSH1..PUSH32, so emitted code keeps its jump targets.
+    pub fn encode_stack_immediate(&self, operands: &[usize]) -> Option<u8> {
+        match (self, operands) {
+            (Opcode::Dupn | Opcode::Swapn, &[n]) => {
+                if !(STACK_IMMEDIATE_MIN_N..=STACK_IMMEDIATE_MAX_N).contains(&n) {
+                    return None;
+                }
+                let x = ((n + 256 - 145) % 256) as u8;
+                debug_assert_eq!(decode_single_immediate(x), Some(n));
+                Some(x)
+            }
+            (Opcode::Exchange, &[n, m]) => (0..=u8::MAX).find(|&x| decode_pair_immediate(x) == Some((n, m))),
+            _ => None,
+        }
+    }
+
+    /// Encodes the immediate data that follows the opcode from its resolved operand values
+    ///
+    /// PUSH1..PUSH32 take one value that must fit the push width; DUPN, SWAPN and EXCHANGE take
+    /// stack positions as described in [`Opcode::encode_stack_immediate`]. Returns the immediate
+    /// as a hex string, or a description of why the values cannot be encoded.
+    pub fn encode_immediate(&self, values: &[U256]) -> Result<String, String> {
+        if let Some(size) = self.push_size() {
+            let value = values[0];
+            if value.byte_len() > size {
+                return Err(format!("value {value:#x} does not fit into \"{self:?}\" ({size} bytes)"));
+            }
+            return Ok(hex::encode(&value.to_be_bytes::<32>()[32 - size..]));
+        }
+
+        let positions: Option<Vec<usize>> = values.iter().map(|v| usize::try_from(*v).ok()).collect();
+        positions.and_then(|p| self.encode_stack_immediate(&p)).map(|x| format!("{x:02x}")).ok_or_else(|| {
+            let got: Vec<String> = values.iter().map(U256::to_string).collect();
+            format!("{}, got {}", self.stack_immediate_hint(), got.join(" "))
+        })
+    }
+
+    /// Describes the valid operand range of a stack-immediate opcode, for error messages
+    pub fn stack_immediate_hint(&self) -> String {
+        match self {
+            Opcode::Dupn | Opcode::Swapn => {
+                format!("\"{self:?}\" takes one stack depth between {STACK_IMMEDIATE_MIN_N} and {STACK_IMMEDIATE_MAX_N}")
+            }
+            Opcode::Exchange => "\"Exchange\" takes two stack positions n and m with 1 <= n < m and n + m <= 30".to_string(),
+            _ => String::new(),
+        }
+    }
+
     /// Checks if the value overflows the given push opcode
     pub fn push_overflows(&self, literal: &str) -> bool {
         if self.is_value_push()
@@ -873,10 +973,34 @@ impl Opcode {
             Opcode::Blobhash | Opcode::Blobbasefee => Some(SupportedEVMVersions::Cancun),
             // Osaka opcodes
             Opcode::Clz => Some(SupportedEVMVersions::Osaka),
+            // Amsterdam opcodes
+            Opcode::Slotnum | Opcode::Dupn | Opcode::Swapn | Opcode::Exchange => Some(SupportedEVMVersions::Amsterdam),
             // All other opcodes are available since before Paris
             _ => None,
         }
     }
+}
+
+/// Smallest stack depth reachable by DUPN and SWAPN
+pub const STACK_IMMEDIATE_MIN_N: usize = 17;
+/// Largest stack depth reachable by DUPN and SWAPN
+pub const STACK_IMMEDIATE_MAX_N: usize = 235;
+
+/// Decodes a DUPN/SWAPN immediate byte as defined by EIP-8024
+fn decode_single_immediate(x: u8) -> Option<usize> {
+    let x = x as usize;
+    if x <= 0x5a || x >= 0x80 { Some((x + 145) % 256) } else { None }
+}
+
+/// Decodes an EXCHANGE immediate byte into its `(n, m)` pair as defined by EIP-8024
+fn decode_pair_immediate(x: u8) -> Option<(usize, usize)> {
+    let x = x as usize;
+    if x > 0x51 && x < 0x80 {
+        return None;
+    }
+    let k = x ^ 0x8f;
+    let (q, r) = (k / 16, k % 16);
+    if q < r { Some((q + 1, r + 1)) } else { Some((r + 1, 29 - q)) }
 }
 
 impl fmt::Display for Opcode {
@@ -905,6 +1029,70 @@ mod tests {
         for opcode in OPCODES_MAP.keys() {
             assert!(OPCODES.contains(opcode), "{opcode}");
         }
+    }
+
+    /// Byte values that would turn the immediate into a JUMPDEST or PUSH1..PUSH32
+    fn is_forbidden_immediate(x: u8) -> bool {
+        (0x5b..=0x7f).contains(&x)
+    }
+
+    #[test]
+    fn test_dupn_swapn_encoding_round_trips() {
+        for opcode in [Opcode::Dupn, Opcode::Swapn] {
+            for n in STACK_IMMEDIATE_MIN_N..=STACK_IMMEDIATE_MAX_N {
+                let x = opcode.encode_stack_immediate(&[n]).unwrap_or_else(|| panic!("{opcode:?} {n} must be encodable"));
+                assert!(!is_forbidden_immediate(x), "{opcode:?} {n} encoded to forbidden byte {x:#04x}");
+                assert_eq!(decode_single_immediate(x), Some(n));
+            }
+            assert_eq!(opcode.encode_stack_immediate(&[0]), None);
+            assert_eq!(opcode.encode_stack_immediate(&[16]), None);
+            assert_eq!(opcode.encode_stack_immediate(&[236]), None);
+            assert_eq!(opcode.encode_stack_immediate(&[17, 18]), None);
+        }
+    }
+
+    #[test]
+    fn test_dupn_swapn_known_vectors() {
+        // Reference values from EIP-8024
+        assert_eq!(Opcode::Dupn.encode_stack_immediate(&[17]), Some(0x80));
+        assert_eq!(Opcode::Dupn.encode_stack_immediate(&[144]), Some(0xff));
+        assert_eq!(Opcode::Dupn.encode_stack_immediate(&[145]), Some(0x00));
+        assert_eq!(Opcode::Swapn.encode_stack_immediate(&[235]), Some(0x5a));
+    }
+
+    #[test]
+    fn test_exchange_encoding_covers_all_valid_pairs() {
+        let mut count = 0;
+        for n in 1..30 {
+            for m in (n + 1)..=(30 - n) {
+                let x = Opcode::Exchange.encode_stack_immediate(&[n, m]).unwrap_or_else(|| panic!("exchange {n} {m} must be encodable"));
+                assert!(!is_forbidden_immediate(x), "exchange {n} {m} encoded to forbidden byte {x:#04x}");
+                assert_eq!(decode_pair_immediate(x), Some((n, m)));
+                count += 1;
+            }
+        }
+        // Every non-forbidden byte decodes to exactly one distinct pair
+        let valid_bytes = (0..=u8::MAX).filter(|&x| decode_pair_immediate(x).is_some()).count();
+        assert_eq!(count, valid_bytes);
+
+        // Reference value from EIP-8024: 0x8e swaps the second and third stack items
+        assert_eq!(Opcode::Exchange.encode_stack_immediate(&[1, 2]), Some(0x8e));
+
+        assert_eq!(Opcode::Exchange.encode_stack_immediate(&[2, 1]), None);
+        assert_eq!(Opcode::Exchange.encode_stack_immediate(&[1, 1]), None);
+        assert_eq!(Opcode::Exchange.encode_stack_immediate(&[0, 5]), None);
+        assert_eq!(Opcode::Exchange.encode_stack_immediate(&[14, 17]), None);
+        assert_eq!(Opcode::Exchange.encode_stack_immediate(&[3]), None);
+    }
+
+    #[test]
+    fn test_stack_immediate_operands() {
+        assert_eq!(Opcode::Dupn.stack_immediate_operands(), 1);
+        assert_eq!(Opcode::Swapn.stack_immediate_operands(), 1);
+        assert_eq!(Opcode::Exchange.stack_immediate_operands(), 2);
+        assert!(!Opcode::Dup16.has_stack_immediate());
+        assert!(!Opcode::Slotnum.has_stack_immediate());
+        assert_eq!(Opcode::Dup16.encode_stack_immediate(&[17]), None);
     }
 
     /// Validate that opcodes are ordered alphabetically with same prefix and then decreasing length

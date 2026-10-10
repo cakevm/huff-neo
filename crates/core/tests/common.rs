@@ -51,7 +51,9 @@ pub fn compile_to_deployment(source: &str) -> String {
     };
 
     let mut cg = Codegen::new();
-    let artifact = cg.assemble_artifact(Arc::new(FileSource::default()), &updated_contract, vec![], main, constructor, false).unwrap();
+    let artifact = cg
+        .assemble_artifact(&EVMVersion::default(), Arc::new(FileSource::default()), &updated_contract, vec![], main, constructor, false)
+        .unwrap();
     artifact.bytecode
 }
 

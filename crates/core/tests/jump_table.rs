@@ -329,8 +329,17 @@ fn test_constructor_table_with_nontrivial_main() {
     let (constructor, updated_contract) = Codegen::generate_constructor_macro_bytecode(evm, &contract, None, false).unwrap();
 
     let mut cg = Codegen::new();
-    let artifact =
-        cg.assemble_artifact(Arc::new(FileSource::default()), &updated_contract, vec![], main.clone(), Some(constructor), false).unwrap();
+    let artifact = cg
+        .assemble_artifact(
+            &EVMVersion::default(),
+            Arc::new(FileSource::default()),
+            &updated_contract,
+            vec![],
+            main.clone(),
+            Some(constructor),
+            false,
+        )
+        .unwrap();
 
     // Runtime is exactly MAIN bytecode — table is not deployed.
     assert_eq!(artifact.runtime, main.bytecode.to_lowercase());
@@ -408,8 +417,17 @@ fn test_table_shared_between_constructor_and_main_emitted_once() {
     let ctor_body_len: usize = constructor.bytecode_res.bytes.iter().map(|s| s.bytes.len()).sum();
 
     let mut cg = Codegen::new();
-    let artifact =
-        cg.assemble_artifact(Arc::new(FileSource::default()), &updated_contract, vec![], main, Some(constructor), false).unwrap();
+    let artifact = cg
+        .assemble_artifact(
+            &EVMVersion::default(),
+            Arc::new(FileSource::default()),
+            &updated_contract,
+            vec![],
+            main,
+            Some(constructor),
+            false,
+        )
+        .unwrap();
 
     // The table bytes ("cafe") appear exactly once in the deployment bytecode.
     let occurrences = artifact.bytecode.matches("cafe").count();
@@ -456,8 +474,17 @@ fn test_constructor_only_and_main_only_tables_coexist() {
     let (constructor, updated_contract) = Codegen::generate_constructor_macro_bytecode(evm, &contract, None, false).unwrap();
 
     let mut cg = Codegen::new();
-    let artifact =
-        cg.assemble_artifact(Arc::new(FileSource::default()), &updated_contract, vec![], main.clone(), Some(constructor), false).unwrap();
+    let artifact = cg
+        .assemble_artifact(
+            &EVMVersion::default(),
+            Arc::new(FileSource::default()),
+            &updated_contract,
+            vec![],
+            main.clone(),
+            Some(constructor),
+            false,
+        )
+        .unwrap();
 
     // CTOR_ONLY table only appears in deployment, never in runtime.
     assert!(artifact.bytecode.contains("aaaa"));
@@ -497,8 +524,17 @@ fn test_constructor_table_with_relax_jumps() {
     let (constructor, updated_contract) = Codegen::generate_constructor_macro_bytecode(evm, &contract, None, true).unwrap();
 
     let mut cg = Codegen::new();
-    let artifact =
-        cg.assemble_artifact(Arc::new(FileSource::default()), &updated_contract, vec![], main, Some(constructor), false).unwrap();
+    let artifact = cg
+        .assemble_artifact(
+            &EVMVersion::default(),
+            Arc::new(FileSource::default()),
+            &updated_contract,
+            vec![],
+            main,
+            Some(constructor),
+            false,
+        )
+        .unwrap();
 
     // Table bytes still sit at the very end of deployment (past the bootstrap).
     assert!(artifact.bytecode.ends_with("fefe"));

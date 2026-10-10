@@ -1,11 +1,20 @@
 use std::cmp::PartialOrd;
 use std::fmt::Display;
 
+/// EIP-170 runtime code size limit (24 KiB)
+pub const EIP170_MAX_CODE_SIZE: usize = 0x6000;
+/// EIP-3860 initcode size limit (48 KiB)
+pub const EIP3860_MAX_INITCODE_SIZE: usize = 2 * EIP170_MAX_CODE_SIZE;
+/// EIP-7954 runtime code size limit (64 KiB), active from Amsterdam
+pub const EIP7954_MAX_CODE_SIZE: usize = 0x10000;
+/// EIP-7954 initcode size limit (128 KiB), active from Amsterdam
+pub const EIP7954_MAX_INITCODE_SIZE: usize = 2 * EIP7954_MAX_CODE_SIZE;
+
 /// Evm Version
 ///
 /// Determines which features will be available when compiling.
 
-#[derive(Debug, Default, PartialEq, PartialOrd)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, PartialOrd)]
 pub enum SupportedEVMVersions {
     /// Introduced PREVRANDAO, disallow difficulty opcode (does not affect codegen)
     Paris,
@@ -30,6 +39,14 @@ pub enum SupportedEVMVersions {
     /// CLZ: <https://eips.ethereum.org/EIPS/eip-7939>
     #[default]
     Osaka,
+    /// Glamsterdam/Amsterdam - Introduced SLOTNUM, DUPN, SWAPN, EXCHANGE and raised the
+    /// contract size limits
+    ///
+    /// Meta: <https://eips.ethereum.org/EIPS/eip-7773>
+    /// SLOTNUM: <https://eips.ethereum.org/EIPS/eip-7843>
+    /// DUPN/SWAPN/EXCHANGE: <https://eips.ethereum.org/EIPS/eip-8024>
+    /// Contract size limits: <https://eips.ethereum.org/EIPS/eip-7954>
+    Amsterdam,
 }
 
 /// Display SupportedEVMVersions as string
@@ -41,12 +58,13 @@ impl Display for SupportedEVMVersions {
             SupportedEVMVersions::Cancun => "cancun",
             SupportedEVMVersions::Prague => "prague",
             SupportedEVMVersions::Osaka => "osaka",
+            SupportedEVMVersions::Amsterdam => "amsterdam",
         };
         write!(f, "{}", version_str)
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone, Copy)]
 /// EVM Version
 pub struct EVMVersion {
     version: SupportedEVMVersions,
@@ -92,6 +110,30 @@ impl EVMVersion {
     pub fn has_clz(&self) -> bool {
         self.version >= SupportedEVMVersions::Osaka
     }
+
+    /// Check if the EVM version supports the SLOTNUM opcode - Amsterdam or later
+    pub fn has_slotnum(&self) -> bool {
+        self.version >= SupportedEVMVersions::Amsterdam
+    }
+
+    /// Check if the EVM version supports DUPN, SWAPN and EXCHANGE - Amsterdam or later
+    pub fn has_stack_immediates(&self) -> bool {
+        self.version >= SupportedEVMVersions::Amsterdam
+    }
+
+    /// Maximum size in bytes of deployed (runtime) contract code
+    ///
+    /// EIP-170 (24 KiB) before Amsterdam, EIP-7954 (64 KiB) from Amsterdam on.
+    pub fn max_code_size(&self) -> usize {
+        if self.version >= SupportedEVMVersions::Amsterdam { EIP7954_MAX_CODE_SIZE } else { EIP170_MAX_CODE_SIZE }
+    }
+
+    /// Maximum size in bytes of contract creation (init) code
+    ///
+    /// EIP-3860 (48 KiB) before Amsterdam, EIP-7954 (128 KiB) from Amsterdam on.
+    pub fn max_initcode_size(&self) -> usize {
+        if self.version >= SupportedEVMVersions::Amsterdam { EIP7954_MAX_INITCODE_SIZE } else { EIP3860_MAX_INITCODE_SIZE }
+    }
 }
 
 /// Convert from `Option<String>` to EVMVersion
@@ -113,6 +155,7 @@ impl From<String> for EVMVersion {
             "cancun" => Self::new(SupportedEVMVersions::Cancun),
             "prague" => Self::new(SupportedEVMVersions::Prague),
             "osaka" => Self::new(SupportedEVMVersions::Osaka),
+            "amsterdam" => Self::new(SupportedEVMVersions::Amsterdam),
             _ => Self::default(),
         }
     }

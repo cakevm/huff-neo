@@ -27,6 +27,8 @@ pub struct ParserError {
 pub enum ParserErrorKind {
     /// An invalid literal was passed to a push opcode
     InvalidPush(Opcode),
+    /// Missing or out-of-range stack operand for DUPN, SWAPN or EXCHANGE
+    InvalidStackImmediate(Opcode),
     /// Unexpected type
     UnexpectedType(TokenKind),
     /// Argument name is a reserved evm primitive type keyword
@@ -281,8 +283,14 @@ pub enum CodegenErrorKind {
     /// Exceeded maximum iterations in bubble_arg_call when bubbling up through nested macro calls
     /// First parameter is the argument name, second is the maximum allowed iterations
     BubbleArgLimitExceeded(String, usize),
-    /// Contract bytecode exceeds the EIP-170 size limit (size, limit)
+    /// Runtime bytecode exceeds the contract size limit of the target EVM version (size, limit)
     ContractSizeLimitExceeded(usize, usize),
+    /// Deployment bytecode exceeds the initcode size limit of the target EVM version (size, limit)
+    InitcodeSizeLimitExceeded(usize, usize),
+    /// An opcode operand resolved to a value the opcode cannot encode (description)
+    InvalidOpcodeOperand(String),
+    /// A bytecode offset that is stored in a fixed 2-byte field exceeds 0xffff (what, offset)
+    OffsetExceedsTwoBytes(String, usize),
 }
 
 impl Spanned for CodegenError {
@@ -447,7 +455,16 @@ impl<W: Write> Report<W> for CodegenError {
                 )
             }
             CodegenErrorKind::ContractSizeLimitExceeded(size, limit) => {
-                write!(f.out, "Contract bytecode size ({} bytes) exceeds EIP-170 limit ({} bytes)", size, limit)
+                write!(f.out, "Contract bytecode size ({} bytes) exceeds the contract size limit ({} bytes)", size, limit)
+            }
+            CodegenErrorKind::InitcodeSizeLimitExceeded(size, limit) => {
+                write!(f.out, "Deployment bytecode size ({} bytes) exceeds the initcode size limit ({} bytes)", size, limit)
+            }
+            CodegenErrorKind::InvalidOpcodeOperand(msg) => {
+                write!(f.out, "Invalid opcode operand: {msg}")
+            }
+            CodegenErrorKind::OffsetExceedsTwoBytes(what, offset) => {
+                write!(f.out, "Offset {offset:#x} of {what} does not fit into 2 bytes")
             }
         }
     }
@@ -520,6 +537,15 @@ impl fmt::Display for CompilerError {
             CompilerError::ParserError(pe) => match &pe.kind {
                 ParserErrorKind::InvalidPush(op) => {
                     write!(f, "\nError at token {}: Invalid use of \"{:?}\" \n{}\n", pe.cursor, op, pe.spans.error(pe.hint.as_ref()))
+                }
+                ParserErrorKind::InvalidStackImmediate(op) => {
+                    write!(
+                        f,
+                        "\nError at token {}: Invalid stack operand for \"{:?}\" \n{}\n",
+                        pe.cursor,
+                        op,
+                        pe.spans.error(pe.hint.as_ref())
+                    )
                 }
                 ParserErrorKind::UnexpectedType(ut) => {
                     write!(f, "\nError at token {}: Unexpected Type: \"{}\" \n{}\n", pe.cursor, ut, pe.spans.error(pe.hint.as_ref()))
@@ -878,7 +904,22 @@ impl fmt::Display for CompilerError {
                 CodegenErrorKind::ContractSizeLimitExceeded(size, limit) => {
                     write!(
                         f,
-                        "\nError: Contract bytecode size ({} bytes) exceeds EIP-170 limit ({} bytes)\nUse --no-size-limit to skip this check\n{}\n",
+                        "\nError: Contract bytecode size ({} bytes) exceeds the contract size limit ({} bytes)\nUse --no-size-limit to skip this check\n{}\n",
+                        size,
+                        limit,
+                        ce.span.error(None)
+                    )
+                }
+                CodegenErrorKind::InvalidOpcodeOperand(msg) => {
+                    write!(f, "\nError: Invalid Opcode Operand\n{}\n{}\n", msg, ce.span.error(None))
+                }
+                CodegenErrorKind::OffsetExceedsTwoBytes(what, offset) => {
+                    write!(f, "\nError: Offset {:#x} of {} does not fit into 2 bytes\n{}\n", offset, what, ce.span.error(None))
+                }
+                CodegenErrorKind::InitcodeSizeLimitExceeded(size, limit) => {
+                    write!(
+                        f,
+                        "\nError: Deployment bytecode size ({} bytes) exceeds the initcode size limit ({} bytes)\nUse --no-size-limit to skip this check\n{}\n",
                         size,
                         limit,
                         ce.span.error(None)

@@ -1,5 +1,5 @@
 //! Pest Grammar for Huff Language (with huff-neo extensions)
-//! Version: 1.0
+//! Version: 1.1
 //!
 //! PEG (Parsing Expression Grammar) specification for Huff Neo
 //!
@@ -7,39 +7,41 @@
 //!   #[derive(Parser)]
 //!   #[grammar = "path/to/huff.pest"]
 //!   struct HuffParser;
+//!
+//! Notes on PEG semantics used throughout:
+//!   - Choices are ordered and never backtrack into a committed alternative, so longer or more
+//!     specific alternatives come first.
+//!   - Non-atomic rules skip WHITESPACE/COMMENT between `~` items. Tokens that must not contain
+//!     whitespace or must end at a word boundary are atomic (`@{}` / `${}`).
 
 // ============================================================================
-// WHITESPACE AND COMMENTS (automatically handled by pest)
+// WHITESPACE AND COMMENTS (automatically skipped by pest)
 // ============================================================================
 
 WHITESPACE = _{ " " | "\t" | "\r" | "\n" }
 
-COMMENT = _{
-    line_comment | block_comment
-}
-
 // Examples:
-//   // This is a line comment
-//   /* This is a block comment */
-line_comment = { "//" ~ (!NEWLINE ~ ANY)* }
-block_comment = { "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
+//   // line comment
+//   /* block comment /* nested */ still a comment */
+COMMENT = _{ "//" ~ (!NEWLINE ~ ANY)* | block_comment }
+block_comment = _{ "/*" ~ (block_comment | !"*/" ~ ANY)* ~ "*/" }
+
+// Characters that may continue an identifier; used for word-boundary lookaheads.
+ident_char = _{ ASCII_ALPHANUMERIC | "_" }
 
 // ============================================================================
 // TOP-LEVEL CONTRACT STRUCTURE
 // ============================================================================
 
-// A complete Huff contract file
 // Example:
 //   #include "lib.huff"
 //   #define constant MY_CONST = 0x42
 //   #define macro MAIN() = takes(0) returns(0) { ... }
 contract = { SOI ~ (import_directive | definition)* ~ EOI }
 
-// Import another Huff file
 // Example: #include "utils.huff"
-import_directive = { "#" ~ "include" ~ string_literal }
+import_directive = { "#include" ~ string_literal }
 
-// Top-level definitions
 definition = {
     function_definition
     | event_definition
@@ -50,576 +52,385 @@ definition = {
 }
 
 // ============================================================================
-// FUNCTION ABI DEFINITIONS
+// ABI DEFINITIONS (functions, events, errors)
 // ============================================================================
 
-// ABI function signature for external interfaces
 // Example: #define function transfer(address to, uint256 amount) nonpayable returns(bool)
 function_definition = {
-    "#" ~ "define" ~ "function" ~ identifier
-    ~ parameter_list
+    "#define" ~ "function" ~ identifier ~ parameter_list
     ~ mutability_specifier*
     ~ ("returns" ~ parameter_list)?
 }
 
-// Function mutability modifiers
 mutability_specifier = { "view" | "pure" | "payable" | "nonpayable" }
 
-// Function parameter list
-// Examples: (), (uint256), (address from, uint256 amount)
-parameter_list = { "(" ~ (parameter ~ ("," ~ parameter)*)? ~ ")" }
+// Example: #define event Transfer(address indexed from, address indexed to, uint256 amount)
+event_definition = { "#define" ~ "event" ~ identifier ~ indexed_parameter_list }
 
-// Single parameter with optional storage location and name
-// Examples: uint256, address to, bytes memory data
+// Example: #define error InsufficientBalance(uint256 available, uint256 required)
+error_definition = { "#define" ~ "error" ~ identifier ~ parameter_list }
+
+// Examples: (), (uint256), (address from, uint256 amount), (bytes memory data)
+parameter_list = { "(" ~ (parameter ~ ("," ~ parameter)*)? ~ ")" }
 parameter = { type_name ~ storage_location? ~ identifier? }
 
-// Solidity type names with optional array suffixes
-// Examples: uint256, address, bytes32[], uint256[][]
-type_name = {
-    (elementary_type | mapping_type | user_defined_type) ~ array_suffix*
-}
-
-// Array type suffix
-// Examples: [], [5], [10]
-array_suffix = { "[" ~ arithmetic_expr? ~ "]" }
-
-// Elementary (built-in) types
-// Examples: uint256, address, bool, bytes32, string
-elementary_type = {
-    "address" ~ "payable"?
-    | "bool"
-    | "string"
-    | "bytes" ~ !ASCII_DIGIT  // bare "bytes" without number
-    | "uint" ~ uint_size?
-    | "int" ~ uint_size?
-    | bytes_fixed
-    | "fixed" ~ fixed_size?
-    | "ufixed" ~ fixed_size?
-}
-
-// Integer size (must be multiple of 8, max 256)
-// Examples: 8, 16, 32, 64, 128, 256
-uint_size = { ASCII_DIGIT+ }
-
-// Fixed-point size (e.g., fixed128x18)
-fixed_size = { ASCII_DIGIT+ ~ "x" ~ ASCII_DIGIT+ }
-
-// Fixed-size bytes type
-// Examples: bytes1, bytes8, bytes32
-bytes_fixed = { "bytes" ~ ASCII_DIGIT+ }
-
-// Mapping type
-// Example: mapping(address => uint256)
-mapping_type = { "mapping" ~ "(" ~ type_name ~ "=>" ~ type_name ~ ")" }
-
-// User-defined type (contract/struct name)
-// Examples: MyStruct, MyContract.MyStruct
-user_defined_type = { identifier ~ ("." ~ identifier)* }
+// Examples: (address indexed from, uint256 amount)
+indexed_parameter_list = { "(" ~ (indexed_parameter ~ ("," ~ indexed_parameter)*)? ~ ")" }
+indexed_parameter = { type_name ~ "indexed"? ~ identifier? }
 
 storage_location = { "memory" | "storage" | "calldata" }
 
-// ============================================================================
-// EVENT ABI DEFINITIONS
-// ============================================================================
+// Solidity type names with optional array suffixes
+// Examples: uint256, address, bytes32[], uint256[][3], (address,(bool,bytes))[], MyStruct
+type_name = { (elementary_type | mapping_type | tuple_type | user_defined_type) ~ array_suffix* }
 
-// Event definition for logging
-// Example: #define event Transfer(address indexed from, address indexed to, uint256 amount)
-event_definition = { "#" ~ "define" ~ "event" ~ identifier ~ indexed_parameter_list }
+// Examples: [], [5]
+array_suffix = { "[" ~ decimal_literal? ~ "]" }
 
-// Event parameter list (supports indexed keyword)
-indexed_parameter_list = { "(" ~ (indexed_parameter ~ ("," ~ indexed_parameter)*)? ~ ")" }
+// Examples: address, bool, string, bytes, bytes32, uint, uint8, int256, fixed128x18
+elementary_type = @{
+    ( "address"
+    | "bool"
+    | "string"
+    | ("uint" | "int" | "bytes") ~ ASCII_DIGIT*
+    | ("ufixed" | "fixed") ~ (ASCII_DIGIT+ ~ "x" ~ ASCII_DIGIT+)?
+    ) ~ !ident_char
+}
 
-// Event parameter with optional indexed flag
-// Examples: uint256 amount, address indexed from
-indexed_parameter = { type_name ~ "indexed"? ~ identifier? }
+// Example: mapping(address => uint256)
+mapping_type = { "mapping" ~ "(" ~ type_name ~ "=>" ~ type_name ~ ")" }
 
-// ============================================================================
-// ERROR DEFINITIONS
-// ============================================================================
+// Examples: (address,uint256), (address,(bool,bytes))
+tuple_type = { "(" ~ (parameter ~ ("," ~ parameter)*)? ~ ")" }
 
-// Custom error definition
-// Example: #define error InsufficientBalance(uint256 available, uint256 required)
-error_definition = { "#" ~ "define" ~ "error" ~ identifier ~ parameter_list }
+// Examples: MyStruct, MyContract.MyStruct
+user_defined_type = { identifier ~ ("." ~ identifier)* }
 
 // ============================================================================
 // CONSTANT DEFINITIONS
 // ============================================================================
 
-// Compile-time constant definition with arithmetic support
 // Examples:
 //   #define constant MY_VALUE = 0x42
 //   #define constant TOTAL = [BASE] + [OFFSET]
+//   #define constant SLOT = FREE_STORAGE_POINTER()
 //   #define constant SIG = __FUNC_SIG("transfer(address,uint256)")
 //   #define constant GREETING = "hello"
-constant_definition = { "#" ~ "define" ~ "constant" ~ identifier ~ "=" ~ constant_definition_value }
+constant_definition = { "#define" ~ "constant" ~ identifier ~ "=" ~ constant_value }
 
-// ============================================================================
-// COMPILE-TIME VALUE EXPRESSIONS
-// ============================================================================
-
-// Arithmetic expressions (NO comparisons)
-// Used in: constant definitions, for-loop ranges/steps, array sizes, builtin arguments
-// Can include: arithmetic operators, constant references, macro arguments, builtins, literals
-// Examples: 0x42, [BASE] + [OFFSET], <arg>, [A] + <b>, 0x100 * 2 - 1, __FUNC_SIG("foo()")
-arithmetic_expr = { term }
-
-// Conditional expressions (WITH comparisons)
-// Used in: if/else conditions ONLY
-// Can include: arithmetic operators AND comparison operators, logical NOT
-// Examples: [A] == [B], [X] > [Y], ![FLAG], ([A] + [B]) > 0x20, <mode> == 0x01
-conditional_expr = { comparison }
-
-// Comparison operators (lowest precedence)
-// Examples: [A] == [B], [X] > [Y], [VALUE] != 0x00
-comparison = { term ~ ((eq_op | ne_op | le_op | ge_op | lt_op | gt_op) ~ term)* }
-
-// Addition and subtraction
-term = { factor ~ ((add_op | sub_op) ~ factor)* }
-
-// Multiplication, division, modulo
-factor = { unary ~ ((mul_op | div_op | mod_op) ~ unary)* }
-
-// Unary operators (highest precedence): negation and logical NOT
-// Examples: -[VALUE], ![FLAG]
-unary = {
-    unary_minus ~ unary
-    | unary_not ~ unary
-    | primary
+// Strings, builtins, FREE_STORAGE_POINTER() and __NOOP are whole values; they cannot be
+// combined with operators. Expressions may use hex, decimal, [CONST], parentheses and operators,
+// but not <arg>: constants are defined outside any macro.
+// Examples: 0x42, 5, 5 + 0x10, [BASE] * 2, !0x00
+constant_value = {
+    free_storage_pointer
+    | noop
+    | string_literal
+    | builtin_function_call
+    | !"<" ~ expression
 }
 
-// Operators
-unary_minus = { "-" }
-unary_not = { "!" }
-add_op = { "+" }
-sub_op = { "-" }
-mul_op = { "*" }
-div_op = { "/" }
-mod_op = { "%" }
-eq_op = { "==" }
-ne_op = { "!=" }
-lt_op = { "<" }
-gt_op = { ">" }
-le_op = { "<=" }
-ge_op = { ">=" }
+// Allocates the next free storage slot at compile time
+free_storage_pointer = { "FREE_STORAGE_POINTER()" }
 
-// Reference to another constant (must use brackets)
+// Empty value: produces no bytecode
+noop = @{ "__NOOP" ~ !ident_char }
+
+// ============================================================================
+// COMPILE-TIME EXPRESSIONS
+// ============================================================================
+
+// Used in: constant definitions, for-loop bounds and steps, if conditions, and parenthesized
+// opcode operands. Comparisons evaluate to 1 (true) or 0 (false).
+// Precedence, lowest first: comparison, additive, multiplicative, unary.
+// Examples: 0x42, [BASE] + [OFFSET], 0x100 * 2 - 1, -[VALUE], ![FLAG], ([A] + [B]) > 0x20,
+//           <mode> == 0x01, <i> + 17
+expression = { sum ~ (comparison_op ~ sum)* }
+sum = { product ~ (additive_op ~ product)* }
+product = { unary ~ (multiplicative_op ~ unary)* }
+unary = { unary_op ~ unary | primary }
+
+// Two-character operators come before their one-character prefixes
+comparison_op = { "==" | "!=" | "<=" | ">=" | "<" | ">" }
+additive_op = { "+" | "-" }
+multiplicative_op = { "*" | "/" | "%" }
+unary_op = { "-" | "!" }
+
+// <name> is a macro parameter, or the loop variable inside the for loop that declares it
+primary = {
+    "(" ~ expression ~ ")"
+    | constant_reference
+    | argument_reference
+    | hex_literal
+    | decimal_literal
+    | boolean_literal
+}
+
 // Example: [MY_CONSTANT]
 constant_reference = { "[" ~ identifier ~ "]" }
 
-// ============================================================================
-// VALUE TYPE SYSTEM (three-level hierarchy)
-// ============================================================================
-//
-// This section defines a comprehensive type system for values used throughout
-// the Huff language. It uses a three-level hierarchy:
-//
-//   Level 1: ATOMIC TYPES - Basic building blocks (literals, references, invocations)
-//   Level 2: CONTEXT VARIANTS - Combinations for specific use cases
-//   Level 3: USAGE SITES - Grammar rules that reference these variants
-//
-// This makes restrictions explicit and highlights key differences between contexts.
-
-// ============================================================================
-// LEVEL 1: ATOMIC VALUE TYPES (building blocks)
-// ============================================================================
-
-// Literal types (concrete values)
-literal_hex = { hex_literal }              // 0x42, 0xFF
-literal_decimal = { decimal_literal }      // 42, 256
-literal_string = { string_literal }        // "hello", "transfer(address,uint256)"
-literal_boolean = { boolean_literal }      // true, false
-
-// Reference types (names that refer to other things)
-ref_constant_bracketed = { constant_reference }  // [MY_CONST] (standard constant reference)
-ref_constant_bare = { identifier }               // MY_CONST (only for macro arguments!)
-ref_argument = { argument_reference }            // <param> (macro parameter)
-ref_identifier = { identifier }                  // labels, function names, opcodes
-
-// Invocation types (calling macros/functions)
-invoke_macro = { macro_invocation }         // MY_MACRO(args)
-invoke_argument = { argument_invocation }   // <callback>(args)
-invoke_builtin = { builtin_function_call }  // __FUNC_SIG(...), etc.
-
-// Special compile-time values
-special_noop = { "__NOOP" }                               // No-operation marker
-special_fsp = { "FREE_STORAGE_POINTER" ~ "(" ~ ")" }     // Storage slot allocator
-
-// EVM opcodes
-value_opcode = { opcode }                   // add, mul, mstore, etc.
-
-// ============================================================================
-// LEVEL 2: CONTEXT-SPECIFIC VALUE VARIANTS
-// ============================================================================
-
-// CONSTANT DEFINITIONS: Right-hand side of #define constant X = ...
-// Accepts arithmetic expressions (NO comparisons), builtins, special values
-constant_definition_value = {
-    special_fsp
-    | special_noop
-    | invoke_builtin
-    | arithmetic_expr
-}
-
-// CODE TABLES: Entries in #define table MY_TABLE { ... }
-// Restricted: only hex literals, constant references, and builtins
-code_table_entry = {
-    literal_hex
-    | ref_constant_bracketed
-    | invoke_builtin
-}
-
-// MACRO ARGUMENTS: Values passed to macro invocations MACRO(...)
-// Note: Constants use BARE identifiers (no brackets) - this is the exception!
-// Example: HELPER(MY_CONST) not HELPER([MY_CONST])
-macro_argument = {
-    literal_hex
-    | literal_string
-    | literal_boolean        // true, false
-    | invoke_argument        // <callback>(args)
-    | ref_argument           // <param>
-    | invoke_macro           // NESTED_MACRO()
-    | value_opcode           // add, mul, etc.
-    | ref_constant_bare      // MY_CONST (no brackets!)
-    | special_noop           // __NOOP
-}
-
-// MACRO BODY STATEMENTS: What can appear inside macro bodies { ... }
-// Very permissive: accepts most value types
-// Note: Constants use BRACKETED syntax here: [MY_CONST]
-statement = {
-    for_loop
-    | if_statement
-    | label_definition
-    | value_opcode
-    | literal_hex
-    | literal_boolean
-    | ref_constant_bracketed    // [MY_CONST] (with brackets!)
-    | invoke_builtin
-    | invoke_argument
-    | ref_argument
-    | invoke_macro
-    | ref_identifier            // label references
-    | special_noop              // __NOOP
-}
-
-// DECORATOR VALUES: Arguments to test decorators #[calldata(...), value(...)]
-// Very restricted: only literals for test setup
-decorator_value = {
-    literal_hex
-    | literal_string
-}
-
-// BUILTIN FUNCTION ARGUMENTS (different builtins accept different types)
-
-// Name-based builtins: __FUNC_SIG, __EVENT_HASH
-// Accept: string literals or identifiers
-builtin_name_arg = { literal_string | ref_identifier }
-
-// PC assertion builtin: __ASSERT_PC
-// Accept: hex literals or bracketed constant references
-builtin_assert_pc_arg = { literal_hex | ref_constant_bracketed }
-
-// Bytes builtin: __BYTES
-// Accept: string literals or string constant references (constants that are strings)
-builtin_bytes_arg = { literal_string | ref_constant_bracketed }
-
-// Verbatim builtin: __VERBATIM
-// Accept: hex literals, constant references, or builtin function calls (strips PUSH opcode)
-// Example: __VERBATIM(0x1234), __VERBATIM([MY_CONST]), __VERBATIM(__FUNC_SIG("transfer(address,uint256)"))
-builtin_verbatim_arg = { literal_hex | ref_constant_bracketed | invoke_builtin }
-
-// EXPRESSION PRIMARIES: Atomic values in compile-time expressions
-// Used in: constant definitions, for loop ranges, if conditions, value-based builtins
-// Includes:
-//   - Macro argument references (<arg>) for use in conditional compilation and loops
-//   - Boolean literals (true/false) for use in if conditions
-//   - String literals ("hello") for use in constant definitions
-// Note: Parenthesized expressions use conditional_expr to support both arithmetic and comparisons
-//       The context (arithmetic_expr vs conditional_expr) at the top level determines what's allowed
-primary = {
-    "(" ~ conditional_expr ~ ")"
-    | ref_constant_bracketed
-    | ref_argument
-    | special_fsp
-    | special_noop
-    | invoke_builtin
-    | literal_hex
-    | literal_decimal
-    | literal_boolean
-    | literal_string
-}
+// Example: <x>
+argument_reference = { "<" ~ identifier ~ ">" }
 
 // ============================================================================
 // TABLE DEFINITIONS
 // ============================================================================
 
-// Jump tables and code tables
+// Jump tables list labels; code tables list raw bytes.
 // Examples:
 //   #define jumptable ROUTES { main transfer approve }
 //   #define jumptable__packed PACKED_ROUTES { main transfer }
-//   #define table CODE_TABLE { 0x60 0x80 [MY_CONST] }
+//   #define table CODE_TABLE { 0x6080 [MY_CONST] __RIGHTPAD(0x42) }
+//   #define table CODE_TABLE() = { 0x6080 }
 table_definition = {
-    "#" ~ "define" ~ "jumptable__packed" ~ identifier ~ "{" ~ identifier* ~ "}"
-    | "#" ~ "define" ~ "jumptable" ~ identifier ~ "{" ~ identifier* ~ "}"
-    | "#" ~ "define" ~ "table" ~ identifier ~ "{" ~ code_table_entry* ~ "}"
+    "#define" ~ ("jumptable__packed" | "jumptable") ~ identifier ~ table_suffix ~ "{" ~ identifier* ~ "}"
+    | "#define" ~ "table" ~ identifier ~ table_suffix ~ "{" ~ code_table_entry* ~ "}"
 }
+
+// Optional `()` and `=` after a table name
+table_suffix = { ("(" ~ ")")? ~ "="? }
+
+code_table_entry = { hex_literal | constant_reference | builtin_function_call }
 
 // ============================================================================
 // MACRO DEFINITIONS
 // ============================================================================
 
-// Macro definition (inline code expansion)
+// macro: inlined at each call site; fn: outlined and jumped to; test: run by the test runner
 // Examples:
 //   #define macro MAIN() = takes(0) returns(0) { ... }
-//   #define fn ADD(x, y) = takes(0) returns(1) { ... }
-//   #[calldata(0x01020304)] #define test MY_TEST() { ... }
+//   #define fn ADD(x, y) = takes(2) returns(1) { ... }
+//   #[calldata("0x01020304"), value(0x01)] #define test MY_TEST() = { ... }
 macro_definition = {
     decorator?
-    ~ "#" ~ "define" ~ macro_type ~ identifier
-    ~ macro_parameters ~ "="
+    ~ "#define" ~ macro_type ~ identifier ~ macro_parameters ~ "="
     ~ macro_takes? ~ macro_returns?
-    ~ macro_body
+    ~ block
 }
 
-// Macro type: macro (inline), fn (outlined), test (for testing)
 macro_type = { "macro" | "fn" | "test" }
 
-// Macro parameters (used for compile-time substitution)
 // Examples: (), (x), (x, y, z)
 macro_parameters = { "(" ~ (identifier ~ ("," ~ identifier)*)? ~ ")" }
 
-// Stack input requirements
-// Example: takes(2)
+// Examples: takes(2), returns(1)
 macro_takes = { "takes" ~ "(" ~ decimal_literal ~ ")" }
-
-// Stack output guarantee
-// Example: returns(1)
 macro_returns = { "returns" ~ "(" ~ decimal_literal ~ ")" }
 
-// Macro body containing statements
-macro_body = { "{" ~ statement* ~ "}" }
-
-// ============================================================================
-// DECORATORS (for test macros)
-// ============================================================================
-
-// Test decorators for setting up test environment
-// Example: #[calldata(0x01020304), value(0x0a)]
-decorator = { "#" ~ "[" ~ (decorator_flag ~ ("," ~ decorator_flag)*)? ~ "]" }
-
-// Individual decorator flag
-// Examples: calldata(0x01020304), value(0x100)
-decorator_flag = { decorator_type ~ "(" ~ decorator_value ~ ")" }
-
-decorator_type = { "calldata" | "value" }
-
-// ============================================================================
-// MACRO STATEMENTS
-// ============================================================================
-
-// EVM opcodes (atomic token - no whitespace inside)
-// Examples: add, mul, mstore, jumpi, push1
-opcode = @{ opcode_inner }
-
-// Complete list of EVM opcodes
-opcode_inner = {
-    "stop" | "addmod" | "mulmod" | "add" | "mul" | "sub" | "div" | "sdiv"
-    | "mod" | "smod" | "exp" | "signextend"
-    | "lt" | "gt" | "slt" | "sgt" | "eq" | "iszero"
-    | "and" | "or" | "xor" | "not" | "byte" | "shl" | "shr" | "sar"
-    | "keccak256" | "sha3"
-    | "address" | "balance" | "origin" | "caller" | "callvalue"
-    | "calldataload" | "calldatasize" | "calldatacopy"
-    | "codesize" | "codecopy"
-    | "gasprice" | "extcodesize" | "extcodecopy" | "extcodehash"
-    | "returndatasize" | "returndatacopy"
-    | "blockhash" | "coinbase" | "timestamp" | "number"
-    | "difficulty" | "prevrandao" | "gaslimit" | "chainid"
-    | "selfbalance" | "basefee" | "blobhash" | "blobbasefee"
-    | "pop"
-    | "mload" | "mstore8" | "mstore" | "msize" | "mcopy"
-    | "sload" | "sstore"
-    | "tload" | "tstore"
-    | "jump" | "jumpi" | "pc" | "jumpdest"
-    | "push0" | "push1" | "push2" | "push3" | "push4" | "push5"
-    | "push6" | "push7" | "push8" | "push9" | "push10" | "push11"
-    | "push12" | "push13" | "push14" | "push15" | "push16" | "push17"
-    | "push18" | "push19" | "push20" | "push21" | "push22" | "push23"
-    | "push24" | "push25" | "push26" | "push27" | "push28" | "push29"
-    | "push30" | "push31" | "push32"
-    | "dup1" | "dup2" | "dup3" | "dup4" | "dup5" | "dup6" | "dup7"
-    | "dup8" | "dup9" | "dup10" | "dup11" | "dup12" | "dup13" | "dup14"
-    | "dup15" | "dup16"
-    | "swap1" | "swap2" | "swap3" | "swap4" | "swap5" | "swap6" | "swap7"
-    | "swap8" | "swap9" | "swap10" | "swap11" | "swap12" | "swap13"
-    | "swap14" | "swap15" | "swap16"
-    | "log0" | "log1" | "log2" | "log3" | "log4"
-    | "create" | "create2"
-    | "call" | "callcode" | "delegatecall" | "staticcall"
-    | "return" | "revert" | "selfdestruct"
-    | "invalid"
-    | "gas" | "clz"
+// Test environment setup: calldata takes a hex string, value takes a hex literal
+// Example: #[calldata("0x01020304"), value(0x0a)]
+decorator = { "#[" ~ (decorator_flag ~ ("," ~ decorator_flag)*)? ~ "]" }
+decorator_flag = {
+    "calldata" ~ "(" ~ string_literal ~ ")"
+    | "value" ~ "(" ~ hex_literal ~ ")"
 }
 
-// Macro invocation (call another macro)
+// ============================================================================
+// MACRO BODY STATEMENTS
+// ============================================================================
+
+// Body of a macro, for loop, or if/else branch
+block = { "{" ~ statement* ~ "}" }
+
+// In a macro body, true/false are pushed as 0x01/0x00 and constants use brackets: [MY_CONST]
+statement = {
+    label_definition
+    | for_loop
+    | if_statement
+    | stack_immediate_statement  // dupn 17, exchange 1 2
+    | push_statement             // push1 0x10, push2 [SIZE]
+    | plain_opcode               // add, mstore, push0
+    | hex_literal
+    | boolean_literal
+    | constant_reference         // [MY_CONST]
+    | builtin_function_call
+    | argument_invocation        // <callback>(args)
+    | argument_reference         // <param>, <i>
+    | noop
+    | macro_invocation           // MY_MACRO(args)
+    | label_reference            // my_label
+}
+
+// Jump destination; the colon must directly follow the name. Opcode names are valid labels.
+// Examples: my_label:, add:
+label_definition = ${ identifier ~ ":" }
+
+// Label reference (pushes the label's offset). Opcode and builtin names are never labels.
+// Example: my_label jumpi
+label_reference = { !(opcode | builtin_name) ~ identifier }
+
 // Examples:
 //   MY_MACRO()
 //   HELPER(0x42, <param>)
-//   HELPER(MY_CONSTANT)        // Constant as argument (no brackets!)
-//   STORE(add, my_label)       // Opcode and label as arguments
-macro_invocation = {
-    identifier ~ "(" ~ (macro_argument ~ ("," ~ macro_argument)*)? ~ ")"
+//   STORE(MY_CONSTANT, add, my_label)
+macro_invocation = { !(opcode | builtin_name) ~ identifier ~ macro_arguments }
+
+// Invocation of a macro passed as a parameter
+// Example: <callback>(0x42)
+argument_invocation = { argument_reference ~ macro_arguments }
+
+macro_arguments = { "(" ~ (macro_argument ~ ("," ~ macro_argument)*)? ~ ")" }
+
+// A bare identifier is resolved by the callee as a constant, label, or opcode, so constants are
+// passed WITHOUT brackets: HELPER(MY_CONST), not HELPER([MY_CONST]).
+// Decimals are converted to hex: 18 is the same as 0x12.
+macro_argument = {
+    hex_literal
+    | decimal_literal
+    | boolean_literal
+    | argument_invocation    // <callback>(args)
+    | argument_reference     // <param>, <i>
+    | builtin_function_call  // __FUNC_SIG(transfer)
+    | noop
+    | macro_invocation       // NESTED_MACRO()
+    | identifier             // MY_CONST, my_label, add
 }
 
-// Reference to a macro parameter
-// Example: <x> in macro body when x is a parameter
-argument_reference = { "<" ~ identifier ~ ">" }
+// ============================================================================
+// OPCODES
+// ============================================================================
 
-// Invocation of a macro-valued parameter
-// Example: <callback>(0x42) where callback is a macro parameter
-argument_invocation = {
-    "<" ~ identifier ~ ">" ~ "(" ~ (macro_argument ~ ("," ~ macro_argument)*)? ~ ")"
+// An opcode must not run into a following identifier character, so `addr` is an identifier and
+// not `add` followed by `r`.
+opcode = @{ opcode_inner ~ !ident_char }
+
+// Complete list of EVM opcodes, mirroring OPCODES in crates/utils/src/opcodes.rs.
+// Longest first: PEG choice is ordered, so "swap1" must not shadow "swap16", "call" not
+// "callcode", "or" not "origin", and so on.
+// Some opcodes require a minimum EVM version (-e/--evm-version), e.g. push0 (shanghai),
+// tload/tstore/mcopy/blobhash/blobbasefee (cancun), clz (osaka), and
+// slotnum/dupn/swapn/exchange (amsterdam).
+opcode_inner = {
+    "returndatacopy" | "returndatasize" | "calldatacopy" | "calldataload" | "calldatasize"
+    | "delegatecall" | "selfdestruct" | "blobbasefee" | "extcodecopy" | "extcodehash"
+    | "extcodesize" | "selfbalance" | "difficulty" | "prevrandao" | "signextend" | "staticcall"
+    | "blockhash" | "callvalue" | "keccak256" | "timestamp" | "blobhash" | "callcode" | "codecopy"
+    | "codesize" | "coinbase" | "exchange" | "gaslimit" | "gasprice" | "jumpdest" | "address"
+    | "balance" | "basefee" | "chainid" | "create2" | "invalid" | "mstore8" | "slotnum" | "addmod"
+    | "caller" | "create" | "iszero" | "mstore" | "mulmod" | "number" | "origin" | "push10"
+    | "push11" | "push12" | "push13" | "push14" | "push15" | "push16" | "push17" | "push18"
+    | "push19" | "push20" | "push21" | "push22" | "push23" | "push24" | "push25" | "push26"
+    | "push27" | "push28" | "push29" | "push30" | "push31" | "push32" | "return" | "revert"
+    | "sstore" | "swap10" | "swap11" | "swap12" | "swap13" | "swap14" | "swap15" | "swap16"
+    | "tstore" | "dup10" | "dup11" | "dup12" | "dup13" | "dup14" | "dup15" | "dup16" | "jumpi"
+    | "mcopy" | "mload" | "msize" | "push0" | "push1" | "push2" | "push3" | "push4" | "push5"
+    | "push6" | "push7" | "push8" | "push9" | "sload" | "swap1" | "swap2" | "swap3" | "swap4"
+    | "swap5" | "swap6" | "swap7" | "swap8" | "swap9" | "swapn" | "tload" | "byte" | "call" | "dup1"
+    | "dup2" | "dup3" | "dup4" | "dup5" | "dup6" | "dup7" | "dup8" | "dup9" | "dupn" | "jump"
+    | "log0" | "log1" | "log2" | "log3" | "log4" | "sdiv" | "sha3" | "smod" | "stop" | "add" | "and"
+    | "clz" | "div" | "exp" | "gas" | "mod" | "mul" | "not" | "pop" | "sar" | "sgt" | "shl" | "shr"
+    | "slt" | "sub" | "xor" | "eq" | "gt" | "lt" | "or" | "pc"
 }
 
-// Label definition (jump destination)
-// Example: my_label:
-label_definition = { identifier ~ ":" }
+// An opcode used on its own. Opcodes with immediate data are only valid together with their
+// operands (see stack_immediate_statement and push_statement).
+plain_opcode = { !(single_stack_opcode | pair_stack_opcode | push_opcode) ~ opcode }
+
+// Opcodes with immediate operands (EIP-8024, amsterdam). Operands are stack positions resolved
+// at compile time and encoded by the compiler into the immediate byte.
+// Valid ranges: dupn/swapn 17..=235, exchange n m with 1 <= n < m and n + m <= 30.
+// Examples:
+//   dupn 17
+//   swapn [DEPTH]
+//   exchange 1 <m>
+//   for (i in 17..20) { dupn <i> }
+//   dupn ([BASE] + 1)
+stack_immediate_statement = {
+    single_stack_opcode ~ opcode_operand
+    | pair_stack_opcode ~ opcode_operand ~ opcode_operand
+}
+
+single_stack_opcode = @{ ("dupn" | "swapn") ~ !ident_char }
+pair_stack_opcode = @{ "exchange" ~ !ident_char }
+
+// PUSH1..PUSH32 with an explicit value. A hex literal is left-padded to the push width; any other
+// operand is resolved at compile time and must fit the push width.
+// Examples: push1 0x10, push32 0x108, push2 [SIZE], push1 <value>, push4 ([A] * 2)
+push_statement = { push_opcode ~ opcode_operand }
+
+push_opcode = @{ "push" ~ ("3" ~ '0'..'2' | '1'..'2' ~ ASCII_DIGIT | '1'..'9') ~ !ident_char }
+
+// Compile-time operand of an opcode with immediate data
+// Examples: 17, 0x11, [DEPTH], <depth>, <i> (loop variable), ([BASE] + 1)
+opcode_operand = {
+    hex_literal
+    | decimal_literal
+    | constant_reference
+    | argument_reference
+    | "(" ~ expression ~ ")"
+}
 
 // ============================================================================
 // BUILTIN FUNCTIONS
 // ============================================================================
 
-// Built-in compile-time functions
-//
-// Name-based builtins (accept identifiers, NOT constant references):
-//   __FUNC_SIG("transfer(address,uint256)")   // String or identifier
-//   __EVENT_HASH(Transfer)                    // String or identifier
-//   __ERROR(InsufficientBalance)              // Identifier only
-//   __tablesize(MY_TABLE)                     // Identifier only
-//   __codesize(MAIN)                          // Identifier only
-//
-// Value-based builtins (accept expressions including constant references):
-//   __RIGHTPAD(0x42, 0x20)                    // Compile-time expressions
-//   __RIGHTPAD([MY_CONST], 32)                // Constant reference
-//   __LEFTPAD([ADDRESS], 32)                  // Constant reference
-//   __ASSERT_PC([TARGET_PC])                  // Hex or constant reference
-//   __RIGHTPAD([A] + [B], 0x20)               // Arithmetic with constants
-//
-// String-based builtins:
-//   __BYTES("hello")                          // String literal
-//   __BYTES([GREETING])                       // String constant reference
+// Examples:
+//   __FUNC_SIG("transfer(address,uint256)")   __FUNC_SIG(transfer)
+//   __EVENT_HASH(Transfer)                    __ERROR(InsufficientBalance)
+//   __tablesize(MY_TABLE)                     __tablestart(MY_TABLE)
+//   __codesize(MAIN)                          __codesize(RUNTIME)  // MAIN + appended tables
+//   __EMBED_TABLE(MY_TABLE)
+//   __RIGHTPAD(0x42)                          __RIGHTPAD(__FUNC_SIG("transfer(address,uint256)"))
+//   __LEFTPAD([ADDRESS])                      __VERBATIM(0x1234)
+//   __BYTES("hello")                          __BYTES([GREETING])
+//   __ASSERT_PC([TARGET_PC])                  __CODECOPY_DYN_ARG(0x00, 0x20)
+// __LEFTPAD is only valid in constant definitions and code tables. A builtin used as the
+// argument of __RIGHTPAD/__LEFTPAD/__VERBATIM must evaluate to bytes (e.g. __FUNC_SIG, __BYTES).
 builtin_function_call = {
-    "__FUNC_SIG" ~ "(" ~ builtin_name_arg ~ ")"
-    | "__EVENT_HASH" ~ "(" ~ builtin_name_arg ~ ")"
-    | "__ERROR" ~ "(" ~ ref_identifier ~ ")"
-    | "__tablesize" ~ "(" ~ ref_identifier ~ ")"
-    | "__tablestart" ~ "(" ~ ref_identifier ~ ")"
-    | "__codesize" ~ "(" ~ ref_identifier ~ ")"
-    | "__RIGHTPAD" ~ "(" ~ arithmetic_expr ~ "," ~ arithmetic_expr ~ ")"
-    | "__LEFTPAD" ~ "(" ~ arithmetic_expr ~ "," ~ arithmetic_expr ~ ")"
-    | "__CODECOPY_DYN_ARG" ~ "(" ~ literal_decimal ~ ")"
-    | "__VERBATIM" ~ "(" ~ builtin_verbatim_arg ~ ")"
-    | "__BYTES" ~ "(" ~ builtin_bytes_arg ~ ")"
-    | "__ASSERT_PC" ~ "(" ~ builtin_assert_pc_arg ~ ")"
+    ("__FUNC_SIG" | "__EVENT_HASH" | "__ERROR") ~ "(" ~ (string_literal | identifier) ~ ")"
+    | ("__tablesize" | "__tablestart" | "__codesize" | "__EMBED_TABLE") ~ "(" ~ identifier ~ ")"
+    | ("__RIGHTPAD" | "__LEFTPAD" | "__VERBATIM") ~ "(" ~ (hex_literal | constant_reference | builtin_function_call) ~ ")"
+    | "__BYTES" ~ "(" ~ (string_literal | constant_reference) ~ ")"
+    | "__ASSERT_PC" ~ "(" ~ (hex_literal | constant_reference) ~ ")"
+    | "__CODECOPY_DYN_ARG" ~ "(" ~ hex_literal ~ "," ~ hex_literal ~ ")"
+}
+
+// Reserved builtin names (same set as builtin_function_call); they are never labels or macros
+builtin_name = @{
+    ( "__FUNC_SIG" | "__EVENT_HASH" | "__ERROR" | "__tablesize" | "__tablestart" | "__codesize"
+    | "__EMBED_TABLE" | "__RIGHTPAD" | "__LEFTPAD" | "__VERBATIM" | "__BYTES" | "__ASSERT_PC"
+    | "__CODECOPY_DYN_ARG"
+    ) ~ !ident_char
 }
 
 // ============================================================================
-// FOR LOOPS (compile-time expansion)
+// COMPILE-TIME CONTROL FLOW
 // ============================================================================
 
-// Compile-time for loop (unrolls at compile time)
+// For loop, unrolled at compile time. The range end is exclusive; step defaults to 1.
+// Inside the body, the loop variable <i> is usable wherever a compile-time value is accepted:
+// as a statement, in expressions, as a macro argument, and as an opcode operand.
 // Examples:
 //   for (i in 0..10) { <i> 0x00 mstore }
 //   for (i in 0..5 step 2) { ... }
-//   for (i in 0..<count>) { ... }                   // Using macro argument
-//   for (i in [BASE]..([BASE] + <offset>)) { ... }  // Mixed constants and arguments
-for_loop = {
-    "for" ~ "(" ~ identifier ~ "in" ~ for_range ~ for_step? ~ ")" ~ for_body
-}
+//   for (i in [BASE]..([BASE] + <offset>)) { ... }
+for_loop = { "for" ~ "(" ~ identifier ~ "in" ~ expression ~ ".." ~ expression ~ ("step" ~ expression)? ~ ")" ~ block }
 
-// Loop range (start..end, exclusive end)
-// Can include macro arguments using <arg> syntax
-// Examples: 0..10, [START]..[END], 0..<count>, [BASE]..([BASE] + <offset>)
-for_range = { arithmetic_expr ~ ".." ~ arithmetic_expr }
-
-// Optional step size (default is 1)
-// Example: step 2
-for_step = { "step" ~ arithmetic_expr }
-
-// Loop body
-for_body = { "{" ~ for_statement* ~ "}" }
-
-// Statements in loop body (can use loop variable)
-for_statement = {
-    statement
-    | loop_variable_reference
-}
-
-// Reference to loop variable
-// Example: <i> (where i is the loop variable)
-loop_variable_reference = { "<" ~ identifier ~ ">" }
-
-// ============================================================================
-// IF/ELSE STATEMENTS (compile-time conditional compilation)
-// ============================================================================
-
-// Compile-time if statement (evaluates condition at compile time)
+// Conditional compilation; only the selected branch is emitted.
 // Examples:
-//   if (true) { ... }                         // Boolean literal
-//   if (false) { ... } else { ... }           // Boolean literal
-//   if ([CONSTANT] > 5) { ... }
+//   if (true) { ... }
 //   if ([A] == [B]) { ... } else { ... }
-//   if (![FLAG]) { ... }
 //   if ([MODE] == 1) { ... } else if ([MODE] == 2) { ... } else { ... }
-//   if (([A] + [B]) * [C] > [D]) { ... }
-//   if (<threshold> == 0x01) { ... }          // Using macro argument
-//   if ([BASE] + <offset> > 0x20) { ... }     // Mixed constants and arguments
-if_statement = {
-    "if" ~ "(" ~ conditional_expr ~ ")" ~ if_body
-    ~ else_if_clause*
-    ~ else_clause?
-}
-
-// Else if clause
-// Example: else if ([X] < 10) { ... }
-else_if_clause = {
-    "else" ~ "if" ~ "(" ~ conditional_expr ~ ")" ~ if_body
-}
-
-// Else clause
-// Example: else { ... }
-else_clause = {
-    "else" ~ if_body
-}
-
-// If statement body
-if_body = { "{" ~ statement* ~ "}" }
+//   if (<threshold> == 0x01) { ... }
+if_statement = { "if" ~ "(" ~ expression ~ ")" ~ block ~ ("else" ~ (if_statement | block))? }
 
 // ============================================================================
 // LITERALS AND IDENTIFIERS
 // ============================================================================
 
-// Identifiers (names for macros, constants, labels, etc.)
+// Names of macros, constants, labels, etc. (MAIN, CONSTRUCTOR and FALLBACK are ordinary names)
 // Examples: my_macro, MAIN, _helper, value123
-identifier = @{
-    // Special macro names can be used as identifiers
-    "MAIN" | "CONSTRUCTOR" | "FALLBACK"
-    // Regular identifiers: start with letter or underscore
-    | (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")*
-}
+identifier = @{ (ASCII_ALPHA | "_") ~ ident_char* }
 
-// Boolean literals
-boolean_literal = { "true" | "false" }
+boolean_literal = @{ ("true" | "false") ~ !ident_char }
 
-// Hexadecimal literal (must start with 0x)
 // Examples: 0x42, 0xFF, 0x1234567890abcdef
 hex_literal = @{ "0x" ~ ASCII_HEX_DIGIT+ }
 
-// Decimal literal
-// Examples: 0, 42, 256, 1000
+// Examples: 0, 42, 256
 decimal_literal = @{ ASCII_DIGIT+ }
 
-// String literal (with escape sequences)
-// Examples: "hello", "transfer(address,uint256)", "hello\nworld"
-string_literal = @{ "\"" ~ string_inner ~ "\"" }
-string_inner = { (!"\"" ~ !"\\" ~ ANY | "\\" ~ ANY)* }
+// Single- or double-quoted, without escape sequences; a string ends at the first quote of
+// either kind.
+// Examples: "hello", 'transfer(address,uint256)'
+string_literal = @{ "\"" ~ (!("\"" | "'") ~ ANY)* ~ "\"" | "'" ~ (!("\"" | "'") ~ ANY)* ~ "'" }

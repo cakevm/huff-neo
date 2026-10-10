@@ -389,7 +389,7 @@ impl Contract {
     fn validate_statements_opcodes(statements: &[Statement], evm_version: &EVMVersion) -> Result<(), CodegenError> {
         for statement in statements {
             match &statement.ty {
-                StatementType::Opcode(opcode) => {
+                StatementType::Opcode(opcode) | StatementType::ImmediateOpcode { opcode, .. } => {
                     if let Some(required_version) = opcode.requires_evm_version()
                         && evm_version.version() < &required_version
                     {
@@ -407,6 +407,18 @@ impl Contract {
                 StatementType::Label(label) => {
                     // Recursively validate statements inside labels
                     Self::validate_statements_opcodes(&label.inner, evm_version)?;
+                }
+                StatementType::ForLoop { body, .. } => {
+                    Self::validate_statements_opcodes(body, evm_version)?;
+                }
+                StatementType::IfStatement { then_branch, else_if_branches, else_branch, .. } => {
+                    Self::validate_statements_opcodes(then_branch, evm_version)?;
+                    for (_, branch) in else_if_branches {
+                        Self::validate_statements_opcodes(branch, evm_version)?;
+                    }
+                    if let Some(branch) = else_branch {
+                        Self::validate_statements_opcodes(branch, evm_version)?;
+                    }
                 }
                 StatementType::MacroInvocation(invocation) => {
                     // Validate opcodes passed as arguments to the macro
@@ -872,6 +884,11 @@ impl MacroDefinition {
                         span: &statement.span,
                     });
                 }
+                StatementType::ImmediateOpcode { .. } => {
+                    // Operands may reference constants, macro arguments or loop variables, so they are
+                    // resolved during statement_gen
+                    inner_irbytes.push(IRBytes { ty: IRByteType::Statement(Box::new(statement.clone())), span: &statement.span });
+                }
                 StatementType::ForLoop { .. } => {
                     // ForLoop will be expanded during statement_gen with macro invocation context
                     inner_irbytes.push(IRBytes { ty: IRByteType::Statement(Box::new(statement.clone())), span: &statement.span });
@@ -1291,6 +1308,16 @@ pub enum StatementType {
     ///
     /// Example: `add`, `mstore`, `calldataload`
     Opcode(Opcode),
+    /// An opcode followed by immediate operands that are resolved at compile time
+    ///
+    /// Operands are compile-time expressions: literals, `[CONSTANT]`, `<arg>`, loop variables, or
+    /// parenthesized arithmetic. Example: `dupn 17`, `swapn [DEPTH]`, `exchange 1 <m>`, `push2 [SIZE]`
+    ImmediateOpcode {
+        /// The opcode
+        opcode: Opcode,
+        /// Operand expressions in source order
+        operands: Vec<Expression>,
+    },
     /// A Code Statement
     ///
     /// Raw bytecode string
@@ -1362,6 +1389,9 @@ impl Display for StatementType {
         match self {
             StatementType::Literal(l) => write!(f, "LITERAL: {}", bytes32_to_hex_string(l, true)),
             StatementType::Opcode(o) => write!(f, "OPCODE: {o}"),
+            StatementType::ImmediateOpcode { opcode, operands } => {
+                write!(f, "IMMEDIATE OPCODE: {opcode:?} with {} operands", operands.len())
+            }
             StatementType::Code(s) => write!(f, "CODE: {s}"),
             StatementType::MacroInvocation(m) => {
                 write!(f, "MACRO INVOCATION: {}", m.macro_name)

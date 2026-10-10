@@ -228,7 +228,6 @@ pub fn statement_gen<'a>(
     table_instances: &mut Jumps,
     utilized_tables: &mut Vec<TableDefinition>,
     embedded_tables: &mut BTreeMap<String, usize>,
-    circular_codesize_invocations: &mut CircularCodeSizeIndices,
     starting_offset: usize,
     relax_jumps: bool,
 ) -> Result<StatementGenResult, CodegenError> {
@@ -557,27 +556,19 @@ pub fn statement_gen<'a>(
                 // This is important for circular recursion detection
                 scope_mgr.push_macro_with_invocation(ir_macro, *offset, resolved_mi);
 
-                let mut res: BytecodeRes = match Codegen::macro_to_bytecode(
-                    evm_version,
-                    ir_macro,
-                    contract,
-                    scope_mgr,
-                    *offset,
-                    false,
-                    Some(circular_codesize_invocations),
-                    relax_jumps,
-                ) {
-                    Ok(r) => r,
-                    Err(e) => {
-                        tracing::error!(
-                            target: "codegen",
-                            "FAILED TO RECURSE INTO MACRO \"{}\"",
-                            ir_macro.name
-                        );
-                        scope_mgr.pop_macro();
-                        return Err(e);
-                    }
-                };
+                let mut res: BytecodeRes =
+                    match Codegen::macro_to_bytecode(evm_version, ir_macro, contract, scope_mgr, *offset, false, relax_jumps) {
+                        Ok(r) => r,
+                        Err(e) => {
+                            tracing::error!(
+                                target: "codegen",
+                                "FAILED TO RECURSE INTO MACRO \"{}\"",
+                                ir_macro.name
+                            );
+                            scope_mgr.pop_macro();
+                            return Err(e);
+                        }
+                    };
 
                 // Note: The macro is already popped by macro_to_bytecode at the end
                 // because depth > 1 when processing inline macros recursively. We should NOT pop again here.
@@ -606,6 +597,29 @@ pub fn statement_gen<'a>(
                 // Preserve the spans from the nested macro expansion
                 spans.extend(res.spans)
             }
+        }
+        StatementType::ImmediateOpcode { opcode, operands } => {
+            // Resolve operands in the current macro invocation context (constants, args, loop values)
+            let mut values = Vec::with_capacity(operands.len());
+            for operand in operands {
+                values.push(U256::from_be_bytes(evaluate_expression_with_context(operand, contract, scope_mgr)?));
+            }
+            let immediate = opcode.encode_immediate(&values).map_err(|msg| CodegenError {
+                kind: CodegenErrorKind::InvalidOpcodeOperand(msg),
+                span: s.span.clone_box(),
+                token: None,
+            })?;
+            let code = format!("{opcode}{immediate}");
+            tracing::info!(target: "codegen", "IMMEDIATE OPCODE: {:?} {:?} => {}", opcode, values, code);
+
+            bytes.push_with_offset(*offset, Bytes::Raw(code.clone()));
+            let span_info = s
+                .span
+                .0
+                .first()
+                .and_then(|sp| if sp.start != 0 || sp.end != 0 { contract.map_original_span_to_flattened(sp) } else { None });
+            spans.push(span_info);
+            *offset += code.len() / 2;
         }
         StatementType::Label(label) => {
             // Add JUMPDEST opcode to final result and add to label_indices
@@ -682,7 +696,6 @@ pub fn statement_gen<'a>(
                 table_instances,
                 utilized_tables,
                 embedded_tables,
-                circular_codesize_invocations,
                 starting_offset,
                 &mut bytes,
                 bf,
@@ -786,7 +799,6 @@ pub fn statement_gen<'a>(
                 table_instances,
                 utilized_tables,
                 embedded_tables,
-                circular_codesize_invocations,
                 starting_offset,
                 relax_jumps,
             );
@@ -835,7 +847,6 @@ pub fn statement_gen<'a>(
                             table_instances,
                             utilized_tables,
                             embedded_tables,
-                            circular_codesize_invocations,
                             starting_offset,
                             relax_jumps,
                         )?;
@@ -960,7 +971,6 @@ pub fn statement_gen<'a>(
                                 table_instances,
                                 utilized_tables,
                                 embedded_tables,
-                                circular_codesize_invocations,
                                 starting_offset,
                                 relax_jumps,
                             )?;
@@ -1077,6 +1087,16 @@ fn substitute_loop_variable_in_statement(statement: &Statement, var_name: &str, 
             new_label.name = format!("{}_{}", label.name, iter_value);
             StatementType::Label(new_label)
         }
+        StatementType::ImmediateOpcode { opcode, operands } => StatementType::ImmediateOpcode {
+            opcode: *opcode,
+            operands: operands.iter().map(|o| substitute_in_expression(o, var_name, value)).collect(),
+        },
+        StatementType::MacroInvocation(mi) => {
+            StatementType::MacroInvocation(MacroInvocation { args: substitute_in_macro_args(&mi.args, var_name, value), ..mi.clone() })
+        }
+        StatementType::ArgMacroInvocation(parent_macro_name, arg_name, args) => {
+            StatementType::ArgMacroInvocation(parent_macro_name.clone(), arg_name.clone(), substitute_in_macro_args(args, var_name, value))
+        }
         StatementType::LabelCall(label_name) => {
             // Update label references to match renamed labels
             let iter_value = U256::from_be_bytes(*value);
@@ -1138,6 +1158,25 @@ fn substitute_in_expression(expr: &Expression, var_name: &str, value: &[u8; 32])
         Expression::Unary { op, expr: inner_expr, span } => {
             Expression::Unary { op: op.clone(), expr: Box::new(substitute_in_expression(inner_expr, var_name, value)), span: span.clone() }
         }
+        Expression::Grouped { expr: inner_expr, span } => {
+            Expression::Grouped { expr: Box::new(substitute_in_expression(inner_expr, var_name, value)), span: span.clone() }
+        }
         _ => expr.clone(),
     }
+}
+
+/// Substitute loop variable in macro invocation arguments, including nested invocations
+fn substitute_in_macro_args(args: &[MacroArg], var_name: &str, value: &[u8; 32]) -> Vec<MacroArg> {
+    args.iter()
+        .map(|arg| match arg {
+            MacroArg::Ident(name) if name == &format!("__LOOP_VAR_{}", var_name) => MacroArg::HexLiteral(*value),
+            MacroArg::MacroCall(mi) => {
+                MacroArg::MacroCall(MacroInvocation { args: substitute_in_macro_args(&mi.args, var_name, value), ..mi.clone() })
+            }
+            MacroArg::ArgCallMacroInvocation(name, nested) => {
+                MacroArg::ArgCallMacroInvocation(name.clone(), substitute_in_macro_args(nested, var_name, value))
+            }
+            _ => arg.clone(),
+        })
+        .collect()
 }

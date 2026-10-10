@@ -3,7 +3,7 @@
 #![warn(unused_extern_crates)]
 #![forbid(unsafe_code)]
 
-use alloy_primitives::{hex, keccak256};
+use alloy_primitives::{U256, hex, keccak256};
 use huff_neo_utils::ast::abi::{Argument, ArgumentLocation, EventDefinition, FunctionDefinition, FunctionType};
 use huff_neo_utils::ast::huff::*;
 use huff_neo_utils::ast::span::AstSpan;
@@ -11,6 +11,7 @@ use huff_neo_utils::bytecode::Bytes;
 use huff_neo_utils::file::remapper;
 use huff_neo_utils::{
     error::*,
+    opcodes::Opcode,
     prelude::{Span, str_to_bytes32},
     token::{Token, TokenKind},
     types::*,
@@ -403,8 +404,14 @@ impl Parser {
                 self.consume();
                 ConstVal::Bytes(Bytes::Raw(hex_str))
             }
-            // Handle arithmetic expressions (including hex literals that are part of expressions)
-            TokenKind::HexLiteral(_) | TokenKind::OpenParen | TokenKind::Sub | TokenKind::OpenBracket => {
+            // Handle arithmetic expressions (including hex literals that are part of expressions,
+            // and decimal literals, which are always evaluated as expressions)
+            TokenKind::HexLiteral(_)
+            | TokenKind::Integer(_)
+            | TokenKind::OpenParen
+            | TokenKind::Sub
+            | TokenKind::Not
+            | TokenKind::OpenBracket => {
                 let expr = self.parse_constant_expression()?;
                 ConstVal::Expression(expr)
             }
@@ -412,7 +419,9 @@ impl Parser {
                 tracing::error!(target: "parser", "TOKEN MISMATCH - EXPECTED FreeStoragePointer OR Hex, GOT: {}", self.current_token.kind);
                 return Err(ParserError {
                     kind: ParserErrorKind::InvalidConstantValue(kind),
-                    hint: Some("Expected constant value to be Hex, arithmetic expression, or `FREE_STORAGE_POINTER()`".to_string()),
+                    hint: Some(
+                        "Expected constant value to be Hex, decimal, arithmetic expression, or `FREE_STORAGE_POINTER()`".to_string(),
+                    ),
                     spans: AstSpan(vec![self.current_token.span.clone()]),
                     cursor: self.cursor,
                 });
@@ -615,6 +624,69 @@ impl Parser {
         ))
     }
 
+    /// Returns true if the current token can start an opcode operand.
+    fn at_opcode_operand(&self) -> bool {
+        matches!(
+            self.current_token.kind,
+            TokenKind::Integer(_) | TokenKind::HexLiteral(_) | TokenKind::OpenBracket | TokenKind::LeftAngle | TokenKind::OpenParen
+        )
+    }
+
+    /// Returns true if the opcode just consumed is followed by operands resolved at compile time,
+    /// e.g. `dupn 17` or `push2 [SIZE]`. A push followed by a hex literal keeps the plain form.
+    fn takes_opcode_operands(&self, o: Opcode) -> bool {
+        o.has_stack_immediate() || (o.is_value_push() && !matches!(self.current_token.kind, TokenKind::HexLiteral(_)))
+    }
+
+    /// Parses the operands of an opcode that carries immediate data.
+    ///
+    /// Covers DUPN, SWAPN and EXCHANGE (`dupn 17`, `exchange 1 2`) as well as PUSH1..PUSH32 with a
+    /// non-literal value (`push2 [SIZE]`). Each operand is a compile-time expression: a decimal or
+    /// hex literal, `[CONSTANT]`, `<arg>`, a loop variable, or a parenthesized expression.
+    /// Literal operands are validated immediately; all others once resolved during codegen.
+    fn parse_opcode_operands(&mut self, o: Opcode, opcode_span: Span) -> Result<Statement, ParserError> {
+        let (operand_count, kind, hint) = if o.is_value_push() {
+            (1, ParserErrorKind::InvalidPush(o), format!("\"{o:?}\" takes one value: a literal, [CONSTANT], <arg>, or (expression)"))
+        } else {
+            (o.stack_immediate_operands(), ParserErrorKind::InvalidStackImmediate(o), o.stack_immediate_hint())
+        };
+
+        let mut operands = Vec::with_capacity(operand_count);
+        let mut spans = vec![opcode_span];
+        for _ in 0..operand_count {
+            if !self.at_opcode_operand() {
+                // Opcode tokens display as their byte value; show the mnemonic instead
+                let found = match &self.current_token.kind {
+                    TokenKind::Opcode(op) => op.as_ref().to_string(),
+                    other => other.to_string(),
+                };
+                return Err(ParserError {
+                    kind,
+                    hint: Some(format!("{hint}, found \"{found}\"")),
+                    spans: AstSpan(vec![self.current_token.span.clone()]),
+                    cursor: self.cursor,
+                });
+            }
+            let operand = self.parse_primary_expression()?;
+            spans.extend_from_slice(operand.span().inner_ref());
+            operands.push(operand);
+        }
+
+        // Validate operands that are already known
+        let literals: Option<Vec<U256>> = operands
+            .iter()
+            .map(|e| if let Expression::Literal { value, .. } = e { Some(U256::from_be_bytes(*value)) } else { None })
+            .collect();
+        if let Some(values) = literals
+            && let Err(hint) = o.encode_immediate(&values)
+        {
+            return Err(ParserError { kind, hint: Some(hint), spans: AstSpan(spans[1..].to_vec()), cursor: self.cursor });
+        }
+
+        tracing::info!(target: "parser", "PARSED OPCODE OPERANDS: [{:?} with {} operands]", o, operands.len());
+        Ok(Statement { ty: StatementType::ImmediateOpcode { opcode: o, operands }, span: AstSpan(spans) })
+    }
+
     /// Parse the body of a macro.
     ///
     /// Only HEX, OPCODES, labels, builtins, and MACRO calls should be authorized.
@@ -635,6 +707,10 @@ impl Parser {
                     let curr_spans = vec![self.current_token.span.clone()];
                     tracing::info!(target: "parser", "PARSING MACRO BODY: [OPCODE: {}]", o);
                     self.consume();
+                    if self.takes_opcode_operands(o) {
+                        statements.push(self.parse_opcode_operands(o, curr_spans[0].clone())?);
+                        continue;
+                    }
                     statements.push(Statement { ty: StatementType::Opcode(o), span: AstSpan(curr_spans) });
                     // If the opcode is a push that takes a literal value, we need to parse the next
                     // literal
@@ -993,6 +1069,10 @@ impl Parser {
                 TokenKind::Opcode(o) => {
                     let curr_spans = vec![self.current_token.span.clone()];
                     self.consume();
+                    if self.takes_opcode_operands(o) {
+                        statements.push(self.parse_opcode_operands(o, curr_spans[0].clone())?);
+                        continue;
+                    }
                     statements.push(Statement { ty: StatementType::Opcode(o), span: AstSpan(curr_spans) });
                     if o.is_value_push() {
                         // Handle push with literal
@@ -1156,6 +1236,10 @@ impl Parser {
                     let curr_spans = vec![self.current_token.span.clone()];
                     tracing::info!(target: "parser", "PARSING LABEL BODY: [OPCODE: {}]", o);
                     self.consume();
+                    if self.takes_opcode_operands(o) {
+                        statements.push(self.parse_opcode_operands(o, curr_spans[0].clone())?);
+                        continue;
+                    }
                     statements.push(Statement { ty: StatementType::Opcode(o), span: AstSpan(curr_spans) });
                 }
                 TokenKind::Ident(ident_str) => {
@@ -1471,6 +1555,10 @@ impl Parser {
                 self.consume();
                 Ok(MacroArg::HexLiteral(lit))
             }
+            TokenKind::Integer(n) => {
+                self.consume();
+                Ok(MacroArg::HexLiteral(str_to_bytes32(&format!("{n:x}"))))
+            }
             TokenKind::Opcode(o) => {
                 self.consume();
                 Ok(MacroArg::Opcode(o))
@@ -1539,6 +1627,9 @@ impl Parser {
                     self.match_kind(TokenKind::CloseParen)?; // consume ')'
 
                     Ok(MacroArg::ArgCallMacroInvocation(arg_name, args))
+                } else if self.loop_variables.contains(&arg_name) {
+                    // Loop variables are substituted with their value when the loop is unrolled
+                    Ok(MacroArg::Ident(format!("__LOOP_VAR_{arg_name}")))
                 } else {
                     // Simple arg call <arg>
                     Ok(MacroArg::ArgCall(ArgCall {
@@ -1566,6 +1657,10 @@ impl Parser {
                 TokenKind::HexLiteral(hex_str) => {
                     let lit = str_to_bytes32(&hex_str);
                     args.push(MacroArg::HexLiteral(lit));
+                    self.consume();
+                }
+                TokenKind::Integer(n) => {
+                    args.push(MacroArg::HexLiteral(str_to_bytes32(&format!("{n:x}"))));
                     self.consume();
                 }
                 TokenKind::Opcode(o) => {
@@ -1627,6 +1722,9 @@ impl Parser {
                     if self.check(TokenKind::OpenParen) {
                         let invoc_args = self.parse_macro_call_args(macro_name.clone())?;
                         args.push(MacroArg::ArgCallMacroInvocation(arg_name, invoc_args));
+                    } else if self.loop_variables.contains(&arg_name) {
+                        // Loop variables are substituted with their value when the loop is unrolled
+                        args.push(MacroArg::Ident(format!("__LOOP_VAR_{arg_name}")));
                     } else {
                         args.push(MacroArg::ArgCall(ArgCall {
                             macro_name: macro_name.clone(),
@@ -2220,6 +2318,10 @@ impl Parser {
 
                 // Create a single span covering the full <arg> including the brackets and name
                 let span = AstSpan(vec![Span { start: start_span.start, end: end_span.end, file: start_span.file.clone() }]);
+                // Loop variables are substituted with their value when the loop is unrolled
+                if self.loop_variables.contains(&arg_name) {
+                    return Ok(Expression::Constant { name: format!("__LOOP_VAR_{arg_name}"), span });
+                }
                 Ok(Expression::ArgCall {
                     macro_name: String::new(), // Will be filled in during evaluation
                     name: arg_name,

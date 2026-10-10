@@ -503,3 +503,38 @@ fn test_jump_resolution_with_no_relaxation_needed() {
     // Exact bytecode match confirms jumps are resolved correctly.
     assert_eq!(bytecode, expected, "Bytecode should match exactly with all jumps resolved");
 }
+
+/// Test relaxation of jumps inside invoked macros
+///
+/// Jumps of nested macros are resized together with the caller's jumps, so shrinking a jump before
+/// the invocation also moves the targets inside it.
+#[test]
+fn test_jump_relaxation_in_nested_macro() {
+    let source = r#"
+        #define macro INNER() = takes(0) returns(0) {
+            inner jump
+            inner:
+        }
+
+        #define macro MAIN() = takes(0) returns(0) {
+            outer jump
+            outer:
+            INNER()
+        }
+    "#;
+
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    let bytecode_without = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
+    let bytecode_with = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, true).unwrap();
+
+    // PUSH2 0x0004, JUMP, JUMPDEST, PUSH2 0x0009, JUMP, JUMPDEST
+    assert_eq!(bytecode_without, "610004565b610009565b");
+    // PUSH1 0x03, JUMP, JUMPDEST, PUSH1 0x07, JUMP, JUMPDEST
+    assert_eq!(bytecode_with, "6003565b6007565b");
+}

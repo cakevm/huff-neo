@@ -22,6 +22,7 @@ use huff_neo_core::Compiler;
 use huff_neo_test_runner::{
     AnvilInspector, Env, HuffTester, HuffTesterConfig, TxEnv,
     prelude::{ReportKind, print_test_report},
+    spec_id_for,
 };
 use huff_neo_utils::ast::span::AstSpan;
 use huff_neo_utils::file::file_provider::{FileProvider, FileSystemFileProvider};
@@ -86,7 +87,9 @@ fn main() {
     });
 
     // Parse the EVM version
-    let evm_version = EVMVersion::from(cli.evm_version);
+    // An explicit `--evm-version` also overrides the hardfork from the foundry config for tests
+    let evm_version_override = cli.evm_version.map(EVMVersion::from);
+    let evm_version = evm_version_override.unwrap_or_default();
 
     let mut use_cache = true;
     if cli.interactive {
@@ -176,7 +179,7 @@ fn main() {
             let mut scope_mgr = huff_neo_utils::scope::ScopeManager::new();
             scope_mgr.push_macro(macro_def, 0);
             let bytecode_res: BytecodeRes =
-                Codegen::macro_to_bytecode(&evm_version, macro_def, contract, &mut scope_mgr, 0, false, None, false).unwrap();
+                Codegen::macro_to_bytecode(&evm_version, macro_def, contract, &mut scope_mgr, 0, false, false).unwrap();
 
             if bytecode_res.label_indices.is_empty() {
                 eprintln!(
@@ -281,6 +284,11 @@ fn main() {
             // Disable base fee because simulation would fail
             env.evm_env.cfg_env.disable_base_fee = true;
 
+            // An explicit `--evm-version` overrides the hardfork from the foundry config, so tests
+            // execute with the same rules they were compiled for.
+            let evm_spec = evm_version_override.map_or_else(|| config.evm_spec_id(), |v| spec_id_for(v.version()));
+            env.evm_env.cfg_env.set_spec_and_mainnet_gas_params(evm_spec);
+
             // Choose the internal function tracing mode, if --decode-internal is provided.
             let decode_internal = if test_args.decode_internal {
                 // If more than one function matched, we enable simple tracing.
@@ -294,7 +302,8 @@ fn main() {
             let tester_config = HuffTesterConfig::new()
                 .set_debug(test_args.debug)
                 .set_decode_internal(decode_internal)
-                .evm_spec(config.evm_spec_id())
+                .evm_spec(evm_spec)
+                .evm_version(evm_version)
                 .sender(evm_opts.sender)
                 .with_fork(evm_opts.get_fork_resolved(&config, chain_id, resolved_fork.as_ref()))
                 .enable_isolation(evm_opts.isolate)

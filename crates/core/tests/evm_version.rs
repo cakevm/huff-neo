@@ -430,3 +430,167 @@ fn test_multiple_opcodes_as_arguments() {
     let validation_result = contract.validate_opcodes(&evm_version);
     assert!(validation_result.is_ok(), "Should succeed with Osaka");
 }
+
+/// Parses a source into a contract with derived storage pointers.
+fn parse_contract(source: &str) -> Result<Contract, ParserError> {
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse()?;
+    contract.derive_storage_pointers();
+    Ok(contract)
+}
+
+/// Compiles MAIN for Amsterdam after validating its opcodes.
+fn compile_amsterdam(source: &str) -> Result<String, CodegenError> {
+    let contract = parse_contract(source).unwrap();
+    let evm_version = EVMVersion::new(SupportedEVMVersions::Amsterdam);
+    contract.validate_opcodes(&evm_version)?;
+    Codegen::generate_main_bytecode(&evm_version, &contract, None, false)
+}
+
+#[test]
+fn test_amsterdam_version_parsing() {
+    let evm_version = EVMVersion::from("amsterdam".to_string());
+    assert_eq!(evm_version.version(), &SupportedEVMVersions::Amsterdam);
+    assert_eq!(evm_version.to_string(), "amsterdam");
+    assert!(evm_version.has_slotnum());
+    assert!(evm_version.has_stack_immediates());
+    assert!(evm_version.has_clz());
+    assert_eq!(evm_version.max_code_size(), 0x10000);
+    assert_eq!(evm_version.max_initcode_size(), 0x20000);
+
+    // Osaka stays the default until Amsterdam activates on mainnet
+    let default = EVMVersion::default();
+    assert_eq!(default.version(), &SupportedEVMVersions::Osaka);
+    assert!(!default.has_slotnum());
+    assert!(!default.has_stack_immediates());
+    assert_eq!(default.max_code_size(), 0x6000);
+    assert_eq!(default.max_initcode_size(), 0xc000);
+}
+
+#[test]
+fn test_slotnum_requires_amsterdam() {
+    let source = r#"
+        #define macro MAIN() = takes(0) returns(0) {
+            slotnum pop
+        }
+    "#;
+    assert_eq!(compile_amsterdam(source).unwrap(), "4b50");
+
+    let contract = parse_contract(source).unwrap();
+    let error = contract.validate_opcodes(&EVMVersion::new(SupportedEVMVersions::Osaka)).unwrap_err();
+    match error.kind {
+        CodegenErrorKind::InvalidOpcodeForEVMVersion(opcode, required, current) => {
+            assert_eq!(opcode, "slotnum");
+            assert_eq!(required, "amsterdam");
+            assert_eq!(current, "osaka");
+        }
+        other => panic!("Expected InvalidOpcodeForEVMVersion, got {other:?}"),
+    }
+}
+
+#[test]
+fn test_stack_immediates_encoding() {
+    let source = r#"
+        #define macro MAIN() = takes(0) returns(0) {
+            dupn 17
+            dupn 0x12
+            swapn 17
+            swapn 235
+            exchange 1 2
+        }
+    "#;
+    // DUPN 17 = e6 80, DUPN 18 = e6 81, SWAPN 17 = e7 80, SWAPN 235 = e7 5a, EXCHANGE 1 2 = e8 8e
+    assert_eq!(compile_amsterdam(source).unwrap(), "e680e681e780e75ae88e");
+}
+
+#[test]
+fn test_stack_immediates_require_amsterdam() {
+    for op in ["dupn 17", "swapn 17", "exchange 1 2"] {
+        let source = format!("#define macro MAIN() = takes(0) returns(0) {{ {op} }}");
+        let contract = parse_contract(&source).unwrap();
+        let error = contract.validate_opcodes(&EVMVersion::new(SupportedEVMVersions::Osaka)).unwrap_err();
+        assert!(
+            matches!(error.kind, CodegenErrorKind::InvalidOpcodeForEVMVersion(_, ref required, _) if required == "amsterdam"),
+            "{op} should require amsterdam, got {:?}",
+            error.kind
+        );
+    }
+}
+
+#[test]
+fn test_stack_immediates_count_towards_label_offsets() {
+    // The immediate byte must be counted when resolving jump targets after the instruction
+    let source = r#"
+        #define macro MAIN() = takes(0) returns(0) {
+            dupn 17
+            target jump
+            target:
+                stop
+        }
+    "#;
+    // e6 80 | PUSH2 0x0006 | JUMP | JUMPDEST | STOP
+    assert_eq!(compile_amsterdam(source).unwrap(), "e680610006565b00");
+}
+
+#[test]
+fn test_stack_immediates_in_label_and_loop_bodies() {
+    let source = r#"
+        #define macro MAIN() = takes(0) returns(0) {
+            for(i in 0..2) {
+                swapn 20
+            }
+            done:
+                exchange 2 5
+        }
+    "#;
+    // SWAPN 20 = e7 83 (twice), JUMPDEST, EXCHANGE 2 5 = e8 9b
+    assert_eq!(compile_amsterdam(source).unwrap(), "e783e7835be89b");
+}
+
+#[test]
+fn test_version_check_inside_loop_and_if_bodies() {
+    for body in ["for(i in 0..1) { slotnum pop }", "if (0x01) { slotnum pop }", "if (0x00) { stop } else { dupn 17 }"] {
+        let source = format!("#define macro MAIN() = takes(0) returns(0) {{ {body} }}");
+        let contract = parse_contract(&source).unwrap();
+        let result = contract.validate_opcodes(&EVMVersion::new(SupportedEVMVersions::Osaka));
+        assert!(result.is_err(), "\"{body}\" should be rejected before Amsterdam");
+    }
+}
+
+#[test]
+fn test_stack_immediates_invalid_operands() {
+    for op in [
+        "dupn 16",
+        "dupn 236",
+        "swapn 0",
+        "exchange 2 1",
+        "exchange 1 1",
+        "exchange 14 17",
+        "exchange 0 3",
+        "dupn",
+        "exchange 3",
+        "dupn add",
+    ] {
+        let source = format!("#define macro MAIN() = takes(0) returns(0) {{ {op} }}");
+        let error = parse_contract(&source).expect_err(op);
+        assert!(matches!(error.kind, ParserErrorKind::InvalidStackImmediate(_)), "{op}: unexpected error {:?}", error.kind);
+    }
+}
+
+#[test]
+fn test_stack_immediate_opcode_as_macro_argument() {
+    let source = r#"
+        #define macro APPLY_OP(op) = takes(0) returns(0) {
+            <op>
+        }
+
+        #define macro MAIN() = takes(0) returns(0) {
+            APPLY_OP(dupn)
+        }
+    "#;
+    let error = compile_amsterdam(source).unwrap_err();
+    assert!(matches!(error.kind, CodegenErrorKind::InvalidMacroArgumentType(_)), "unexpected error {:?}", error.kind);
+}

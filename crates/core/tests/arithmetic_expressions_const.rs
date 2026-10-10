@@ -541,3 +541,75 @@ fn test_multiplication_overflow() {
 
     assert_compile_error(source, |kind| matches!(kind, CodegenErrorKind::ArithmeticOverflow));
 }
+
+// Decimal and Logical-NOT Constants
+
+#[test]
+fn test_decimal_constant() {
+    let source = r#"
+        #define constant FIVE = 5
+        #define constant BIG = 256
+
+        #define macro MAIN() = takes(0) returns(0) {
+            [FIVE]
+            [BIG]
+        }
+    "#;
+
+    let bytecode = compile_to_bytecode(source).unwrap();
+    assert_eq!(bytecode, "6005610100", "Expected PUSH1 0x05, PUSH2 0x0100");
+}
+
+#[test]
+fn test_decimal_leading_expression() {
+    let source = r#"
+        #define constant A = 0x02
+        #define constant LEADING = 5 + 0x10       // 0x15
+        #define constant GROUPED = (2 + 3) * 4    // 0x14
+        #define constant MIXED = [A] * 3          // 0x06
+
+        #define macro MAIN() = takes(0) returns(0) {
+            [LEADING]
+            [GROUPED]
+            [MIXED]
+        }
+    "#;
+
+    let bytecode = compile_to_bytecode(source).unwrap();
+    assert_eq!(bytecode, "601560146006");
+}
+
+#[test]
+fn test_logical_not_constant() {
+    let source = r#"
+        #define constant TRUE = !0x00
+        #define constant FALSE = !0x05
+
+        #define macro MAIN() = takes(0) returns(0) {
+            [TRUE]
+            [FALSE]
+        }
+    "#;
+
+    let bytecode = compile_to_bytecode(source).unwrap();
+    assert_eq!(bytecode, "60015f", "Expected PUSH1 0x01, PUSH0");
+}
+
+#[test]
+fn test_decimal_constant_in_code_table() {
+    let source = r#"
+        #define constant FIVE = 5
+
+        #define table T {
+            [FIVE]
+        }
+
+        #define macro MAIN() = takes(0) returns(0) {
+            __tablesize(T)
+        }
+    "#;
+
+    // The table holds the single byte 0x05
+    let bytecode = compile_to_bytecode(source).unwrap();
+    assert_eq!(bytecode, "600105");
+}
