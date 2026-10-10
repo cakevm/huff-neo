@@ -35,10 +35,12 @@ __RIGHTPAD(0x123)
 ### `__codesize(<macro>|<function>)`
 Pushes the code size of the macro or function passed to the stack.
 
+Used inside the macro it names (or inside a macro that macro invokes), it pushes the size of that enclosing invocation as emitted, including expanded macros and resized jumps.
+
 #### `__codesize(RUNTIME)`
 `RUNTIME` is a reserved argument that resolves at compile time to the byte length of the runtime section as the compiler emits it — `MAIN`'s body plus its appended runtime tables. Usable in both `MAIN` and `CONSTRUCTOR` (directly or via a derived `#define constant`).
 
-The runtime size is self-referential when used from `MAIN` (the embedded value contributes to the size it measures). The compiler resolves this by iterating `MAIN` codegen to a fixed point — typically converges in 2–3 passes. EIP-170 bounds the value at PUSH2, so widths never grow beyond two bytes.
+The runtime size is self-referential when used from `MAIN` (the embedded value contributes to the size it measures). The compiler resolves this by iterating `MAIN` codegen to a fixed point — typically converges in 2–3 passes. The contract size limit bounds the value at PUSH3 (64 KiB from Amsterdam needs three bytes), so widths stay small.
 
 Not allowed inside a code table — code tables contribute to the runtime size, so embedding the runtime size inside one would create a circular dependency in table sizing. `RUNTIME` is also reserved as a macro name; `#define macro RUNTIME() = { ... }` is rejected.
 

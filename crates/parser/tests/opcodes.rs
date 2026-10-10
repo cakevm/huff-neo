@@ -191,3 +191,91 @@ fn test_keccak256_and_sha3_opcodes() {
     let mut parser = Parser::new(tokens, None);
     parser.parse().unwrap();
 }
+
+/// Parses the statements of the MAIN macro.
+fn main_statements(source: &str) -> Result<Vec<Statement>, ParserError> {
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let contract = parser.parse()?;
+    Ok(contract.find_macro_by_name("MAIN").unwrap().statements.clone())
+}
+
+#[test]
+fn test_opcode_operands_parse_as_expressions() {
+    let source = r#"
+        #define macro MAIN(depth) = takes(0) returns(0) {
+            dupn [DEPTH]
+            swapn <depth>
+            exchange 1 (0x01 + 1)
+            push2 [SIZE]
+        }
+    "#;
+
+    let statements = main_statements(source).unwrap();
+    assert_eq!(statements[0].ty.to_string(), "IMMEDIATE OPCODE: Dupn with 1 operands");
+    let operands: Vec<(Opcode, Vec<Expression>)> = statements
+        .into_iter()
+        .map(|s| match s.ty {
+            StatementType::ImmediateOpcode { opcode, operands } => (opcode, operands),
+            other => panic!("expected an immediate opcode, got {other}"),
+        })
+        .collect();
+
+    assert_eq!(operands.len(), 4);
+    assert!(matches!(&operands[0], (Opcode::Dupn, ops) if matches!(&ops[..], [Expression::Constant { name, .. }] if name == "DEPTH")));
+    assert!(matches!(&operands[1], (Opcode::Swapn, ops) if matches!(&ops[..], [Expression::ArgCall { name, .. }] if name == "depth")));
+    assert!(
+        matches!(&operands[2], (Opcode::Exchange, ops) if matches!(&ops[..], [Expression::Literal { .. }, Expression::Grouped { .. }]))
+    );
+    assert!(matches!(&operands[3], (Opcode::Push2, ops) if matches!(&ops[..], [Expression::Constant { name, .. }] if name == "SIZE")));
+}
+
+#[test]
+fn test_loop_variable_operand_parses_as_placeholder() {
+    let source = r#"
+        #define macro MAIN() = takes(0) returns(0) {
+            for(i in 17..19) {
+                dupn <i>
+            }
+        }
+    "#;
+
+    let statements = main_statements(source).unwrap();
+    let StatementType::ForLoop { body, .. } = &statements[0].ty else { panic!("expected a for loop") };
+    assert!(matches!(
+        &body[0].ty,
+        StatementType::ImmediateOpcode { opcode: Opcode::Dupn, operands } if matches!(&operands[..], [Expression::Constant { name, .. }] if name == "__LOOP_VAR_i")
+    ));
+}
+
+#[test]
+fn test_push_literal_keeps_literal_statements() {
+    // Hex literals after a push keep the existing representation, including zero padding
+    let statements = main_statements("#define macro MAIN() = takes(0) returns(0) { push2 0x01 }").unwrap();
+    assert!(matches!(statements[0].ty, StatementType::Opcode(Opcode::Push2)));
+    assert!(matches!(statements[1].ty, StatementType::Literal(_)));
+}
+
+#[test]
+fn test_literal_operands_are_validated_while_parsing() {
+    for (op, expected) in [
+        ("push1 300", "does not fit"),
+        ("push2 0x10000", "too many bytes"),
+        ("dupn 16", "between 17 and 235"),
+        ("exchange 3 2", "1 <= n < m"),
+        ("push1 add", "found \"add\""),
+        ("dupn }", "found \"}\""),
+    ] {
+        let source = format!("#define macro MAIN() = takes(0) returns(0) {{ {op} }}");
+        let error = main_statements(&source).expect_err(op);
+        assert!(
+            matches!(error.kind, ParserErrorKind::InvalidPush(_) | ParserErrorKind::InvalidStackImmediate(_)),
+            "{op}: {:?}",
+            error.kind
+        );
+        let hint = error.hint.unwrap_or_default();
+        assert!(hint.contains(expected), "{op}: unexpected hint {hint:?}");
+    }
+}

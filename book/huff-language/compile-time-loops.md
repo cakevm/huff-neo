@@ -17,7 +17,8 @@ for(variable in start..end step N) {
 ## Features
 
 - **Compile-time expansion**: Loops are expanded during compilation and don't exist in the final bytecode
-- **Variable interpolation**: Use `<variable>` to insert the current iteration value as a literal
+- **Variable interpolation**: Use `<variable>` to insert the current iteration value as a literal, or
+  use it in expressions, macro arguments, and opcode operands
 - **Constant expressions**: Loop bounds can use constants and arithmetic
 - **Nested loops**: Loops can be nested within each other
 
@@ -74,19 +75,31 @@ for(i in 0..3) {
 
 **Note**: Loop variables shadow macro arguments. Inside a for loop, `<i>` always refers to the loop variable, even if there's a macro argument with the same name.
 
-### Limitations
+### Where Loop Variables Can Be Used
 
-- `<variable>` only works as a **literal value**
-- Cannot interpolate into identifiers or label names
-- Cannot use variable in constant names
+Inside the loop body, `<variable>` can be used wherever a compile-time value is accepted:
 
-**Supported**:
 ```javascript
-for(i in 0..3) {
-    <i>        // ✓ Literal value
-    push1 <i>  // ✓ Literal after opcode
+#define macro PUSH_IT(value) = takes(0) returns(1) {
+    <value>
+}
+
+#define macro EXAMPLE() = takes(0) returns(0) {
+    for(i in 0..3) {
+        <i>                      // Push the value (smallest PUSH)
+        push2 <i>                // Push with an explicit width: push2 0x0000, 0x0001, 0x0002
+        PUSH_IT(<i>)             // As a macro argument
+        for(j in 0..<i>) { }     // In the bounds of a nested loop
+        if (<i> == 0x01) { }     // In an if condition
+    }
+    for(i in 0..2) {
+        dupn (<i> + 17)          // As an opcode operand, also in arithmetic
+    }
 }
 ```
+
+Labels defined inside a loop body are renamed per iteration, so each iteration gets its own jump
+destination.
 
 **Not Supported**:
 ```javascript

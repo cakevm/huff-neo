@@ -107,6 +107,7 @@ fn test_dyn_constructor_arg_builtin() {
 
     let args = Codegen::encode_constructor_args(vec![String::from("testing")]);
     let final_bytecode = cg.churn(
+        &EVMVersion::default(),
         Arc::new(FileSource::default()),
         args,
         main_code.as_str(),

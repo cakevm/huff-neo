@@ -15,6 +15,7 @@
   - [Custom Errors](huff-language/custom-errors.md)
   - [Jump Labels](huff-language/jump-labels.md)
   - [Jump Tables](huff-language/jump-tables.md)
+  - [Deep Stack Access](huff-language/deep-stack-access.md)
   - [Code Tables](huff-language/code-table.md)
   - [Tests](huff-language/tests.md)
 - [Tutorial](tutorial/overview.md)

@@ -3,6 +3,11 @@
 Jump Labels are a simple abstraction included into the language to make defining
 and referring to `JUMPDEST`s more simple for the developer.
 
+A label reference compiles to a `PUSH2` of the label's offset. Targets beyond 64 KiB use `PUSH3`
+automatically; this only happens in a `CONSTRUCTOR` larger than 64 KiB, which initcode allows from
+Amsterdam. Runtime code is at most 64 KiB, so its targets always fit into `PUSH2`. With
+[`--relax-jumps`](../cli.md#--relax-jumps), targets within the first 256 bytes use `PUSH1`.
+
 ## Example
 
 ```javascript

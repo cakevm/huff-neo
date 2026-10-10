@@ -4,8 +4,8 @@ use alloy_primitives::{B256, U256, hex, keccak256};
 use huff_neo_utils::ast::huff::RUNTIME_CODESIZE_ARG;
 use huff_neo_utils::builtin_eval::{PadDirection, eval_builtin_bytes, eval_event_hash, eval_function_signature};
 use huff_neo_utils::bytecode::{
-    AssertPcPlaceholderData, BytecodeRes, BytecodeSegments, Bytes, CircularCodeSizeIndices, CircularCodesizePlaceholderData,
-    DynConstructorArgPlaceholderData, Jump, JumpPlaceholderData, Jumps, PushOpcode,
+    AssertPcPlaceholderData, BytecodeRes, BytecodeSegments, Bytes, CircularCodesizePlaceholderData, DynConstructorArgPlaceholderData, Jump,
+    JumpPlaceholderData, Jumps, PushOpcode,
 };
 use huff_neo_utils::bytes_util::{bytes32_to_hex_string, format_even_bytes, pad_n_bytes};
 use huff_neo_utils::error::{CodegenError, CodegenErrorKind};
@@ -72,7 +72,6 @@ pub fn builtin_function_gen<'a>(
     table_instances: &mut Jumps,
     utilized_tables: &mut Vec<TableDefinition>,
     embedded_tables: &mut BTreeMap<String, usize>,
-    circular_codesize_invocations: &mut CircularCodeSizeIndices,
     starting_offset: usize,
     bytes: &mut BytecodeSegments,
     bf: &BuiltinFunctionCall,
@@ -81,8 +80,7 @@ pub fn builtin_function_gen<'a>(
     tracing::info!(target: "codegen", "RECURSE BYTECODE GOT BUILTIN FUNCTION CALL: {:?}", bf);
     match bf.kind {
         BuiltinFunctionKind::Codesize => {
-            let (codesize_offset, bytes_variant) =
-                codesize(evm_version, contract, macro_def, scope_mgr, offset, circular_codesize_invocations, bf, relax_jumps)?;
+            let (codesize_offset, bytes_variant) = codesize(evm_version, contract, macro_def, scope_mgr, offset, bf, relax_jumps)?;
 
             *offset += codesize_offset;
             bytes.push_with_offset(starting_offset, bytes_variant);
@@ -447,7 +445,6 @@ fn codesize<'a>(
     macro_def: &MacroDefinition,
     scope_mgr: &mut ScopeManager<'a>,
     offset: &mut usize,
-    circular_codesize_invocations: &mut CircularCodeSizeIndices,
     bf: &BuiltinFunctionCall,
     relax_jumps: bool,
 ) -> Result<(usize, Bytes), CodegenError> {
@@ -504,9 +501,6 @@ fn codesize<'a>(
     let (codesize_offset, bytes_variant) = if is_previous_parent || macro_def.name.eq(codesize_arg) {
         tracing::debug!(target: "codegen", "CIRCULAR CODESIZE INVOCATION DETECTED INJECTING PLACEHOLDER | macro: {}", ir_macro.name);
 
-        // Save the invocation for later
-        circular_codesize_invocations.insert((codesize_arg.to_string(), *offset));
-
         // Create a CircularCodesizePlaceholder variant (starts as PUSH1, 2 bytes)
         let placeholder = Bytes::CircularCodesizePlaceholder(CircularCodesizePlaceholderData::new(codesize_arg.to_string()));
         (2, placeholder)
@@ -521,7 +515,6 @@ fn codesize<'a>(
             scope_mgr,
             *offset,
             ir_macro.name.eq("CONSTRUCTOR"),
-            Some(circular_codesize_invocations),
             relax_jumps,
         ) {
             Ok(r) => r,

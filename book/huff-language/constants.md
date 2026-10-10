@@ -12,6 +12,7 @@ In order to push a constant to the stack, use bracket notation: `[CONSTANT]`
 **Constant Declaration**
 ```javascript
 #define constant NUM = 0x420
+#define constant DECIMAL = 1056      // same value as 0x420
 #define constant HELLO_WORLD = 0x48656c6c6f2c20576f726c6421
 #define constant GREETING = "hello"
 #define constant FREE_STORAGE = FREE_STORAGE_POINTER()
@@ -27,7 +28,8 @@ In order to push a constant to the stack, use bracket notation: `[CONSTANT]`
 
 ## Arithmetic Expressions
 
-Constants can use arithmetic expressions evaluated at compile time.
+Constants can use arithmetic expressions evaluated at compile time. Operands can be hex or
+decimal literals (`[BASE] + 32`), other constants, or parenthesized expressions.
 
 ### Supported Operators
 
@@ -131,6 +133,22 @@ Expressions are evaluated during compilation. The compiler replaces the expressi
 
 #define macro EXAMPLE() = takes(0) returns(0) {
     [C]    // Compiles to: PUSH1 0x15
+}
+```
+
+### Explicit Push Width
+
+`[CONSTANT]` always uses the smallest `PUSH`. To get a fixed width, put the value after an explicit
+`push1`..`push32`. The value is left-padded to the push width, and a value that does not fit is a
+compile error. This also works with macro arguments, loop variables, and parenthesized expressions.
+
+```javascript
+#define constant SIZE = 0x12
+
+#define macro EXAMPLE(value) = takes(0) returns(0) {
+    push2 [SIZE]          // Compiles to: PUSH2 0x0012
+    push4 <value>         // Macro argument, padded to 4 bytes
+    push1 ([SIZE] + 1)    // Compiles to: PUSH1 0x13
 }
 ```
 

@@ -382,3 +382,158 @@ fn test_for_loop_decimal_16() {
     // Should end with PUSH1 0x0f (15 in decimal, last iteration)
     assert!(bytecode_decimal.ends_with("600f"), "Loop should end with PUSH1 0x0f (last iteration value 15)");
 }
+
+#[test]
+fn test_loop_variable_in_nested_loop_bounds() {
+    // The inner loop runs <i> times
+    let source = r#"
+        #define macro MAIN() = takes(0) returns(0) {
+            for(i in 0..3) {
+                for(j in 0..<i>) {
+                    0xaa
+                }
+            }
+        }
+    "#;
+
+    let bytecode = compile_to_bytecode(source).unwrap();
+
+    // i = 0: none, i = 1: one, i = 2: two
+    assert_eq!(bytecode, "60aa60aa60aa");
+}
+
+#[test]
+fn test_loop_variable_in_if_condition() {
+    let source = r#"
+        #define macro MAIN() = takes(0) returns(0) {
+            for(i in 0..3) {
+                if (<i> == 0x01) {
+                    0xbb
+                } else {
+                    0xcc
+                }
+            }
+        }
+    "#;
+
+    let bytecode = compile_to_bytecode(source).unwrap();
+
+    assert_eq!(bytecode, "60cc60bb60cc");
+}
+
+#[test]
+fn test_loop_variable_in_grouped_expression() {
+    let source = r#"
+        #define macro MAIN() = takes(0) returns(0) {
+            for(i in 1..3) {
+                for(j in 0..(<i> * 2)) {
+                    0xaa
+                }
+            }
+        }
+    "#;
+
+    let bytecode = compile_to_bytecode(source).unwrap();
+
+    // i = 1: two, i = 2: four
+    assert_eq!(bytecode, "60aa".repeat(6));
+}
+
+#[test]
+fn test_loop_variable_as_macro_argument() {
+    let source = r#"
+        #define macro PUSH_IT(value) = takes(0) returns(0) {
+            <value>
+        }
+
+        #define macro FORWARD(value) = takes(0) returns(0) {
+            PUSH_IT(<value>)
+        }
+
+        #define macro APPLY(m, value) = takes(0) returns(0) {
+            <m>(<value>)
+        }
+
+        #define macro MAIN() = takes(0) returns(0) {
+            for(i in 1..3) {
+                PUSH_IT(<i>)
+                FORWARD(<i>)
+                APPLY(PUSH_IT, <i>)
+            }
+        }
+    "#;
+
+    let bytecode = compile_to_bytecode(source).unwrap();
+
+    assert_eq!(bytecode, "600160016001600260026002");
+}
+
+#[test]
+fn test_loop_variable_in_nested_macro_call_argument() {
+    let source = r#"
+        #define macro INNER() = takes(0) returns(1) {
+            0x00
+        }
+
+        #define macro PAIR(a, b) = takes(0) returns(0) {
+            <a> <b>
+        }
+
+        #define macro MAIN() = takes(0) returns(0) {
+            for(i in 1..3) {
+                PAIR(<i>, INNER())
+            }
+        }
+    "#;
+
+    let bytecode = compile_to_bytecode(source).unwrap();
+
+    // PUSH1 i, then INNER() pushes PUSH0
+    assert_eq!(bytecode, "60015f60025f");
+}
+
+#[test]
+fn test_loop_variable_in_label_body() {
+    let source = r#"
+        #define macro MAIN() = takes(0) returns(0) {
+            for(i in 0..2) {
+                body:
+                    push1 <i>
+            }
+        }
+    "#;
+
+    let bytecode = compile_to_bytecode(source).unwrap();
+
+    // Labels are renamed per iteration: JUMPDEST, PUSH1 0x00, JUMPDEST, PUSH1 0x01
+    assert_eq!(bytecode, "5b60005b6001");
+}
+
+#[test]
+fn test_loop_variable_in_arg_macro_invocation() {
+    // Loop variables passed to a macro received as an argument, directly and nested
+    let source = r#"
+        #define macro PUSH_IT(value) = takes(0) returns(0) {
+            <value>
+        }
+
+        #define macro WRAP(inner) = takes(0) returns(0) {
+            <inner>
+        }
+
+        #define macro EACH(m) = takes(0) returns(0) {
+            for(i in 1..3) {
+                <m>(<i>)
+                WRAP(<m>(<i>))
+            }
+        }
+
+        #define macro MAIN() = takes(0) returns(0) {
+            EACH(PUSH_IT)
+        }
+    "#;
+
+    let bytecode = compile_to_bytecode(source).unwrap();
+
+    assert_eq!(bytecode, "6001600160026002");
+}

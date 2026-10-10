@@ -49,6 +49,7 @@ fn test_erc721_compile() {
     let mut cg = Codegen::new();
     let paris_artifact = cg
         .churn(
+            &EVMVersion::default(),
             Arc::clone(file_source),
             vec![],
             &paris_main_bytecode,
@@ -67,6 +68,7 @@ fn test_erc721_compile() {
 
     let shanghai_artifact = cg
         .churn(
+            &EVMVersion::default(),
             Arc::clone(file_source),
             vec![],
             &shanghai_main_bytecode,

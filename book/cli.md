@@ -38,7 +38,7 @@ Options:
   -t, --alt-constructor <ALT_CONSTRUCTOR> Compile a specific constructor macro
   -e, --evm-version <EVM_VERSION>         Set the EVM version [default: osaka]
       --flattened-source                  Output the flattened source code with all dependencies resolved
-      --no-size-limit                     Skip the contract size limit check (EIP-170: 24576 bytes)
+      --no-size-limit                     Skip the contract and initcode size limit checks (EIP-170/EIP-3860, raised by EIP-7954 in Amsterdam)
   -V, --version                           Print version
   -h, --help                              Print help
 ```
@@ -108,10 +108,16 @@ This determines which opcodes are available. Supported versions:
 - `cancun` - TLOAD, TSTORE, MCOPY, BLOBHASH, BLOBBASEFEE
 - `prague` - No new opcodes
 - `osaka` - CLZ (default)
+- `amsterdam` - SLOTNUM, DUPN, SWAPN, EXCHANGE, and the larger contract size limits of EIP-7954
+
+The EVM version also selects the contract size limits (see [`--no-size-limit`](#--no-size-limit)).
+When running tests, an explicit `-e` also executes them with the rules and gas schedule of that
+hardfork, instead of the one from the Foundry config.
 
 Example:
 ```shell
 hnc ./src/ERC20.huff -e cancun
+hnc ./src/Deep.huff -e amsterdam test
 ```
 
 ### `--flattened-source`
@@ -126,9 +132,16 @@ hnc ./src/ERC20.huff --flattened-source
 
 ### `--no-size-limit`
 
-Passing the `--no-size-limit` flag bypasses the EIP-170 contract size limit check.
-By default, compilation fails if the runtime bytecode exceeds 24,576 bytes (the
-maximum deployable contract size on Ethereum mainnet).
+Passing the `--no-size-limit` flag bypasses the contract size limit checks.
+By default, compilation fails if the bytecode exceeds the limits of the target EVM version:
+
+| EVM version            | Runtime bytecode (EIP-170 / EIP-7954) | Deployment bytecode (EIP-3860 / EIP-7954) |
+|------------------------|---------------------------------------|-------------------------------------------|
+| up to `osaka`          | 24,576 bytes                          | 49,152 bytes                              |
+| `amsterdam` and later  | 65,536 bytes                          | 131,072 bytes                             |
+
+The deployment bytecode includes the constructor, the runtime code, and encoded constructor
+arguments.
 
 Example:
 ```shell
@@ -240,7 +253,8 @@ hnc ./src/ERC20.huff -p
 Passing the `--relax-jumps` flag applies branch relaxation to minimize deployment
 gas costs. When enabled, all pushes for jumps will be minimized to PUSH1 where
 possible. This can reduce deployment gas costs but has no effect on runtime gas
-costs. Only applies to label references used in JUMPI and JUMP opcodes.
+costs. Only applies to label references used in JUMPI and JUMP opcodes. Independent of this
+flag, jumps to targets beyond 64 KiB (possible in constructors from Amsterdam) use PUSH3.
 
 Example:
 ```shell

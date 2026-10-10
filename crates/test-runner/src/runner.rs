@@ -5,9 +5,12 @@ use anvil::eth::backend::mem::inspector::AnvilInspector;
 use foundry_evm::backend::DatabaseError;
 use huff_neo_codegen::Codegen;
 use huff_neo_utils::ast::huff::{DecoratorFlag, MacroDefinition};
-use huff_neo_utils::prelude::{CompilerError, Contract, EVMVersion, pad_n_bytes};
+use huff_neo_utils::prelude::{CompilerError, Contract, EVMVersion, deploy_bootstrap};
 use revm::context::result::{ExecutionResult, Output};
 use revm::context::{TransactTo, TxEnv};
+use revm::context_interface::cfg::GasParams;
+use revm::context_interface::cfg::gas_params::Eip2780TxInfo;
+use revm::primitives::hardfork::SpecId;
 use revm::state::{Account, AccountInfo, Bytecode};
 use revm::{Context, Database, DatabaseCommit, ExecuteCommitEvm, MainBuilder, MainContext};
 use std::collections::HashMap;
@@ -26,11 +29,13 @@ pub struct TestRunner {
     pub env: Env,
     pub inspector: AnvilInspector,
     pub target_address: Option<Address>,
+    /// EVM version the test macros are compiled for
+    pub evm_version: EVMVersion,
 }
 
 impl TestRunner {
-    pub fn new(env: Env, inspector: AnvilInspector, target_address: Option<Address>) -> Self {
-        Self { env, inspector, target_address }
+    pub fn new(env: Env, inspector: AnvilInspector, target_address: Option<Address>, evm_version: EVMVersion) -> Self {
+        Self { env, inspector, target_address, evm_version }
     }
 
     /// Set the balance of an account.
@@ -99,24 +104,8 @@ impl TestRunner {
         <DB as Database>::Error: std::fmt::Debug,
     {
         // Wrap code in a bootstrap constructor
-        let contract_length = code.len() / 2;
-        let constructor_length = 0;
-        let mut bootstrap_code_size = 9;
-        let contract_size = if contract_length < 256 {
-            format!("60{}", pad_n_bytes(format!("{contract_length:x}").as_str(), 1))
-        } else {
-            bootstrap_code_size += 1;
-
-            format!("61{}", pad_n_bytes(format!("{contract_length:x}").as_str(), 2))
-        };
-        let contract_code_offset = if (bootstrap_code_size + constructor_length) < 256 {
-            format!("60{}", pad_n_bytes(format!("{:x}", bootstrap_code_size + constructor_length).as_str(), 1))
-        } else {
-            bootstrap_code_size += 1;
-
-            format!("61{}", pad_n_bytes(format!("{:x}", bootstrap_code_size + constructor_length).as_str(), 2))
-        };
-        let bootstrap = format!("{contract_size}80{contract_code_offset}3d393df3{code}");
+        let (bootstrap_code, _) = deploy_bootstrap(code.len() / 2, 0);
+        let bootstrap = format!("{bootstrap_code}{code}");
 
         let mut env = self.env.clone();
         env.tx.chain_id = Some(env.evm_env.chainid());
@@ -209,12 +198,12 @@ impl TestRunner {
         };
 
         // Return our test result
-        // NOTE: We subtract 21000 gas from the gas result to account for the
-        // base cost of the CALL.
+        // NOTE: We subtract the intrinsic base cost of the CALL transaction, which depends on the
+        // active hardfork (EIP-2780 reprices it from Amsterdam).
         Ok(TestResult {
             name,
             return_data,
-            gas: gas_used - 21000,
+            gas: gas_used.saturating_sub(call_base_gas(env.evm_env.cfg_env.spec, value)),
             status,
             revert_reason,
             inspector,
@@ -232,8 +221,7 @@ impl TestRunner {
         DB: Database<Error = DatabaseError> + DatabaseCommit + std::fmt::Debug,
         <DB as Database>::Error: std::fmt::Debug,
     {
-        // TODO: set to non default
-        let evm_version = EVMVersion::default();
+        let evm_version = self.evm_version;
 
         let name = m.name.to_owned();
 
@@ -244,7 +232,7 @@ impl TestRunner {
         // Compile the passed test macro
         let mut scope_mgr = huff_neo_utils::scope::ScopeManager::new();
         scope_mgr.push_macro(m, 0);
-        let res = Codegen::macro_to_bytecode(&evm_version, m, &contract, &mut scope_mgr, 0, false, None, false)
+        let res = Codegen::macro_to_bytecode(&evm_version, m, &contract, &mut scope_mgr, 0, false, false)
             .map_err(|e| RunnerError::CompilerError(CompilerError::CodegenError(e)))?;
 
         // Generate table bytecode for compiled test macro. Test macros run standalone (no
@@ -293,4 +281,13 @@ impl TestRunner {
 
         Ok(res)
     }
+}
+
+/// Intrinsic gas of a call transaction to another account, excluding calldata and access lists
+///
+/// This is 21000 before Amsterdam. From Amsterdam (EIP-2780) it is the sender base cost plus a cold
+/// access of the recipient, and an extra charge when value is transferred.
+fn call_base_gas(spec: SpecId, value: U256) -> u64 {
+    let eip2780 = spec.is_enabled_in(SpecId::AMSTERDAM).then_some(Eip2780TxInfo { value, is_self_transfer: false });
+    GasParams::new_spec(spec).initial_tx_gas(&[], false, 0, 0, 0, eip2780).initial_regular_gas
 }

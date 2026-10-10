@@ -393,12 +393,20 @@ fn test_all_opcodes_in_macro_args() {
         contract.derive_storage_pointers();
 
         let evm_version = EVMVersion::default();
+        let opcode = Opcode::from_str(o).unwrap();
+
+        // Opcodes with stack operands cannot be passed without them
+        if opcode.has_stack_immediate() {
+            let result = Codegen::generate_main_bytecode(&evm_version, &contract, None, false);
+            assert!(result.is_err(), "{o} as macro argument must be rejected");
+            continue;
+        }
 
         // Create main and constructor bytecode
         let main_bytecode = Codegen::generate_main_bytecode(&evm_version, &contract, None, false).unwrap();
 
         // Full expected bytecode output (generated from huff-neo) (placed here as a reference)
-        let expected_bytecode = format!("60088060093d393df360ff{}", Opcode::from_str(o).unwrap());
+        let expected_bytecode = format!("60088060093d393df360ff{opcode}");
 
         // Create bytecode
         let bytecode = format!("60088060093d393df360ff{main_bytecode}");
@@ -1761,4 +1769,36 @@ fn test_deeply_nested_macro_args_without_label() {
     // Should work fine without label
     assert!(!main_bytecode.is_empty());
     assert!(main_bytecode.contains("42"));
+}
+
+#[test]
+fn test_decimal_macro_arg() {
+    let source = r#"
+        #define macro PUSH_IT(value) = takes(0) returns(0) {
+            <value>
+        }
+
+        #define macro CALL(m) = takes(0) returns(0) {
+            <m>(18)
+        }
+
+        #define macro MAIN() = takes(0) returns(0) {
+            PUSH_IT(18)
+            PUSH_IT(0)
+            PUSH_IT(256)
+            CALL(PUSH_IT)
+        }
+    "#;
+
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    contract.derive_storage_pointers();
+
+    let main_bytecode = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
+
+    // Decimal arguments are pushed like their hex equivalents: 0x12, 0x00 (PUSH0), 0x0100, 0x12
+    assert_eq!(main_bytecode, "60125f6101006012");
 }

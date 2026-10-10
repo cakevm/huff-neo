@@ -9,7 +9,7 @@ use crate::{
     prelude::{Statement, TableDefinition},
 };
 use std::{
-    collections::{BTreeMap, BTreeSet},
+    collections::BTreeMap,
     fmt::{self, Display},
 };
 
@@ -20,6 +20,9 @@ pub enum PushOpcode {
     Push1,
     /// PUSH2 opcode (0x61) - pushes 2 bytes onto stack
     Push2,
+    /// PUSH3 opcode (0x62) - pushes 3 bytes onto stack; needed for offsets beyond 64 KiB, which
+    /// initcode can reach from Amsterdam (EIP-7954)
+    Push3,
 }
 
 impl PushOpcode {
@@ -28,6 +31,7 @@ impl PushOpcode {
         match self {
             PushOpcode::Push1 => "60",
             PushOpcode::Push2 => "61",
+            PushOpcode::Push3 => "62",
         }
     }
 
@@ -36,20 +40,29 @@ impl PushOpcode {
         match self {
             PushOpcode::Push1 => 1,
             PushOpcode::Push2 => 2,
+            PushOpcode::Push3 => 3,
         }
     }
 
     /// Check if a value can be represented by this push opcode
     pub fn can_represent(&self, value: usize) -> bool {
-        match self {
-            PushOpcode::Push1 => value <= 0xFF,
-            PushOpcode::Push2 => value <= 0xFFFF,
-        }
+        value < 1 << (8 * self.byte_size())
     }
 
     /// Get the optimal push opcode for a given value
     pub fn optimal_for(value: usize) -> Self {
-        if value <= 0xFF { PushOpcode::Push1 } else { PushOpcode::Push2 }
+        if value <= 0xFF {
+            PushOpcode::Push1
+        } else if value <= 0xFFFF {
+            PushOpcode::Push2
+        } else {
+            PushOpcode::Push3
+        }
+    }
+
+    /// Formats a value as the zero-padded push data of this opcode
+    pub fn format_value(&self, value: usize) -> String {
+        format!("{value:0width$x}", width = self.byte_size() * 2)
     }
 
     /// Parse from hex string (for tests and compatibility)
@@ -57,6 +70,7 @@ impl PushOpcode {
         match s {
             "60" => Some(PushOpcode::Push1),
             "61" => Some(PushOpcode::Push2),
+            "62" => Some(PushOpcode::Push3),
             _ => None,
         }
     }
@@ -101,10 +115,7 @@ impl JumpPlaceholderData {
     pub fn to_hex(&self) -> String {
         let value_hex = if let Some(offset) = self.target_offset {
             // Resolved: format as actual hex value
-            match self.push_opcode {
-                PushOpcode::Push1 => format!("{:02x}", offset),
-                PushOpcode::Push2 => format!("{:04x}", offset),
-            }
+            self.push_opcode.format_value(offset)
         } else {
             // Unresolved: use placeholder
             "x".repeat(self.push_opcode.byte_size() * 2)
@@ -124,23 +135,27 @@ impl JumpPlaceholderData {
 pub struct CircularCodesizePlaceholderData {
     /// The macro name that contains this circular reference
     pub macro_name: String,
-    /// The push opcode to use (PUSH1 or PUSH2, determined during resolution)
+    /// The push opcode to use (starts as PUSH1 and only grows until the size fits)
     pub push_opcode: PushOpcode,
     /// The resolved macro size (None if not yet resolved)
     pub resolved_value: Option<usize>,
+    /// Code range `[start, end)` of the macro invocation whose size is pushed, in the same offsets
+    /// as the surrounding segments. Set once that invocation is fully generated; without it the
+    /// size of the whole code is pushed.
+    pub measured_range: Option<(usize, usize)>,
 }
 
 impl CircularCodesizePlaceholderData {
     /// Create a new unresolved circular codesize placeholder
-    /// Starts with PUSH1 optimistically, may grow to PUSH2 during resolution
+    /// Starts with PUSH1 optimistically, may grow during resolution
     pub fn new(macro_name: String) -> Self {
-        Self { macro_name, push_opcode: PushOpcode::Push1, resolved_value: None }
+        Self { macro_name, push_opcode: PushOpcode::Push1, resolved_value: None, measured_range: None }
     }
 
     /// Create a circular codesize placeholder with a resolved value
     pub fn with_value(macro_name: String, size: usize) -> Self {
         let push_opcode = PushOpcode::optimal_for(size);
-        Self { macro_name, push_opcode, resolved_value: Some(size) }
+        Self { macro_name, push_opcode, resolved_value: Some(size), measured_range: None }
     }
 
     /// Check if this codesize has been resolved
@@ -149,19 +164,16 @@ impl CircularCodesizePlaceholderData {
     }
 
     /// Resolve this codesize to a specific size
-    /// Returns true if the push opcode grew from PUSH1 to PUSH2
-    pub fn resolve(&mut self, size: usize) -> bool {
-        let old_opcode = self.push_opcode;
-        self.push_opcode = PushOpcode::optimal_for(size);
+    ///
+    /// Keeps the current width if the size fits, since the surrounding code is already laid out for
+    /// it. Returns the number of bytes the push data grew by.
+    pub fn resolve(&mut self, size: usize) -> usize {
+        let old_size = self.push_opcode.byte_size();
+        if !self.push_opcode.can_represent(size) {
+            self.push_opcode = PushOpcode::optimal_for(size);
+        }
         self.resolved_value = Some(size);
-
-        // Return true if we grew from PUSH1 to PUSH2
-        matches!((old_opcode, self.push_opcode), (PushOpcode::Push1, PushOpcode::Push2))
-    }
-
-    /// Check if this placeholder could grow during resolution
-    pub fn can_grow(&self) -> bool {
-        matches!(self.push_opcode, PushOpcode::Push1)
+        self.push_opcode.byte_size() - old_size
     }
 
     /// Generate the hex string representation
@@ -169,11 +181,7 @@ impl CircularCodesizePlaceholderData {
     pub fn to_hex(&self) -> String {
         if let Some(size) = self.resolved_value {
             // Resolved: format as actual push instruction
-            let value_hex = match self.push_opcode {
-                PushOpcode::Push1 => format!("{:02x}", size),
-                PushOpcode::Push2 => format!("{:04x}", size),
-            };
-            format!("{}{}", self.push_opcode.to_hex(), value_hex)
+            format!("{}{}", self.push_opcode.to_hex(), self.push_opcode.format_value(size))
         } else {
             // Unresolved: use "cccc" placeholder (2 bytes = PUSH1 size)
             "cccc".to_string()
@@ -445,53 +453,35 @@ impl BytecodeSegments {
         Ok(unmatched_jumps)
     }
 
-    /// Resolve all circular codesize placeholders with calculated sizes
-    /// Returns a vector of (offset, growth_amount) tuples for placeholders that grew from PUSH1 to PUSH2
-    pub fn resolve_circular_codesize(
-        &mut self,
-        circular_codesize_invocations: &CircularCodeSizeIndices,
-        _macro_name: &str,
-        extended_length: usize,
-    ) -> Vec<(usize, usize)> {
-        let mut growth_offsets = Vec::new();
-
-        // Use the extended_length passed from caller which accounts for all placeholder growth
-        tracing::debug!(
-            target: "codegen",
-            "Resolving circular codesize with extended_length: {}",
-            extended_length
-        );
-
+    /// Marks `[start, end)` as the code measured by the circular codesize placeholders of
+    /// `macro_name` that do not measure an invocation yet.
+    ///
+    /// Called when an invocation of `macro_name` is fully generated, so a placeholder measures the
+    /// innermost invocation of the macro it names.
+    pub fn measure_circular_codesize(&mut self, macro_name: &str, start: usize, end: usize) {
         for segment in &mut self.segments {
-            // Check if this segment is a circular codesize placeholder at a registered invocation point
-            if let Some((placeholder_macro, _offset)) = circular_codesize_invocations.iter().find(|(_, offset)| *offset == segment.offset)
-                && let Bytes::CircularCodesizePlaceholder(ref mut data) = segment.bytes
+            if let Bytes::CircularCodesizePlaceholder(ref mut data) = segment.bytes
+                && data.macro_name == macro_name
+                && data.measured_range.is_none()
             {
-                // Verify the macro names match
-                if &data.macro_name != placeholder_macro {
-                    tracing::warn!(
-                        target: "codegen",
-                        "Circular codesize macro mismatch at offset {:#x}: placeholder has \"{}\", expected \"{}\"",
-                        segment.offset, data.macro_name, placeholder_macro
-                    );
-                    continue;
-                }
-
-                // Resolve with the extended_length that accounts for all placeholder growth
-                let grew = data.resolve(extended_length);
-                if grew {
-                    // Track this offset for later adjustment
-                    growth_offsets.push((segment.offset, 1)); // Grew by 1 byte (PUSH1→PUSH2)
-                    tracing::debug!(
-                        target: "codegen",
-                        "Circular codesize placeholder grew from PUSH1 to PUSH2 at offset {:#x}",
-                        segment.offset
-                    );
-                }
+                data.measured_range = Some((start, end));
             }
         }
+    }
 
-        growth_offsets
+    /// Fills all circular codesize placeholders with the current size of the code they measure.
+    ///
+    /// Returns the number of bytes the placeholders grew by.
+    pub fn resolve_circular_codesize(&mut self) -> usize {
+        let total_length = self.total_byte_size();
+        let mut growth = 0;
+        for segment in &mut self.segments {
+            if let Bytes::CircularCodesizePlaceholder(ref mut data) = segment.bytes {
+                let size = data.measured_range.map_or(total_length, |(start, end)| end - start);
+                growth += data.resolve(size);
+            }
+        }
+        growth
     }
 }
 
@@ -826,9 +816,6 @@ impl ScopedLabelIndices {
 
 /// Type to map `Jump` labels to their bytecode indices (for backward compatibility)
 pub type LabelIndices = ScopedLabelIndices;
-
-/// Typw to map circular_codesize labels to their bytecode indices
-pub type CircularCodeSizeIndices = BTreeSet<(String, usize)>;
 
 /// Type for a map of bytecode indexes to `Jumps`. Represents a Jump Table.
 pub type JumpTable = BTreeMap<usize, Jumps>;

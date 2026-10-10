@@ -236,7 +236,6 @@ pub fn bubble_arg_call<'a>(
                                         scope_mgr,
                                         *offset,
                                         false,
-                                        None,
                                         relax_jumps,
                                     );
                                     // Note: macro_to_bytecode already pops the macro from scope_mgr
@@ -432,6 +431,18 @@ pub fn bubble_arg_call<'a>(
                                 bytes.push_with_offset(starting_offset, Bytes::Raw(push_bytes));
                             } else if let Ok(o) = Opcode::from_str(iden) {
                                 tracing::debug!(target: "codegen", "Found Opcode: {}", o);
+                                // The argument carries only the opcode name, so the stack operands
+                                // that must follow DUPN, SWAPN and EXCHANGE would be missing
+                                if o.has_stack_immediate() {
+                                    return Err(CodegenError {
+                                        kind: CodegenErrorKind::InvalidMacroArgumentType(format!(
+                                            "Opcode \"{iden}\" requires stack operands and cannot be passed as a macro argument; \
+                                             wrap it in a macro instead"
+                                        )),
+                                        span: target_macro_invoc.1.span.clone_box(),
+                                        token: None,
+                                    });
+                                }
                                 let b = Bytes::Raw(o.to_string());
                                 *offset += b.len();
                                 bytes.push_with_offset(starting_offset, b);
@@ -478,7 +489,6 @@ pub fn bubble_arg_call<'a>(
                                             scope_mgr,
                                             *offset,
                                             false,
-                                            None,
                                             relax_jumps,
                                         );
                                         // Note: macro_to_bytecode already pops the macro from scope_mgr
@@ -541,7 +551,6 @@ pub fn bubble_arg_call<'a>(
                                         scope_mgr,
                                         *offset,
                                         false,
-                                        None,
                                         relax_jumps,
                                     );
                                     // Note: macro_to_bytecode already pops the macro from scope_mgr
@@ -599,7 +608,6 @@ pub fn bubble_arg_call<'a>(
                                         scope_mgr,
                                         *offset,
                                         false,
-                                        None,
                                         relax_jumps,
                                     );
                                     // Note: macro_to_bytecode already pops the macro from scope_mgr
