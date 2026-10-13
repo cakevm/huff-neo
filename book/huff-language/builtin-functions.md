@@ -161,7 +161,7 @@ You can pass either:
 }
 ```
 
-### `__ASSERT_PC(<literal>|<constant>)`
+### `__ASSERT_PC(<expression>)`
 This function is a compile-time assertion that validates the current bytecode position (program counter) matches the expected value. It generates no bytecode - it's purely a compile-time check. If the assertion fails, compilation will stop with an error showing the expected vs actual position.
 
 This is useful for ensuring critical instructions (like jump destinations) are positioned at specific bytecode offsets, which can be important for gas optimization or when interfacing with external systems that expect specific bytecode layouts.
@@ -190,6 +190,25 @@ You can also use constants and combine with for-loops:
     }
     __ASSERT_PC([TARGET_OFFSET])  // Ensure we're at the expected offset (0x20 = 32 bytes)
     important_label:             // Label generates JUMPDEST automatically
+}
+```
+
+The position can be any compile-time expression, including macro arguments and loop variables:
+```javascript
+#define constant BASE = 0x02
+
+#define macro CHECK(pc) = takes (0) returns (0) {
+    __ASSERT_PC(<pc>)
+}
+
+#define macro MAIN() = takes (0) returns (0) {
+    0x00 pop                 // PUSH0 POP = 2 bytes
+    __ASSERT_PC([BASE])
+    CHECK(0x02)
+    for(i in 0..3) {
+        __ASSERT_PC([BASE] + <i> * 3)
+        0x01 pop             // PUSH1 0x01 POP = 3 bytes per iteration
+    }
 }
 ```
 

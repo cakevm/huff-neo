@@ -744,6 +744,58 @@ fn test_assert_pc_with_arithmetic_expression() {
 }
 
 #[test]
+fn test_assert_pc_with_inline_expression() {
+    let source: &str = r#"
+        #define constant BASE = 0x02
+        #define macro MAIN() = takes(0) returns(0) {
+            0x01 0x02       // 4 bytes total
+            __ASSERT_PC([BASE] + 0x02)
+            __ASSERT_PC(([BASE] * 2))
+            __ASSERT_PC(4)
+        }
+    "#;
+
+    let bytecode = compile_to_bytecode(source).unwrap();
+    assert_eq!(bytecode, "60016002");
+}
+
+#[test]
+fn test_assert_pc_with_macro_arg() {
+    let source: &str = r#"
+        #define macro CHECK(pc) = takes(0) returns(0) {
+            __ASSERT_PC(<pc>)
+            __ASSERT_PC(<pc> + 0x00)
+        }
+        #define macro MAIN() = takes(0) returns(0) {
+            0x01 0x02       // 4 bytes total
+            CHECK(0x04)
+        }
+    "#;
+
+    let bytecode = compile_to_bytecode(source).unwrap();
+    assert_eq!(bytecode, "60016002");
+
+    let failing = source.replace("CHECK(0x04)", "CHECK(0x05)");
+    let err = compile_to_bytecode(&failing).unwrap_err();
+    assert!(matches!(err.kind, CodegenErrorKind::AssertPcFailed(_, _)), "got: {err:?}");
+}
+
+#[test]
+fn test_assert_pc_with_loop_variable() {
+    let source: &str = r#"
+        #define macro MAIN() = takes(0) returns(0) {
+            for(i in 0..3) {
+                __ASSERT_PC(<i> * 3)
+                0x01 pop        // 3 bytes per iteration
+            }
+        }
+    "#;
+
+    let bytecode = compile_to_bytecode(source).unwrap();
+    assert_eq!(bytecode, "600150600150600150");
+}
+
+#[test]
 fn test_assert_pc_failure() {
     let source: &str = r#"
         #define macro MAIN() = takes(0) returns(0) {
