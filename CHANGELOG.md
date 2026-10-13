@@ -3,6 +3,10 @@
 # Huff Neo Compiler changelog
 
 ## Unreleased
+
+## [1.6.1] - 2026-10-13
+- Add macro arguments, loop variables, and expressions as `__ASSERT_PC` positions.
+  - Example: `__ASSERT_PC(<pc>)`, `__ASSERT_PC([BASE] + <i> * 3)`
 - Fix `hnc test` exiting with status 0 when a test fails, so CI or scripts can detect failing tests.
 - Fix `-c` silently accepting constants that appear nowhere in the source, so a typo in a constant name fails the build.
 - Fix cached artifacts being reused after the `-c` constant overrides changed, so a build always uses the current constant values.
@@ -10,8 +14,6 @@
   - `hnc -l` panicked instead of printing the labels.
   - `hnc test` failed for every test that used it.
 - Fix a decorated test directly after a constant, function, event, or error definition failing with `Invalid Character: "#"`.
-- Add macro arguments, loop variables, and expressions as `__ASSERT_PC` positions.
-  - Example: `__ASSERT_PC(<pc>)`, `__ASSERT_PC([BASE] + <i> * 3)`
 - Update the book: document `__EMBED_TABLE` and correct the loop iteration limit to 100,000.
 
 ## [1.6.0] - 2026-10-10
