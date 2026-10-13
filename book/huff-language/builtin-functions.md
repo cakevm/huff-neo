@@ -1,6 +1,6 @@
 # Builtin Functions
 
-Several builtin functions are provided by the Huff compiler. The functions can be used inside a macro, function definition to generate the desired bytecode. The usage of `__RIGHTPAD`, `__FUNC_SIG` and `__BYTES` is usable in a data table. The builtin functions are evaluated at compile time and substituted with the corresponding bytecode.
+Several builtin functions are provided by the Huff compiler. The functions can be used inside a macro, function definition to generate the desired bytecode. `__RIGHTPAD`, `__LEFTPAD`, `__FUNC_SIG` and `__BYTES` can also be used in a code table. The builtin functions are evaluated at compile time and substituted with the corresponding bytecode.
 
 
 ### `__FUNC_SIG(<string>|<function definition>)`
@@ -72,6 +72,21 @@ This enables Solidity-style immutables without on-chain arithmetic. `CONSTRUCTOR
 
 ### `__tablestart(<table>)` and `__tablesize(<table>)`
 These functions related to Jump Tables are described in the next section.
+
+### `__EMBED_TABLE(<code table>)`
+Code tables are normally appended after the bytecode. `__EMBED_TABLE` inserts the table's bytes at the current position instead, and the table is not appended again. `__tablestart` returns the embedded position, also when it is used before the embedding. A table can only be embedded once, and only code tables can be embedded.
+
+#### Example
+```javascript
+#define table DATA { 0xdeadbeef }
+
+#define macro MAIN() = takes (0) returns (0) {
+    __tablestart(DATA) pop  // PUSH2 0x0005 POP
+    stop
+    __EMBED_TABLE(DATA)     // deadbeef at offset 0x05
+    0x01                    // code continues after the table
+}
+```
 
 ### `__VERBATIM(<hex>|<constant>|<builtin function>)`
 This function is used to insert raw hex data into the compiled bytecode without a PUSH opcode. It is useful for inserting raw opcodes or data into the compiled bytecode.
