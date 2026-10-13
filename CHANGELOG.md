@@ -12,6 +12,7 @@
 - Fix a decorated test directly after a constant, function, event, or error definition failing with `Invalid Character: "#"`.
 - Add macro arguments, loop variables, and expressions as `__ASSERT_PC` positions.
   - Example: `__ASSERT_PC(<pc>)`, `__ASSERT_PC([BASE] + <i> * 3)`
+- Update the book: document `__EMBED_TABLE` and correct the loop iteration limit to 100,000.
 
 ## [1.6.0] - 2026-10-10
 - Add Glamsterdam support with `-e amsterdam` (Osaka stays the default).

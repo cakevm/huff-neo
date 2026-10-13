@@ -252,13 +252,13 @@ Arguments can be combined with constants in bound expressions:
 
 ### Iteration Limit
 
-**Important**: To prevent compile-time explosion and excessive bytecode generation, loops are limited to **10,000 iterations maximum**.
+**Important**: To prevent compile-time explosion and excessive bytecode generation, loops are limited to **100,000 iterations maximum**.
 
 If your loop exceeds this limit, you'll get a compile error:
 
 ```javascript
-// This will error - exceeds 10,000 iterations
-for(i in 0..0x10000) {  // 65,536 iterations
+// This will error - exceeds 100,000 iterations
+for(i in 0..0x20000) {  // 131,072 iterations
     <i>
 }
 ```
