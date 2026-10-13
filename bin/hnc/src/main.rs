@@ -21,7 +21,7 @@ use huff_neo_codegen::Codegen;
 use huff_neo_core::Compiler;
 use huff_neo_test_runner::{
     AnvilInspector, Env, HuffTester, HuffTesterConfig, TxEnv,
-    prelude::{ReportKind, print_test_report},
+    prelude::{ReportKind, TestStatus, print_test_report},
     spec_id_for,
 };
 use huff_neo_utils::ast::span::AstSpan;
@@ -257,6 +257,7 @@ fn main() {
         }
 
         let rt = tokio::runtime::Builder::new_multi_thread().enable_all().build().unwrap();
+        let mut any_failed = false;
 
         for contract in &contracts {
             let mut inspector = AnvilInspector::default().with_tracing();
@@ -315,6 +316,7 @@ fn main() {
             let start = Instant::now();
             match tester.execute() {
                 Ok(res) => {
+                    any_failed |= res.iter().any(|r| r.status != TestStatus::Success);
                     rt.block_on(async {
                         match print_test_report(res, ReportKind::from(&test_args.format), start).await {
                             Ok(_) => {}
@@ -332,6 +334,10 @@ fn main() {
             };
         }
 
+        // Report every contract first, then fail the process so scripts and CI notice failing tests
+        if any_failed {
+            exit(1);
+        }
         return;
     }
 
