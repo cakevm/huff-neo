@@ -178,8 +178,11 @@ fn main() {
             // Recurse through the macro and generate bytecode
             let mut scope_mgr = huff_neo_utils::scope::ScopeManager::new();
             scope_mgr.push_macro(macro_def, 0);
-            let bytecode_res: BytecodeRes =
-                Codegen::macro_to_bytecode(&evm_version, macro_def, contract, &mut scope_mgr, 0, false, false).unwrap();
+            let bytecode_res: BytecodeRes = Codegen::macro_to_bytecode(&evm_version, macro_def, contract, &mut scope_mgr, 0, false, false)
+                .unwrap_or_else(|e| {
+                    eprintln!("{}", Paint::red(&CompilerError::CodegenError(e)));
+                    exit(1);
+                });
 
             if bytecode_res.label_indices.is_empty() {
                 eprintln!(

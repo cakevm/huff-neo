@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use huff_neo_codegen::Codegen;
+use huff_neo_core::Compiler;
 use huff_neo_lexer::*;
 use huff_neo_parser::*;
 use huff_neo_utils::error::{CodegenError, CodegenErrorKind};
@@ -8,6 +9,8 @@ use huff_neo_utils::evm_version::EVMVersion;
 use huff_neo_utils::file::file_source::FileSource;
 use huff_neo_utils::file::full_file_source::FullFileSource;
 use huff_neo_utils::prelude::*;
+use huff_neo_utils::scope::ScopeManager;
+use std::collections::HashMap;
 use std::sync::Arc;
 
 /// Compile a Huff source string and return the main bytecode
@@ -19,6 +22,20 @@ pub fn compile_to_bytecode(source: &str) -> Result<String, CodegenError> {
     let mut contract = parser.parse().unwrap();
     contract.derive_storage_pointers();
     Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false)
+}
+
+/// Compile a single macro of a Huff source string the way label dumps and the test runner do,
+/// returning the parsed contract and the macro's bytecode result
+pub fn compile_single_macro(source: &str, macro_name: &str) -> (Contract, Result<BytecodeRes, CodegenError>) {
+    let evm_version = EVMVersion::default();
+    let files = HashMap::from([("main.huff".to_string(), source.to_string())]);
+    let compiler = Compiler::new_in_memory(&evm_version, Arc::new(vec!["main.huff".to_string()]), files, None, None, None, None, false);
+    let contract = compiler.grab_contracts().unwrap().remove(0);
+    let macro_def = contract.find_macro_by_name(macro_name).unwrap();
+    let mut scope_mgr = ScopeManager::new();
+    scope_mgr.push_macro(macro_def, 0);
+    let res = Codegen::macro_to_bytecode(&evm_version, macro_def, &contract, &mut scope_mgr, 0, false, false);
+    (contract, res)
 }
 
 /// Compile a Huff source string and return the constructor bytecode

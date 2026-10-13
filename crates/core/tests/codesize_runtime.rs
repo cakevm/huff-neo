@@ -189,3 +189,43 @@ fn runtime_is_reserved_macro_name() {
     let err = parser.parse().expect_err("expected parser to reject RUNTIME as a macro name");
     assert!(matches!(err.kind, ParserErrorKind::InvalidMacroName), "got: {err:?}");
 }
+
+#[test]
+fn runtime_codesize_in_single_macro_compilation() {
+    // Label dumps and test macros compile a single macro instead of the whole contract, and must
+    // still see the converged runtime size. The PUSH2 moves the label after it to offset 4.
+    // PUSH2 + value (3 bytes) + POP (1) + JUMPDEST (1) + verbatim (260) + PUSH2 JUMP (4) = 269 = 0x10d.
+    let pad: String = "00".repeat(260);
+    let source = format!(
+        r#"
+        #define macro MAIN() = takes(0) returns(0) {{
+            __codesize(RUNTIME) pop
+            after:
+            __VERBATIM(0x{pad})
+            after jump
+        }}
+    "#
+    );
+
+    let (contract, res) = common::compile_single_macro(&source, "MAIN");
+    let res = res.unwrap();
+    assert_eq!(contract.runtime_size, Some(0x10d));
+    let offsets: Vec<usize> = res.label_indices.iter().flat_map(|(_, labels)| labels.iter().map(|l| l.offset)).collect();
+    assert_eq!(offsets, vec![4]);
+}
+
+#[test]
+fn runtime_codesize_in_single_macro_compilation_without_main() {
+    // Without MAIN the runtime size is unknown, so only macros using `__codesize(RUNTIME)` fail
+    let source = r#"
+        #define macro SIZE() = takes(0) returns(0) { __codesize(RUNTIME) }
+        #define macro PUSH_ONE() = takes(0) returns(0) { 0x01 }
+    "#;
+
+    let (contract, res) = common::compile_single_macro(source, "PUSH_ONE");
+    assert_eq!(contract.runtime_size, None);
+    assert!(res.is_ok(), "got: {res:?}");
+
+    let (_, res) = common::compile_single_macro(source, "SIZE");
+    assert!(matches!(res.unwrap_err().kind, CodegenErrorKind::RuntimeSizeNotComputed));
+}

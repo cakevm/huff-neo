@@ -357,6 +357,12 @@ impl<'a, 'l> Compiler<'a, 'l> {
                 let mut contract = parse_res?;
                 contract.derive_storage_pointers();
                 contract.add_override_constants(&self.constant_overrides);
+                // Resolve `__codesize(RUNTIME)` as in a full compilation; without a compilable runtime
+                // macro it stays unresolved and only fails where it is used
+                contract.runtime_size =
+                    Codegen::generate_main_bytecode(self.evm_version, &contract, self.alternative_main.clone(), self.relax_jumps)
+                        .ok()
+                        .map(|bytecode| bytecode.len() / 2);
                 // Validate opcodes against EVM version
                 contract.validate_opcodes(self.evm_version).map_err(CompilerError::CodegenError)?;
                 // Store the flattened source for debugging
