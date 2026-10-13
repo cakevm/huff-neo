@@ -14,7 +14,7 @@ use crate::irgen::constants::{constant_gen, lookup_constant};
 type StatementGenResult = (BytecodeSegments, Vec<Option<(usize, usize)>>);
 
 /// Evaluates an expression with access to macro invocation context for resolving `<arg>` calls
-fn evaluate_expression_with_context<'a>(
+pub(crate) fn evaluate_expression_with_context<'a>(
     expr: &Expression,
     contract: &Contract,
     scope_mgr: &ScopeManager<'a>,
@@ -1091,6 +1091,17 @@ fn substitute_loop_variable_in_statement(statement: &Statement, var_name: &str, 
             opcode: *opcode,
             operands: operands.iter().map(|o| substitute_in_expression(o, var_name, value)).collect(),
         },
+        StatementType::BuiltinFunctionCall(bf) => StatementType::BuiltinFunctionCall(BuiltinFunctionCall {
+            args: bf
+                .args
+                .iter()
+                .map(|arg| match arg {
+                    BuiltinFunctionArg::Expression(expr) => BuiltinFunctionArg::Expression(substitute_in_expression(expr, var_name, value)),
+                    arg => arg.clone(),
+                })
+                .collect(),
+            ..bf.clone()
+        }),
         StatementType::MacroInvocation(mi) => {
             StatementType::MacroInvocation(MacroInvocation { args: substitute_in_macro_args(&mi.args, var_name, value), ..mi.clone() })
         }

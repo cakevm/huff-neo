@@ -1,5 +1,6 @@
 use crate::Codegen;
 use crate::irgen::constants::{constant_gen, evaluate_constant_value, lookup_constant};
+use crate::irgen::statements::evaluate_expression_with_context;
 use alloy_primitives::{B256, U256, hex, keccak256};
 use huff_neo_utils::ast::huff::RUNTIME_CODESIZE_ARG;
 use huff_neo_utils::builtin_eval::{PadDirection, eval_builtin_bytes, eval_event_hash, eval_function_signature};
@@ -409,8 +410,16 @@ pub fn builtin_function_gen<'a>(
                     // Evaluate constant directly to numeric value without generating bytecode
                     evaluate_constant_value(name, contract, span)?
                 }
+                BuiltinFunctionArg::Expression(expr) => {
+                    let value = U256::from_be_bytes(evaluate_expression_with_context(expr, contract, scope_mgr)?);
+                    usize::try_from(value)
+                        .map_err(|_| invalid_arguments_error(format!("__ASSERT_PC position {value} is too large"), &bf.span))?
+                }
                 _ => {
-                    return Err(invalid_arguments_error("Expected hex literal or constant value as argument to __ASSERT_PC", &bf.span));
+                    return Err(invalid_arguments_error(
+                        "Expected hex literal, constant, or expression as argument to __ASSERT_PC",
+                        &bf.span,
+                    ));
                 }
             };
 

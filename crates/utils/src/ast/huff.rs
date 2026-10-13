@@ -1139,6 +1139,8 @@ pub enum BuiltinFunctionArg {
     BuiltinFunctionCall(BuiltinFunctionCall),
     /// Constant Argument
     Constant(String, AstSpan),
+    /// A compile-time expression, e.g. `<arg>` or `([BASE] + 0x20)`
+    Expression(Expression),
 }
 
 impl BuiltinFunctionArg {
@@ -1150,6 +1152,7 @@ impl BuiltinFunctionArg {
             BuiltinFunctionArg::HexLiteral(_, span) => span.clone(),
             BuiltinFunctionArg::BuiltinFunctionCall(b) => b.span.clone(),
             BuiltinFunctionArg::Constant(_, span) => span.clone(),
+            BuiltinFunctionArg::Expression(expr) => expr.span().clone(),
         }
     }
 }

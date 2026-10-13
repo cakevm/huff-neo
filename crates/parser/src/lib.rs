@@ -1363,6 +1363,20 @@ impl Parser {
         Ok(())
     }
 
+    /// Returns true if the current builtin argument is a compile-time expression rather than a
+    /// single literal, constant, identifier, or builtin call, e.g. `<arg>` or `[BASE] + 0x20`.
+    fn at_builtin_expression_arg(&self) -> bool {
+        let ends_arg = |offset: usize| {
+            self.tokens.get(self.cursor + offset).is_some_and(|t| matches!(t.kind, TokenKind::Comma | TokenKind::CloseParen))
+        };
+        match self.current_token.kind {
+            TokenKind::LeftAngle | TokenKind::OpenParen | TokenKind::Integer(_) => true,
+            TokenKind::HexLiteral(_) => !ends_arg(1),
+            TokenKind::OpenBracket => !ends_arg(3),
+            _ => false,
+        }
+    }
+
     /// Parse the argument of a builtin function call.
     pub fn parse_builtin_args(&mut self) -> Result<Vec<BuiltinFunctionArg>, ParserError> {
         let mut args: Vec<BuiltinFunctionArg> = Vec::new();
@@ -1372,6 +1386,14 @@ impl Parser {
         while !self.check(TokenKind::CloseParen) {
             let mut is_builtin = false;
             let mut builtin = "".to_string();
+
+            if self.at_builtin_expression_arg() {
+                args.push(BuiltinFunctionArg::Expression(self.parse_constant_expression()?));
+                if self.check(TokenKind::Comma) {
+                    self.consume();
+                }
+                continue;
+            }
 
             match &self.current_token.kind {
                 TokenKind::Str(s) => {
