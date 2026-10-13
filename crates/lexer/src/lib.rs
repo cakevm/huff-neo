@@ -164,7 +164,16 @@ impl<'a> Lexer<'a> {
 
                     if let Some(kind) = found_kind {
                         Ok(kind.into_token_with_span(self.source.relative_span_by_pos(start, end)))
-                    } else if self.context_stack.top() == &Context::Global && self.peek().unwrap() == '[' {
+                    } else if matches!(self.context_stack.top(), Context::Global | Context::Constant | Context::Abi)
+                        && self.peek().unwrap() == '['
+                    {
+                        // Constant and ABI definitions have no terminal token, so a decorator ends them
+                        if self.context_stack.top() != &Context::Global {
+                            debug!(target: "lexer", "POP CONTEXT {:?}", self.context_stack.top());
+                            self.context_stack.pop(1).map_err(|_| {
+                                LexicalError::new(LexicalErrorKind::StackUnderflow, self.source.relative_span_by_pos(start, end))
+                            })?;
+                        }
                         // Return Pound token for just the '#' character
                         Ok(TokenKind::Pound.into_token_with_span(self.source.relative_span_by_pos(start, start + 1)))
                     } else {

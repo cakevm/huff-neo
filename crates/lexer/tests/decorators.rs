@@ -103,6 +103,34 @@ fn parses_decorator() {
 }
 
 #[test]
+fn parses_decorator_after_definition_without_terminal_token() {
+    // Constant and ABI definitions have no closing token, so the decorator must end them
+    let definitions = [
+        "#define constant NUM = 0x01",
+        "#define function foo(uint256) view returns (uint256)",
+        "#define event Foo(uint256)",
+        "#define error Bar(uint256)",
+    ];
+
+    for d in definitions {
+        let source = &format!(
+            r#"
+            {d}
+            #[calldata(0x01)]
+            #define test NUMS() = takes(0) returns(1) {{
+                0x00 dup1 mstore
+            }}
+            "#,
+        );
+
+        let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+        let lexer = Lexer::new(flattened_source);
+        let tokens = lexer.into_iter().collect::<Result<Vec<Token>, _>>().unwrap();
+        assert!(tokens.iter().any(|t| t.kind == TokenKind::Pound), "no decorator after `{d}`");
+    }
+}
+
+#[test]
 #[should_panic]
 fn fails_to_parse_decorator_in_body() {
     let key_words = ["macro", "fn", "test"];

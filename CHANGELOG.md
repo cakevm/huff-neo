@@ -9,6 +9,7 @@
 - Fix `__codesize(RUNTIME)` in `hnc -l` and `hnc test`.
   - `hnc -l` panicked instead of printing the labels.
   - `hnc test` failed for every test that used it.
+- Fix a decorated test directly after a constant, function, event, or error definition failing with `Invalid Character: "#"`.
 
 ## [1.6.0] - 2026-10-10
 - Add Glamsterdam support with `-e amsterdam` (Osaka stays the default).
