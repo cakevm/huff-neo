@@ -6,6 +6,9 @@
 - Fix `hnc test` exiting with status 0 when a test fails, so CI or scripts can detect failing tests.
 - Fix `-c` silently accepting constants that appear nowhere in the source, so a typo in a constant name fails the build.
 - Fix cached artifacts being reused after the `-c` constant overrides changed, so a build always uses the current constant values.
+- Fix `__codesize(RUNTIME)` in `hnc -l` and `hnc test`.
+  - `hnc -l` panicked instead of printing the labels.
+  - `hnc test` failed for every test that used it.
 
 ## [1.6.0] - 2026-10-10
 - Add Glamsterdam support with `-e amsterdam` (Osaka stays the default).
