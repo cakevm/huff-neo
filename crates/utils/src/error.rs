@@ -487,6 +487,8 @@ pub enum CompilerError {
     CodegenError(CodegenError),
     /// Multiple Failed Compiles
     FailedCompiles(Vec<CompilerError>),
+    /// A constant override names a constant that does not appear in the source
+    UnknownConstantOverride(String),
 }
 
 impl fmt::Display for CompilerError {
@@ -934,6 +936,9 @@ impl fmt::Display for CompilerError {
             }
             CompilerError::EmptyImportPath(os_str) => {
                 write!(f, "\nError: Import path with empty string: \"{}\"", os_str.as_os_str().to_str().unwrap_or("<unknown import>"))
+            }
+            CompilerError::UnknownConstantOverride(name) => {
+                write!(f, "\nError: Constant override \"{name}\" does not match any constant in the source\n")
             }
         }
     }

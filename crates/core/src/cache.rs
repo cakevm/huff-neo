@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::BTreeMap, sync::Arc};
 
 use huff_neo_utils::file::file_source::FileSource;
 use huff_neo_utils::file::full_file_source::OutputLocation;
@@ -6,10 +6,15 @@ use huff_neo_utils::prelude::Artifact;
 use walkdir::WalkDir;
 
 /// Parallelized Artifact Cachcing
-pub fn get_cached_artifacts(files: &[Arc<FileSource>], out: &OutputLocation, constructor_args: String) -> Option<Vec<Arc<Artifact>>> {
+pub fn get_cached_artifacts(
+    files: &[Arc<FileSource>],
+    out: &OutputLocation,
+    constructor_args: String,
+    constant_overrides: &BTreeMap<String, String>,
+) -> Option<Vec<Arc<Artifact>>> {
     // Check if the file artifacts are already generated the the default "./artifacts/" directory or
     // the specified output dir
-    let artifacts: Vec<(Arc<FileSource>, Artifact)> = resolve_existing_artifacts(files, out, constructor_args)?;
+    let artifacts: Vec<(Arc<FileSource>, Artifact)> = resolve_existing_artifacts(files, out, constructor_args, constant_overrides)?;
 
     // Return the artifacts if cached
     Some(artifacts.into_iter().map(|(_, artifact)| Arc::new(artifact)).collect())
@@ -20,6 +25,7 @@ pub fn resolve_existing_artifacts(
     files: &[Arc<FileSource>],
     output: &OutputLocation,
     constructor_args: String,
+    constant_overrides: &BTreeMap<String, String>,
 ) -> Option<Vec<(Arc<FileSource>, Artifact)>> {
     let mut artifacts: Vec<(Arc<FileSource>, Artifact)> = Vec::new();
 
@@ -45,6 +51,10 @@ pub fn resolve_existing_artifacts(
                     Some(expected_fs) => {
                         if !artifact.bytecode.ends_with(&constructor_args) {
                             tracing::warn!(target: "core", "Mismatched Constructor Args for Cached Artifact \"{}\"", artifact.file.path);
+                            return None;
+                        }
+                        if &artifact.constant_overrides != constant_overrides {
+                            tracing::warn!(target: "core", "Mismatched Constant Overrides for Cached Artifact \"{}\"", artifact.file.path);
                             return None;
                         }
                         if artifact.file.source != expected_fs.source {

@@ -3,7 +3,7 @@
 //! The artifacts generated from codegen.
 
 use serde::{Deserialize, Serialize};
-use std::{fs, path::Path, sync::Arc};
+use std::{collections::BTreeMap, fs, path::Path, sync::Arc};
 
 pub use crate::abi::Abi;
 use crate::file::file_source::FileSource;
@@ -111,6 +111,10 @@ pub struct Artifact {
     /// statically known to equal the compiled MAIN macro.
     #[serde(default)]
     pub has_custom_bootstrap: bool,
+    /// Constant overrides the artifact was compiled with, as hex values by constant name.
+    /// A cached artifact is only reused when these match the overrides of the current build.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub constant_overrides: BTreeMap<String, String>,
 }
 
 impl Artifact {

@@ -216,7 +216,7 @@ impl<'a, 'l> Compiler<'a, 'l> {
 
         // Get Cached or Generate Artifacts
         tracing::debug!(target: "core", "Output directory: {}", output.0);
-        match cache::get_cached_artifacts(&files, &output, constructor_args) {
+        match cache::get_cached_artifacts(&files, &output, constructor_args, &self.constant_overrides_hex()) {
             Some(arts) => artifacts = arts,
             None => {
                 tracing::debug!(target: "core", "FINISHED RECURSING DEPENDENCIES!");
@@ -234,15 +234,19 @@ impl<'a, 'l> Compiler<'a, 'l> {
                 tracing::info!(target: "core", "COMPILER RECURSED {} FILE DEPENDENCIES", files.len());
 
                 // Parallel Compilation
-                let potential_artifacts: Vec<Result<Artifact, CompilerError>> =
-                    files.into_par_iter().map(|f| self.gen_artifact(f)).collect();
+                let potential_artifacts: Vec<Result<(Artifact, HashSet<&str>), CompilerError>> =
+                    files.into_par_iter().map(|f| self.generate_artifact(f)).collect();
 
                 let mut gen_errors: Vec<CompilerError> = vec![];
+                let mut found_overrides = HashSet::new();
 
                 // Output errors + return OR print # of successfully compiled files
                 for r in potential_artifacts {
                     match r {
-                        Ok(a) => artifacts.push(Arc::new(a)),
+                        Ok((a, found)) => {
+                            artifacts.push(Arc::new(a));
+                            found_overrides.extend(found);
+                        }
                         Err(ce) => gen_errors.push(ce),
                     }
                 }
@@ -251,6 +255,7 @@ impl<'a, 'l> Compiler<'a, 'l> {
                     tracing::error!(target: "core", "{} FILES FAILED TO COMPILE", gen_errors.len());
                     return Err(Arc::new(CompilerError::FailedCompiles(gen_errors)));
                 }
+                self.validate_constant_overrides(&found_overrides).map_err(Arc::new)?;
 
                 // Export
                 Compiler::export_artifacts(&artifacts, &output);
@@ -316,7 +321,7 @@ impl<'a, 'l> Compiler<'a, 'l> {
         tracing::info!(target: "core", "COMPILER RECURSED {} FILE DEPENDENCIES", files.len());
 
         // Parse file sources and collect ASTs in parallel
-        files
+        let parsed = files
             .into_par_iter()
             .map(|file| {
                 // Fully Flatten a file into a source string containing source code of file and all
@@ -342,6 +347,7 @@ impl<'a, 'l> Compiler<'a, 'l> {
                 }
                 tracing::info!(target: "core", "LEXICAL ANALYSIS COMPLETE FOR \"{}\"", file.path);
                 tracing::info!(target: "core", "└─ TOKEN COUNT: {}", tokens.len());
+                let found_overrides = self.found_constant_overrides(&tokens);
 
                 // Parser incantation
                 let mut parser = Parser::new(tokens, Some(file.path.clone()));
@@ -386,15 +392,27 @@ impl<'a, 'l> Compiler<'a, 'l> {
                 contract.source_map = source_map;
 
                 tracing::info!(target: "core", "PARSED CONTRACT [{}]", file.path);
-                Ok(contract)
+                Ok((contract, found_overrides))
             })
-            .collect::<Result<Vec<Contract>, Arc<CompilerError>>>()
+            .collect::<Result<Vec<_>, Arc<CompilerError>>>()?;
+
+        let (contracts, found_overrides): (Vec<Contract>, Vec<HashSet<&str>>) = parsed.into_iter().unzip();
+        self.validate_constant_overrides(&found_overrides.into_iter().flatten().collect()).map_err(Arc::new)?;
+        Ok(contracts)
     }
 
     /// Artifact Generation
     ///
     /// Compiles a FileSource into an Artifact.
     pub fn gen_artifact(&self, file: Arc<FileSource>) -> Result<Artifact, CompilerError> {
+        let (artifact, found_overrides) = self.generate_artifact(file)?;
+        self.validate_constant_overrides(&found_overrides)?;
+        Ok(artifact)
+    }
+
+    /// Compiles a FileSource into an Artifact, together with the constant overrides its source
+    /// mentions so they can be validated once all files are compiled.
+    fn generate_artifact(&self, file: Arc<FileSource>) -> Result<(Artifact, HashSet<&'a str>), CompilerError> {
         // Fully Flatten a file into a source string containing source code of file and all
         // its dependencies
         let flattened = FileSource::fully_flatten(Arc::clone(&file));
@@ -420,6 +438,7 @@ impl<'a, 'l> Compiler<'a, 'l> {
         }
         tracing::info!(target: "core", "LEXICAL ANALYSIS COMPLETE FOR \"{}\"", file.path);
         tracing::info!(target: "core", "└─ TOKEN COUNT: {}", tokens.len());
+        let found_overrides = self.found_constant_overrides(&tokens);
 
         // Parser incantation
         let mut parser = Parser::new(tokens, Some(file.path.clone()));
@@ -574,7 +593,8 @@ impl<'a, 'l> Compiler<'a, 'l> {
                         tracing::error!(target: "core", "ARTIFACT GENERATION FAILED: {:?}", e)
                     }
                 }
-                Ok(artifact)
+                artifact.constant_overrides = self.constant_overrides_hex();
+                Ok((artifact, found_overrides))
             }
             Err(e) => {
                 tracing::error!(target: "core", "CODEGEN ERRORED!\nError: {:?}", e);
@@ -718,6 +738,37 @@ impl<'a, 'l> Compiler<'a, 'l> {
             }
             tracing::info!(target: "core", "EXPORTED ARTIFACT TO \"{}\"", json_out);
         });
+    }
+
+    /// Returns the constant overrides as hex values by constant name.
+    fn constant_overrides_hex(&self) -> BTreeMap<String, String> {
+        self.constant_overrides.iter().flatten().map(|(name, value)| (name.to_string(), format!("0x{value}"))).collect()
+    }
+
+    /// Returns the constant overrides mentioned in a file's tokens.
+    fn found_constant_overrides(&self, tokens: &[Token]) -> HashSet<&'a str> {
+        let Some(overrides) = &self.constant_overrides else {
+            return HashSet::new();
+        };
+        tokens
+            .iter()
+            .filter_map(|token| match &token.kind {
+                TokenKind::Ident(name) => overrides.get_key_value(name.as_str()).map(|(key, _)| *key),
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// Rejects constant overrides whose name appears in none of the compiled sources.
+    ///
+    /// An override may set a constant the source references without defining it, and when
+    /// several files are compiled it may target only some of them. So only a name that no
+    /// source mentions is rejected: it cannot affect the output and is most likely a typo.
+    fn validate_constant_overrides(&self, found_overrides: &HashSet<&str>) -> Result<(), CompilerError> {
+        match self.constant_overrides.iter().flatten().map(|(name, _)| *name).find(|name| !found_overrides.contains(name)) {
+            Some(name) => Err(CompilerError::UnknownConstantOverride(name.to_string())),
+            None => Ok(()),
+        }
     }
 
     /// Derives Constructor Input Arguments
