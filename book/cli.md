@@ -308,6 +308,7 @@ hnc ./src/ERC20.huff -v
 - Format: `hnc ./path/to/Contract.huff test [-f <list|table|json>] [-m <TEST_NAME>]`
 
 The test subcommand is the entry point to running tests within a Huff contract.
+It exits with status `1` when any test fails, so scripts and CI can rely on the exit code.
 
 #### Optional Flags
 * `-f` or `--format`: Formats the test report as a list, table, or JSON.

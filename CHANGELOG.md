@@ -3,6 +3,7 @@
 # Huff Neo Compiler changelog
 
 ## Unreleased
+- Fix `hnc test` exiting with status 0 when a test fails, so CI or scripts can detect failing tests.
 
 ## [1.6.0] - 2026-10-10
 - Add Glamsterdam support with `-e amsterdam` (Osaka stays the default).

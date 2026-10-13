@@ -183,3 +183,57 @@ fn format_requires_label_indices() {
     let mut cmd = cargo_bin_cmd!("hnc");
     cmd.args(["code.huff", "--format", "json"]).assert().failure().stderr(predicate::str::contains("--label-indices"));
 }
+
+#[test]
+fn test_command_succeeds_when_all_tests_pass() {
+    let mut cmd = cargo_bin_cmd!("hnc");
+    let tmp = assert_fs::TempDir::new().unwrap();
+    let file = tmp.child("code.huff");
+    file.write_str(
+        r#"
+#define test PASSES() = {
+  0x01 pop
+}
+"#,
+    )
+    .unwrap();
+
+    cmd.current_dir(&tmp)
+        .args(["code.huff", "test", "--format", "json"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("\"Success\""));
+
+    tmp.close().unwrap();
+}
+
+#[test]
+fn test_command_fails_when_a_test_reverts() {
+    let tmp = assert_fs::TempDir::new().unwrap();
+    let file = tmp.child("code.huff");
+    file.write_str(
+        r#"
+#define test PASSES() = {
+  0x01 pop
+}
+
+#define test REVERTS() = {
+  0x00 0x00 revert
+}
+"#,
+    )
+    .unwrap();
+
+    // Every report format must signal the failure through the exit code
+    for format in ["list", "table", "json"] {
+        let mut cmd = cargo_bin_cmd!("hnc");
+        cmd.current_dir(&tmp)
+            .args(["code.huff", "test", "--format", format])
+            .assert()
+            .failure()
+            .code(1)
+            .stdout(predicate::str::contains("REVERTS"));
+    }
+
+    tmp.close().unwrap();
+}

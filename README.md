@@ -72,7 +72,6 @@ These are the projects that are maintained for Huff Neo:
 | [huff-neo](https://github.com/cakevm/huff-neo)                                   | Compiler (This repo)     | ✅       |
 | [foundry-huff-neo](https://github.com/cakevm/foundry-huff-neo)                   | Foundry Plugin           | ✅       |
 | [huff-neo-toolchain](https://github.com/cakevm/huff-neo-toolchain)               | GitHub Action (Compiler) | ✅       |
-| [huff-neo-tests-action](https://github.com/cakevm/huff-neo-tests-action)         | GitHub Action (Tests)    | ✅       |
 | [huff-neo-project-template](https://github.com/cakevm/huff-neo-project-template) | Project Template         | ✅       |
 | [huffmate-neo](https://github.com/cakevm/huffmate-neo)                           | Example Contracts        | ✅       |
 
