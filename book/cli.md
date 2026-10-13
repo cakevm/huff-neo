@@ -85,6 +85,10 @@ Example:
 hnc ./Test.huff -c MY_CONST=0x01 MY_OTHER_CONST=0xa57b DEBUG=true
 ```
 
+A constant does not need a `#define` to be set this way: the source can reference it and leave the
+value to `-c`. Compilation fails if a name passed to `-c` appears nowhere in the source, as such an
+override has no effect and is most likely a typo.
+
 ### `-d` Output directory
 
 Arguments: `<OUTPUT_DIR>`, Default: `./artifacts`
