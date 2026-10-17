@@ -1,17 +1,17 @@
-use crate::prelude::{RunnerError, TestResult, TestStatus};
+use crate::prelude::{RunnerError, SpecContext, TestResult, TestSpec, TestStatus};
 use alloy_evm::{Evm, EvmEnv, EvmFactory, eth::EthEvmFactory};
 use alloy_primitives::{Address, B256, Bytes, U256, hex};
 use anvil::eth::backend::mem::inspector::AnvilInspector;
 use foundry_evm::backend::DatabaseError;
 use huff_neo_codegen::Codegen;
-use huff_neo_utils::ast::huff::{Decorator, DecoratorFlag, DecoratorValue, MacroDefinition};
-use huff_neo_utils::prelude::{CompilerError, Contract, EVMVersion, deploy_bootstrap, str_to_bytes32};
+use huff_neo_utils::ast::huff::MacroDefinition;
+use huff_neo_utils::prelude::{Contract, EVMVersion, deploy_bootstrap};
 use revm::context::result::{ExecutionResult, Output};
 use revm::context::{TransactTo, TxEnv};
 use revm::context_interface::cfg::GasParams;
 use revm::context_interface::cfg::gas_params::Eip2780TxInfo;
 use revm::primitives::hardfork::SpecId;
-use revm::state::{Account, AccountInfo, Bytecode};
+use revm::state::{Account, AccountInfo, Bytecode, EvmStorageSlot, TransactionId};
 use revm::{Context, Database, DatabaseCommit, ExecuteCommitEvm, MainBuilder, MainContext};
 use std::collections::HashMap;
 
@@ -60,6 +60,28 @@ impl TestRunner {
         };
 
         changes.insert(address, account);
+        db.commit(changes);
+
+        Ok(())
+    }
+
+    /// Set the value of a storage slot of an account, creating the account if it does not exist.
+    pub fn set_storage<DB>(&self, db: &mut DB, address: Address, slot: U256, value: U256) -> Result<(), RunnerError>
+    where
+        DB: Database + DatabaseCommit + std::fmt::Debug,
+        <DB as Database>::Error: std::fmt::Debug,
+    {
+        let basic_account = db.basic(address).map_err(|e| RunnerError::GenericError(format!("{e:?}")))?;
+        let original_value = db.storage(address, slot).map_err(|e| RunnerError::GenericError(format!("{e:?}")))?;
+        let storage = std::iter::once((slot, EvmStorageSlot::new_changed(original_value, value, TransactionId::ZERO)));
+
+        let mut changes = HashMap::default();
+        let account = match basic_account {
+            Some(account_info) => Account::from(account_info),
+            None => Account::from(AccountInfo::default()).with_created_mark(),
+        };
+        // The database skips untouched accounts on commit, so a new account must be touched as well
+        changes.insert(address, account.with_storage(storage).with_touched_mark());
         db.commit(changes);
 
         Ok(())
@@ -226,19 +248,16 @@ impl TestRunner {
         let name = m.name.to_owned();
 
         // Update the table size in the contract
-        let contract =
-            Codegen::update_table_size(&evm_version, contract).map_err(|e| RunnerError::CompilerError(CompilerError::CodegenError(e)))?;
+        let contract = Codegen::update_table_size(&evm_version, contract)?;
 
         // Compile the passed test macro
         let mut scope_mgr = huff_neo_utils::scope::ScopeManager::new();
         scope_mgr.push_macro(m, 0);
-        let res = Codegen::macro_to_bytecode(&evm_version, m, &contract, &mut scope_mgr, 0, false, false)
-            .map_err(|e| RunnerError::CompilerError(CompilerError::CodegenError(e)))?;
+        let res = Codegen::macro_to_bytecode(&evm_version, m, &contract, &mut scope_mgr, 0, false, false)?;
 
         // Generate table bytecode for compiled test macro. Test macros run standalone (no
         // bootstrap, no upstream dedup target), so base_offset = 0 and the external map is empty.
-        let table_out = Codegen::gen_table_bytecode(&contract, res, 0, &std::collections::HashMap::new())
-            .map_err(|e| RunnerError::CompilerError(CompilerError::CodegenError(e)))?;
+        let table_out = Codegen::gen_table_bytecode(&contract, res, 0, &std::collections::HashMap::new())?;
         let bytecode = format!("{}{}", table_out.body, table_out.tables);
         let source_map = table_out.source_map;
 
@@ -251,14 +270,14 @@ impl TestRunner {
             None => self.deploy_code(db, bytecode.clone())?,
         };
 
-        // Set environment flags passed through the test decorator
-        let (value, data) = match &m.decorator {
-            Some(decorator) => test_env_from_decorator(decorator)?,
-            None => (U256::ZERO, String::default()),
-        };
+        // Apply the setup requested by the test decorator
+        let spec = TestSpec::from_decorator(m.decorator.as_ref(), &contract, SpecContext { this: address, caller: self.env.tx.caller })?;
+        for write in &spec.storage {
+            self.set_storage(db, write.address, write.slot, write.value)?;
+        }
 
         // Call the deployed test
-        let mut res = self.call(name, db, address, value, data)?;
+        let mut res = self.call(name, db, address, spec.value, hex::encode(&spec.calldata))?;
 
         // Add source map and address for debugging
         res.source_map = Some(source_map);
@@ -272,40 +291,6 @@ impl TestRunner {
 
         Ok(res)
     }
-}
-
-/// Reads the call value and the hex calldata of a test from its decorator flags
-fn test_env_from_decorator(decorator: &Decorator) -> Result<(U256, String), RunnerError> {
-    let mut data = String::default();
-    let mut value = U256::ZERO;
-    for flag in &decorator.flags {
-        match (flag.name.as_str(), single_unnamed_arg(flag)) {
-            ("calldata", Some(DecoratorValue::Str(s))) => {
-                // Strip calldata of 0x prefix, if it is present.
-                data = s.strip_prefix("0x").unwrap_or(s).to_owned();
-            }
-            ("calldata", _) => return Err(invalid_decorator(flag, "`calldata` takes a single string, e.g. calldata(\"0x01\")")),
-            ("value", Some(DecoratorValue::Hex(hex))) if hex.len() <= 64 => value = U256::from_be_bytes(str_to_bytes32(hex)),
-            ("value", _) => {
-                return Err(invalid_decorator(flag, "`value` takes a single hex literal of at most 32 bytes, e.g. value(0x01)"));
-            }
-            (name, _) => return Err(invalid_decorator(flag, &format!("Unknown decorator flag: {name}"))),
-        }
-    }
-    Ok((value, data))
-}
-
-/// The value of a flag with exactly one positional argument
-fn single_unnamed_arg(flag: &DecoratorFlag) -> Option<&DecoratorValue> {
-    match flag.args.as_slice() {
-        [arg] if arg.key.is_none() => Some(&arg.value),
-        _ => None,
-    }
-}
-
-/// An error pointing at a decorator flag the runner cannot apply
-fn invalid_decorator(flag: &DecoratorFlag, hint: &str) -> RunnerError {
-    RunnerError::InvalidDecorator(format!("\"{}\"\n{}", flag.name, flag.span.error(Some(&hint.to_string()))))
 }
 
 /// Intrinsic gas of a call transaction to another account, excluding calldata and access lists

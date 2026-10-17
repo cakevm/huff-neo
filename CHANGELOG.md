@@ -8,6 +8,12 @@
 - **Breaking**: Reject decorators above a `#define macro` or `#define fn`, which were silently ignored.
 - Move the check of decorator flags and their arguments from every build to `hnc test`, and report the source location.
 - Fix `value(..)` with a hex literal longer than 32 bytes panicking.
+- Add the `store(slot, value, at = address)` test decorator to set storage slots before a test runs.
+  - Example: `#[store([OWNER_SLOT], 0xbeef), store(0x01, 0x02, at = 0x1000)]`
+- Add constants, builtins, decimals, booleans, `this` and `caller` as decorator values, and build `calldata(..)` from several arguments.
+  - Example: `#[calldata(__FUNC_SIG(transfer), caller, 100), value([AMOUNT])]`
+- **Breaking**: Reject a repeated `calldata` or `value` flag, where the last one used to win.
+- Fix `calldata(..)` with a string that is not hex panicking.
 
 ## [1.6.1] - 2026-10-13
 - Add macro arguments, loop variables, and expressions as `__ASSERT_PC` positions.
