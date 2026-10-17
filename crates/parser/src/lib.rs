@@ -471,85 +471,136 @@ impl Parser {
         Ok(ErrorDefinition { name, selector, parameters, span: AstSpan(new_spans) })
     }
 
-    /// Parses a decorator.
+    /// Parses the decorator blocks above a macro definition.
     ///
-    /// Decorators are currently used to add additional flags to a test.
+    /// Several `#[...]` blocks may be stacked; their flags are merged in source order. Flag names
+    /// and arguments are only checked for syntax here, the test runner decides what they mean.
     pub fn parse_decorator(&mut self) -> Result<Decorator, ParserError> {
-        self.match_kind(TokenKind::Pound)?;
-        self.match_kind(TokenKind::OpenBracket)?;
-
         let mut flags: Vec<DecoratorFlag> = Vec::default();
 
-        while !self.check(TokenKind::CloseBracket) {
-            if let TokenKind::Ident(s) = self.match_kind(TokenKind::Ident(String::default()))? {
-                // Consume the open parenthesis
-                self.consume();
+        while self.check(TokenKind::Pound) {
+            self.match_kind(TokenKind::Pound)?;
+            self.match_kind(TokenKind::OpenBracket)?;
 
-                match DecoratorFlag::try_from(&s) {
-                    // The calldata flag accepts a single string as an argument
-                    Ok(DecoratorFlag::Calldata(_)) => {
-                        if let TokenKind::Str(s) = &self.match_kind(TokenKind::Str(String::default()))? {
-                            flags.push(DecoratorFlag::Calldata(s.clone()));
-                        } else {
-                            return Err(ParserError {
-                                kind: ParserErrorKind::InvalidDecoratorFlagArg(self.current_token.kind.clone()),
-                                hint: Some(format!("Expected string for decorator flag: {s}")),
-                                spans: AstSpan(vec![self.current_token.span.clone()]),
-                                cursor: self.cursor,
-                            });
-                        }
-                    }
-                    // The value flag accepts a single literal as an argument (hex or boolean literal)
-                    Ok(DecoratorFlag::Value(_)) => {
-                        let literal_value = match &self.current_token.kind {
-                            TokenKind::HexLiteral(hex_str) => {
-                                let val = str_to_bytes32(hex_str);
-                                self.consume();
-                                val
-                            }
-                            _ => {
-                                return Err(ParserError {
-                                    kind: ParserErrorKind::InvalidDecoratorFlagArg(self.current_token.kind.clone()),
-                                    hint: Some(format!("Expected hex or boolean literal for decorator flag: {s}")),
-                                    spans: AstSpan(vec![self.current_token.span.clone()]),
-                                    cursor: self.cursor,
-                                });
-                            }
-                        };
-                        flags.push(DecoratorFlag::Value(literal_value));
-                    }
-                    Err(_) => {
-                        tracing::error!(target: "parser", "DECORATOR FLAG NOT FOUND: {}", s);
-                        return Err(ParserError {
-                            kind: ParserErrorKind::InvalidDecoratorFlag(s.clone()),
-                            hint: Some(format!("Unknown decorator flag: {s}")),
-                            spans: AstSpan(self.spans.clone()),
-                            cursor: self.cursor,
-                        });
-                    }
-                }
+            while !self.check(TokenKind::CloseBracket) {
+                flags.push(self.parse_decorator_flag()?);
 
-                // Consume the closing parenthesis
-                self.match_kind(TokenKind::CloseParen)?;
-
-                // Multiple flags are possible
+                // Flags are comma separated and a trailing comma is allowed. The comma is optional
+                // to stay compatible with sources written for earlier versions.
                 if self.check(TokenKind::Comma) {
                     self.consume();
                 }
-            } else {
+            }
+
+            self.match_kind(TokenKind::CloseBracket)?;
+        }
+
+        Ok(Decorator { flags })
+    }
+
+    /// Parses a single decorator flag: `name` or `name(arg, key = arg, ...)`.
+    fn parse_decorator_flag(&mut self) -> Result<DecoratorFlag, ParserError> {
+        let TokenKind::Ident(name) = self.current_token.kind.clone() else {
+            return Err(self.decorator_error(String::from("Expected a decorator flag name")));
+        };
+        let span = AstSpan(vec![self.current_token.span.clone()]);
+        self.consume();
+
+        let mut args: Vec<DecoratorArg> = Vec::new();
+        if self.check(TokenKind::OpenParen) {
+            self.consume();
+            while !self.check(TokenKind::CloseParen) {
+                args.push(self.parse_decorator_arg(&name)?);
+
+                if self.check(TokenKind::Comma) {
+                    self.consume();
+                } else if !self.check(TokenKind::CloseParen) {
+                    return Err(self.decorator_error(format!("Expected `,` or `)` in the arguments of decorator flag: {name}")));
+                }
+            }
+            self.match_kind(TokenKind::CloseParen)?;
+        }
+
+        Ok(DecoratorFlag { name, args, span })
+    }
+
+    /// Parses a decorator flag argument, optionally prefixed with `key =`.
+    fn parse_decorator_arg(&mut self, flag: &str) -> Result<DecoratorArg, ParserError> {
+        let start_span = self.current_token.span.clone();
+
+        let mut key = None;
+        if let TokenKind::Ident(ident) = self.current_token.kind.clone()
+            && self.peek().is_some_and(|t| t.kind == TokenKind::Assign)
+        {
+            key = Some(ident);
+            self.consume();
+            self.match_kind(TokenKind::Assign)?;
+        }
+
+        let value_span = self.current_token.span.clone();
+        let value = match self.current_token.kind.clone() {
+            TokenKind::HexLiteral(hex) => {
+                self.consume();
+                DecoratorValue::Hex(hex)
+            }
+            TokenKind::Integer(int) => {
+                self.consume();
+                DecoratorValue::Int(int)
+            }
+            TokenKind::Str(s) => {
+                self.consume();
+                DecoratorValue::Str(s)
+            }
+            TokenKind::Ident(ident) => {
+                self.consume();
+                match ident.as_str() {
+                    "true" => DecoratorValue::Bool(true),
+                    "false" => DecoratorValue::Bool(false),
+                    _ => DecoratorValue::Ident(ident),
+                }
+            }
+            TokenKind::OpenBracket => {
+                let (constant, _) = self.parse_constant_push()?;
+                DecoratorValue::Constant(constant)
+            }
+            TokenKind::BuiltinFunction(f) => {
+                self.consume();
+                let args = self.parse_builtin_args()?;
+                DecoratorValue::Builtin(BuiltinFunctionCall {
+                    kind: BuiltinFunctionKind::from(f),
+                    args,
+                    span: AstSpan(vec![value_span.clone()]),
+                })
+            }
+            kind => {
                 return Err(ParserError {
-                    kind: ParserErrorKind::InvalidDecoratorFlag(String::from("EXPECTED DECORATOR FLAG")),
-                    hint: Some(String::from("Unknown decorator flag")),
-                    spans: AstSpan(self.spans.clone()),
+                    kind: ParserErrorKind::InvalidDecoratorFlagArg(kind),
+                    hint: Some(format!(
+                        "Expected a hex or decimal literal, string, boolean, identifier, [CONSTANT] or builtin call for decorator flag: {flag}"
+                    )),
+                    spans: AstSpan(vec![value_span]),
                     cursor: self.cursor,
                 });
             }
+        };
+
+        Ok(DecoratorArg { key, value, span: AstSpan(vec![self.span_from(&start_span)]) })
+    }
+
+    /// The source range from `start` through the last consumed token.
+    fn span_from(&self, start: &Span) -> Span {
+        let end = self.peek_behind().map_or(start.end, |t| t.span.end);
+        Span { start: start.start, end, file: start.file.clone() }
+    }
+
+    /// Builds a decorator syntax error at the current token.
+    fn decorator_error(&self, hint: String) -> ParserError {
+        ParserError {
+            kind: ParserErrorKind::InvalidDecoratorFlag(self.current_token.kind.to_string()),
+            hint: Some(hint),
+            spans: AstSpan(vec![self.current_token.span.clone()]),
+            cursor: self.cursor,
         }
-
-        // Consume the final bracket
-        self.consume();
-
-        Ok(Decorator { flags })
     }
 
     /// Parses a macro.
@@ -557,8 +608,11 @@ impl Parser {
     /// It should parse the following : macro MACRO_NAME(args...) = takes (x) returns (n) {...}
     pub fn parse_macro(&mut self, contract: &mut Contract) -> Result<MacroDefinition, ParserError> {
         let mut decorator: Option<Decorator> = None;
+        let mut decorator_span = None;
         if self.check(TokenKind::Pound) {
+            let start = self.current_token.span.clone();
             decorator = Some(self.parse_decorator()?);
+            decorator_span = Some(self.span_from(&start));
 
             // Consume the `#define` keyword
             self.consume();
@@ -566,6 +620,15 @@ impl Parser {
 
         let outlined = self.check(TokenKind::Fn);
         let test = self.check(TokenKind::Test);
+        if !test && let Some(span) = decorator_span {
+            let name = self.peek().map(|t| t.kind.to_string()).unwrap_or_default();
+            return Err(ParserError {
+                kind: ParserErrorKind::DecoratorOnNonTest(name),
+                hint: Some(String::from("Decorators only apply to `#define test` definitions")),
+                spans: AstSpan(vec![span]),
+                cursor: self.cursor,
+            });
+        }
 
         self.match_kind(if outlined {
             TokenKind::Fn

@@ -1427,32 +1427,53 @@ impl Display for StatementType {
 
 /// A decorator tag
 ///
-/// At the moment, the decorator tag can only be placed over test definitions. Developers
-/// can use decorators to define environment variables and other metadata for their individual
-/// tests.
+/// One or more `#[...]` blocks placed over a test definition. Developers use decorators to set the
+/// environment, the starting state and the expected outcome of an individual test.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Decorator {
-    /// Vector of flags passed within the decorator
+    /// Flags of every decorator block, merged in source order
     pub flags: Vec<DecoratorFlag>,
 }
 
-/// A decorator flag
+/// A decorator flag such as `calldata("0x01")` or `store([SLOT], 0x01, at = 0x1000)`
+///
+/// The parser accepts any flag name; the test runner decides which names and arguments are valid.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub enum DecoratorFlag {
-    /// Sets the calldata of the test call transaction
-    Calldata(String),
-    /// Sets the value of the test call transaction
-    Value(Literal),
+pub struct DecoratorFlag {
+    /// The flag name
+    pub name: String,
+    /// The arguments in source order; empty when the flag has no parentheses
+    pub args: Vec<DecoratorArg>,
+    /// The flag span
+    pub span: AstSpan,
 }
 
-impl TryFrom<&String> for DecoratorFlag {
-    type Error = ();
+/// A single decorator flag argument, optionally named (`max = 30000`)
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct DecoratorArg {
+    /// The argument name for `key = value` arguments
+    pub key: Option<String>,
+    /// The argument value
+    pub value: DecoratorValue,
+    /// The argument span
+    pub span: AstSpan,
+}
 
-    fn try_from(value: &String) -> Result<Self, Self::Error> {
-        match value.as_str() {
-            "calldata" => Ok(DecoratorFlag::Calldata(String::default())),
-            "value" => Ok(DecoratorFlag::Value(Literal::default())),
-            _ => Err(()),
-        }
-    }
+/// The value of a decorator flag argument
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum DecoratorValue {
+    /// A hex literal without the `0x` prefix, keeping its written width
+    Hex(String),
+    /// A decimal literal
+    Int(usize),
+    /// A string literal
+    Str(String),
+    /// `true` or `false`
+    Bool(bool),
+    /// A constant reference `[NAME]`
+    Constant(String),
+    /// A builtin function call such as `__FUNC_SIG(transfer)`
+    Builtin(BuiltinFunctionCall),
+    /// A bare identifier: a label, macro or error name, or a keyword such as `this`
+    Ident(String),
 }

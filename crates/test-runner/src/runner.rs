@@ -4,8 +4,8 @@ use alloy_primitives::{Address, B256, Bytes, U256, hex};
 use anvil::eth::backend::mem::inspector::AnvilInspector;
 use foundry_evm::backend::DatabaseError;
 use huff_neo_codegen::Codegen;
-use huff_neo_utils::ast::huff::{DecoratorFlag, MacroDefinition};
-use huff_neo_utils::prelude::{CompilerError, Contract, EVMVersion, deploy_bootstrap};
+use huff_neo_utils::ast::huff::{Decorator, DecoratorFlag, DecoratorValue, MacroDefinition};
+use huff_neo_utils::prelude::{CompilerError, Contract, EVMVersion, deploy_bootstrap, str_to_bytes32};
 use revm::context::result::{ExecutionResult, Output};
 use revm::context::{TransactTo, TxEnv};
 use revm::context_interface::cfg::GasParams;
@@ -252,19 +252,10 @@ impl TestRunner {
         };
 
         // Set environment flags passed through the test decorator
-        let mut data = String::default();
-        let mut value = U256::ZERO;
-        if let Some(decorator) = &m.decorator {
-            for flag in &decorator.flags {
-                match flag {
-                    DecoratorFlag::Calldata(s) => {
-                        // Strip calldata of 0x prefix, if it is present.
-                        data = if let Some(s) = s.strip_prefix("0x") { s.to_owned() } else { s.to_owned() };
-                    }
-                    DecoratorFlag::Value(v) => value = U256::from_be_bytes(*v),
-                }
-            }
-        }
+        let (value, data) = match &m.decorator {
+            Some(decorator) => test_env_from_decorator(decorator)?,
+            None => (U256::ZERO, String::default()),
+        };
 
         // Call the deployed test
         let mut res = self.call(name, db, address, value, data)?;
@@ -281,6 +272,40 @@ impl TestRunner {
 
         Ok(res)
     }
+}
+
+/// Reads the call value and the hex calldata of a test from its decorator flags
+fn test_env_from_decorator(decorator: &Decorator) -> Result<(U256, String), RunnerError> {
+    let mut data = String::default();
+    let mut value = U256::ZERO;
+    for flag in &decorator.flags {
+        match (flag.name.as_str(), single_unnamed_arg(flag)) {
+            ("calldata", Some(DecoratorValue::Str(s))) => {
+                // Strip calldata of 0x prefix, if it is present.
+                data = s.strip_prefix("0x").unwrap_or(s).to_owned();
+            }
+            ("calldata", _) => return Err(invalid_decorator(flag, "`calldata` takes a single string, e.g. calldata(\"0x01\")")),
+            ("value", Some(DecoratorValue::Hex(hex))) if hex.len() <= 64 => value = U256::from_be_bytes(str_to_bytes32(hex)),
+            ("value", _) => {
+                return Err(invalid_decorator(flag, "`value` takes a single hex literal of at most 32 bytes, e.g. value(0x01)"));
+            }
+            (name, _) => return Err(invalid_decorator(flag, &format!("Unknown decorator flag: {name}"))),
+        }
+    }
+    Ok((value, data))
+}
+
+/// The value of a flag with exactly one positional argument
+fn single_unnamed_arg(flag: &DecoratorFlag) -> Option<&DecoratorValue> {
+    match flag.args.as_slice() {
+        [arg] if arg.key.is_none() => Some(&arg.value),
+        _ => None,
+    }
+}
+
+/// An error pointing at a decorator flag the runner cannot apply
+fn invalid_decorator(flag: &DecoratorFlag, hint: &str) -> RunnerError {
+    RunnerError::InvalidDecorator(format!("\"{}\"\n{}", flag.name, flag.span.error(Some(&hint.to_string()))))
 }
 
 /// Intrinsic gas of a call transaction to another account, excluding calldata and access lists

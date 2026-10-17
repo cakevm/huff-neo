@@ -1023,9 +1023,15 @@ fn empty_test_with_decorator() {
     let expected = MacroDefinition {
         name: String::from("MY_TEST"),
         decorator: Some(Decorator {
-            flags: vec![DecoratorFlag::Value([
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
-            ])],
+            flags: vec![DecoratorFlag {
+                name: String::from("value"),
+                args: vec![DecoratorArg {
+                    key: None,
+                    value: DecoratorValue::Hex(String::from("01")),
+                    span: AstSpan(vec![Span { start: 13, end: 17, file: None }]),
+                }],
+                span: AstSpan(vec![Span { start: 7, end: 12, file: None }]),
+            }],
         }),
         parameters: vec![],
         statements: vec![],
@@ -1079,8 +1085,24 @@ fn empty_test_with_multi_flag_decorator() {
         name: String::from("MY_TEST"),
         decorator: Some(Decorator {
             flags: vec![
-                DecoratorFlag::Calldata(String::from("0x02")),
-                DecoratorFlag::Value([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]),
+                DecoratorFlag {
+                    name: String::from("calldata"),
+                    args: vec![DecoratorArg {
+                        key: None,
+                        value: DecoratorValue::Str(String::from("0x02")),
+                        span: AstSpan(vec![Span { start: 16, end: 22, file: None }]),
+                    }],
+                    span: AstSpan(vec![Span { start: 7, end: 15, file: None }]),
+                },
+                DecoratorFlag {
+                    name: String::from("value"),
+                    args: vec![DecoratorArg {
+                        key: None,
+                        value: DecoratorValue::Hex(String::from("01")),
+                        span: AstSpan(vec![Span { start: 31, end: 35, file: None }]),
+                    }],
+                    span: AstSpan(vec![Span { start: 25, end: 30, file: None }]),
+                },
             ],
         }),
         parameters: vec![],

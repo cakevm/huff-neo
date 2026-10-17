@@ -12,6 +12,9 @@ pub enum RunnerError {
     #[error("Deployment Error: {0}")]
     DeploymentError(String),
 
+    #[error("Invalid Decorator Flag: {0}")]
+    InvalidDecorator(String),
+
     #[error("Compiler Error: {0}")]
     CompilerError(CompilerError),
 
