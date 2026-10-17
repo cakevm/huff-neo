@@ -5,6 +5,14 @@ use huff_neo_utils::ast::span::AstSpan;
 use huff_neo_utils::file::full_file_source::FullFileSource;
 use huff_neo_utils::{opcodes::Opcode, prelude::*};
 
+fn decorator_flag(name: &str, start: usize, end: usize, args: Vec<DecoratorArg>) -> DecoratorFlag {
+    DecoratorFlag { name: name.to_string(), args, span: AstSpan(vec![Span { start, end, file: None }]) }
+}
+
+fn decorator_arg(value: DecoratorValue, start: usize, end: usize) -> DecoratorArg {
+    DecoratorArg { key: None, value, span: AstSpan(vec![Span { start, end, file: None }]) }
+}
+
 #[test]
 fn empty_macro() {
     let source = "#define macro HELLO_WORLD() = takes(0) returns(4) {}";
@@ -1023,9 +1031,7 @@ fn empty_test_with_decorator() {
     let expected = MacroDefinition {
         name: String::from("MY_TEST"),
         decorator: Some(Decorator {
-            flags: vec![DecoratorFlag::Value([
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
-            ])],
+            flags: vec![decorator_flag("value", 7, 12, vec![decorator_arg(DecoratorValue::Hex("01".to_string()), 13, 17)])],
         }),
         parameters: vec![],
         statements: vec![],
@@ -1079,8 +1085,8 @@ fn empty_test_with_multi_flag_decorator() {
         name: String::from("MY_TEST"),
         decorator: Some(Decorator {
             flags: vec![
-                DecoratorFlag::Calldata(String::from("0x02")),
-                DecoratorFlag::Value([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]),
+                decorator_flag("calldata", 7, 15, vec![decorator_arg(DecoratorValue::Str("0x02".to_string()), 16, 22)]),
+                decorator_flag("value", 25, 30, vec![decorator_arg(DecoratorValue::Hex("01".to_string()), 31, 35)]),
             ],
         }),
         parameters: vec![],

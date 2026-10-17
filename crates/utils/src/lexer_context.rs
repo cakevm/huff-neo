@@ -23,4 +23,6 @@ pub enum Context {
     BuiltinFunction,
     /// For loop body context
     ForLoopBody,
+    /// Test decorator context, from `#[` to its matching `]`
+    Decorator,
 }

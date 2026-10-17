@@ -202,7 +202,7 @@ code_table_entry = { hex_literal | constant_reference | builtin_function_call }
 //   #define fn ADD(x, y) = takes(2) returns(1) { ... }
 //   #[calldata("0x01020304"), value(0x01)] #define test MY_TEST() = { ... }
 macro_definition = {
-    decorator?
+    decorator*
     ~ "#define" ~ macro_type ~ identifier ~ macro_parameters ~ "="
     ~ macro_takes? ~ macro_returns?
     ~ block
@@ -217,12 +217,24 @@ macro_parameters = { "(" ~ (identifier ~ ("," ~ identifier)*)? ~ ")" }
 macro_takes = { "takes" ~ "(" ~ decimal_literal ~ ")" }
 macro_returns = { "returns" ~ "(" ~ decimal_literal ~ ")" }
 
-// Test environment setup: calldata takes a hex string, value takes a hex literal
-// Example: #[calldata("0x01020304"), value(0x0a)]
-decorator = { "#[" ~ (decorator_flag ~ ("," ~ decorator_flag)*)? ~ "]" }
-decorator_flag = {
-    "calldata" ~ "(" ~ string_literal ~ ")"
-    | "value" ~ "(" ~ hex_literal ~ ")"
+// Test decorators. Stacked blocks are merged in source order, so `#[a, b]` equals `#[a] #[b]`.
+// The grammar accepts any flag name; the test runner decides which flags and arguments are valid.
+// Examples:
+//   #[calldata(__FUNC_SIG(transfer), 0x01), caller(0xbeef)]
+//   #[store([OWNER_SLOT], 0xbeef, at = 0x1000), expect_revert]
+// The comma between flags is optional for compatibility with earlier versions; prefer writing it.
+decorator = { "#[" ~ (decorator_flag ~ (","? ~ decorator_flag)* ~ ","?)? ~ "]" }
+decorator_flag = { identifier ~ ("(" ~ (decorator_arg ~ ("," ~ decorator_arg)* ~ ","?)? ~ ")")? }
+decorator_arg = { (identifier ~ "=")? ~ decorator_value }
+// A bare identifier is a label, macro or error name, or a keyword such as `this`
+decorator_value = {
+    hex_literal
+    | decimal_literal
+    | string_literal
+    | boolean_literal
+    | constant_reference
+    | builtin_function_call
+    | identifier
 }
 
 // ============================================================================

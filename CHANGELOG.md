@@ -3,6 +3,11 @@
 # Huff Neo Compiler changelog
 
 ## Unreleased
+- Add stacked decorator blocks on tests, merged in source order, with an optional trailing comma.
+  - Example: `#[calldata("0x01")] #[value(0x01),]` is the same as `#[calldata("0x01"), value(0x01)]`
+- **Breaking**: Reject decorators above a `#define macro` or `#define fn`, which were silently ignored.
+- Move the check of decorator flags and their arguments from every build to `hnc test`, and report the source location.
+- Fix `value(..)` with a hex literal longer than 32 bytes panicking.
 
 ## [1.6.1] - 2026-10-13
 - Add macro arguments, loop variables, and expressions as `__ASSERT_PC` positions.

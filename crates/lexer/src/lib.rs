@@ -55,6 +55,8 @@ pub struct Lexer<'a> {
     pub eof: bool,
     /// Current context stack.
     context_stack: ContextStack,
+    /// Open square brackets inside the current decorator, so `[CONST]` arguments nest
+    decorator_depth: usize,
     /// The raw source code.
     pub source: FullFileSource<'a>,
 }
@@ -70,6 +72,7 @@ impl<'a> Lexer<'a> {
             lookback: None,
             eof: false,
             context_stack: ContextStack::new(),
+            decorator_depth: 0,
             source,
         }
     }
@@ -174,6 +177,9 @@ impl<'a> Lexer<'a> {
                                 LexicalError::new(LexicalErrorKind::StackUnderflow, self.source.relative_span_by_pos(start, end))
                             })?;
                         }
+                        debug!(target: "lexer", "PUSH CONTEXT Decorator");
+                        self.context_stack.push(Context::Decorator);
+                        self.decorator_depth = 0;
                         // Return Pound token for just the '#' character
                         Ok(TokenKind::Pound.into_token_with_span(self.source.relative_span_by_pos(start, start + 1)))
                     } else {
@@ -190,7 +196,8 @@ impl<'a> Lexer<'a> {
                     let (word, start, mut end) = self.eat_while(Some(ch), |c| c.is_alphanumeric() || c == '_');
 
                     let mut found_kind: Option<TokenKind> = None;
-                    if self.context_stack.top() != &Context::MacroBody
+                    // Decorator names and arguments are never keywords
+                    if !matches!(self.context_stack.top(), &Context::MacroBody | &Context::Decorator)
                         && let Some(kind) = TOKEN.get(&word)
                     {
                         debug!(target: "lexer", "FOUND KEYWORD OUTSIDE OF MacroBody '{:?}'", kind);
@@ -339,6 +346,7 @@ impl<'a> Lexer<'a> {
                             | &Context::Constant
                             | &Context::MacroArgs
                             | &Context::ForLoopBody
+                            | &Context::Decorator
                     ) && BuiltinFunctionKind::try_from(&word).is_ok()
                     {
                         TokenKind::BuiltinFunction(word)
@@ -377,6 +385,12 @@ impl<'a> Lexer<'a> {
                             debug!(target: "lexer", "PUSH CONTEXT AbiArgs");
                             self.context_stack.push(Context::AbiArgs)
                         }
+                        Context::Decorator => {
+                            if let Some(TokenKind::BuiltinFunction(_)) = self.lookback.as_ref().map(|t| &t.kind) {
+                                debug!(target: "lexer", "PUSH CONTEXT BuiltinFunction");
+                                self.context_stack.push(Context::BuiltinFunction)
+                            }
+                        }
                         Context::MacroBody | Context::ForLoopBody => match self.lookback.as_ref().unwrap().kind {
                             TokenKind::BuiltinFunction(_) => {
                                 debug!(target: "lexer", "PUSH CONTEXT BuiltinFunction");
@@ -408,8 +422,27 @@ impl<'a> Lexer<'a> {
                     }
                     self.single_char_token(TokenKind::CloseParen)
                 }
-                '[' => self.single_char_token(TokenKind::OpenBracket),
-                ']' => self.single_char_token(TokenKind::CloseBracket),
+                '[' => {
+                    if self.context_stack.top() == &Context::Decorator {
+                        self.decorator_depth += 1;
+                    }
+                    self.single_char_token(TokenKind::OpenBracket)
+                }
+                ']' => {
+                    if self.context_stack.top() == &Context::Decorator {
+                        self.decorator_depth = self.decorator_depth.saturating_sub(1);
+                        if self.decorator_depth == 0 {
+                            debug!(target: "lexer", "POP CONTEXT Decorator");
+                            self.context_stack.pop(1).map_err(|_| {
+                                LexicalError::new(
+                                    LexicalErrorKind::StackUnderflow,
+                                    self.source.relative_span_by_pos(self.position, self.byte_offset),
+                                )
+                            })?;
+                        }
+                    }
+                    self.single_char_token(TokenKind::CloseBracket)
+                }
                 '{' => {
                     // Push ForLoopBody context in MacroBody or ForLoopBody context for nested braces
                     if matches!(self.context_stack.top(), &Context::MacroBody | &Context::ForLoopBody) {

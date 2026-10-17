@@ -11,11 +11,28 @@ Tests can be run via the CLI's `test` subcommand. For more information, see the 
 
 ## Decorators
 The transaction environment for each test can be modified with a decorator. Decorators sit directly above
-tests, and are formatted as follows: `#[flag_a(inputs...), flag_b(inputs...)]`
+tests, and are formatted as follows: `#[flag_a(inputs...), flag_b(inputs...)]`. Flags without a comma
+between them still parse for compatibility with older sources, but write the comma.
+
+A test can have several decorator blocks. They are merged in source order, so these two tests are
+configured the same way, and a trailing comma is allowed:
+
+```javascript
+#[calldata("0x01"), value(0x01)]
+#define test SINGLE_BLOCK() = { stop }
+
+#[calldata("0x01"),]
+#[value(0x01)]
+#define test STACKED_BLOCKS() = { stop }
+```
+
+Decorators only apply to tests. A decorator above a `#define macro` or `#define fn` is a compile error.
 
 Available decorators include:
 * `calldata` - Set the calldata for the transaction environment. Accepts a single string of calldata bytes.
-* `value` - Set the callvalue for the transaction environment. Accepts a single literal.
+* `value` - Set the callvalue for the transaction environment. Accepts a single hex literal.
+
+An unknown decorator flag, or a flag with the wrong arguments, fails `hnc test`.
 
 ## Example
 ```javascript

@@ -73,6 +73,8 @@ pub enum ParserErrorKind {
     InvalidDecoratorFlag(String),
     /// Invalid decorator flag argument
     InvalidDecoratorFlagArg(TokenKind),
+    /// A decorator placed over a macro that is not a test
+    DecoratorOnNonTest(String),
     /// Duplicate label
     DuplicateLabel(String),
     /// Duplicate MACRO
@@ -660,6 +662,15 @@ impl fmt::Display for CompilerError {
                         "\nError at token {}: Invalid Decorator Flag Argument: \"{}\" \n{}\n",
                         pe.cursor,
                         dfa,
+                        pe.spans.error(pe.hint.as_ref())
+                    )
+                }
+                ParserErrorKind::DecoratorOnNonTest(name) => {
+                    write!(
+                        f,
+                        "\nError at token {}: Decorator on non-test macro: \"{}\" \n{}\n",
+                        pe.cursor,
+                        name,
                         pe.spans.error(pe.hint.as_ref())
                     )
                 }
