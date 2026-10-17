@@ -3,22 +3,24 @@
 # Huff Neo Compiler changelog
 
 ## Unreleased
+
+## [1.6.2] - 2026-10-17
 - Add stacked decorator blocks on tests, merged in source order, with an optional trailing comma.
   - Example: `#[calldata("0x01")] #[value(0x01),]` is the same as `#[calldata("0x01"), value(0x01)]`
-- **Breaking**: Reject decorators above a `#define macro` or `#define fn`, which were silently ignored.
-- Move the check of decorator flags and their arguments from every build to `hnc test`, and report the source location.
-- Fix `value(..)` with a hex literal longer than 32 bytes panicking.
 - Add the `store(slot, value, at = address)` test decorator to set storage slots before a test runs.
   - Example: `#[store([OWNER_SLOT], 0xbeef), store(0x01, 0x02, at = 0x1000)]`
 - Add constants, builtins, decimals, booleans, `this` and `caller` as decorator values, and build `calldata(..)` from several arguments.
   - Example: `#[calldata(__FUNC_SIG(transfer), caller, 100), value([AMOUNT])]`
-- **Breaking**: Reject a repeated `calldata` or `value` flag, where the last one used to win.
-- Fix `calldata(..)` with a string that is not hex panicking.
 - Add test decorators for the transaction and block of a test: `caller`, `gas_limit`, `gas_price`, `block_number`, `timestamp`, `basefee`, `blob_basefee`, `coinbase`, `chain_id`, `prevrandao` and `slot_number`.
   - Example: `#[caller(0xbeef), timestamp(1700000000), block_number(100)]`
 - Add test expectations: `expect_revert`, `expect_partial_revert`, `expect_halt`, `expect_return` and `expect_gas`.
   - Example: `#[expect_revert(__ERROR(InsufficientBalance), 100), expect_gas(max = 30000)]`
 - Add `passed`, `outcome` and `failures` to the results of `hnc test --format json`, and list every unmet expectation of a failing test.
+- **Breaking**: Reject decorators above a `#define macro` or `#define fn`, which were silently ignored.
+- **Breaking**: Reject a repeated `calldata` or `value` flag, where the last one used to win.
+- Move the check of decorator flags and their arguments from every build to `hnc test`, and report the source location.
+- Fix `value(..)` with a hex literal longer than 32 bytes panicking.
+- Fix `calldata(..)` with a string that is not hex panicking.
 - Fix tests that call Foundry cheatcodes silently passing. They now fail, because `hnc test` does not support cheatcodes yet.
 
 ## [1.6.1] - 2026-10-13
