@@ -2,7 +2,7 @@ use alloy_primitives::{U256, address, hex};
 use foundry_evm::backend::DatabaseError;
 use huff_neo_lexer::Lexer;
 use huff_neo_parser::Parser;
-use huff_neo_test_runner::prelude::{DecoratorError, DecoratorErrorKind, RunnerError, TestResult, TestRunner, TestStatus};
+use huff_neo_test_runner::prelude::{DecoratorError, DecoratorErrorKind, Outcome, RunnerError, TestResult, TestRunner, TestStatus};
 use huff_neo_utils::file::full_file_source::FullFileSource;
 use huff_neo_utils::prelude::{Contract, EVMVersion, SupportedEVMVersions, Token};
 use revm::Database;
@@ -385,4 +385,158 @@ fn test_runner_rejects_repeated_environment_flag() {
     let err = decorator_error("#[timestamp(1)]\n#[timestamp(2)]\n#define test T() = { stop }");
     assert_eq!(err.kind, DecoratorErrorKind::Duplicate);
     assert_eq!(err.span.0.len(), 2);
+}
+
+/// The result of test `T` in a source whose decorators can be applied.
+fn run_test_t(source: &str) -> TestResult {
+    run_source_test(source, "T").unwrap()
+}
+
+/// The expectation names and messages of the failures of test `T`
+fn failures(source: &str) -> Vec<(String, String)> {
+    run_test_t(source).failures.into_iter().map(|f| (f.expectation, f.message)).collect()
+}
+
+/// A contract with one custom error, followed by the given test.
+fn with_error(test: &str) -> String {
+    format!("#define error Unauthorized()\n{test}")
+}
+
+/// A test body that reverts with the selector of `Unauthorized()`
+const REVERT_UNAUTHORIZED: &str = "{ __ERROR(Unauthorized) 0x00 mstore 0x04 0x00 revert }";
+
+#[test]
+fn test_runner_fails_a_reverting_test_without_expectation() {
+    let result = run_test_t("#define test T() = { 0x00 0x00 revert }");
+    assert!(!result.passed);
+    assert_eq!(std::mem::discriminant(&result.status), std::mem::discriminant(&TestStatus::Revert));
+    assert_eq!(result.outcome, Outcome::Revert { data: String::new() });
+    assert_eq!(
+        result.failures.iter().map(|f| (f.expectation.as_str(), f.message.as_str())).collect::<Vec<_>>(),
+        vec![("outcome", "expected the test to return, but it reverted with 0x (empty)")]
+    );
+}
+
+#[test]
+fn test_runner_expect_revert_matches_any_revert() {
+    let result = run_test_t(&with_error(&format!("#[expect_revert]\n#define test T() = {REVERT_UNAUTHORIZED}")));
+    assert!(result.passed);
+    assert_eq!(std::mem::discriminant(&result.status), std::mem::discriminant(&TestStatus::Success));
+    assert_eq!(result.outcome, Outcome::Revert { data: String::from("82b42900") });
+}
+
+#[test]
+fn test_runner_expect_revert_fails_when_the_test_returns() {
+    assert_eq!(
+        failures("#[expect_revert]\n#define test T() = { stop }"),
+        vec![(String::from("expect_revert"), String::from("expected a revert, but the test returned 0x (empty)"))]
+    );
+}
+
+#[test]
+fn test_runner_expect_revert_checks_exact_data() {
+    let source = with_error(&format!("#[expect_revert(__ERROR(Unauthorized))]\n#define test T() = {REVERT_UNAUTHORIZED}"));
+    assert!(run_test_t(&source).passed);
+
+    let source = with_error(&format!("#[expect_revert(__ERROR(Unauthorized), 0x01)]\n#define test T() = {REVERT_UNAUTHORIZED}"));
+    assert_eq!(
+        failures(&source),
+        vec![(
+            String::from("expect_revert"),
+            String::from("expected revert data 0x82b4290001 (Unauthorized), got 0x82b42900 (Unauthorized)")
+        )]
+    );
+}
+
+#[test]
+fn test_runner_expect_partial_revert_checks_a_prefix() {
+    // Unauthorized() followed by an argument word still starts with its selector
+    let test = "#define test T() = { __ERROR(Unauthorized) 0x00 mstore 0x2a 0x04 mstore 0x24 0x00 revert }";
+    assert!(run_test_t(&with_error(&format!("#[expect_partial_revert(__ERROR(Unauthorized))]\n{test}"))).passed);
+    assert_eq!(failures(&with_error(&format!("#[expect_partial_revert(0xdeadbeef)]\n{test}")))[0].0, "expect_partial_revert");
+}
+
+#[test]
+fn test_runner_expect_halt_matches_reasons() {
+    assert!(run_test_t("#[expect_halt]\n#define test T() = { invalid }").passed);
+    assert!(run_test_t("#[expect_halt(\"InvalidFEOpcode\")]\n#define test T() = { invalid }").passed);
+    assert!(run_test_t("#[expect_halt(\"InvalidJump\")]\n#define test T() = { 0x00 jump }").passed);
+    // `OutOfGas` names every kind of out-of-gas halt
+    assert!(run_test_t("#[gas_limit(30000), expect_halt(\"OutOfGas\")]\n#define test T() = { 0x01 0x00 sstore }").passed);
+
+    let failures = failures("#[expect_halt(\"InvalidJump\")]\n#define test T() = { invalid }");
+    assert_eq!(
+        failures,
+        vec![(String::from("expect_halt"), String::from("expected the test to halt with InvalidJump, but it halted with InvalidFEOpcode"))]
+    );
+}
+
+#[test]
+fn test_runner_expect_halt_does_not_match_a_revert() {
+    assert_eq!(
+        failures("#[expect_halt]\n#define test T() = { 0x00 0x00 revert }")[0].1,
+        "expected the test to halt, but it reverted with 0x (empty)"
+    );
+    // and a revert expectation does not match a halt
+    assert_eq!(
+        failures("#[expect_revert]\n#define test T() = { invalid }")[0].1,
+        "expected a revert, but the test halted with InvalidFEOpcode"
+    );
+}
+
+#[test]
+fn test_runner_expect_return_checks_exact_data() {
+    assert!(run_test_t("#[expect_return(42)]\n#define test T() = { 0x2a 0x00 mstore 0x20 0x00 return }").passed);
+    assert!(run_test_t("#[expect_return]\n#define test T() = { stop }").passed, "no arguments means empty return data");
+    assert_eq!(
+        failures("#[expect_return(0x01)]\n#define test T() = { stop }"),
+        vec![(String::from("expect_return"), String::from("expected return data 0x01, got 0x (empty)"))]
+    );
+}
+
+#[test]
+fn test_runner_expect_gas_checks_bounds() {
+    // PUSH0 + POP costs 4 gas
+    assert!(run_test_t("#[expect_gas(min = 4, max = 4)]\n#define test T() = { push0 pop }").passed);
+    assert_eq!(failures("#[expect_gas(max = 3)]\n#define test T() = { push0 pop }")[0].1, "used 4 gas, more than max 3");
+    assert_eq!(failures("#[expect_gas(min = 5)]\n#define test T() = { push0 pop }")[0].1, "used 4 gas, less than min 5");
+}
+
+#[test]
+fn test_runner_reports_every_failed_expectation() {
+    let failures = failures("#[expect_revert, expect_gas(max = 1)]\n#define test T() = { push0 pop }");
+    assert_eq!(failures.iter().map(|f| f.0.as_str()).collect::<Vec<_>>(), vec!["expect_revert", "expect_gas"]);
+}
+
+#[test]
+fn test_runner_rejects_conflicting_outcome_expectations() {
+    let err = decorator_error("#[expect_revert]\n#[expect_return(0x01)]\n#define test T() = { stop }");
+    assert_eq!(err.flag, "expect_return");
+    assert_eq!(err.kind, DecoratorErrorKind::Conflict);
+    assert_eq!(err.span.0.len(), 2, "the error points at both flags");
+
+    assert_eq!(decorator_error("#[expect_revert, expect_revert]\n#define test T() = { stop }").kind, DecoratorErrorKind::Duplicate);
+}
+
+#[test]
+fn test_runner_rejects_wrong_expectation_arguments() {
+    for (flag, kind) in [
+        ("expect_gas", DecoratorErrorKind::InvalidArguments),
+        ("expect_gas(100)", DecoratorErrorKind::InvalidArguments),
+        ("expect_gas(min = 5, max = 4)", DecoratorErrorKind::InvalidValue),
+        ("expect_partial_revert", DecoratorErrorKind::InvalidArguments),
+        ("expect_halt(0x01)", DecoratorErrorKind::InvalidValue),
+        ("expect_halt(\"OutOfGas\", \"InvalidJump\")", DecoratorErrorKind::InvalidArguments),
+    ] {
+        assert_eq!(decorator_error(&format!("#[{flag}]\n#define test T() = {{ stop }}")).kind, kind, "{flag}");
+    }
+}
+
+#[test]
+fn test_runner_fails_a_test_calling_cheatcodes() {
+    // Without cheatcode support the call would hit an empty account and silently succeed
+    let source = "#define test T() = { 0x00 0x00 0x00 0x00 0x00 0x7109709ECfa91a80626fF3989D68f67F5b1DD12D gas call pop }";
+    let result = run_test_t(source);
+    assert!(!result.passed);
+    assert_eq!(result.failures[0].expectation, "cheatcodes");
 }

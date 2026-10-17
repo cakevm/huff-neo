@@ -1,8 +1,9 @@
-use crate::prelude::{EnvOverrides, RunnerError, SpecContext, TestResult, TestSpec, TestStatus};
+use crate::prelude::{EnvOverrides, Failure, Outcome, RunnerError, SpecContext, TestResult, TestSpec, TestStatus};
 use alloy_evm::{Evm, EvmEnv, EvmFactory, eth::EthEvmFactory};
 use alloy_primitives::{Address, B256, Bytes, U256, hex};
 use anvil::eth::backend::mem::inspector::AnvilInspector;
 use foundry_evm::backend::DatabaseError;
+use foundry_evm_core::constants::CHEATCODE_ADDRESS;
 use huff_neo_codegen::Codegen;
 use huff_neo_utils::ast::huff::MacroDefinition;
 use huff_neo_utils::prelude::{Contract, EVMVersion, deploy_bootstrap};
@@ -11,9 +12,10 @@ use revm::context::{TransactTo, TxEnv};
 use revm::context_interface::block::BlobExcessGasAndPrice;
 use revm::context_interface::cfg::GasParams;
 use revm::context_interface::cfg::gas_params::Eip2780TxInfo;
+use revm::interpreter::{CallInputs, CallOutcome, InterpreterTypes};
 use revm::primitives::hardfork::SpecId;
 use revm::state::{Account, AccountInfo, Bytecode, EvmStorageSlot, TransactionId};
-use revm::{Context, Database, DatabaseCommit, ExecuteCommitEvm, MainBuilder, MainContext};
+use revm::{Context, Database, DatabaseCommit, ExecuteCommitEvm, Inspector, MainBuilder, MainContext};
 use std::collections::HashMap;
 
 /// Container for EVM environment (cfg + block) and transaction.
@@ -208,18 +210,29 @@ impl TestRunner {
         env.tx.nonce = sender.map_or(0, |account| account.nonce);
 
         let mut inspector = self.inspector.clone();
-        let mut evm = EthEvmFactory::default().create_evm_with_inspector(db, env.evm_env.clone(), &mut inspector);
+        let mut cheatcode_guard = CheatcodeGuard::default();
+        let mut evm = EthEvmFactory::default().create_evm_with_inspector(db, env.evm_env.clone(), (&mut cheatcode_guard, &mut inspector));
 
         // Send our CALL transaction
         let execution_result = evm.transact_commit(env.tx).map_err(|e| RunnerError::TransactError(format!("{e:?}")))?;
+        // Release the inspectors so the cheatcode guard can be read
+        drop(evm);
 
         // Extract execution params
         let gas_used = execution_result.tx_gas_used();
-        let status = match &execution_result {
-            ExecutionResult::Success { .. } => TestStatus::Success,
-            ExecutionResult::Revert { .. } => TestStatus::Revert,
-            ExecutionResult::Halt { .. } => TestStatus::Revert,
+        let outcome = match &execution_result {
+            ExecutionResult::Success { output, .. } => Outcome::Return { data: hex::encode(output.data()) },
+            ExecutionResult::Revert { output, .. } => Outcome::Revert { data: hex::encode(output) },
+            ExecutionResult::Halt { reason, .. } => Outcome::Halt { reason: format!("{reason:?}") },
         };
+        let mut failures = Vec::new();
+        if cheatcode_guard.called {
+            failures.push(Failure {
+                expectation: String::from("cheatcodes"),
+                message: format!("the test calls Foundry cheatcodes at {CHEATCODE_ADDRESS}, which hnc test does not support yet"),
+            });
+        }
+        let passed = matches!(outcome, Outcome::Return { .. }) && failures.is_empty();
 
         // Check if the transaction was successful
         let (return_data, revert_reason) = match &execution_result {
@@ -247,8 +260,11 @@ impl TestRunner {
             name,
             return_data,
             gas: gas_used.saturating_sub(call_base_gas(env.evm_env.cfg_env.spec, value)),
-            status,
+            status: TestStatus::from_passed(passed),
             revert_reason,
+            passed,
+            outcome,
+            failures,
             inspector,
             source_map: None,
             address: None,
@@ -302,6 +318,11 @@ impl TestRunner {
         apply_env_overrides(&mut env, &spec.env);
         let mut res = self.call_in_env(name, db, env, address, spec.value, hex::encode(&spec.calldata))?;
 
+        // Check how the test ended against what its decorators expect
+        res.failures.extend(spec.expectations.check(&res.outcome, res.gas, &contract));
+        res.passed = res.failures.is_empty();
+        res.status = TestStatus::from_passed(res.passed);
+
         // Add source map and address for debugging
         res.source_map = Some(source_map);
         res.address = Some(address);
@@ -313,6 +334,20 @@ impl TestRunner {
         res.source_files = contract.source_files.clone();
 
         Ok(res)
+    }
+}
+
+/// Notes whether the test calls Foundry's cheatcode address, which this runner does not serve yet;
+/// such a call would otherwise hit an empty account and silently succeed
+#[derive(Debug, Default)]
+struct CheatcodeGuard {
+    called: bool,
+}
+
+impl<CTX, INTR: InterpreterTypes> Inspector<CTX, INTR> for CheatcodeGuard {
+    fn call(&mut self, _context: &mut CTX, inputs: &mut CallInputs) -> Option<CallOutcome> {
+        self.called |= inputs.target_address == CHEATCODE_ADDRESS;
+        None
     }
 }
 

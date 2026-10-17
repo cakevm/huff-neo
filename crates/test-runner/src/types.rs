@@ -1,3 +1,4 @@
+use crate::outcome::{Failure, Outcome};
 use anvil::eth::backend::mem::inspector::AnvilInspector;
 use comfy_table::{Cell, Color};
 use huff_neo_utils::artifact::SourceMapEntry;
@@ -12,6 +13,12 @@ pub struct TestResult {
     pub gas: u64,
     pub status: TestStatus,
     pub revert_reason: Option<String>,
+    /// Whether the test met every expectation; the same as `status` being `Success`
+    pub passed: bool,
+    /// How the test call ended
+    pub outcome: Outcome,
+    /// The expectations the test did not meet
+    pub failures: Vec<Failure>,
     #[serde(skip)]
     pub inspector: AnvilInspector,
     /// Source map for the test bytecode (for debugging)
@@ -47,6 +54,13 @@ pub enum ReportKind {
     List,
     /// Signals `gen_report` to format the test report as JSON
     JSON,
+}
+
+impl TestStatus {
+    /// The status of a test that met, or did not meet, every expectation
+    pub fn from_passed(passed: bool) -> Self {
+        if passed { Self::Success } else { Self::Revert }
+    }
 }
 
 /// Convert a TestStatus variant directly to a colored string for use in the report

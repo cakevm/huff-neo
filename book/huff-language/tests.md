@@ -87,6 +87,63 @@ The arguments of `calldata` are joined into one byte sequence:
 }
 ```
 
+### Expectations
+A test passes when it ends the way its decorators expect. Without an expectation, a test must return: `stop`,
+`return`, or running off the end of its code. A test that reverts or halts fails.
+
+| Decorator                         | The test passes when it                                           |
+|-----------------------------------|-------------------------------------------------------------------|
+| `expect_revert`                   | reverts, with any data                                            |
+| `expect_revert(bytes...)`         | reverts with exactly this data                                    |
+| `expect_partial_revert(bytes...)` | reverts with data that starts with this                           |
+| `expect_halt`                     | halts exceptionally, e.g. on `invalid`, out of gas or a bad jump  |
+| `expect_halt("Reason")`           | halts for this reason                                             |
+| `expect_return(bytes...)`         | returns exactly this data; `expect_return` alone means no data    |
+| `expect_gas(min = n, max = m)`    | uses at least `min` and at most `max` gas; either can be left out |
+
+The arguments of `expect_revert`, `expect_partial_revert` and `expect_return` are byte sequences, built like the
+arguments of `calldata`:
+
+```javascript
+#define error InsufficientBalance(uint256)
+
+#[calldata(__FUNC_SIG(withdraw), 1000)]
+#[expect_revert(__ERROR(InsufficientBalance), 100)]  // selector + the uint256 argument
+#define test WITHDRAW_TOO_MUCH() = { MAIN() }
+
+#[expect_halt("InvalidJump")]
+#define test BAD_JUMP() = { 0x00 jump }
+```
+
+A test can expect only one way to end, so `expect_revert`, `expect_partial_revert`, `expect_halt` and
+`expect_return` exclude each other. A revert never matches `expect_halt`, and a halt never matches `expect_revert`.
+
+Halt reasons are the names of the EVM's halt reasons, such as `OutOfGas`, `InvalidJump`, `InvalidFEOpcode` (the
+`invalid` opcode), `OpcodeNotFound`, `StackUnderflow`, `StackOverflow` and `NotActivated`. `OutOfGas` matches every
+kind of out-of-gas halt.
+
+The gas checked by `expect_gas` is the gas the test reports, which leaves out the fixed cost of the test transaction.
+An exceptional halt uses up all the gas of the transaction.
+
+A failing test lists every expectation it did not meet:
+
+```javascript
+#[expect_revert(__ERROR(Unauthorized)), expect_gas(max = 1)]
+#define test FAILS_TWICE() = { __ERROR(InsufficientBalance) 0x00 mstore 0x04 0x00 revert }
+```
+
+```text
+[FAIL] FAILS_TWICE     - Gas used: 16
+├─ expect_revert: expected revert data 0x82b42900 (Unauthorized), got 0x92665351 (InsufficientBalance)
+├─ expect_gas: used 16 gas, more than max 1
+```
+
+With `--format json`, each result has a `passed` flag, an `outcome` (`return`, `revert` or `halt`, with its data or
+reason) and the list of `failures`.
+
+`hnc test` does not support Foundry cheatcodes yet. A test that calls the cheatcode address
+`0x7109709ECfa91a80626fF3989D68f67F5b1DD12D` fails instead of silently doing nothing.
+
 ## Example
 ```javascript
 #include "huffmate/utils/Errors.huff"

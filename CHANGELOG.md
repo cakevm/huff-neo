@@ -16,6 +16,10 @@
 - Fix `calldata(..)` with a string that is not hex panicking.
 - Add test decorators for the transaction and block of a test: `caller`, `gas_limit`, `gas_price`, `block_number`, `timestamp`, `basefee`, `blob_basefee`, `coinbase`, `chain_id`, `prevrandao` and `slot_number`.
   - Example: `#[caller(0xbeef), timestamp(1700000000), block_number(100)]`
+- Add test expectations: `expect_revert`, `expect_partial_revert`, `expect_halt`, `expect_return` and `expect_gas`.
+  - Example: `#[expect_revert(__ERROR(InsufficientBalance), 100), expect_gas(max = 30000)]`
+- Add `passed`, `outcome` and `failures` to the results of `hnc test --format json`, and list every unmet expectation of a failing test.
+- Fix tests that call Foundry cheatcodes silently passing. They now fail, because `hnc test` does not support cheatcodes yet.
 
 ## [1.6.1] - 2026-10-13
 - Add macro arguments, loop variables, and expressions as `__ASSERT_PC` positions.
