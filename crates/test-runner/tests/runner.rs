@@ -4,7 +4,7 @@ use huff_neo_lexer::Lexer;
 use huff_neo_parser::Parser;
 use huff_neo_test_runner::prelude::{DecoratorError, DecoratorErrorKind, RunnerError, TestResult, TestRunner, TestStatus};
 use huff_neo_utils::file::full_file_source::FullFileSource;
-use huff_neo_utils::prelude::{Contract, Token};
+use huff_neo_utils::prelude::{Contract, EVMVersion, SupportedEVMVersions, Token};
 use revm::Database;
 use revm::database::{CacheDB, EmptyDBTyped};
 use revm::primitives::hardfork::SpecId;
@@ -121,10 +121,15 @@ fn parse_contract(source: &str) -> Contract {
     contract
 }
 
+/// Runs the named test macro of the source with the given runner and database.
+fn run_source_test_with(runner: &mut TestRunner, db: &mut TestDb, source: &str, name: &str) -> Result<TestResult, Box<RunnerError>> {
+    let contract = parse_contract(source);
+    runner.run_test(db, contract.macros.get(name).unwrap(), &contract).map_err(Box::new)
+}
+
 /// Runs the named test macro of the source against the given database.
 fn run_source_test_in(db: &mut TestDb, source: &str, name: &str) -> Result<TestResult, Box<RunnerError>> {
-    let contract = parse_contract(source);
-    TestRunner::default().run_test(db, contract.macros.get(name).unwrap(), &contract).map_err(Box::new)
+    run_source_test_with(&mut TestRunner::default(), db, source, name)
 }
 
 /// Runs the named test macro of the source.
@@ -303,4 +308,81 @@ fn test_runner_rejects_wrong_decorator_values() {
 fn test_runner_rejects_undefined_constant_in_decorator() {
     let err = run_source_test("#[store([MISSING], 0x01)]\n#define test T() = { stop }", "T").unwrap_err();
     assert!(matches!(*err, RunnerError::CompilerError(_)), "{err:?}");
+}
+
+#[test]
+fn test_runner_applies_environment_decorators() {
+    let source = r#"
+    #[caller(0xbeef), coinbase(0xc0ffee), chain_id(5), gas_price(10)]
+    #[block_number(100), timestamp(1700000000), basefee(7), blob_basefee(3)]
+    #[prevrandao(0x2a)]
+    #define test T() = {
+        caller 0x00 mstore
+        origin 0x20 mstore
+        coinbase 0x40 mstore
+        chainid 0x60 mstore
+        gasprice 0x80 mstore
+        number 0xa0 mstore
+        timestamp 0xc0 mstore
+        basefee 0xe0 mstore
+        blobbasefee 0x100 mstore
+        prevrandao 0x120 mstore
+        0x140 0x00 return
+    }
+    "#;
+
+    let result = run_source_test(source, "T").unwrap();
+    let words = [0xbeef, 0xbeef, 0xc0ffee, 5, 10, 100, 1700000000, 7, 3, 0x2a];
+    assert_eq!(result.return_data, Some(words.iter().map(|w| format!("{w:064x}")).collect::<String>()));
+}
+
+#[test]
+fn test_runner_applies_slot_number_decorator() {
+    let source = r#"
+    #[slot_number(12345)]
+    #define test T() = { slotnum 0x00 mstore 0x20 0x00 return }
+    "#;
+
+    let mut runner = runner_with_spec(SpecId::AMSTERDAM);
+    runner.evm_version = EVMVersion::new(SupportedEVMVersions::Amsterdam);
+    let result = run_source_test_with(&mut runner, &mut TestDb::default(), source, "T").unwrap();
+    assert_eq!(result.return_data, Some(format!("{:064x}", 12345)));
+}
+
+#[test]
+fn test_runner_applies_gas_limit_decorator() {
+    // A cold SSTORE needs more than 20000 gas on top of the 21000 the transaction costs
+    let source = "#[gas_limit(30000)]\n#define test T() = { 0x01 0x00 sstore }";
+
+    let result = run_source_test(source, "T").unwrap();
+    assert_eq!(std::mem::discriminant(&result.status), std::mem::discriminant(&TestStatus::Revert));
+}
+
+#[test]
+fn test_runner_resolves_caller_keyword_to_caller_decorator() {
+    // `caller` in a value means the test's sender, even when the `caller` flag comes later
+    let source = r#"
+    #[store(0x01, caller), caller(0xbeef)]
+    #define test T() = { 0x01 sload 0x00 mstore 0x20 0x00 return }
+    "#;
+
+    let result = run_source_test(source, "T").unwrap();
+    assert_eq!(result.return_data, Some(format!("{:064x}", 0xbeef)));
+}
+
+#[test]
+fn test_runner_rejects_out_of_range_environment_values() {
+    for flag in
+        ["chain_id(0x010000000000000000)", "basefee(0x010000000000000000)", "coinbase(0x010000000000000000000000000000000000000000)"]
+    {
+        let err = decorator_error(&format!("#[{flag}]\n#define test T() = {{ stop }}"));
+        assert_eq!(err.kind, DecoratorErrorKind::InvalidValue, "{flag}");
+    }
+}
+
+#[test]
+fn test_runner_rejects_repeated_environment_flag() {
+    let err = decorator_error("#[timestamp(1)]\n#[timestamp(2)]\n#define test T() = { stop }");
+    assert_eq!(err.kind, DecoratorErrorKind::Duplicate);
+    assert_eq!(err.span.0.len(), 2);
 }

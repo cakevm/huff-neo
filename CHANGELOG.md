@@ -14,6 +14,8 @@
   - Example: `#[calldata(__FUNC_SIG(transfer), caller, 100), value([AMOUNT])]`
 - **Breaking**: Reject a repeated `calldata` or `value` flag, where the last one used to win.
 - Fix `calldata(..)` with a string that is not hex panicking.
+- Add test decorators for the transaction and block of a test: `caller`, `gas_limit`, `gas_price`, `block_number`, `timestamp`, `basefee`, `blob_basefee`, `coinbase`, `chain_id`, `prevrandao` and `slot_number`.
+  - Example: `#[caller(0xbeef), timestamp(1700000000), block_number(100)]`
 
 ## [1.6.1] - 2026-10-13
 - Add macro arguments, loop variables, and expressions as `__ASSERT_PC` positions.
