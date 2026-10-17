@@ -360,6 +360,11 @@ impl Codegen {
         }
     }
 
+    /// Resolves a constant to the value `[NAME]` pushes, or `None` for a `__NOOP` constant
+    pub fn gen_constant_value(contract: &Contract, name: &str, span: &AstSpan) -> Result<Option<PushValue>, CodegenError> {
+        constant_gen(name, contract, span)
+    }
+
     /// Generates bytecode for a builtin function call used for constants, code tables, etc.
     /// Returns a PushValue that can be converted to bytecode with or without opcode
     pub fn gen_builtin_bytecode(contract: &Contract, bf: &BuiltinFunctionCall, span: AstSpan) -> Result<PushValue, CodegenError> {

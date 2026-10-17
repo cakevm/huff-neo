@@ -35,10 +35,9 @@ jobs:
           echo "tag=$pkg_version" >> $GITHUB_OUTPUT
 
       - name: Install Wasm Pack
-        uses: jetli/wasm-pack-action@v0.4.0
+        uses: taiki-e/install-action@v2
         with:
-          version: 'latest'
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          tool: wasm-pack
 
       - name: Build
         env:
