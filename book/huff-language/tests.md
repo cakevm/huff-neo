@@ -35,15 +35,35 @@ Available decorators include:
 * `store(slot, value, at = address)` - Set a storage slot before the test runs. `at` is optional and defaults to the
   test itself. `store` can be repeated, but setting the same slot of the same address twice is an error.
 
-`calldata` and `value` may only be given once per test. An unknown decorator flag, or a flag with the wrong
-arguments, fails `hnc test` and points at the flag in the source.
+The test transaction and its block can be changed with these decorators, each taking one value:
+
+| Decorator           | Sets                                               | Example                 |
+|---------------------|----------------------------------------------------|-------------------------|
+| `caller(address)`   | the sender of the test, both `caller` and `origin` | `caller(0xbeef)`        |
+| `gas_limit(n)`      | the gas limit of the test transaction              | `gas_limit(100000)`     |
+| `gas_price(n)`      | `gasprice`                                         | `gas_price(10)`         |
+| `block_number(n)`   | `number`                                           | `block_number(100)`     |
+| `timestamp(n)`      | `timestamp`                                        | `timestamp(1700000000)` |
+| `basefee(n)`        | `basefee`                                          | `basefee(7)`            |
+| `blob_basefee(n)`   | `blobbasefee`                                      | `blob_basefee(1)`       |
+| `coinbase(address)` | `coinbase`                                         | `coinbase(0xc0ffee)`    |
+| `chain_id(n)`       | `chainid`                                          | `chain_id(1)`           |
+| `prevrandao(word)`  | `prevrandao`                                       | `prevrandao(0x2a)`      |
+| `slot_number(n)`    | `slotnum` (Amsterdam)                              | `slot_number(100)`      |
+
+These values are fixed for the whole test, as they are for a real transaction. A value that is not set keeps the
+default of the test runner, which `hnc test` takes from the Foundry configuration and its CLI flags.
+
+`calldata`, `value` and the decorators above may only be given once per test. An unknown decorator flag, or a flag
+with the wrong arguments, fails `hnc test` and points at the flag in the source.
 
 ### Decorator values
-A value that stands for a 32-byte word (`value`, and the slot, value and address of `store`) can be written as:
+A value that stands for a 32-byte word (`value`, the slot, value and address of `store`, and the values of the
+transaction and block decorators) can be written as:
 * a hex literal (`0xbeef`), a decimal literal (`100`), or `true` / `false`
 * a constant (`[OWNER_SLOT]`), including `FREE_STORAGE_POINTER()` constants
 * a builtin call such as `__FUNC_SIG(transfer)` or `__EVENT_HASH(Transfer)`
-* `this` for the address of the test, or `caller` for the sender of the test transaction
+* `this` for the address of the test, or `caller` for the sender of the test transaction, as set by `caller(..)`
 
 A word is the same value Huff would push for it, so `store([OWNER_SLOT], 0xbeef)` sets the slot that
 `[OWNER_SLOT] sload` reads. Shorter values are left-padded with zeros. This also applies to addresses:

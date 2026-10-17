@@ -1,5 +1,5 @@
 use crate::errors::{DecoratorError, DecoratorErrorKind, RunnerError};
-use alloy_primitives::{Address, U256, hex, keccak256};
+use alloy_primitives::{Address, B256, U256, hex, keccak256};
 use huff_neo_codegen::Codegen;
 use huff_neo_utils::ast::huff::{
     BuiltinFunctionArg, BuiltinFunctionCall, BuiltinFunctionKind, Decorator, DecoratorArg, DecoratorFlag, DecoratorValue,
@@ -18,6 +18,35 @@ pub struct TestSpec {
     pub calldata: Vec<u8>,
     /// Storage slots written before the test call, in source order
     pub storage: Vec<StorageWrite>,
+    /// Transaction and block fields of the test call that differ from the runner's
+    pub env: EnvOverrides,
+}
+
+/// Transaction and block fields a test's decorators override; `None` keeps the runner's value
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct EnvOverrides {
+    /// Sender of the test transaction, both `msg.sender` and `tx.origin`
+    pub caller: Option<Address>,
+    /// Gas limit of the test transaction
+    pub gas_limit: Option<u64>,
+    /// Gas price of the test transaction
+    pub gas_price: Option<u128>,
+    /// Block number
+    pub block_number: Option<U256>,
+    /// Block timestamp
+    pub timestamp: Option<U256>,
+    /// Block base fee
+    pub basefee: Option<u64>,
+    /// Blob base fee
+    pub blob_basefee: Option<u128>,
+    /// Block beneficiary
+    pub coinbase: Option<Address>,
+    /// Chain id
+    pub chain_id: Option<u64>,
+    /// Block `prevrandao`
+    pub prevrandao: Option<B256>,
+    /// Beacon slot number read by `slotnum`
+    pub slot_number: Option<u64>,
 }
 
 /// A storage slot set by a `store` decorator flag
@@ -36,7 +65,7 @@ pub struct StorageWrite {
 pub struct SpecContext {
     /// The address of the deployed test, referred to as `this`
     pub this: Address,
-    /// The sender of the test transaction, referred to as `caller`
+    /// The runner's sender of the test transaction; a `caller` flag replaces it as `caller`
     pub caller: Address,
 }
 
@@ -48,7 +77,14 @@ impl TestSpec {
         };
 
         let mut spec = Self::default();
-        let eval = Evaluator { contract, ctx };
+        let mut eval = Evaluator { contract, ctx };
+        // `caller` in other values means the test's sender, wherever the `caller` flag appears
+        if let Some(flag) = decorator.flags.iter().find(|f| f.name == "caller")
+            && let [arg] = flag.args.as_slice()
+            && arg.key.is_none()
+        {
+            eval.ctx.caller = eval.address(flag, arg)?;
+        }
         let mut single_use: HashMap<&str, &DecoratorFlag> = HashMap::new();
         let mut stored_slots: HashMap<(Address, U256), &DecoratorFlag> = HashMap::new();
 
@@ -65,9 +101,8 @@ impl TestSpec {
                     spec.calldata = eval.bytes(flag, &args.positional)?;
                 }
                 "value" => {
-                    check_single_use(&mut single_use, flag)?;
-                    let args = FlagArgs::new(flag, 1..=1, &[], "`value` takes a single call value, e.g. value(0x01)")?;
-                    spec.value = eval.word(flag, args.positional[0])?;
+                    let arg = single_arg(&mut single_use, flag, "a single call value, e.g. value(0x01)")?;
+                    spec.value = eval.word(flag, arg)?;
                 }
                 "store" => {
                     let args = FlagArgs::new(
@@ -92,6 +127,50 @@ impl TestSpec {
                         ));
                     }
                     spec.storage.push(StorageWrite { address, slot, value });
+                }
+                "caller" => {
+                    let arg = single_arg(&mut single_use, flag, "an address, e.g. caller(0xbeef)")?;
+                    spec.env.caller = Some(eval.address(flag, arg)?);
+                }
+                "coinbase" => {
+                    let arg = single_arg(&mut single_use, flag, "an address, e.g. coinbase(0xbeef)")?;
+                    spec.env.coinbase = Some(eval.address(flag, arg)?);
+                }
+                "gas_limit" => {
+                    let arg = single_arg(&mut single_use, flag, "a gas amount, e.g. gas_limit(100000)")?;
+                    spec.env.gas_limit = Some(eval.uint(flag, arg)?);
+                }
+                "gas_price" => {
+                    let arg = single_arg(&mut single_use, flag, "a price in wei, e.g. gas_price(10)")?;
+                    spec.env.gas_price = Some(eval.uint(flag, arg)?);
+                }
+                "block_number" => {
+                    let arg = single_arg(&mut single_use, flag, "a number, e.g. block_number(100)")?;
+                    spec.env.block_number = Some(eval.word(flag, arg)?);
+                }
+                "timestamp" => {
+                    let arg = single_arg(&mut single_use, flag, "a unix time, e.g. timestamp(1700000000)")?;
+                    spec.env.timestamp = Some(eval.word(flag, arg)?);
+                }
+                "basefee" => {
+                    let arg = single_arg(&mut single_use, flag, "a fee in wei, e.g. basefee(7)")?;
+                    spec.env.basefee = Some(eval.uint(flag, arg)?);
+                }
+                "blob_basefee" => {
+                    let arg = single_arg(&mut single_use, flag, "a fee in wei, e.g. blob_basefee(1)")?;
+                    spec.env.blob_basefee = Some(eval.uint(flag, arg)?);
+                }
+                "chain_id" => {
+                    let arg = single_arg(&mut single_use, flag, "a chain id, e.g. chain_id(1)")?;
+                    spec.env.chain_id = Some(eval.uint(flag, arg)?);
+                }
+                "prevrandao" => {
+                    let arg = single_arg(&mut single_use, flag, "a 32-byte value, e.g. prevrandao(0x01)")?;
+                    spec.env.prevrandao = Some(eval.word(flag, arg)?.into());
+                }
+                "slot_number" => {
+                    let arg = single_arg(&mut single_use, flag, "a slot, e.g. slot_number(100)")?;
+                    spec.env.slot_number = Some(eval.uint(flag, arg)?);
                 }
                 name => {
                     return Err(decorator_error(
@@ -183,6 +262,14 @@ impl Evaluator<'_> {
         }
     }
 
+    /// An argument that must fit in a smaller unsigned integer, such as a `u64` gas limit
+    fn uint<T: TryFrom<U256>>(&self, flag: &DecoratorFlag, arg: &DecoratorArg) -> Result<T, RunnerError> {
+        let word = self.word(flag, arg)?;
+        T::try_from(word).map_err(|_| {
+            decorator_error(flag, DecoratorErrorKind::InvalidValue, format!("{word:#x} is too large for `{}`", flag.name), arg.span.clone())
+        })
+    }
+
     /// An argument that must be an address
     fn address(&self, flag: &DecoratorFlag, arg: &DecoratorArg) -> Result<Address, RunnerError> {
         let word = self.word(flag, arg)?;
@@ -240,6 +327,17 @@ impl Evaluator<'_> {
             None => (keccak256(name)[..4].try_into().expect("a selector is 4 bytes"), false),
         })
     }
+}
+
+/// The only argument of a single-use flag that takes one value
+fn single_arg<'a>(
+    seen: &mut HashMap<&'a str, &'a DecoratorFlag>,
+    flag: &'a DecoratorFlag,
+    takes: &str,
+) -> Result<&'a DecoratorArg, RunnerError> {
+    check_single_use(seen, flag)?;
+    let args = FlagArgs::new(flag, 1..=1, &[], &format!("`{}` takes {takes}", flag.name))?;
+    Ok(args.positional[0])
 }
 
 /// Fails when a flag that may appear only once was already given

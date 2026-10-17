@@ -1,4 +1,4 @@
-use crate::prelude::{RunnerError, SpecContext, TestResult, TestSpec, TestStatus};
+use crate::prelude::{EnvOverrides, RunnerError, SpecContext, TestResult, TestSpec, TestStatus};
 use alloy_evm::{Evm, EvmEnv, EvmFactory, eth::EthEvmFactory};
 use alloy_primitives::{Address, B256, Bytes, U256, hex};
 use anvil::eth::backend::mem::inspector::AnvilInspector;
@@ -8,6 +8,7 @@ use huff_neo_utils::ast::huff::MacroDefinition;
 use huff_neo_utils::prelude::{Contract, EVMVersion, deploy_bootstrap};
 use revm::context::result::{ExecutionResult, Output};
 use revm::context::{TransactTo, TxEnv};
+use revm::context_interface::block::BlobExcessGasAndPrice;
 use revm::context_interface::cfg::GasParams;
 use revm::context_interface::cfg::gas_params::Eip2780TxInfo;
 use revm::primitives::hardfork::SpecId;
@@ -55,7 +56,8 @@ impl TestRunner {
             }
             None => {
                 let info = AccountInfo { balance: amount, nonce: 0, code_hash: B256::ZERO, code: None, account_id: None };
-                Account::from(info).with_created_mark()
+                // The database skips untouched accounts on commit, so a new account must be touched as well
+                Account::from(info).with_created_mark().with_touched_mark()
             }
         };
 
@@ -109,7 +111,8 @@ impl TestRunner {
                     code: Some(Bytecode::new_raw(Bytes::from(hex::decode(code).expect("Invalid code")))),
                     account_id: None,
                 };
-                Account::from(info).with_created_mark()
+                // The database skips untouched accounts on commit, so a new account must be touched as well
+                Account::from(info).with_created_mark().with_touched_mark()
             }
         };
 
@@ -177,14 +180,32 @@ impl TestRunner {
         DB: Database<Error = DatabaseError> + DatabaseCommit + std::fmt::Debug,
         <DB as Database>::Error: std::fmt::Debug,
     {
-        let mut env = self.env.clone();
+        self.call_in_env(name, db, self.env.clone(), transact_to, value, data)
+    }
+
+    /// Perform a call to a deployed contract in the given environment instead of the runner's
+    fn call_in_env<DB>(
+        &mut self,
+        name: String,
+        db: &mut DB,
+        mut env: Env,
+        transact_to: Address,
+        value: U256,
+        data: String,
+    ) -> Result<TestResult, RunnerError>
+    where
+        DB: Database<Error = DatabaseError> + DatabaseCommit + std::fmt::Debug,
+        <DB as Database>::Error: std::fmt::Debug,
+    {
         env.tx.chain_id = Some(env.evm_env.chainid());
         env.tx.kind = TransactTo::Call(transact_to);
         env.tx.data = hex::decode(data).expect("Invalid calldata").into();
         env.tx.value = value;
-        env.tx.nonce = 1;
 
         self.set_balance(db, env.tx.caller, U256::MAX)?;
+        // The sender may be the deployer of the test or an address set by a `caller` decorator
+        let sender = db.basic(env.tx.caller).map_err(|e| RunnerError::GenericError(format!("{e:?}")))?;
+        env.tx.nonce = sender.map_or(0, |account| account.nonce);
 
         let mut inspector = self.inspector.clone();
         let mut evm = EthEvmFactory::default().create_evm_with_inspector(db, env.evm_env.clone(), &mut inspector);
@@ -277,7 +298,9 @@ impl TestRunner {
         }
 
         // Call the deployed test
-        let mut res = self.call(name, db, address, spec.value, hex::encode(&spec.calldata))?;
+        let mut env = self.env.clone();
+        apply_env_overrides(&mut env, &spec.env);
+        let mut res = self.call_in_env(name, db, env, address, spec.value, hex::encode(&spec.calldata))?;
 
         // Add source map and address for debugging
         res.source_map = Some(source_map);
@@ -290,6 +313,62 @@ impl TestRunner {
         res.source_files = contract.source_files.clone();
 
         Ok(res)
+    }
+}
+
+/// Sets the transaction and block fields a test overrides
+fn apply_env_overrides(env: &mut Env, overrides: &EnvOverrides) {
+    let EnvOverrides {
+        caller,
+        gas_limit,
+        gas_price,
+        block_number,
+        timestamp,
+        basefee,
+        blob_basefee,
+        coinbase,
+        chain_id,
+        prevrandao,
+        slot_number,
+    } = *overrides;
+    let block = &mut env.evm_env.block_env;
+
+    if let Some(caller) = caller {
+        env.tx.caller = caller;
+    }
+    if let Some(gas_limit) = gas_limit {
+        env.tx.gas_limit = gas_limit;
+        // A transaction may not use more gas than its block allows
+        block.gas_limit = block.gas_limit.max(gas_limit);
+    }
+    if let Some(gas_price) = gas_price {
+        env.tx.gas_price = gas_price;
+    }
+    if let Some(number) = block_number {
+        block.number = number;
+    }
+    if let Some(timestamp) = timestamp {
+        block.timestamp = timestamp;
+    }
+    if let Some(basefee) = basefee {
+        block.basefee = basefee;
+        // The test transaction pays no fee, so a base fee above its gas price must not reject it
+        env.evm_env.cfg_env.disable_base_fee = true;
+    }
+    if let Some(blob_gasprice) = blob_basefee {
+        block.blob_excess_gas_and_price = Some(BlobExcessGasAndPrice { excess_blob_gas: 0, blob_gasprice });
+    }
+    if let Some(coinbase) = coinbase {
+        block.beneficiary = coinbase;
+    }
+    if let Some(chain_id) = chain_id {
+        env.evm_env.cfg_env.chain_id = chain_id;
+    }
+    if let Some(prevrandao) = prevrandao {
+        block.prevrandao = Some(prevrandao);
+    }
+    if let Some(slot_number) = slot_number {
+        block.slot_num = slot_number;
     }
 }
 
