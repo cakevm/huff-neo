@@ -1,4 +1,5 @@
 use crate::errors::{DecoratorError, DecoratorErrorKind, RunnerError};
+use crate::outcome::{Expectations, ExpectedOutcome};
 use alloy_primitives::{Address, B256, U256, hex, keccak256};
 use huff_neo_codegen::Codegen;
 use huff_neo_utils::ast::huff::{
@@ -20,6 +21,8 @@ pub struct TestSpec {
     pub storage: Vec<StorageWrite>,
     /// Transaction and block fields of the test call that differ from the runner's
     pub env: EnvOverrides,
+    /// How the test call must end, and its gas bounds
+    pub expectations: Expectations,
 }
 
 /// Transaction and block fields a test's decorators override; `None` keeps the runner's value
@@ -69,6 +72,91 @@ pub struct SpecContext {
     pub caller: Address,
 }
 
+/// The decorator flags `hnc test` understands
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum DecoratorKind {
+    /// `calldata(bytes...)`: the calldata of the test transaction
+    Calldata,
+    /// `value(word)`: the call value of the test transaction
+    Value,
+    /// `store(slot, value, at = address)`: a storage slot set before the test runs
+    Store,
+    /// `caller(address)`: the sender of the test, both `caller` and `origin`
+    Caller,
+    /// `coinbase(address)`: the block beneficiary
+    Coinbase,
+    /// `gas_limit(n)`: the gas limit of the test transaction
+    GasLimit,
+    /// `gas_price(n)`: the gas price of the test transaction
+    GasPrice,
+    /// `block_number(n)`: the block number
+    BlockNumber,
+    /// `timestamp(n)`: the block timestamp
+    Timestamp,
+    /// `basefee(n)`: the block base fee
+    Basefee,
+    /// `blob_basefee(n)`: the blob base fee
+    BlobBasefee,
+    /// `chain_id(n)`: the chain id
+    ChainId,
+    /// `prevrandao(word)`: the block `prevrandao`
+    Prevrandao,
+    /// `slot_number(n)`: the beacon slot number read by `slotnum`
+    SlotNumber,
+    /// A flag that says how the test must end
+    Outcome(OutcomeFlag),
+    /// `expect_gas(min = n, max = m)`: bounds of the gas the test uses
+    ExpectGas,
+}
+
+/// The flags that say how the test must end; a test can have only one of them
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum OutcomeFlag {
+    /// `expect_revert` or `expect_revert(bytes...)`: the test reverts, with exactly this data when given
+    Revert,
+    /// `expect_partial_revert(bytes...)`: the test reverts with data that starts with this
+    PartialRevert,
+    /// `expect_halt` or `expect_halt("Reason")`: the test halts exceptionally, for this reason when given
+    Halt,
+    /// `expect_return(bytes...)`: the test returns exactly this data
+    Return,
+}
+
+impl DecoratorKind {
+    /// Every flag with its name in the source
+    const NAMES: [(Self, &'static str); 19] = [
+        (Self::Calldata, "calldata"),
+        (Self::Value, "value"),
+        (Self::Store, "store"),
+        (Self::Caller, "caller"),
+        (Self::Coinbase, "coinbase"),
+        (Self::GasLimit, "gas_limit"),
+        (Self::GasPrice, "gas_price"),
+        (Self::BlockNumber, "block_number"),
+        (Self::Timestamp, "timestamp"),
+        (Self::Basefee, "basefee"),
+        (Self::BlobBasefee, "blob_basefee"),
+        (Self::ChainId, "chain_id"),
+        (Self::Prevrandao, "prevrandao"),
+        (Self::SlotNumber, "slot_number"),
+        (Self::Outcome(OutcomeFlag::Revert), "expect_revert"),
+        (Self::Outcome(OutcomeFlag::PartialRevert), "expect_partial_revert"),
+        (Self::Outcome(OutcomeFlag::Halt), "expect_halt"),
+        (Self::Outcome(OutcomeFlag::Return), "expect_return"),
+        (Self::ExpectGas, "expect_gas"),
+    ];
+
+    /// The flag with this name, or `None` for a name `hnc test` does not know
+    fn from_name(name: &str) -> Option<Self> {
+        Self::NAMES.iter().find(|(_, n)| *n == name).map(|(kind, _)| *kind)
+    }
+
+    /// Whether the flag may be given more than once in a test
+    fn is_repeatable(self) -> bool {
+        self == Self::Store
+    }
+}
+
 impl TestSpec {
     /// Checks a test's decorator flags and evaluates their arguments into the setup the runner applies
     pub fn from_decorator(decorator: Option<&Decorator>, contract: &Contract, ctx: SpecContext) -> Result<Self, RunnerError> {
@@ -79,19 +167,31 @@ impl TestSpec {
         let mut spec = Self::default();
         let mut eval = Evaluator { contract, ctx };
         // `caller` in other values means the test's sender, wherever the `caller` flag appears
-        if let Some(flag) = decorator.flags.iter().find(|f| f.name == "caller")
+        if let Some(flag) = decorator.flags.iter().find(|f| DecoratorKind::from_name(&f.name) == Some(DecoratorKind::Caller))
             && let [arg] = flag.args.as_slice()
             && arg.key.is_none()
         {
             eval.ctx.caller = eval.address(flag, arg)?;
         }
-        let mut single_use: HashMap<&str, &DecoratorFlag> = HashMap::new();
+        let mut single_use: HashMap<DecoratorKind, &DecoratorFlag> = HashMap::new();
         let mut stored_slots: HashMap<(Address, U256), &DecoratorFlag> = HashMap::new();
+        let mut outcome_flag: Option<&DecoratorFlag> = None;
 
         for flag in &decorator.flags {
-            match flag.name.as_str() {
-                "calldata" => {
-                    check_single_use(&mut single_use, flag)?;
+            let Some(kind) = DecoratorKind::from_name(&flag.name) else {
+                return Err(decorator_error(
+                    flag,
+                    DecoratorErrorKind::UnknownFlag,
+                    format!("Unknown decorator flag: {}", flag.name),
+                    flag.span.clone(),
+                ));
+            };
+            if !kind.is_repeatable() {
+                check_single_use(&mut single_use, kind, flag)?;
+            }
+
+            match kind {
+                DecoratorKind::Calldata => {
                     let args = FlagArgs::new(
                         flag,
                         1..=usize::MAX,
@@ -100,11 +200,11 @@ impl TestSpec {
                     )?;
                     spec.calldata = eval.bytes(flag, &args.positional)?;
                 }
-                "value" => {
-                    let arg = single_arg(&mut single_use, flag, "a single call value, e.g. value(0x01)")?;
+                DecoratorKind::Value => {
+                    let arg = single_arg(flag, "a single call value, e.g. value(0x01)")?;
                     spec.value = eval.word(flag, arg)?;
                 }
-                "store" => {
+                DecoratorKind::Store => {
                     let args = FlagArgs::new(
                         flag,
                         2..=2,
@@ -128,57 +228,83 @@ impl TestSpec {
                     }
                     spec.storage.push(StorageWrite { address, slot, value });
                 }
-                "caller" => {
-                    let arg = single_arg(&mut single_use, flag, "an address, e.g. caller(0xbeef)")?;
+                DecoratorKind::Caller => {
+                    let arg = single_arg(flag, "an address, e.g. caller(0xbeef)")?;
                     spec.env.caller = Some(eval.address(flag, arg)?);
                 }
-                "coinbase" => {
-                    let arg = single_arg(&mut single_use, flag, "an address, e.g. coinbase(0xbeef)")?;
+                DecoratorKind::Coinbase => {
+                    let arg = single_arg(flag, "an address, e.g. coinbase(0xbeef)")?;
                     spec.env.coinbase = Some(eval.address(flag, arg)?);
                 }
-                "gas_limit" => {
-                    let arg = single_arg(&mut single_use, flag, "a gas amount, e.g. gas_limit(100000)")?;
+                DecoratorKind::GasLimit => {
+                    let arg = single_arg(flag, "a gas amount, e.g. gas_limit(100000)")?;
                     spec.env.gas_limit = Some(eval.uint(flag, arg)?);
                 }
-                "gas_price" => {
-                    let arg = single_arg(&mut single_use, flag, "a price in wei, e.g. gas_price(10)")?;
+                DecoratorKind::GasPrice => {
+                    let arg = single_arg(flag, "a price in wei, e.g. gas_price(10)")?;
                     spec.env.gas_price = Some(eval.uint(flag, arg)?);
                 }
-                "block_number" => {
-                    let arg = single_arg(&mut single_use, flag, "a number, e.g. block_number(100)")?;
+                DecoratorKind::BlockNumber => {
+                    let arg = single_arg(flag, "a number, e.g. block_number(100)")?;
                     spec.env.block_number = Some(eval.word(flag, arg)?);
                 }
-                "timestamp" => {
-                    let arg = single_arg(&mut single_use, flag, "a unix time, e.g. timestamp(1700000000)")?;
+                DecoratorKind::Timestamp => {
+                    let arg = single_arg(flag, "a unix time, e.g. timestamp(1700000000)")?;
                     spec.env.timestamp = Some(eval.word(flag, arg)?);
                 }
-                "basefee" => {
-                    let arg = single_arg(&mut single_use, flag, "a fee in wei, e.g. basefee(7)")?;
+                DecoratorKind::Basefee => {
+                    let arg = single_arg(flag, "a fee in wei, e.g. basefee(7)")?;
                     spec.env.basefee = Some(eval.uint(flag, arg)?);
                 }
-                "blob_basefee" => {
-                    let arg = single_arg(&mut single_use, flag, "a fee in wei, e.g. blob_basefee(1)")?;
+                DecoratorKind::BlobBasefee => {
+                    let arg = single_arg(flag, "a fee in wei, e.g. blob_basefee(1)")?;
                     spec.env.blob_basefee = Some(eval.uint(flag, arg)?);
                 }
-                "chain_id" => {
-                    let arg = single_arg(&mut single_use, flag, "a chain id, e.g. chain_id(1)")?;
+                DecoratorKind::ChainId => {
+                    let arg = single_arg(flag, "a chain id, e.g. chain_id(1)")?;
                     spec.env.chain_id = Some(eval.uint(flag, arg)?);
                 }
-                "prevrandao" => {
-                    let arg = single_arg(&mut single_use, flag, "a 32-byte value, e.g. prevrandao(0x01)")?;
+                DecoratorKind::Prevrandao => {
+                    let arg = single_arg(flag, "a 32-byte value, e.g. prevrandao(0x01)")?;
                     spec.env.prevrandao = Some(eval.word(flag, arg)?.into());
                 }
-                "slot_number" => {
-                    let arg = single_arg(&mut single_use, flag, "a slot, e.g. slot_number(100)")?;
+                DecoratorKind::SlotNumber => {
+                    let arg = single_arg(flag, "a slot, e.g. slot_number(100)")?;
                     spec.env.slot_number = Some(eval.uint(flag, arg)?);
                 }
-                name => {
-                    return Err(decorator_error(
-                        flag,
-                        DecoratorErrorKind::UnknownFlag,
-                        format!("Unknown decorator flag: {name}"),
-                        flag.span.clone(),
-                    ));
+                DecoratorKind::Outcome(outcome) => {
+                    if let Some(first) = outcome_flag {
+                        return Err(decorator_error(
+                            flag,
+                            DecoratorErrorKind::Conflict,
+                            format!("`{}` conflicts with `{}`: a test can expect only one way to end", flag.name, first.name),
+                            joined_span(first, flag),
+                        ));
+                    }
+                    outcome_flag = Some(flag);
+                    spec.expectations.outcome = eval.expected_outcome(flag, outcome)?;
+                    spec.expectations.outcome_flag = Some(flag.name.clone());
+                }
+                DecoratorKind::ExpectGas => {
+                    let usage = "`expect_gas` takes `min =` and/or `max =`, e.g. expect_gas(max = 30000)";
+                    let args = FlagArgs::new(flag, 0..=0, &["min", "max"], usage)?;
+                    if args.named.is_empty() {
+                        return Err(decorator_error(flag, DecoratorErrorKind::InvalidArguments, usage, flag.span.clone()));
+                    }
+                    let min = args.named.get("min").map(|arg| eval.uint::<u64>(flag, arg)).transpose()?;
+                    let max = args.named.get("max").map(|arg| eval.uint::<u64>(flag, arg)).transpose()?;
+                    if let (Some(min), Some(max)) = (min, max)
+                        && min > max
+                    {
+                        return Err(decorator_error(
+                            flag,
+                            DecoratorErrorKind::InvalidValue,
+                            format!("`min` ({min}) is larger than `max` ({max})"),
+                            flag.span.clone(),
+                        ));
+                    }
+                    spec.expectations.min_gas = min;
+                    spec.expectations.max_gas = max;
                 }
             }
         }
@@ -262,6 +388,43 @@ impl Evaluator<'_> {
         }
     }
 
+    /// How an outcome flag (`expect_revert`, `expect_partial_revert`, `expect_halt`, `expect_return`) expects the test to end
+    fn expected_outcome(&self, flag: &DecoratorFlag, outcome: OutcomeFlag) -> Result<ExpectedOutcome, RunnerError> {
+        let outcome = match outcome {
+            OutcomeFlag::Revert => {
+                let usage = "`expect_revert` takes nothing, or the exact revert data, e.g. expect_revert(__ERROR(Unauthorized))";
+                let args = FlagArgs::new(flag, 0..=usize::MAX, &[], usage)?;
+                ExpectedOutcome::Revert(self.optional_bytes(flag, &args.positional)?)
+            }
+            OutcomeFlag::PartialRevert => {
+                let usage = "`expect_partial_revert` takes the start of the revert data, e.g. expect_partial_revert(__ERROR(Unauthorized))";
+                let args = FlagArgs::new(flag, 1..=usize::MAX, &[], usage)?;
+                ExpectedOutcome::PartialRevert(self.bytes(flag, &args.positional)?)
+            }
+            OutcomeFlag::Halt => {
+                let usage = "`expect_halt` takes nothing, or a halt reason, e.g. expect_halt(\"OutOfGas\")";
+                let args = FlagArgs::new(flag, 0..=1, &[], usage)?;
+                let reason = match args.positional.first() {
+                    None => None,
+                    Some(DecoratorArg { value: DecoratorValue::Str(reason), .. }) => Some(reason.clone()),
+                    Some(arg) => return Err(decorator_error(flag, DecoratorErrorKind::InvalidValue, usage, arg.span.clone())),
+                };
+                ExpectedOutcome::Halt(reason)
+            }
+            OutcomeFlag::Return => {
+                let usage = "`expect_return` takes the exact return data, e.g. expect_return(0x01)";
+                let args = FlagArgs::new(flag, 0..=usize::MAX, &[], usage)?;
+                ExpectedOutcome::Return(Some(self.bytes(flag, &args.positional)?))
+            }
+        };
+        Ok(outcome)
+    }
+
+    /// The bytes of a byte sequence, or `None` when there are no arguments
+    fn optional_bytes(&self, flag: &DecoratorFlag, args: &[&DecoratorArg]) -> Result<Option<Vec<u8>>, RunnerError> {
+        if args.is_empty() { Ok(None) } else { self.bytes(flag, args).map(Some) }
+    }
+
     /// An argument that must fit in a smaller unsigned integer, such as a `u64` gas limit
     fn uint<T: TryFrom<U256>>(&self, flag: &DecoratorFlag, arg: &DecoratorArg) -> Result<T, RunnerError> {
         let word = self.word(flag, arg)?;
@@ -329,20 +492,19 @@ impl Evaluator<'_> {
     }
 }
 
-/// The only argument of a single-use flag that takes one value
-fn single_arg<'a>(
-    seen: &mut HashMap<&'a str, &'a DecoratorFlag>,
-    flag: &'a DecoratorFlag,
-    takes: &str,
-) -> Result<&'a DecoratorArg, RunnerError> {
-    check_single_use(seen, flag)?;
+/// The only argument of a flag that takes one value
+fn single_arg<'a>(flag: &'a DecoratorFlag, takes: &str) -> Result<&'a DecoratorArg, RunnerError> {
     let args = FlagArgs::new(flag, 1..=1, &[], &format!("`{}` takes {takes}", flag.name))?;
     Ok(args.positional[0])
 }
 
 /// Fails when a flag that may appear only once was already given
-fn check_single_use<'a>(seen: &mut HashMap<&'a str, &'a DecoratorFlag>, flag: &'a DecoratorFlag) -> Result<(), RunnerError> {
-    match seen.insert(flag.name.as_str(), flag) {
+fn check_single_use<'a>(
+    seen: &mut HashMap<DecoratorKind, &'a DecoratorFlag>,
+    kind: DecoratorKind,
+    flag: &'a DecoratorFlag,
+) -> Result<(), RunnerError> {
+    match seen.insert(kind, flag) {
         Some(first) => Err(decorator_error(
             flag,
             DecoratorErrorKind::Duplicate,
@@ -361,4 +523,15 @@ fn joined_span(first: &DecoratorFlag, second: &DecoratorFlag) -> AstSpan {
 /// An error pointing at a decorator flag the runner cannot apply
 fn decorator_error(flag: &DecoratorFlag, kind: DecoratorErrorKind, hint: impl Into<String>, span: AstSpan) -> RunnerError {
     RunnerError::InvalidDecorator(DecoratorError { flag: flag.name.clone(), kind, hint: hint.into(), span })
+}
+
+#[cfg(test)]
+#[test]
+fn test_decorator_names_map_to_their_kind() {
+    let mut names = std::collections::HashSet::new();
+    for (kind, name) in DecoratorKind::NAMES {
+        assert!(names.insert(name), "`{name}` is listed twice");
+        assert_eq!(DecoratorKind::from_name(name), Some(kind), "{name}");
+    }
+    assert_eq!(DecoratorKind::from_name("origin"), None);
 }

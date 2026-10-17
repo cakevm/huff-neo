@@ -17,6 +17,9 @@ pub mod errors;
 /// The decorator spec module
 pub mod spec;
 
+/// The test outcome module
+pub mod outcome;
+
 use alloy_primitives::map::AddressHashMap;
 /// Re-export the Inspector from anvil crate
 pub use anvil::eth::backend::mem::inspector::AnvilInspector;
@@ -37,7 +40,7 @@ pub use revm::context::TxEnv;
 
 /// Prelude wraps all modules within the crate
 pub mod prelude {
-    pub use crate::{errors::*, report::*, runner::*, spec::*, types::*};
+    pub use crate::{errors::*, outcome::*, report::*, runner::*, spec::*, types::*};
 }
 
 /// A vector of shared references to test macro definitions

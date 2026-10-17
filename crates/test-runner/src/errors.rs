@@ -46,6 +46,8 @@ pub enum DecoratorErrorKind {
     InvalidValue,
     /// A single-use flag is repeated, or a storage slot is set twice
     Duplicate,
+    /// The flag contradicts another flag, such as two ways for the test to end
+    Conflict,
 }
 
 /// A decorator flag the test runner cannot apply, pointing at the offending source
