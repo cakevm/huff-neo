@@ -156,3 +156,92 @@ fn fails_to_parse_decorator_in_body() {
         }
     }
 }
+
+#[test]
+fn parses_builtin_functions_in_decorator() {
+    // Builtin calls are decorator arguments, so nested builtins must lex as builtin functions
+    let source = "#[calldata(__RIGHTPAD(__FUNC_SIG(transfer)))]";
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens =
+        lexer.into_iter().map(|x| x.unwrap()).filter(|t| !matches!(t.kind, TokenKind::Whitespace | TokenKind::Eof)).collect::<Vec<Token>>();
+
+    assert_eq!(
+        tokens,
+        vec![
+            Token::new(TokenKind::Pound, Span::new(0..1, None)),
+            Token::new(TokenKind::OpenBracket, Span::new(1..2, None)),
+            Token::new(TokenKind::Ident(String::from("calldata")), Span::new(2..10, None)),
+            Token::new(TokenKind::OpenParen, Span::new(10..11, None)),
+            Token::new(TokenKind::BuiltinFunction(String::from("__RIGHTPAD")), Span::new(11..21, None)),
+            Token::new(TokenKind::OpenParen, Span::new(21..22, None)),
+            Token::new(TokenKind::BuiltinFunction(String::from("__FUNC_SIG")), Span::new(22..32, None)),
+            Token::new(TokenKind::OpenParen, Span::new(32..33, None)),
+            Token::new(TokenKind::Ident(String::from("transfer")), Span::new(33..41, None)),
+            Token::new(TokenKind::CloseParen, Span::new(41..42, None)),
+            Token::new(TokenKind::CloseParen, Span::new(42..43, None)),
+            Token::new(TokenKind::CloseParen, Span::new(43..44, None)),
+            Token::new(TokenKind::CloseBracket, Span::new(44..45, None)),
+        ]
+    );
+}
+
+#[test]
+fn parses_keywords_as_identifiers_in_decorator() {
+    // Decorator flags and arguments may use keyword names such as `returns` or `indexed`
+    let source = "#[returns(indexed, macro)]";
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens =
+        lexer.into_iter().map(|x| x.unwrap()).filter(|t| !matches!(t.kind, TokenKind::Whitespace | TokenKind::Eof)).collect::<Vec<Token>>();
+
+    assert_eq!(
+        tokens,
+        vec![
+            Token::new(TokenKind::Pound, Span::new(0..1, None)),
+            Token::new(TokenKind::OpenBracket, Span::new(1..2, None)),
+            Token::new(TokenKind::Ident(String::from("returns")), Span::new(2..9, None)),
+            Token::new(TokenKind::OpenParen, Span::new(9..10, None)),
+            Token::new(TokenKind::Ident(String::from("indexed")), Span::new(10..17, None)),
+            Token::new(TokenKind::Comma, Span::new(17..18, None)),
+            Token::new(TokenKind::Ident(String::from("macro")), Span::new(19..24, None)),
+            Token::new(TokenKind::CloseParen, Span::new(24..25, None)),
+            Token::new(TokenKind::CloseBracket, Span::new(25..26, None)),
+        ]
+    );
+}
+
+#[test]
+fn parses_definition_after_decorator_with_constant() {
+    // The closing bracket of a `[CONST]` argument must not end the decorator, only its final bracket
+    let source = "#[store([K], 0x01)] #define test T() = {}";
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens =
+        lexer.into_iter().map(|x| x.unwrap()).filter(|t| !matches!(t.kind, TokenKind::Whitespace | TokenKind::Eof)).collect::<Vec<Token>>();
+
+    assert_eq!(
+        tokens,
+        vec![
+            Token::new(TokenKind::Pound, Span::new(0..1, None)),
+            Token::new(TokenKind::OpenBracket, Span::new(1..2, None)),
+            Token::new(TokenKind::Ident(String::from("store")), Span::new(2..7, None)),
+            Token::new(TokenKind::OpenParen, Span::new(7..8, None)),
+            Token::new(TokenKind::OpenBracket, Span::new(8..9, None)),
+            Token::new(TokenKind::Ident(String::from("K")), Span::new(9..10, None)),
+            Token::new(TokenKind::CloseBracket, Span::new(10..11, None)),
+            Token::new(TokenKind::Comma, Span::new(11..12, None)),
+            Token::new(TokenKind::HexLiteral(String::from("01")), Span::new(13..17, None)),
+            Token::new(TokenKind::CloseParen, Span::new(17..18, None)),
+            Token::new(TokenKind::CloseBracket, Span::new(18..19, None)),
+            Token::new(TokenKind::Define, Span::new(20..27, None)),
+            Token::new(TokenKind::Test, Span::new(28..32, None)),
+            Token::new(TokenKind::Ident(String::from("T")), Span::new(33..34, None)),
+            Token::new(TokenKind::OpenParen, Span::new(34..35, None)),
+            Token::new(TokenKind::CloseParen, Span::new(35..36, None)),
+            Token::new(TokenKind::Assign, Span::new(37..38, None)),
+            Token::new(TokenKind::OpenBrace, Span::new(39..40, None)),
+            Token::new(TokenKind::CloseBrace, Span::new(40..41, None)),
+        ]
+    );
+}

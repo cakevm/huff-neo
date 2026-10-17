@@ -5,14 +5,6 @@ use huff_neo_utils::ast::span::AstSpan;
 use huff_neo_utils::file::full_file_source::FullFileSource;
 use huff_neo_utils::{opcodes::Opcode, prelude::*};
 
-fn decorator_flag(name: &str, start: usize, end: usize, args: Vec<DecoratorArg>) -> DecoratorFlag {
-    DecoratorFlag { name: name.to_string(), args, span: AstSpan(vec![Span { start, end, file: None }]) }
-}
-
-fn decorator_arg(value: DecoratorValue, start: usize, end: usize) -> DecoratorArg {
-    DecoratorArg { key: None, value, span: AstSpan(vec![Span { start, end, file: None }]) }
-}
-
 #[test]
 fn empty_macro() {
     let source = "#define macro HELLO_WORLD() = takes(0) returns(4) {}";
@@ -1031,7 +1023,15 @@ fn empty_test_with_decorator() {
     let expected = MacroDefinition {
         name: String::from("MY_TEST"),
         decorator: Some(Decorator {
-            flags: vec![decorator_flag("value", 7, 12, vec![decorator_arg(DecoratorValue::Hex("01".to_string()), 13, 17)])],
+            flags: vec![DecoratorFlag {
+                name: String::from("value"),
+                args: vec![DecoratorArg {
+                    key: None,
+                    value: DecoratorValue::Hex(String::from("01")),
+                    span: AstSpan(vec![Span { start: 13, end: 17, file: None }]),
+                }],
+                span: AstSpan(vec![Span { start: 7, end: 12, file: None }]),
+            }],
         }),
         parameters: vec![],
         statements: vec![],
@@ -1085,8 +1085,24 @@ fn empty_test_with_multi_flag_decorator() {
         name: String::from("MY_TEST"),
         decorator: Some(Decorator {
             flags: vec![
-                decorator_flag("calldata", 7, 15, vec![decorator_arg(DecoratorValue::Str("0x02".to_string()), 16, 22)]),
-                decorator_flag("value", 25, 30, vec![decorator_arg(DecoratorValue::Hex("01".to_string()), 31, 35)]),
+                DecoratorFlag {
+                    name: String::from("calldata"),
+                    args: vec![DecoratorArg {
+                        key: None,
+                        value: DecoratorValue::Str(String::from("0x02")),
+                        span: AstSpan(vec![Span { start: 16, end: 22, file: None }]),
+                    }],
+                    span: AstSpan(vec![Span { start: 7, end: 15, file: None }]),
+                },
+                DecoratorFlag {
+                    name: String::from("value"),
+                    args: vec![DecoratorArg {
+                        key: None,
+                        value: DecoratorValue::Hex(String::from("01")),
+                        span: AstSpan(vec![Span { start: 31, end: 35, file: None }]),
+                    }],
+                    span: AstSpan(vec![Span { start: 25, end: 30, file: None }]),
+                },
             ],
         }),
         parameters: vec![],
