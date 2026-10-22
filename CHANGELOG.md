@@ -3,6 +3,7 @@
 # Huff Neo Compiler changelog
 
 ## Unreleased
+- Fix `remappings.txt` with Windows line endings.
 
 ## [1.6.2] - 2026-10-17
 - Add stacked decorator blocks on tests, merged in source order, with an optional trailing comma.
