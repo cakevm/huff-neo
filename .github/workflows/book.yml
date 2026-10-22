@@ -61,7 +61,7 @@ jobs:
 
       - name: Generate sitemap
         run: |
-          npm install static-sitemap-cli
+          npm install static-sitemap-cli@2
           cd target/book
           npx sscli --no-clean --base https://www.huff-neo.rs
 
