@@ -112,7 +112,7 @@ impl Remapper {
         if remappings_file.is_file() {
             let content = fs::read_to_string(remappings_file).map_err(|err| err.to_string()).unwrap();
 
-            let rem_lines = content.split('\n').collect::<Vec<&str>>();
+            let rem_lines = content.lines().collect::<Vec<&str>>();
             let rem = rem_lines.iter().filter(|l| l != &&"").map(|l| l.split_once('=')).collect::<Vec<Option<(&str, &str)>>>();
             rem.iter().for_each(|pair| {
                 if let Some((lib, path)) = pair {
