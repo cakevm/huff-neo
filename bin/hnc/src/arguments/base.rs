@@ -26,7 +26,7 @@ pub struct HuffArgs {
     pub outputdir: String,
 
     /// The constructor arguments, separated by spaces
-    #[clap(short = 'i', long = "inputs", num_args = 1..)]
+    #[clap(short = 'i', long = "inputs", num_args = 1.., allow_negative_numbers = true)]
     pub inputs: Option<Vec<String>>,
 
     /// Prompt for the constructor arguments, then write the artifacts

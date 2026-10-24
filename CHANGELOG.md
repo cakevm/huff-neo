@@ -38,6 +38,7 @@
 - Fix `FREE_STORAGE_POINTER()` constants used only by tests failing with "Storage Pointers Not Derived".
 - Fix `-s` being ignored, so `hnc -s ./src` compiles the contracts in that directory.
 - Fix `-n` without `-b` prompting for nothing and writing no artifacts.
+- Fix a negative `-i` value such as `-5` being rejected as an unknown flag.
 - Fix `-g` with a bare file name failing to write the interface.
 - Fix the gas of a test transaction being capped at 16,777,216 regardless of `--gas-limit`.
 - Fix `--no-storage-caching` and `--no-rpc-rate-limit` having no effect in `hnc test`.

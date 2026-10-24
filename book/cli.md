@@ -181,7 +181,7 @@ To enter the arguments interactively instead, use the `-n` flag.
 
 When the contract declares its constructor, for example `#define function constructor(string,uint256)`, each
 argument is read as the declared type, and the number of arguments must match. Arrays are written as
-`"[1,2,3]"` and tuples as `"(7,true)"`. Without a declaration the type is guessed from the text: a decimal number is a `uint256`, a signed
+`"[1,2,3]"`, tuples as `"(7,true)"`, and negative numbers as they are, such as `-5`. Without a declaration the type is guessed from the text: a decimal number is a `uint256`, a signed
 number an `int256`, `true` or `false` a `bool`, `0x` with 40 hex digits an `address`, other `0x` values of up to
 32 bytes a `bytes32`, longer ones `bytes`, and anything else a `string`.
 
