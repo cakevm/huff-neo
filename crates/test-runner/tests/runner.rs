@@ -28,6 +28,19 @@ fn test_runner_return() {
 }
 
 #[test]
+fn test_runner_rejects_invalid_hex() {
+    let runner = TestRunner::default();
+    let mut executor = runner.new_executor().unwrap();
+
+    let deploy = runner.deploy_code(&mut executor, "60zz");
+    assert!(matches!(deploy, Err(RunnerError::InvalidHex("bytecode", _))));
+
+    let deployed_addr = runner.deploy_code(&mut executor, "00").unwrap();
+    let call = runner.call(String::from("ODD"), &mut executor, deployed_addr, U256::ZERO, String::from("abc"));
+    assert!(matches!(call, Err(RunnerError::InvalidHex("calldata", _))));
+}
+
+#[test]
 fn test_runner_stop() {
     let runner = TestRunner::default();
     let mut executor = runner.new_executor().unwrap();

@@ -259,13 +259,11 @@ pub fn builtin_function_gen<'a>(
         }
         BuiltinFunctionKind::ArgsStart => {
             validate_arg_count(bf, 0, "__argsstart")?;
-            // Tests run as runtime code, without constructor arguments
-            if scope_mgr.macro_stack().first().is_some_and(|root| root.test) {
-                return Err(CodegenError { kind: CodegenErrorKind::ArgsStartOutsideConstructor, span: bf.span.clone_box(), token: None });
-            }
-            // The offset is only known once the deployment layout is, so a fixed-width PUSH2 is reserved
-            *offset += Bytes::ArgsStartPlaceholder.len();
-            bytes.push_with_offset(starting_offset, Bytes::ArgsStartPlaceholder);
+            // The offset is only known once the deployment layout is, so a fixed-width PUSH2 is
+            // reserved. Runtime code rejects it when it is finalized, see `reject_args_start`.
+            let placeholder = Bytes::ArgsStartPlaceholder(bf.span.clone());
+            *offset += placeholder.len();
+            bytes.push_with_offset(starting_offset, placeholder);
         }
         BuiltinFunctionKind::Verbatim => {
             validate_arg_count(bf, 1, "__VERBATIM")?;

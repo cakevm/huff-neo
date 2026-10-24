@@ -121,10 +121,7 @@ impl TestRunner {
     pub fn deploy_code(&self, executor: &mut Executor<EthEvmNetwork>, code: &str) -> Result<Address, RunnerError> {
         // Wrap code in a bootstrap constructor
         let (bootstrap_code, _) = deploy_bootstrap(code.len() / 2, 0);
-        // The following should never panic, as any potential compilation error
-        // as well as an uneven number of hex nibbles should be caught in the
-        // compilation process.
-        let bootstrap = Bytes::from(hex::decode(format!("{bootstrap_code}{code}")).expect("Invalid bootstrap bytecode"));
+        let bootstrap = decode_hex(&format!("{bootstrap_code}{code}"), "bytecode")?;
 
         let sender = self.env.tx.caller;
         self.set_balance(executor, sender, self.initial_balance)?;
@@ -145,7 +142,7 @@ impl TestRunner {
         data: String,
     ) -> Result<TestResult, RunnerError> {
         self.set_balance(executor, self.env.tx.caller, self.initial_balance)?;
-        let calldata = Bytes::from(hex::decode(data).expect("Invalid calldata"));
+        let calldata = decode_hex(&data, "calldata")?;
         self.call_from(name, executor, self.env.tx.caller, transact_to, value, calldata)
     }
 
@@ -222,6 +219,7 @@ impl TestRunner {
         let mut scope_mgr = ScopeManager::new();
         scope_mgr.push_macro(m, 0);
         let res = Codegen::macro_to_bytecode(evm_version, m, &contract, &mut scope_mgr, 0, false, false)?;
+        Codegen::reject_args_start(&res)?;
 
         let functions = huff_functions(&contract, &res.label_indices);
 
@@ -234,7 +232,7 @@ impl TestRunner {
         // Deploy compiled test macro
         let address = match self.target_address {
             Some(address) => {
-                let code = Bytecode::new_raw(Bytes::from(hex::decode(&bytecode).expect("Invalid code")));
+                let code = Bytecode::new_raw(decode_hex(&bytecode, "bytecode")?);
                 executor.set_code(address, code).map_err(db_error)?;
                 address
             }
@@ -338,6 +336,11 @@ fn outcome_of(result: &RawCallResult<EthEvmNetwork>) -> Outcome {
         Some(SuccessOrHalt::Halt(reason)) => Outcome::Halt { reason: format!("{reason:?}") },
         other => Outcome::Halt { reason: format!("{other:?}") },
     }
+}
+
+/// Decodes hex the runner was given, such as compiled code or calldata, naming it in the error
+fn decode_hex(hex: &str, what: &'static str) -> Result<Bytes, RunnerError> {
+    hex::decode(hex).map(Bytes::from).map_err(|e| RunnerError::InvalidHex(what, e.to_string()))
 }
 
 /// Wraps a database failure as a runner error

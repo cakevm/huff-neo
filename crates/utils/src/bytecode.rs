@@ -224,8 +224,9 @@ pub enum Bytes {
     JumpPlaceholder(JumpPlaceholderData),
     /// Circular codesize placeholder - "cccc" for self-referential __codesize
     CircularCodesizePlaceholder(CircularCodesizePlaceholderData),
-    /// `__argsstart()` placeholder - a PUSH2 filled with the offset of the constructor arguments
-    ArgsStartPlaceholder,
+    /// `__argsstart()` placeholder - a PUSH2 filled with the offset of the constructor arguments,
+    /// with the span of the call for errors outside the constructor
+    ArgsStartPlaceholder(AstSpan),
     /// Assert PC placeholder - validates program counter after jump relaxation
     AssertPcPlaceholder(AssertPcPlaceholderData),
 }
@@ -237,7 +238,7 @@ impl Bytes {
             Bytes::Raw(s) => s.clone(),
             Bytes::JumpPlaceholder(data) => data.to_hex(),
             Bytes::CircularCodesizePlaceholder(data) => data.to_hex(),
-            Bytes::ArgsStartPlaceholder => ARGS_START_PLACEHOLDER.to_string(),
+            Bytes::ArgsStartPlaceholder(_) => ARGS_START_PLACEHOLDER.to_string(),
             Bytes::AssertPcPlaceholder(_) => String::new(), // Generates no bytecode
         }
     }
@@ -260,7 +261,7 @@ impl Bytes {
                 // 1 byte for opcode + N bytes for value
                 1 + data.push_opcode.byte_size()
             }
-            Bytes::ArgsStartPlaceholder => ARGS_START_PLACEHOLDER.len() / 2,
+            Bytes::ArgsStartPlaceholder(_) => ARGS_START_PLACEHOLDER.len() / 2,
             Bytes::AssertPcPlaceholder(_) => 0, // Generates no bytecode
         }
     }

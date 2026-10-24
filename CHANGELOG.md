@@ -44,6 +44,7 @@
 - Fix the gas of a test transaction being capped at 16,777,216 regardless of `--gas-limit`.
 - Fix `--no-storage-caching` and `--no-rpc-rate-limit` having no effect in `hnc test`.
 - Fix a test that calls a `fn` halting with `StackUnderflow` when it ends without `stop`.
+- Fix the test runner panicking on invalid hex in code or calldata instead of returning an error.
 - Fix `extcodehash` returning zero for accounts created by `hnc test`.
 - Fix `remappings.txt` with Windows line endings.
 - Fix `-g` and the artifact ABI listing `#define function constructor` as a function named `constructor`.

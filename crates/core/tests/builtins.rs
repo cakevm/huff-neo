@@ -125,12 +125,9 @@ fn test_argsstart_builtin_outside_constructor() {
     let mut contract = Parser::new(tokens, None).parse().unwrap();
     contract.derive_storage_pointers();
 
-    let evm_version = &EVMVersion::default();
-    let (constructor_code, has_custom_bootstrap) = Codegen::generate_constructor_bytecode(evm_version, &contract, None, false).unwrap();
-    let main_code = Codegen::generate_main_bytecode(evm_version, &contract, None, false).unwrap();
-    let err = Codegen::new()
-        .churn(evm_version, Arc::new(FileSource::default()), vec![], &main_code, &constructor_code, has_custom_bootstrap, None, None, false)
-        .unwrap_err();
+    let err = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false).unwrap_err();
+    // The error points at the call
+    assert_eq!(err.span.0[0].start, source.find("__argsstart").unwrap());
     assert_eq!(err.kind, CodegenErrorKind::ArgsStartOutsideConstructor);
 }
 
@@ -150,7 +147,8 @@ fn test_argsstart_builtin_in_test() {
     let test = contract.macros.get("ARGS").unwrap();
     let mut scope_mgr = ScopeManager::new();
     scope_mgr.push_macro(test, 0);
-    let err = Codegen::macro_to_bytecode(&EVMVersion::default(), test, &contract, &mut scope_mgr, 0, false, false).unwrap_err();
+    let res = Codegen::macro_to_bytecode(&EVMVersion::default(), test, &contract, &mut scope_mgr, 0, false, false).unwrap();
+    let err = Codegen::reject_args_start(&res).unwrap_err();
     assert_eq!(err.kind, CodegenErrorKind::ArgsStartOutsideConstructor);
 }
 

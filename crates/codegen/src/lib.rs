@@ -259,6 +259,7 @@ impl Codegen {
 
         // For each MacroInvocation Statement, recurse into bytecode
         let bytecode_res: BytecodeRes = Codegen::macro_to_bytecode(evm_version, m_macro, &contract, &mut scope_mgr, 0, false, relax_jumps)?;
+        Codegen::reject_args_start(&bytecode_res)?;
 
         tracing::debug!(target: "codegen", "Generated main bytecode. Appending table bytecode...");
 
@@ -266,6 +267,18 @@ impl Codegen {
         let table_out = Codegen::gen_table_bytecode(&contract, bytecode_res, 0, &HashMap::new())?;
         let bytecode = format!("{}{}", table_out.body, table_out.tables);
         Ok(MainBytecodeOutput { bytecode, source_map: table_out.source_map, table_offsets: table_out.local_table_offsets })
+    }
+
+    /// Rejects `__argsstart()` in code that runs as the runtime, such as MAIN or a test, since
+    /// constructor arguments are only part of the deployment code.
+    pub fn reject_args_start(res: &BytecodeRes) -> Result<(), CodegenError> {
+        match res.bytes.iter().find_map(|segment| match &segment.bytes {
+            Bytes::ArgsStartPlaceholder(span) => Some(span),
+            _ => None,
+        }) {
+            Some(span) => Err(CodegenError { kind: CodegenErrorKind::ArgsStartOutsideConstructor, span: span.clone_box(), token: None }),
+            None => Ok(()),
+        }
     }
 
     /// Generates the constructor section in isolation: macro body with all `__tablestart`
@@ -1388,15 +1401,6 @@ impl Codegen {
                 });
             }
             constructor_body = constructor_body.replace(ARGS_START_PLACEHOLDER, &format!("{}{args_start:04x}", Opcode::Push2));
-        }
-
-        // Constructor arguments only exist in the deployment code, so the runtime cannot read them
-        if main_bytecode.contains(ARGS_START_PLACEHOLDER) {
-            return Err(CodegenError {
-                kind: CodegenErrorKind::ArgsStartOutsideConstructor,
-                span: AstSpan(vec![Span { start: 0, end: 0, file: Some(file) }]).boxed(),
-                token: None,
-            });
         }
 
         let constructor_args = Codegen::abi_encode_constructor_args(args);
