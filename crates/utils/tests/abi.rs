@@ -56,3 +56,30 @@ fn test_display_func_param_type() {
         }
     }
 }
+
+#[test]
+fn convert_tuple_function_param_type() {
+    let tuple = FunctionParamType::Tuple(vec![
+        FunctionParamType::Uint(8),
+        FunctionParamType::Tuple(vec![FunctionParamType::String, FunctionParamType::Int(16)]),
+    ]);
+    let func_types = [
+        ("(address,uint256)", FunctionParamType::Tuple(vec![FunctionParamType::Address, FunctionParamType::Uint(256)])),
+        ("(uint8,(string,int16))", tuple.clone()),
+        ("(uint8,(string,int16))[2][]", FunctionParamType::Array(Box::new(tuple), vec![2, 0])),
+        (
+            "(address[],bytes)",
+            FunctionParamType::Tuple(vec![
+                FunctionParamType::Array(Box::new(FunctionParamType::Address), vec![0]),
+                FunctionParamType::Bytes,
+            ]),
+        ),
+    ];
+
+    for (func_type, expected) in func_types {
+        let ac_func_type = FunctionParamType::convert_string_to_type(func_type).unwrap();
+        assert_eq!(ac_func_type, expected);
+        // Tuples display as their canonical ABI name, as used in selectors
+        assert_eq!(ac_func_type.to_string(), func_type);
+    }
+}

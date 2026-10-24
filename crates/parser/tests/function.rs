@@ -268,3 +268,22 @@ fn test_can_prefix_function_arg_names_with_reserved_keywords() {
     let mut parser = Parser::new(tokens, None);
     parser.parse().unwrap();
 }
+
+#[test]
+fn test_function_with_tuple_arguments() {
+    let source: &str = "#define function swap((address maker, uint256 amount) order, (uint8, (string,int16))[2], bytes data) nonpayable returns ((uint256,uint256))";
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let contract = parser.parse().unwrap();
+
+    let function = &contract.functions[0];
+    let input_types: Vec<_> = function.inputs.iter().map(|input| input.arg_type.clone().unwrap()).collect();
+    assert_eq!(input_types, ["(address,uint256)", "(uint8,(string,int16))[2]", "bytes"]);
+    assert_eq!(function.inputs[0].name, Some("order".to_string()));
+    assert_eq!(function.inputs[2].name, Some("data".to_string()));
+    assert_eq!(function.outputs[0].arg_type, Some("(uint256,uint256)".to_string()));
+    // `cast sig 'swap((address,uint256),(uint8,(string,int16))[2],bytes)'`
+    assert_eq!(function.signature, [0x76, 0x32, 0x64, 0x7e]);
+}

@@ -13,23 +13,23 @@ pub struct HuffArgs {
     /// The contract(s) to compile.
     pub path: Option<String>,
 
-    /// The contracts source path.
-    #[clap(short = 's', long = "source-path", default_value = "./contracts")]
-    pub source: String,
+    /// A directory whose Huff contracts are compiled when no path is given.
+    #[clap(short = 's', long = "source-path")]
+    pub source: Option<String>,
 
-    /// The output file path.
+    /// The file the artifact is written to, with `-a`.
     #[clap(short = 'o', long = "output")]
     pub output: Option<String>,
 
-    /// The output directory.
+    /// The directory the artifacts are written to, with `-a`.
     #[clap(short = 'd', long = "output-directory", default_value = "./artifacts")]
     pub outputdir: String,
 
-    /// The input constructor arguments
-    #[clap(short = 'i', long = "inputs", num_args = 1..)]
+    /// The constructor arguments, separated by spaces
+    #[clap(short = 'i', long = "inputs", num_args = 1.., allow_negative_numbers = true)]
     pub inputs: Option<Vec<String>>,
 
-    /// Interactively input the constructor args
+    /// Prompt for the constructor arguments, then write the artifacts
     #[clap(short = 'n', long = "interactive")]
     pub interactive: bool,
 
@@ -45,7 +45,7 @@ pub struct HuffArgs {
     #[clap(long = "relax-jumps")]
     pub relax_jumps: bool,
 
-    /// Generate solidity interface for a Huff artifact
+    /// Generate a Solidity interface next to each contract, optionally with this name
     #[clap(short = 'g', num_args = 0.., long = "interface")]
     pub interface: Option<String>,
 
@@ -56,10 +56,6 @@ pub struct HuffArgs {
     /// Generate and log runtime bytecode. Errors if CONSTRUCTOR returns custom bytes (runtime ≠ MAIN).
     #[clap(short = 'r', long = "bin-runtime")]
     pub bin_runtime: bool,
-
-    /// Prints out to the terminal.
-    #[clap(short = 'p', long = "print")]
-    pub print: bool,
 
     /// Verbose output.
     #[clap(short = 'v', long = "verbose")]
@@ -85,8 +81,8 @@ pub struct HuffArgs {
     #[clap(short = 't', long = "alt-constructor")]
     pub alternative_constructor: Option<String>,
 
-    /// Set the EVM version
-    #[clap(short = 'e', long = "evm-version")]
+    /// The EVM version to compile for, and to run tests with [default: osaka]
+    #[clap(short = 'e', long = "evm-version", value_parser = ["paris", "shanghai", "cancun", "prague", "osaka", "amsterdam"])]
     pub evm_version: Option<String>,
 
     /// Skip the contract and initcode size limit checks (EIP-170/EIP-3860, raised by EIP-7954 in Amsterdam)
@@ -123,7 +119,8 @@ pub enum TestCommands {
 }
 
 impl HuffArgs {
-    /// Preprocesses input files for compiling
+    /// The Huff files to compile: the given file, every file in the given directory, or every file
+    /// in the source path when no path is given
     pub fn get_inputs(&self) -> Result<Vec<String>, CompilerError> {
         match &self.path {
             Some(path) => {
@@ -138,9 +135,9 @@ impl HuffArgs {
                 }
             }
             None => {
-                tracing::debug!(target: "io", "FETCHING SOURCE FILES: {}", self.source);
-                // If there's no path, unpack source files
-                unpack_files(&self.source).map_err(CompilerError::FileUnpackError)
+                let source = self.source.as_deref().unwrap_or_default();
+                tracing::debug!(target: "io", "FETCHING SOURCE FILES: {}", source);
+                unpack_files(source).map_err(CompilerError::FileUnpackError)
             }
         }
     }

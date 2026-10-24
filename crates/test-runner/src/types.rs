@@ -1,6 +1,9 @@
+use crate::internal::HuffFunction;
 use crate::outcome::{Failure, Outcome};
-use anvil::eth::backend::mem::inspector::AnvilInspector;
+use alloy_primitives::Log;
+use clap::ValueEnum;
 use comfy_table::{Cell, Color};
+use foundry_evm::traces::SparsedTraceArena;
 use huff_neo_utils::artifact::SourceMapEntry;
 use serde::Serialize;
 use yansi::Paint;
@@ -19,8 +22,15 @@ pub struct TestResult {
     pub outcome: Outcome,
     /// The expectations the test did not meet
     pub failures: Vec<Failure>,
+    /// The call traces of the test, as far as the runner records them
     #[serde(skip)]
-    pub inspector: AnvilInspector,
+    pub traces: Option<SparsedTraceArena>,
+    /// The logs the test emitted, when the runner collects them
+    #[serde(skip)]
+    pub logs: Option<Vec<Log>>,
+    /// The Huff functions of the test, which traces show as internal calls
+    #[serde(skip)]
+    pub functions: Vec<HuffFunction>,
     /// Source map for the test bytecode (for debugging)
     #[serde(skip)]
     pub source_map: Option<Vec<SourceMapEntry>>,
@@ -46,14 +56,16 @@ pub enum TestStatus {
     Revert,
 }
 
-/// A test report kind
+/// The format of the test report
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, ValueEnum)]
 pub enum ReportKind {
-    /// Signals `gen_report` to format the test report as a table
-    Table,
-    /// Signals `gen_report` to format the test report as a list
+    /// Each test with its failures, logs and traces
+    #[default]
     List,
-    /// Signals `gen_report` to format the test report as JSON
-    JSON,
+    /// A table of the tests and their gas
+    Table,
+    /// Machine-readable JSON
+    Json,
 }
 
 impl TestStatus {
@@ -79,24 +91,6 @@ impl From<TestStatus> for Cell {
         match status {
             TestStatus::Success => Cell::new("PASS").fg(Color::Green),
             TestStatus::Revert => Cell::new("FAIL").fg(Color::Red),
-        }
-    }
-}
-
-/// Convert a shared reference to an `Option<String>` to a `ReportKind`.
-/// If the `Option<String>` is `None` or there is no ReportKind match,
-/// `ReportKind::List` is returned.
-impl From<&Option<String>> for ReportKind {
-    fn from(str: &Option<String>) -> Self {
-        if let Some(str) = str {
-            match str.to_lowercase().as_str() {
-                "table" => ReportKind::Table,
-                "list" => ReportKind::List,
-                "json" => ReportKind::JSON,
-                _ => ReportKind::List,
-            }
-        } else {
-            ReportKind::List
         }
     }
 }

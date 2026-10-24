@@ -100,11 +100,6 @@ impl JumpPlaceholderData {
         Self { label, push_opcode, suffix, target_offset: Some(target_offset) }
     }
 
-    /// Check if this jump has been resolved
-    pub fn is_resolved(&self) -> bool {
-        self.target_offset.is_some()
-    }
-
     /// Resolve this jump to a target offset
     pub fn resolve(&mut self, target_offset: usize) {
         self.target_offset = Some(target_offset);
@@ -123,11 +118,6 @@ impl JumpPlaceholderData {
 
         format!("{}{}{}", self.push_opcode.to_hex(), value_hex, self.suffix)
     }
-
-    /// Legacy method for compatibility - same as to_hex()
-    pub fn placeholder_string(&self) -> String {
-        self.to_hex()
-    }
 }
 
 /// Data for a circular codesize placeholder
@@ -143,24 +133,22 @@ pub struct CircularCodesizePlaceholderData {
     /// as the surrounding segments. Set once that invocation is fully generated; without it the
     /// size of the whole code is pushed.
     pub measured_range: Option<(usize, usize)>,
+    /// Size of the named macro from the previous compile pass, used when the code being generated
+    /// does not contain the named macro, so its size cannot be measured here
+    pub size_hint: Option<usize>,
 }
 
 impl CircularCodesizePlaceholderData {
     /// Create a new unresolved circular codesize placeholder
     /// Starts with PUSH1 optimistically, may grow during resolution
-    pub fn new(macro_name: String) -> Self {
-        Self { macro_name, push_opcode: PushOpcode::Push1, resolved_value: None, measured_range: None }
+    pub fn new(macro_name: String, size_hint: Option<usize>) -> Self {
+        Self { macro_name, push_opcode: PushOpcode::Push1, resolved_value: None, measured_range: None, size_hint }
     }
 
-    /// Create a circular codesize placeholder with a resolved value
-    pub fn with_value(macro_name: String, size: usize) -> Self {
-        let push_opcode = PushOpcode::optimal_for(size);
-        Self { macro_name, push_opcode, resolved_value: Some(size), measured_range: None }
-    }
-
-    /// Check if this codesize has been resolved
-    pub fn is_resolved(&self) -> bool {
-        self.resolved_value.is_some()
+    /// The size this placeholder pushes: the measured invocation, else the size hint, else the
+    /// whole code it is part of
+    pub fn size(&self, measured: impl FnOnce((usize, usize)) -> usize, total_length: usize) -> usize {
+        self.measured_range.map(measured).or(self.size_hint).unwrap_or(total_length)
     }
 
     /// Resolve this codesize to a specific size
@@ -187,34 +175,11 @@ impl CircularCodesizePlaceholderData {
             "cccc".to_string()
         }
     }
-
-    /// Legacy method for compatibility - same as to_hex()
-    pub fn placeholder_string(&self) -> String {
-        self.to_hex()
-    }
 }
 
-/// Data for a dynamic constructor argument placeholder
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct DynConstructorArgPlaceholderData {
-    /// The constructor argument name
-    pub arg_name: String,
-    /// The destination offset (as a padded hex string)
-    pub dest_offset: String,
-}
-
-impl DynConstructorArgPlaceholderData {
-    /// Create a new dynamic constructor arg placeholder
-    pub fn new(arg_name: String, dest_offset: String) -> Self {
-        Self { arg_name, dest_offset }
-    }
-
-    /// Generate the placeholder string
-    /// Format: 28 'x' characters + arg_name + dest_offset (pre-padded)
-    pub fn placeholder_string(&self) -> String {
-        format!("{}{}{}", "xx".repeat(14), self.arg_name, self.dest_offset)
-    }
-}
+/// The bytecode of `__argsstart()` until the layout is known: a PUSH2 whose value the compiler fills in.
+/// Its value is not hex, so it cannot be mistaken for code or for a jump placeholder.
+pub const ARGS_START_PLACEHOLDER: &str = "61yyyy";
 
 /// Data for an __ASSERT_PC placeholder
 /// This placeholder generates no bytecode but validates the PC during bytecode generation
@@ -242,8 +207,9 @@ pub enum Bytes {
     JumpPlaceholder(JumpPlaceholderData),
     /// Circular codesize placeholder - "cccc" for self-referential __codesize
     CircularCodesizePlaceholder(CircularCodesizePlaceholderData),
-    /// Dynamic constructor arg placeholder
-    DynConstructorArgPlaceholder(DynConstructorArgPlaceholderData),
+    /// `__argsstart()` placeholder - a PUSH2 filled with the offset of the constructor arguments,
+    /// with the span of the call for errors outside the constructor
+    ArgsStartPlaceholder(AstSpan),
     /// Assert PC placeholder - validates program counter after jump relaxation
     AssertPcPlaceholder(AssertPcPlaceholderData),
 }
@@ -255,7 +221,7 @@ impl Bytes {
             Bytes::Raw(s) => s.clone(),
             Bytes::JumpPlaceholder(data) => data.to_hex(),
             Bytes::CircularCodesizePlaceholder(data) => data.to_hex(),
-            Bytes::DynConstructorArgPlaceholder(data) => data.placeholder_string(),
+            Bytes::ArgsStartPlaceholder(_) => ARGS_START_PLACEHOLDER.to_string(),
             Bytes::AssertPcPlaceholder(_) => String::new(), // Generates no bytecode
         }
     }
@@ -278,10 +244,7 @@ impl Bytes {
                 // 1 byte for opcode + N bytes for value
                 1 + data.push_opcode.byte_size()
             }
-            Bytes::DynConstructorArgPlaceholder(data) => {
-                // 28 'x' characters = 14 bytes + arg_name + dest_offset
-                14 + (data.arg_name.len() / 2) + (data.dest_offset.len() / 2)
-            }
+            Bytes::ArgsStartPlaceholder(_) => ARGS_START_PLACEHOLDER.len() / 2,
             Bytes::AssertPcPlaceholder(_) => 0, // Generates no bytecode
         }
     }
@@ -477,7 +440,7 @@ impl BytecodeSegments {
         let mut growth = 0;
         for segment in &mut self.segments {
             if let Bytes::CircularCodesizePlaceholder(ref mut data) = segment.bytes {
-                let size = data.measured_range.map_or(total_length, |(start, end)| end - start);
+                let size = data.size(|(start, end)| end - start, total_length);
                 growth += data.resolve(size);
             }
         }

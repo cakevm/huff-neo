@@ -13,6 +13,9 @@ pub enum RunnerError {
     #[error("Deployment Error: {0}")]
     DeploymentError(String),
 
+    #[error("Invalid {0}: {1}")]
+    InvalidHex(&'static str, String),
+
     #[error("{0}")]
     InvalidDecorator(DecoratorError),
 

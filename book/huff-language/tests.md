@@ -15,12 +15,16 @@ must end and what state it must leave behind.
 }
 ```
 
-Run the tests of a file with `hnc test`. For more information, see the [CLI Resources](../cli.md).
+Run the tests of a file with `hnc ./path/to/Contract.huff test`. For more information, see the [CLI Resources](../cli.md).
 
-Huff tests check the code of a contract from the inside. For tests that call a deployed contract, or that need
-Foundry cheatcodes, use Foundry with [foundry-huff-neo](https://github.com/cakevm/foundry-huff-neo). `hnc test` does
-not support cheatcodes yet: a test that calls the cheatcode address `0x7109709ECfa91a80626fF3989D68f67F5b1DD12D`
-fails instead of silently doing nothing.
+`hnc test` runs each test on Foundry's EVM executor, the same engine as `forge test`. The test is deployed at
+Foundry's test address `0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496` and called from Foundry's default sender
+`0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38`, unless `caller(..)`, `--sender` or `--target-address` change them.
+
+A test can call [Foundry cheatcodes](https://getfoundry.sh/reference/cheatcodes/overview) at
+`0x7109709ECfa91a80626fF3989D68f67F5b1DD12D`, for example to change the block in the middle of a test. A failed
+`vm.assert*` fails the test; run with `-vv` to see its message. For tests written in Solidity that call a deployed
+Huff contract, use Foundry with [foundry-huff-neo](https://github.com/cakevm/foundry-huff-neo).
 
 ## Decorators
 Decorators sit directly above a test and hold one or more flags: `#[flag_a(inputs...), flag_b(inputs...)]`. A test
@@ -76,8 +80,8 @@ code or nonce of the same address twice is an error that points at both flags.
 | `etch(address, bytes...)`          | the code at an address, e.g. `etch(0x1000, "0x5f5ff3")`           |
 | `nonce(address, n)`                | the nonce of an account                                           |
 
-The sender of the test has an unlimited balance unless it is dealt one. The test itself and its sender cannot be
-etched.
+A deployed test and its sender start with Foundry's initial balance (`--initial-balance`, by default
+`0xffffffffffffffffffffffff` wei), as in `forge test`, unless they are dealt another one. The test itself and its sender cannot be etched.
 
 ### Expectations
 A test passes when it ends the way its decorators expect. Without an expectation, a test must return: `stop`,
@@ -133,7 +137,7 @@ Storage values are compared as unsigned 256-bit numbers. `at` also works togethe
 #define constant COUNTER_SLOT = FREE_STORAGE_POINTER()
 #define macro INCREMENT() = { [COUNTER_SLOT] sload 0x01 add [COUNTER_SLOT] sstore }
 
-#[value(5), store([COUNTER_SLOT], 0x01)]
+#[value(5), deal(this, 0), store([COUNTER_SLOT], 0x01)]
 #[expect_storage([COUNTER_SLOT], 0x02), expect_balance(this, 5)]
 #define test INCREMENT_ADDS_ONE() = { INCREMENT() }
 ```
@@ -178,10 +182,15 @@ A failing test lists every expectation it did not meet:
 [FAIL] FAILS_TWICE     - Gas used: 16
 ├─ expect_revert: expected revert data 0x82b42900 (Unauthorized), got 0x92665351 (InsufficientBalance)
 ├─ expect_gas: used 16 gas, more than max 1
+├─ RETURN DATA
+└─ 92665351
 ```
 
 With `--format json`, each result has a `passed` flag, an `outcome` (`return`, `revert` or `halt`, with its data or
 reason) and the list of `failures`. `hnc test` exits with status 1 when a test fails.
+
+Run with `-vv` to see console logs, `-vvv` to see the execution trace of failing tests, `-vvvv` for the traces of all
+tests, and `-vvvvv` to add storage changes to the traces, as in `forge test`. See the [CLI Resources](../cli.md).
 
 ## Labels defined in MAIN
 A macro often jumps to a label that `MAIN` defines, such as a shared error exit. A test that invokes the macro

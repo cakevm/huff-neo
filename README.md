@@ -46,8 +46,8 @@ The Huff Neo Compiler `hnc` can be used as drop-in replacement for `huffc`. This
 - `SLOTNUM`, `DUPN`, `SWAPN`, `EXCHANGE` opcodes and larger contract size limits (Glamsterdam upgrade, `-e amsterdam`)
 
 **Test Runner:**
-- Refactored with Foundry's debugging support
-- Mainnet forking support
+- Runs tests on Foundry's EVM executor, the same engine as `forge test`
+- Foundry cheatcodes, traces, debugger and chain forking
 
 For a complete comparison with `huffc`, see the [documentation](https://cakevm.github.io/huff-neo/get-started/comparison-to-huff-rs.html).
 

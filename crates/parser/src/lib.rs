@@ -1525,7 +1525,7 @@ impl Parser {
             // type comes first
             if select_type {
                 arg_spans.push(self.current_token.span.clone());
-                arg.arg_type = Some(self.parse_arg_type()?.to_string());
+                arg.arg_type = Some(self.parse_arg_type()?);
                 // Check if the argument is indexed
                 if has_indexed && self.check(TokenKind::Indexed) {
                     arg.indexed = true;
@@ -2153,17 +2153,44 @@ impl Parser {
         Ok(())
     }
 
-    /// Parses the type of an argument.
-    pub fn parse_arg_type(&mut self) -> Result<TokenKind, ParserError> {
+    /// Parses the type of an argument as its canonical ABI name, such as `uint256[]` or
+    /// `(address,uint256)[2]`.
+    pub fn parse_arg_type(&mut self) -> Result<String, ParserError> {
         match self.current_token.kind.clone() {
-            TokenKind::PrimitiveType(prim) => Ok(self.parse_primitive_type(prim)?),
+            TokenKind::PrimitiveType(prim) => Ok(self.parse_primitive_type(prim)?.to_string()),
             TokenKind::ArrayType(prim, _) => {
                 // The trick is that when we parse the primitive type
                 // of the array, it will consume the current token which is the ArrayType.
                 // So we have to preserve the token before parsing (and matching thus consuming).
                 let token = self.current_token.kind.clone();
                 let _ = self.parse_primitive_type(prim);
-                Ok(token)
+                Ok(token.to_string())
+            }
+            TokenKind::OpenParen => {
+                self.consume();
+                let mut components = vec![self.parse_tuple_component()?];
+                while self.check(TokenKind::Comma) {
+                    self.consume();
+                    components.push(self.parse_tuple_component()?);
+                }
+                self.match_kind(TokenKind::CloseParen)?;
+                let mut tuple = format!("({})", components.join(","));
+                // Arrays of tuples, such as `(uint256,bool)[]` or `(uint256,bool)[2]`
+                while self.check(TokenKind::OpenBracket) {
+                    self.consume();
+                    let size = match self.current_token.kind {
+                        TokenKind::Integer(size) => {
+                            self.consume();
+                            size.to_string()
+                        }
+                        _ => String::new(),
+                    };
+                    self.match_kind(TokenKind::CloseBracket)?;
+                    tuple.push('[');
+                    tuple.push_str(&size);
+                    tuple.push(']');
+                }
+                Ok(tuple)
             }
             kind => Err(ParserError {
                 kind: ParserErrorKind::InvalidArgs(kind),
@@ -2172,6 +2199,15 @@ impl Parser {
                 cursor: self.cursor,
             }),
         }
+    }
+
+    /// Parses a component of a tuple type, whose optional name is not part of the type
+    fn parse_tuple_component(&mut self) -> Result<String, ParserError> {
+        let component = self.parse_arg_type()?;
+        if matches!(self.current_token.kind, TokenKind::Ident(_)) {
+            self.consume();
+        }
+        Ok(component)
     }
 
     /// Parses a primitive EVM type.

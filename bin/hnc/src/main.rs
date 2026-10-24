@@ -11,17 +11,15 @@ mod arguments;
 use crate::arguments::base::TestCommands;
 use crate::arguments::base::{HuffArgs, LabelFormat, get_input};
 use crate::arguments::constants::parse_constant_overrides;
-use alloy_eips::eip7825::MAX_TX_GAS_LIMIT_OSAKA;
-use alloy_primitives::hex;
 use clap::{CommandFactory, Parser};
 use comfy_table::{Cell, Color, Row, Table, modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL};
 use foundry_cli::utils::LoadConfig;
-use foundry_evm_traces::{InternalTraceMode, TracingInspectorConfig};
+use foundry_evm_traces::{InternalTraceMode, TraceRequirements};
 use huff_neo_codegen::Codegen;
 use huff_neo_core::Compiler;
 use huff_neo_test_runner::{
-    AnvilInspector, Env, HuffTester, HuffTesterConfig, TxEnv,
-    prelude::{ReportKind, TestStatus, print_test_report},
+    CheatsConfig, Env, HuffTester, TestRunner, TxEnv, cheats_config,
+    prelude::{TestStatus, print_test_report},
     spec_id_for,
 };
 use huff_neo_utils::ast::span::AstSpan;
@@ -62,7 +60,7 @@ fn main() {
     }
 
     // Check if no argument is provided
-    if cli.path.is_none() {
+    if cli.path.is_none() && cli.source.is_none() {
         println!("{}", Paint::red("No input file provided"));
         // Print help and exit
         command.print_help().unwrap();
@@ -178,7 +176,7 @@ fn main() {
             // Recurse through the macro and generate bytecode
             let mut scope_mgr = huff_neo_utils::scope::ScopeManager::new();
             scope_mgr.push_macro(macro_def, 0);
-            let bytecode_res: BytecodeRes = Codegen::macro_to_bytecode(&evm_version, macro_def, contract, &mut scope_mgr, 0, false, false)
+            let bytecode_res: BytecodeRes = Codegen::macro_to_bytecode(&evm_version, macro_def, contract, &mut scope_mgr, 0, false)
                 .unwrap_or_else(|e| {
                     eprintln!("{}", Paint::red(&CompilerError::CodegenError(e)));
                     exit(1);
@@ -248,36 +246,13 @@ fn main() {
             }
         };
 
-        let (mut config, mut evm_opts) = test_args.load_config_and_evm_opts().unwrap();
-
-        // Explicitly enable isolation for gas reports for more correct gas accounting.
-        if test_args.gas_report {
-            evm_opts.isolate = true;
-        } else {
-            // Do not collect gas report traces if gas report is not enabled.
-            config.fuzz.gas_report_samples = 0;
-            config.invariant.gas_report_samples = 0;
-        }
+        let (config, evm_opts) = test_args.load_config_and_evm_opts().unwrap();
 
         let rt = tokio::runtime::Builder::new_multi_thread().enable_all().build().unwrap();
         let mut any_failed = false;
 
         for contract in &contracts {
-            let mut inspector = AnvilInspector::default().with_tracing();
-            if test_args.verbosity > 2 {
-                inspector = inspector.with_log_collector();
-            }
-            if test_args.verbosity > 3 || test_args.debug {
-                inspector = inspector.with_tracing_config(TracingInspectorConfig::all().with_state_diffs());
-                if test_args.verbosity > 3 {
-                    inspector = inspector.with_trace_printer();
-                }
-            }
-
-            let (evm_env, mut tx_env, resolved_fork): (_, TxEnv, _) = rt.block_on(evm_opts.env_resolved()).unwrap();
-            // EIP-7825 caps any single transaction at 16M gas; foundry's default tx gas limit (~1B)
-            // exceeds this and trips `CallerGasLimitMoreThanBlock`.
-            tx_env.gas_limit = tx_env.gas_limit.min(MAX_TX_GAS_LIMIT_OSAKA);
+            let (evm_env, tx_env, resolved_fork): (_, TxEnv, _) = rt.block_on(evm_opts.env_resolved()).unwrap();
             let mut env = Env { evm_env, tx: tx_env };
 
             // Set the sender address if provided.
@@ -285,35 +260,33 @@ fn main() {
                 env.tx.caller = sender;
             }
 
-            // Disable base fee because simulation would fail
-            env.evm_env.cfg_env.disable_base_fee = true;
-
             // An explicit `--evm-version` overrides the hardfork from the foundry config, so tests
             // execute with the same rules they were compiled for.
             let evm_spec = evm_version_override.map_or_else(|| config.evm_spec_id(), |v| spec_id_for(v.version()));
             env.evm_env.cfg_env.set_spec_and_mainnet_gas_params(evm_spec);
 
-            // Choose the internal function tracing mode, if --decode-internal is provided.
-            let decode_internal = if test_args.decode_internal {
-                // If more than one function matched, we enable simple tracing.
-                // If only one function matched, we enable full tracing. This is done in `run_tests`.
-                if contracts.len() == 1 { InternalTraceMode::Full } else { InternalTraceMode::Simple }
-            } else {
-                InternalTraceMode::None
-            };
+            // With --decode-internal, calls of Huff functions are found from the recorded jumps and their stack
+            let decode_internal = if test_args.decode_internal { InternalTraceMode::Simple } else { InternalTraceMode::None };
 
             let chain_id = env.evm_env.cfg_env.chain_id;
-            let tester_config = HuffTesterConfig::new()
-                .set_debug(test_args.debug)
-                .set_decode_internal(decode_internal)
-                .evm_spec(evm_spec)
-                .evm_version(evm_version)
-                .sender(evm_opts.sender)
-                .with_fork(evm_opts.get_fork_resolved(&config, chain_id, resolved_fork.as_ref()))
-                .enable_isolation(evm_opts.isolate)
-                .target_address(test_args.target_address);
 
-            let tester = HuffTester::new(contract, test_args.match_.clone(), inspector, tester_config, env);
+            // Like forge: console logs from -vv, call traces from -vvv, storage changes from
+            // -vvvvv; the debugger needs every step
+            let cheats_config = cheats_config(CheatsConfig::new(&config, evm_opts.clone(), None, None, false));
+            let mut runner = TestRunner::new(env, test_args.target_address, evm_version, Arc::new(cheats_config));
+            runner.trace_requirements = TraceRequirements::none()
+                .with_calls(test_args.verbosity >= 3)
+                .with_state_changes(test_args.verbosity >= 5)
+                .with_debug(test_args.debug)
+                .with_decode_internal(decode_internal);
+            runner.collect_logs = test_args.verbosity >= 2;
+            runner.live_logs = config.live_logs;
+            runner.isolation = evm_opts.isolate;
+            runner.initial_balance = evm_opts.initial_balance;
+            runner.networks = evm_opts.networks;
+            runner.fork = evm_opts.get_fork_resolved(&config, chain_id, resolved_fork.as_ref());
+
+            let tester = HuffTester::new(contract, test_args.match_.clone(), runner, test_args.debug);
 
             let _guard = rt.enter();
             let start = Instant::now();
@@ -321,7 +294,7 @@ fn main() {
                 Ok(res) => {
                     any_failed |= res.iter().any(|r| r.status != TestStatus::Success);
                     rt.block_on(async {
-                        match print_test_report(res, ReportKind::from(&test_args.format), start).await {
+                        match print_test_report(res, test_args.format, test_args.verbosity, start).await {
                             Ok(_) => {}
                             Err(e) => {
                                 eprintln!("{}", Paint::red(&format!("{e}")));
@@ -408,55 +381,68 @@ fn main() {
         }
     }
 
-    if cli.bytecode {
-        if cli.interactive {
-            tracing::info!(target: "cli", "ENTERING INTERACTIVE MODE");
-            for artifact in &mut artifacts {
-                let mut appended_args = String::default();
-                match artifact.abi {
-                    Some(ref abi) => match abi.constructor {
-                        Some(ref args) => {
-                            println!(
-                                "{} Constructor Arguments for Contract: \"{}\"",
-                                Paint::blue(&"[INTERACTIVE]".to_string()),
-                                artifact.file.path
-                            );
-                            for input in &args.inputs {
-                                let arg_input = get_input(&format!(
+    // Prompt for the constructor arguments, append them to the bytecode and export the artifacts
+    if cli.interactive {
+        tracing::info!(target: "cli", "ENTERING INTERACTIVE MODE");
+        for artifact in &mut artifacts {
+            let mut appended_args = String::default();
+            let mut constructor_args = Vec::new();
+            match artifact.abi {
+                Some(ref abi) => match abi.constructor {
+                    // A constructor without parameters has nothing to ask for
+                    Some(ref args) if !args.inputs.is_empty() => {
+                        println!(
+                            "{} Constructor Arguments for Contract: \"{}\"",
+                            Paint::blue(&"[INTERACTIVE]".to_string()),
+                            artifact.file.path
+                        );
+                        let (inputs, types): (Vec<String>, Vec<String>) = args
+                            .inputs
+                            .iter()
+                            .map(|input| {
+                                let value = get_input(&format!(
                                     "Enter a {:?} for constructor param{}:",
                                     input.kind,
                                     if !input.name.is_empty() { format!(" \"{}\"", input.name) } else { Default::default() }
                                 ));
-                                let encoded =
-                                    Codegen::encode_constructor_args(vec![arg_input]).iter().fold(String::default(), |acc, str| {
-                                        let inner: Vec<u8> = str.abi_encode();
-                                        let hex_args: String = hex::encode(inner.as_slice());
-                                        format!("{acc}{hex_args}")
-                                    });
-                                appended_args.push_str(&encoded);
+                                (value, input.kind.to_string())
+                            })
+                            .unzip();
+                        match Codegen::encode_constructor_args(&inputs, Some(&types)) {
+                            Ok(values) => {
+                                appended_args = Codegen::abi_encode_constructor_args(values);
+                                constructor_args = inputs;
+                            }
+                            Err(e) => {
+                                eprintln!("{}", Paint::red(&CompilerError::CodegenError(e).to_string()));
+                                exit(1);
                             }
                         }
-                        None => {
-                            tracing::warn!(target: "cli", "NO CONSTRUCTOR FOR ABI: {:?}", abi)
-                        }
-                    },
-                    None => {
-                        tracing::warn!(target: "cli", "NO ABI FOR ARTIFACT: {:?}", artifact)
                     }
-                }
-                match Arc::get_mut(artifact) {
-                    Some(art) => {
-                        art.bytecode = format!("{}{appended_args}", art.bytecode);
+                    _ => {
+                        tracing::warn!(target: "cli", "NO CONSTRUCTOR ARGUMENTS FOR ABI: {:?}", abi)
                     }
-                    None => {
-                        tracing::warn!(target: "cli", "FAILED TO ACQUIRE MUTABLE REF TO ARTIFACT")
-                    }
+                },
+                None => {
+                    tracing::warn!(target: "cli", "NO ABI FOR ARTIFACT: {:?}", artifact)
                 }
             }
-            tracing::debug!(target: "cli", "Re-exporting artifacts...");
-            Compiler::export_artifacts(&artifacts, &OutputLocation(cli.output.unwrap_or_else(|| cli.outputdir.clone())));
-            tracing::info!(target: "cli", "RE-EXPORTED INTERACTIVE ARTIFACTS");
+            match Arc::get_mut(artifact) {
+                Some(art) => {
+                    art.bytecode = format!("{}{appended_args}", art.bytecode);
+                    art.constructor_args = constructor_args;
+                }
+                None => {
+                    tracing::warn!(target: "cli", "FAILED TO ACQUIRE MUTABLE REF TO ARTIFACT")
+                }
+            }
         }
+        tracing::debug!(target: "cli", "Re-exporting artifacts...");
+        Compiler::export_artifacts(&artifacts, &OutputLocation(cli.output.unwrap_or_else(|| cli.outputdir.clone())));
+        tracing::info!(target: "cli", "RE-EXPORTED INTERACTIVE ARTIFACTS");
+    }
+
+    if cli.bytecode {
         match sources.len() {
             1 => {
                 if cli.bin_runtime {

@@ -1,7 +1,7 @@
-use crate::prelude::{ReportKind, TestResult, TestStatus};
+use crate::prelude::{HuffFunction, ReportKind, TestResult, TestStatus, decode_huff_internal_calls};
+use alloy_primitives::Address;
 use comfy_table::{Attribute, Cell, Color, ContentArrangement, Row, Table, modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL};
 use foundry_evm::decode::decode_console_logs;
-use foundry_evm::inspectors::{LogCollector, TracingInspector};
 use foundry_evm::traces::{
     CallTraceDecoderBuilder, SparsedTraceArena, decode_trace_arena, identifier::SignaturesIdentifier, render_trace_arena_inner,
 };
@@ -9,7 +9,10 @@ use std::time::Instant;
 use yansi::Paint;
 
 /// Print a report of the test results, formatted according to the `report_kind` parameter.
-pub async fn print_test_report(results: Vec<TestResult>, report_kind: ReportKind, start: Instant) -> eyre::Result<()> {
+///
+/// The verbosity follows forge: call traces at 3 for failing tests and at 4 for every test,
+/// with storage changes at 5.
+pub async fn print_test_report(results: Vec<TestResult>, report_kind: ReportKind, verbosity: u8, start: Instant) -> eyre::Result<()> {
     // Gather how many of our tests passed *before* generating our report,
     // as we pass ownership of `results` to both the `ReportKind::Table`
     // and `ReportKind::List` arms.
@@ -55,17 +58,14 @@ pub async fn print_test_report(results: Vec<TestResult>, report_kind: ReportKind
                     println!("{}", Paint::red(&format!("├─ {}: {}", failure.expectation, failure.message)));
                 }
 
-                let num_logs = match result.inspector.log_collector {
-                    Some(LogCollector::Capture { ref logs }) => logs.len(),
-                    _ => 0,
-                };
+                let num_logs = result.logs.as_ref().map_or(0, Vec::len);
 
                 if let Some(return_data) = result.return_data.clone() {
                     println!("├─ {}", Paint::cyan("RETURN DATA"));
                     println!("{} {return_data}", if num_logs == 0 { "└─" } else { "├─" });
                 }
 
-                if let Some(LogCollector::Capture { ref logs }) = result.inspector.log_collector {
+                if let Some(logs) = &result.logs {
                     let filtered_logs = decode_console_logs(logs);
                     if !filtered_logs.is_empty() {
                         println!("├─ {}", Paint::cyan("CONSOLE LOGS"));
@@ -75,12 +75,13 @@ pub async fn print_test_report(results: Vec<TestResult>, report_kind: ReportKind
                     }
                 }
 
-                if let Some(tracer) = result.inspector.tracer.clone() {
-                    print_call_trace(tracer).await?;
+                let show_traces = verbosity >= 4 || (verbosity == 3 && !result.passed);
+                if show_traces && let Some(traces) = result.traces {
+                    print_call_trace(traces, result.address, &result.functions, verbosity >= 5).await?;
                 }
             }
         }
-        ReportKind::JSON => {
+        ReportKind::Json => {
             if let Ok(o) = serde_json::to_string_pretty(&results) {
                 println!("{o}");
             } else {
@@ -101,7 +102,12 @@ pub async fn print_test_report(results: Vec<TestResult>, report_kind: ReportKind
 }
 
 /// Print the call trace for a given test result.
-async fn print_call_trace(tracer: TracingInspector) -> eyre::Result<()> {
+async fn print_call_trace(
+    mut arena: SparsedTraceArena,
+    address: Option<Address>,
+    functions: &[HuffFunction],
+    with_storage_changes: bool,
+) -> eyre::Result<()> {
     // Create a signature identifier to decode unknown function selectors and events
     let identifier = SignaturesIdentifier::new(false)?;
 
@@ -109,11 +115,13 @@ async fn print_call_trace(tracer: TracingInspector) -> eyre::Result<()> {
     let decoder = CallTraceDecoderBuilder::new().with_signature_identifier(identifier).build();
 
     // Decode and render the trace
-    let mut arena = SparsedTraceArena { arena: tracer.into_traces(), ignored: Default::default(), diagnostics: Default::default() };
     decode_trace_arena(&mut arena, &decoder).await;
+    if let Some(address) = address {
+        decode_huff_internal_calls(&mut arena, address, functions);
+    }
 
     println!("├─ {}", Paint::cyan("TRACES"));
-    println!("{}", render_trace_arena_inner(&arena, false, false));
+    println!("{}", render_trace_arena_inner(&arena, false, with_storage_changes));
 
     Ok(())
 }

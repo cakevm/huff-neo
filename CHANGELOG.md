@@ -3,16 +3,58 @@
 # Huff Neo Compiler changelog
 
 ## Unreleased
+
+## [1.7.0] - 2026-10-24
 - Add the `deal(address, wei)`, `etch(address, bytes...)` and `nonce(address, n)` test decorators to set balances, code and nonces before a test runs.
   - Example: `#[deal(caller, 1000), etch(0x1000, "0x5f5ff3"), nonce(this, 5)]`
 - Add the `expect_storage` and `expect_balance` test expectations to check state after a test, with an exact value or inclusive `min =` and `max =` bounds.
   - Example: `#[expect_storage([COUNTER_SLOT], 0x02), expect_balance(this, 5), expect_balance(caller, min = 1)]`
+- Add Huff function calls to the traces of `hnc test --decode-internal`, named after the file that defines them and with their stack arguments and return values.
+  - Example: `hnc ./src/Math.huff test -vvvv --decode-internal`
+- Add the `__argsstart()` builtin, which pushes the offset of the constructor arguments so a constructor can copy and decode them as Solidity does.
+  - Example: `__argsstart() dup1 codesize sub swap1 0x00 codecopy`
+- Add tuple types to function, event and error definitions, such as `#define function fill((address maker, uint256 amount) order)`, with nested tuples and arrays of tuples.
+  - `-g` declares each tuple type as a struct in the interface.
+- Run tests on Foundry's EVM executor, the engine of `forge test`, so tests can call Foundry cheatcodes.
+  - A failed `vm.assert*` cheatcode fails the test.
+- **Breaking**: Use the verbosity levels of `forge test` in `hnc test`.
+  - `-vv` prints console logs, `-vvv` the traces of failing tests, `-vvvv` the traces of all tests, and `-vvvvv` adds storage changes.
+  - Traces are no longer printed by default, and `-vvvv` no longer prints every executed opcode.
+- **Breaking**: Remove the `--gas-report` flag of `hnc test`, which never printed a report.
+- **Breaking**: Take the EVM options of `forge test` in `hnc test`.
+  - The fork URL moves from `-f` to `-r`.
+  - Add `--ffi`, `--no-isolate`, `--initial-balance`, `--hardfork` and `--live-logs`.
+  - Example: `hnc ./src/Swap.huff test -r $MAINNET_RPC --fork-block-number 21758848 --initial-balance 1000000`
+- **Breaking**: Run tests with the defaults of `forge test`.
+  - Tests are deployed at Foundry's test address `0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496`, which changes the addresses of contracts a test creates.
+  - A deployed test and its sender start with Foundry's initial balance instead of no balance and the maximum balance.
+  - The calls a test makes are isolated, which raises their gas unless `--no-isolate` is passed.
+- **Breaking**: Remove the `-p` flag, which printed nothing.
+- **Breaking**: Reject unknown values of `-e` and of the `hnc test` `--format`, which fell back to a default.
+- **Breaking**: Append the `-i` and `-n` constructor arguments as Solidity's `abi.encode` does, using the types of `#define function constructor(...)` when declared.
+  - A wrong number of arguments or a value that does not fit its declared type is an error.
+- **Breaking**: Remove the `__CODECOPY_DYN_ARG` builtin in favour of `__argsstart()`.
+  - It copied zeros instead of the argument and needed a layout only `hnc -i` produced.
+- **Breaking**: Keep the case of artifact paths, so `./src/Token.huff` is written to `artifacts/src/Token.huff.json` instead of `artifacts/SRC/TOKEN.HUFF.json`.
+- Fix `-a` deleting the whole output directory before writing the artifacts, which removed the sources with `-d ./src`.
 - Fix `FREE_STORAGE_POINTER()` constants used only by tests failing with "Storage Pointers Not Derived".
+- Fix `-s` being ignored, so `hnc -s ./src` compiles the contracts in that directory.
+- Fix `-n` without `-b` prompting for nothing and writing no artifacts.
+- Fix a negative `-i` value such as `-5` being rejected as an unknown flag.
+- Fix `-g` failing to write the interface for a bare file name and writing `memory` on error parameters, which solc rejects.
+- Fix the gas of a test transaction being capped at 16,777,216 regardless of `--gas-limit`.
+- Fix `--no-storage-caching` and `--no-rpc-rate-limit` having no effect in `hnc test`.
 - Fix a test that calls a `fn` halting with `StackUnderflow` when it ends without `stop`.
+- Fix the test runner panicking on invalid hex in code or calldata instead of returning an error.
+- Fix `__codesize(CONSTRUCTOR)` leaving out builtins, labels and jumps, and `__codesize` being off by a byte when two macros, such as MAIN and the constructor, push each other's size.
 - Fix `extcodehash` returning zero for accounts created by `hnc test`.
+- Fix `remappings.txt` with Windows line endings.
+- Fix the constructor in the artifact ABI and `-g`, which listed `#define function constructor` as a function and typed the `CONSTRUCTOR` macro parameters by their names.
+- Fix a cached artifact being reused after the constructor arguments change, such as when `-i` is dropped.
 - Update the book: show how to test a macro that jumps to a label defined in `MAIN`.
 - Update the book: reorganize the test page by topic and replace its example with a tested contract.
-- Fix `remappings.txt` with Windows line endings.
+- Update the book: document every CLI flag as implemented.
+- Update the book: fix builtin names written in the wrong case.
 
 ## [1.6.2] - 2026-10-17
 - Add stacked decorator blocks on tests, merged in source order, with an optional trailing comma.

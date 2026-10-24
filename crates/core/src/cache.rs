@@ -9,7 +9,7 @@ use walkdir::WalkDir;
 pub fn get_cached_artifacts(
     files: &[Arc<FileSource>],
     out: &OutputLocation,
-    constructor_args: String,
+    constructor_args: &[String],
     constant_overrides: &BTreeMap<String, String>,
 ) -> Option<Vec<Arc<Artifact>>> {
     // Check if the file artifacts are already generated the the default "./artifacts/" directory or
@@ -24,7 +24,7 @@ pub fn get_cached_artifacts(
 pub fn resolve_existing_artifacts(
     files: &[Arc<FileSource>],
     output: &OutputLocation,
-    constructor_args: String,
+    constructor_args: &[String],
     constant_overrides: &BTreeMap<String, String>,
 ) -> Option<Vec<(Arc<FileSource>, Artifact)>> {
     let mut artifacts: Vec<(Arc<FileSource>, Artifact)> = Vec::new();
@@ -38,9 +38,14 @@ pub fn resolve_existing_artifacts(
 
     // For each file, check if the artifact file exists at the location
     tracing::debug!(target: "core", "Traversing output directory {}", output_dir);
-    for entry in WalkDir::new(output_dir).into_iter().filter_map(Result::ok).filter(|e| !e.file_type().is_dir()) {
+    // Only JSON files can be artifacts; the output directory may hold other files too
+    let artifact_files = WalkDir::new(output_dir)
+        .into_iter()
+        .filter_map(Result::ok)
+        .filter(|e| e.file_type().is_file() && e.path().extension().is_some_and(|ext| ext == "json"));
+    for entry in artifact_files {
         // Are we expecting this file to be compiled
-        let formatted_path = entry.path().display().to_string().replace(".json", "").replace(output_dir, ".").to_lowercase();
+        let formatted_path = entry.path().with_extension("").display().to_string().replace(output_dir, ".").to_lowercase();
         let expected = file_sources.remove(&formatted_path);
 
         // Try to read the file into an artifact
@@ -49,7 +54,7 @@ pub fn resolve_existing_artifacts(
                 // If we expected compilation, the sources must match
                 match expected {
                     Some(expected_fs) => {
-                        if !artifact.bytecode.ends_with(&constructor_args) {
+                        if artifact.constructor_args != constructor_args {
                             tracing::warn!(target: "core", "Mismatched Constructor Args for Cached Artifact \"{}\"", artifact.file.path);
                             return None;
                         }
@@ -70,8 +75,9 @@ pub fn resolve_existing_artifacts(
                 }
             }
             Err(e) => {
-                // If the artifact is invalid, log the error and continue
-                tracing::error!(target: "core", "Invalid artifact file: {}", e);
+                // The output directory may hold other JSON files, which are only an error when an
+                // artifact was expected
+                tracing::debug!(target: "core", "Not an artifact file: {}", e);
                 if expected.is_some() {
                     tracing::error!(target: "core", "Expected artifact file to be compiled: {}", entry.path().display());
                     return None;

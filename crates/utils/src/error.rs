@@ -221,8 +221,10 @@ pub enum CodegenErrorKind {
     InvalidCodeLength(usize),
     /// Test Invocation
     TestInvocation(String),
-    /// Incorrect dynamic argument index
-    InvalidDynArgIndex,
+    /// Constructor arguments that do not match the declared constructor or cannot be read
+    InvalidConstructorArgs(String),
+    /// `__argsstart()` outside the constructor, where constructor arguments do not exist
+    ArgsStartOutsideConstructor,
     /// Missing Table Size
     MissingTableSize(String),
     /// Unsupported Builtin Function
@@ -233,8 +235,8 @@ pub enum CodegenErrorKind {
     /// `__codesize(RUNTIME)` referenced inside a code table. Code tables contribute to the
     /// runtime size, so embedding the runtime size inside one creates a circular dependency.
     CodesizeRuntimeInCodeTable,
-    /// MAIN codegen failed to converge on a stable runtime size within the iteration cap.
-    RuntimeSizeNotConverged(usize),
+    /// Codegen failed to converge on stable `__codesize` values within the iteration cap.
+    CodesizeNotConverged(usize),
     /// Unsupported Statement Type
     UnsupportedStatementType(String),
     /// Duplicate Label in Same Scope
@@ -366,8 +368,11 @@ impl<W: Write> Report<W> for CodegenError {
             CodegenErrorKind::TestInvocation(msg) => {
                 write!(f.out, "Test cannot be invoked: \"{msg}\"")
             }
-            CodegenErrorKind::InvalidDynArgIndex => {
-                write!(f.out, "Invalid Dynamic Constructor Argument Index")
+            CodegenErrorKind::InvalidConstructorArgs(msg) => {
+                write!(f.out, "Invalid constructor arguments: {msg}")
+            }
+            CodegenErrorKind::ArgsStartOutsideConstructor => {
+                write!(f.out, "__argsstart() can only be used in the constructor")
             }
             CodegenErrorKind::MissingTableSize(table_name) => {
                 write!(f.out, "Missing Table Size for table: \"{table_name}\"")
@@ -381,8 +386,8 @@ impl<W: Write> Report<W> for CodegenError {
             CodegenErrorKind::CodesizeRuntimeInCodeTable => {
                 write!(f.out, "__codesize(RUNTIME) is not allowed inside a code table")
             }
-            CodegenErrorKind::RuntimeSizeNotConverged(iterations) => {
-                write!(f.out, "__codesize(RUNTIME) did not converge after {iterations} MAIN codegen iterations")
+            CodegenErrorKind::CodesizeNotConverged(iterations) => {
+                write!(f.out, "__codesize did not converge after {iterations} codegen passes")
             }
             CodegenErrorKind::UnsupportedStatementType(st) => {
                 write!(f.out, "Unsupported Statement Type: \"{st}\"")
@@ -776,8 +781,15 @@ impl fmt::Display for CompilerError {
                 CodegenErrorKind::TestInvocation(_) => {
                     write!(f, "\nError: Test Invocation\n{}\n", ce.span.error(None))
                 }
-                CodegenErrorKind::InvalidDynArgIndex => {
-                    write!(f, "\nError: Invalid Dynamic Constructor Argument Index:\n{}\n", ce.span.error(None))
+                CodegenErrorKind::InvalidConstructorArgs(msg) => {
+                    write!(f, "\nError: Invalid constructor arguments: {msg}\n{}\n", ce.span.error(None))
+                }
+                CodegenErrorKind::ArgsStartOutsideConstructor => {
+                    write!(
+                        f,
+                        "\nError: __argsstart() can only be used in the constructor, as constructor arguments are not part of the deployed code\n{}\n",
+                        ce.span.error(None)
+                    )
                 }
                 CodegenErrorKind::MissingTableSize(table_name) => {
                     write!(f, "\nError: Missing Table Size for table: \"{table_name}\"\n{}\n", ce.span.error(None))
@@ -795,12 +807,8 @@ impl fmt::Display for CompilerError {
                 CodegenErrorKind::CodesizeRuntimeInCodeTable => {
                     write!(f, "\nError: __codesize(RUNTIME) is not allowed inside a code table\n{}\n", ce.span.error(None))
                 }
-                CodegenErrorKind::RuntimeSizeNotConverged(iterations) => {
-                    write!(
-                        f,
-                        "\nError: __codesize(RUNTIME) did not converge after {iterations} MAIN codegen iterations\n{}\n",
-                        ce.span.error(None)
-                    )
+                CodegenErrorKind::CodesizeNotConverged(iterations) => {
+                    write!(f, "\nError: __codesize did not converge after {iterations} codegen passes\n{}\n", ce.span.error(None))
                 }
                 CodegenErrorKind::UnsupportedStatementType(st) => {
                     write!(f, "\nError: Unsupported Statement Type: \"{st}\"\n{}\n", ce.span.error(None))

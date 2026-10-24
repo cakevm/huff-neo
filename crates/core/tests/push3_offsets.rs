@@ -400,23 +400,18 @@ fn test_constructor_tablestart_beyond_64k_is_rejected() {
 }
 
 #[test]
-fn test_dynamic_constructor_argument_beyond_64k_is_rejected() {
-    let main = Codegen::generate_main_bytecode(
-        &amsterdam(),
-        &parse("#define macro MAIN() = { __CODECOPY_DYN_ARG(0x00, 0x20) } #define macro CONSTRUCTOR() = {}"),
-        None,
-        false,
-    )
-    .unwrap();
-    let args = Codegen::encode_constructor_args(vec![String::from("testing")]);
+fn test_args_start_beyond_64k_is_rejected() {
+    let contract = parse("#define macro MAIN() = {} #define macro CONSTRUCTOR() = { __argsstart() }");
+    let main = Codegen::generate_main_bytecode(&amsterdam(), &contract, None, false).unwrap();
+    let (args_start, _) = Codegen::generate_constructor_bytecode(&amsterdam(), &contract, None, false).unwrap();
 
     // The arguments are appended after a constructor of more than 64 KiB
-    let constructor = "00".repeat(0x10000);
+    let constructor = format!("{args_start}{}", "00".repeat(0x10000));
     let error = Codegen::new()
-        .churn(&amsterdam(), Arc::new(FileSource::default()), args, &main, &constructor, false, None, None, false)
+        .churn(&amsterdam(), Arc::new(FileSource::default()), vec![], &main, &constructor, false, None, None, false)
         .unwrap_err();
     assert!(
-        matches!(&error.kind, CodegenErrorKind::OffsetExceedsTwoBytes(what, offset) if what.contains("__CODECOPY_DYN_ARG") && *offset > 0xffff),
+        matches!(&error.kind, CodegenErrorKind::OffsetExceedsTwoBytes(what, offset) if what.contains("__argsstart()") && *offset > 0xffff),
         "unexpected error {:?}",
         error.kind
     );

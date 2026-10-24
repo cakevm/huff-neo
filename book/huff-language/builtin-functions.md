@@ -1,6 +1,6 @@
 # Builtin Functions
 
-Several builtin functions are provided by the Huff compiler. The functions can be used inside a macro, function definition to generate the desired bytecode. `__RIGHTPAD`, `__LEFTPAD`, `__FUNC_SIG` and `__BYTES` can also be used in a code table. The builtin functions are evaluated at compile time and substituted with the corresponding bytecode.
+Several builtin functions are provided by the Huff compiler. The functions can be used inside a macro or function definition to generate the desired bytecode. `__RIGHTPAD`, `__LEFTPAD`, `__FUNC_SIG` and `__BYTES` can also be used in a code table. The builtin functions are evaluated at compile time and substituted with the corresponding bytecode.
 
 
 ### `__FUNC_SIG(<string>|<function definition>)`
@@ -12,7 +12,7 @@ At compile time, the invocation of `__EVENT_HASH` is substituted with `PUSH32 ev
 ### `__ERROR(<error definition>)`
 At compile time, the invocation of `__ERROR` is substituted with `PUSH32 error_selector`, where `error_selector` is the left-padded 4 byte error selector of the passed error definition.
 
-### `__LEFTPAD(<string>|<hex>|<builtin function>)`
+### `__LEFTPAD(<hex>|<constant>|<builtin function>)`
 At compile time, the invocation of `__LEFTPAD` is substituted with `padded_literal`, where `padded_literal` is the left padded version of the passed input. This function is only available as constant assignment or in a code table.
 
 #### Example
@@ -22,8 +22,8 @@ __LEFTPAD(0x123)
 0x0000000000000000000000000000000000000000000000000000000000000123
 ```
 
-### `__RIGHTPAD(<string>|<hex>|<builtin function>)`
-At compile time, the invocation of `__RIGHTPAD` is substituted with `PUSH32 padded_literal`, where `padded_literal` is the right padded version of the passed input.
+### `__RIGHTPAD(<hex>|<constant>|<builtin function>)`
+At compile time, the invocation of `__RIGHTPAD` is substituted with `PUSH32 padded_literal`, where `padded_literal` is the right padded version of the passed input. In a code table, only the 32 padded bytes are emitted.
 
 #### Example
 ```plaintext
@@ -36,6 +36,8 @@ __RIGHTPAD(0x123)
 Pushes the code size of the macro or function passed to the stack.
 
 Used inside the macro it names (or inside a macro that macro invokes), it pushes the size of that enclosing invocation as emitted, including expanded macros and resized jumps.
+
+Two macros can push each other's size, for example a constructor that copies `__codesize(MAIN)` bytes while MAIN uses `__codesize(CONSTRUCTOR)`. Each value is the exact size, also when the width of one push changes the size of the other macro.
 
 #### `__codesize(RUNTIME)`
 `RUNTIME` is a reserved argument that resolves at compile time to the byte length of the runtime section as the compiler emits it — `MAIN`'s body plus its appended runtime tables. Usable in both `MAIN` and `CONSTRUCTOR` (directly or via a derived `#define constant`).
@@ -86,6 +88,42 @@ Code tables are normally appended after the bytecode. `__EMBED_TABLE` inserts th
     __EMBED_TABLE(DATA)     // deadbeef at offset 0x05
     0x01                    // code continues after the table
 }
+```
+
+### `__argsstart()`
+Pushes the offset in the deployment bytecode where the constructor arguments start. A deployer, such as
+Foundry, `cast` or `hnc -i`, appends the arguments to the deployment bytecode as Solidity's `abi.encode` does, so
+the constructor copies them from there and reads them like calldata. A Solidity constructor does the same with an
+offset that solc fills in.
+
+The arguments are the code from this offset to the end, so `codesize` minus the offset is their length, `0` when
+there are none. The offset is not `__codesize(CONSTRUCTOR)`, which counts only the constructor macro, while the
+arguments also follow the bootstrap, the runtime and the tables only the constructor uses.
+
+The offset is pushed with two bytes, so the arguments must start within the first 64 KiB of the deployment
+bytecode. Constructor arguments are not part of the deployed code, so `__argsstart()` can only be used in the
+`CONSTRUCTOR` and the macros it invokes. In `MAIN`, in tests and in code tables it is a compile error.
+
+#### Example
+```javascript
+#define function constructor(string,uint256) nonpayable returns ()
+
+#define macro CONSTRUCTOR() = takes (0) returns (0) {
+    __argsstart() dup1 codesize sub     // [len, start]
+    swap1 0x00 codecopy                 // abi.encode(name, decimals) at memory 0x00
+
+    0x20 mload 0x00 sstore              // slot 0: decimals, the second head word
+    0x00 mload dup1 mload 0x01 sstore   // slot 1: the name's length, at the offset in the first head word
+    0x20 add mload 0x02 sstore          // slot 2: the first 32 bytes of the name
+}
+
+#define macro MAIN() = takes (0) returns (0) {
+    0x00 0x00 return
+}
+```
+
+```shell
+hnc ./src/Token.huff -b -i "TestToken" 18
 ```
 
 ### `__VERBATIM(<hex>|<constant>|<builtin function>)`

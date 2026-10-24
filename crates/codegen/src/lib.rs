@@ -4,6 +4,7 @@
 #![forbid(unsafe_code)]
 
 use crate::irgen::builtin_function::builtin_pad;
+use alloy_dyn_abi::{DynSolType, DynSolValue};
 use alloy_primitives::{U256, hex};
 use huff_neo_utils::ast::huff::*;
 use huff_neo_utils::ast::span::AstSpan;
@@ -21,9 +22,7 @@ use huff_neo_utils::{
     prelude::{CodegenErrorKind, EVMVersion, PushValue, Span, deploy_bootstrap, format_even_bytes, pad_n_bytes},
     types::EToken,
 };
-use regex::Regex;
 use std::{
-    cmp::Ordering,
     collections::{BTreeMap, HashMap},
     fs,
     path::Path,
@@ -45,13 +44,36 @@ pub(crate) const MAX_MACRO_RECURSION_DEPTH: usize = 100;
 /// though typical contracts converge in a few iterations.
 const JUMP_RELAXATION_MAX_ITERATIONS: usize = 20;
 
-/// Maximum number of MAIN codegen passes used to converge `__codesize(RUNTIME)`.
+/// Maximum number of codegen passes of MAIN or the constructor used to converge `__codesize`.
 ///
 /// When MAIN (or a constant referenced by MAIN) uses `__codesize(RUNTIME)`, the runtime size
-/// depends on the embedded value, which depends on the runtime size. Each pass recompiles MAIN
-/// with the previous pass's measured size. PUSH widths only grow (never shrink) across passes,
-/// and the contract size limit caps the value at PUSH3, so convergence is normally 2–3 iterations.
-const MAIN_RUNTIME_SIZE_MAX_ITERATIONS: usize = 10;
+/// depends on the embedded value, which depends on the runtime size. Likewise, when MAIN and the
+/// constructor push each other's size, each size depends on the width of the other's push. Each
+/// pass recompiles with the previous pass's measured sizes. PUSH widths only grow (never shrink)
+/// across passes, and the size limits cap the values at PUSH3, so convergence takes 2–3 passes.
+const CODESIZE_MAX_ITERATIONS: usize = 10;
+
+/// The source span of the first `__argsstart()` call in generated code, if there is one
+fn args_start_span(res: &BytecodeRes) -> Option<&AstSpan> {
+    res.bytes.iter().find_map(|segment| match &segment.bytes {
+        Bytes::ArgsStartPlaceholder(span) => Some(span),
+        _ => None,
+    })
+}
+
+/// Runs codegen passes until the values a pass depends on are the ones it produces, starting
+/// from `initial`, and returns the output of the last pass
+fn converge_codesizes<T, K: PartialEq>(initial: K, mut pass: impl FnMut(&K) -> Result<(T, K), CodegenError>) -> Result<T, CodegenError> {
+    let mut key = initial;
+    for _ in 0..CODESIZE_MAX_ITERATIONS {
+        let (output, next) = pass(&key)?;
+        if next == key {
+            return Ok(output);
+        }
+        key = next;
+    }
+    Err(CodegenError { kind: CodegenErrorKind::CodesizeNotConverged(CODESIZE_MAX_ITERATIONS), span: AstSpan(vec![]).boxed(), token: None })
+}
 
 /// Compiles Huff contracts into EVM bytecode.
 ///
@@ -218,55 +240,60 @@ impl Codegen {
         alternative_main: Option<String>,
         relax_jumps: bool,
     ) -> Result<MainBytecodeOutput, CodegenError> {
-        // Iterate to a fixed point on `__codesize(RUNTIME)`. Each pass recompiles MAIN with the
-        // previous pass's measured runtime size. PUSH widths only grow across passes, the contract
-        // size limit caps them at PUSH3, so we converge in a handful of iterations.
+        // Iterate to a fixed point on `__codesize(RUNTIME)` and on the macro sizes that `__codesize`
+        // values measured from another macro depend on. Each pass recompiles MAIN with the
+        // previous pass's sizes.
         let mut iter_contract = contract.clone();
-        let mut current_size = iter_contract.runtime_size.unwrap_or(0);
-        for _ in 0..MAIN_RUNTIME_SIZE_MAX_ITERATIONS {
-            iter_contract.runtime_size = Some(current_size);
-            let result = Self::generate_main_bytecode_inner(evm_version, &iter_contract, alternative_main.clone(), relax_jumps)?;
-            let new_size = result.bytecode.len() / 2;
-            if new_size == current_size {
-                return Ok(result);
-            }
-            current_size = new_size;
-        }
-        Err(CodegenError {
-            kind: CodegenErrorKind::RuntimeSizeNotConverged(MAIN_RUNTIME_SIZE_MAX_ITERATIONS),
-            span: AstSpan(vec![]).boxed(),
-            token: None,
+        let initial = (iter_contract.runtime_size.unwrap_or(0), None);
+        converge_codesizes(initial, |(runtime_size, hints)| {
+            iter_contract.runtime_size = Some(*runtime_size);
+            let (output, sizes) =
+                Self::generate_main_bytecode_inner(evm_version, &iter_contract, alternative_main.as_deref(), relax_jumps, hints.as_ref())?;
+            let runtime_size = output.bytecode.len() / 2;
+            Ok((output, (runtime_size, sizes)))
         })
     }
 
+    /// Compiles MAIN once, with the macro sizes of the previous pass. Also returns the macro sizes
+    /// of this pass when a `__codesize` needed them, so they must reach a fixed point.
     fn generate_main_bytecode_inner(
         evm_version: &EVMVersion,
         contract: &Contract,
-        alternative_main: Option<String>,
+        alternative_main: Option<&str>,
         relax_jumps: bool,
-    ) -> Result<MainBytecodeOutput, CodegenError> {
+        codesize_hints: Option<&BTreeMap<String, usize>>,
+    ) -> Result<(MainBytecodeOutput, Option<BTreeMap<String, usize>>), CodegenError> {
         // Update table sizes
         let contract = Self::update_table_size(evm_version, contract)?;
 
         // If an alternative main is provided, then use it as the compilation target
-        let main_macro = alternative_main.unwrap_or_else(|| String::from("MAIN"));
-
-        // Find the main macro
-        let m_macro = Codegen::get_macro_by_name(&main_macro, &contract)?;
+        let m_macro = Codegen::get_macro_by_name(alternative_main.unwrap_or("MAIN"), &contract)?;
 
         // Create scope manager and push the main macro
         let mut scope_mgr = ScopeManager::new();
+        scope_mgr.codesize_hints = codesize_hints.cloned().unwrap_or_default();
         scope_mgr.push_macro(m_macro, 0);
 
         // For each MacroInvocation Statement, recurse into bytecode
-        let bytecode_res: BytecodeRes = Codegen::macro_to_bytecode(evm_version, m_macro, &contract, &mut scope_mgr, 0, false, relax_jumps)?;
+        let bytecode_res: BytecodeRes = Codegen::macro_to_bytecode(evm_version, m_macro, &contract, &mut scope_mgr, 0, relax_jumps)?;
+        Codegen::reject_args_start(&bytecode_res)?;
+        let codesizes = scope_mgr.codesize_hints_used.then_some(scope_mgr.codesizes);
 
         tracing::debug!(target: "codegen", "Generated main bytecode. Appending table bytecode...");
 
         // Main bytecode is not shifted by a bootstrap and has no upstream dedup map.
         let table_out = Codegen::gen_table_bytecode(&contract, bytecode_res, 0, &HashMap::new())?;
         let bytecode = format!("{}{}", table_out.body, table_out.tables);
-        Ok(MainBytecodeOutput { bytecode, source_map: table_out.source_map, table_offsets: table_out.local_table_offsets })
+        Ok((MainBytecodeOutput { bytecode, source_map: table_out.source_map, table_offsets: table_out.local_table_offsets }, codesizes))
+    }
+
+    /// Rejects `__argsstart()` in code that runs as the runtime, such as MAIN or a test, since
+    /// constructor arguments are only part of the deployment code.
+    pub fn reject_args_start(res: &BytecodeRes) -> Result<(), CodegenError> {
+        match args_start_span(res) {
+            Some(span) => Err(CodegenError { kind: CodegenErrorKind::ArgsStartOutsideConstructor, span: span.clone_box(), token: None }),
+            None => Ok(()),
+        }
     }
 
     /// Generates the constructor section in isolation: macro body with all `__tablestart`
@@ -275,7 +302,8 @@ impl Codegen {
     /// This standalone form (tables sitting directly after the body) does not include the
     /// deployment-time auto-bootstrap and is **not** the layout that ends up in the deployed
     /// artifact — use [`Codegen::churn`] for the final assembly. This function exists for tools
-    /// and tests that want to inspect just the constructor section.
+    /// and tests that want to inspect just the constructor section. `__argsstart()` stays a
+    /// placeholder here, as the offset of the arguments depends on the deployment layout.
     pub fn generate_constructor_bytecode(
         evm_version: &EVMVersion,
         contract: &Contract,
@@ -309,12 +337,15 @@ impl Codegen {
         // Find the constructor macro
         let c_macro = Codegen::get_macro_by_name(&constructor_macro, &contract)?;
 
-        // Create scope manager and push the constructor macro
-        let mut scope_mgr = ScopeManager::new();
-        scope_mgr.push_macro(c_macro, 0);
-
-        // For each MacroInvocation Statement, recurse into bytecode
-        let bytecode_res: BytecodeRes = Codegen::macro_to_bytecode(evm_version, c_macro, &contract, &mut scope_mgr, 0, false, relax_jumps)?;
+        // Iterate to a fixed point on the macro sizes that `__codesize` values measured from another
+        // macro depend on, as MAIN does
+        let bytecode_res = converge_codesizes(None, |hints: &Option<BTreeMap<String, usize>>| {
+            let mut scope_mgr = ScopeManager::new();
+            scope_mgr.codesize_hints = hints.clone().unwrap_or_default();
+            scope_mgr.push_macro(c_macro, 0);
+            let res = Codegen::macro_to_bytecode(evm_version, c_macro, &contract, &mut scope_mgr, 0, relax_jumps)?;
+            Ok((res, scope_mgr.codesize_hints_used.then_some(scope_mgr.codesizes)))
+        })?;
 
         // A constructor body containing a RETURN means the user is supplying their own deployment
         // bootstrap; suppress the compiler's auto-bootstrap in that case.
@@ -667,7 +698,6 @@ impl Codegen {
     /// * `contract` - Contract context for macro and constant lookups
     /// * `scope_mgr` - Call stack for tracking macro invocations and scope
     /// * `offset` - Starting bytecode offset
-    /// * `recursing_constructor` - Whether compiling within a constructor
     /// * `relax_jumps` - Enable jump size optimization
     ///
     /// # Returns
@@ -680,7 +710,6 @@ impl Codegen {
         contract: &'a Contract,
         scope_mgr: &mut ScopeManager<'a>,
         mut offset: usize,
-        recursing_constructor: bool,
         relax_jumps: bool,
     ) -> Result<BytecodeRes, CodegenError> {
         // Safety check to prevent infinite recursion
@@ -744,11 +773,6 @@ impl Codegen {
                     } // __NOOP generates no bytecode
                 }
                 IRByteType::Statement(s) => {
-                    // if we have a codesize call for the constructor here, from within the
-                    // constructor, we skip
-                    if recursing_constructor {
-                        continue;
-                    }
                     let (push_bytes, mut push_spans) = statement_gen(
                         evm_version,
                         s,
@@ -873,6 +897,7 @@ impl Codegen {
         // top-level macro fills them again after resizing all jumps.
         let growth = bytes.resolve_circular_codesize();
         debug_assert_eq!(growth, 0, "circular codesize placeholders must be widened before jump resolution");
+        scope_mgr.codesizes.insert(macro_def.name.clone(), bytes.total_byte_size());
 
         tracing::info!(target: "codegen", "BytecodeRes created with {} bytes and {} spans", bytes.len(), spans.len());
         Ok(BytecodeRes { bytes, spans, label_indices, unmatched_jumps, table_instances, utilized_tables, embedded_tables })
@@ -978,10 +1003,13 @@ impl Codegen {
                         }
                     }
                     Bytes::CircularCodesizePlaceholder(ref mut placeholder) if mode == ResizeMode::Widen => {
-                        let size = placeholder.measured_range.map_or(total_length, |(start, end)| {
-                            current_offset(&original_offsets, &offsets, end_offset, end)
-                                - current_offset(&original_offsets, &offsets, end_offset, start)
-                        });
+                        let size = placeholder.size(
+                            |(start, end)| {
+                                current_offset(&original_offsets, &offsets, end_offset, end)
+                                    - current_offset(&original_offsets, &offsets, end_offset, start)
+                            },
+                            total_length,
+                        );
                         if !placeholder.push_opcode.can_represent(size) {
                             placeholder.push_opcode = PushOpcode::optimal_for(size);
                             changed = true;
@@ -1209,7 +1237,7 @@ impl Codegen {
             // This is a chicken-and-egg problem: we need offsets to generate code, but need code to know offsets
             // Solution: Generate into a temporary buffer first
             scope_mgr.push_macro(macro_def, current_offset);
-            let temp_res = Codegen::macro_to_bytecode(evm_version, macro_def, contract, scope_mgr, current_offset + 1, false, false)?;
+            let temp_res = Codegen::macro_to_bytecode(evm_version, macro_def, contract, scope_mgr, current_offset + 1, false)?;
             let macro_code_len = temp_res.bytes.iter().map(|seg| seg.bytes.len()).sum::<usize>();
             let stack_swaps_len = macro_def.returns;
             current_offset += macro_code_len + stack_swaps_len + 2; // JUMPDEST + MACRO_CODE_LEN + stack_swaps.len() + JUMP
@@ -1223,7 +1251,7 @@ impl Codegen {
             scope_mgr.push_macro(macro_def, func_offset);
 
             // Add 1 to starting offset to account for the JUMPDEST opcode
-            let mut res = Codegen::macro_to_bytecode(evm_version, macro_def, contract, scope_mgr, func_offset + 1, false, false)?;
+            let mut res = Codegen::macro_to_bytecode(evm_version, macro_def, contract, scope_mgr, func_offset + 1, false)?;
 
             for j in res.unmatched_jumps.iter_mut() {
                 let new_index = j.bytecode_index;
@@ -1266,7 +1294,7 @@ impl Codegen {
         &mut self,
         evm_version: &EVMVersion,
         file: Arc<FileSource>,
-        args: Vec<alloy_dyn_abi::DynSolValue>,
+        args: Vec<DynSolValue>,
         main_bytecode: &str,
         constructor_bytecode: &str,
         has_custom_bootstrap: bool,
@@ -1321,7 +1349,7 @@ impl Codegen {
         evm_version: &EVMVersion,
         file: Arc<FileSource>,
         contract: &Contract,
-        mut args: Vec<alloy_dyn_abi::DynSolValue>,
+        args: Vec<DynSolValue>,
         main: MainBytecodeOutput,
         constructor: Option<ConstructorMacroBytecode>,
         no_size_limit: bool,
@@ -1333,7 +1361,7 @@ impl Codegen {
             self.artifact.as_mut().unwrap()
         };
 
-        let MainBytecodeOutput { bytecode: mut main_bytecode, source_map: main_source_map, table_offsets: main_table_offsets } = main;
+        let MainBytecodeOutput { bytecode: main_bytecode, source_map: main_source_map, table_offsets: main_table_offsets } = main;
 
         let contract_length = main_bytecode.len() / 2;
 
@@ -1370,7 +1398,8 @@ impl Codegen {
         let external_table_offsets: HashMap<String, usize> =
             main_table_offsets.iter().map(|(name, off)| (name.clone(), runtime_start_in_deployment + off)).collect();
 
-        let (constructor_body, ctor_only_tables, constructor_source_map) = match constructor {
+        let args_start_span = constructor.as_ref().and_then(|c| args_start_span(&c.bytecode_res)).cloned();
+        let (mut constructor_body, ctor_only_tables, constructor_source_map) = match constructor {
             Some(c) => {
                 let out = Codegen::gen_table_bytecode(contract, c.bytecode_res, ctor_tables_base_offset, &external_table_offsets)?;
                 (out.body, out.tables, Some(out.source_map))
@@ -1378,96 +1407,20 @@ impl Codegen {
             None => (String::new(), String::new(), None),
         };
 
-        // Sort constructor arguments so that statically sized args are inserted last.
-        args.sort_by(|a, b| {
-            if a.is_dynamic() && !b.is_dynamic() {
-                Ordering::Less
-            } else if !a.is_dynamic() && b.is_dynamic() {
-                Ordering::Greater
-            } else {
-                Ordering::Equal
+        // `__argsstart()` in the constructor pushes the offset the arguments are appended at
+        let args_start = runtime_start_in_deployment + contract_length + ctor_only_tables.len() / 2;
+        if constructor_body.contains(ARGS_START_PLACEHOLDER) {
+            if args_start > 0xFFFF {
+                return Err(CodegenError {
+                    kind: CodegenErrorKind::OffsetExceedsTwoBytes("constructor arguments for __argsstart()".to_string(), args_start),
+                    span: args_start_span.unwrap_or_else(|| AstSpan(vec![Span { start: 0, end: 0, file: Some(file) }])).boxed(),
+                    token: None,
+                });
             }
-        });
-
-        // `__CODECOPY_DYN_ARG` placeholders in main_bytecode are filled with the absolute
-        // deployment-bytecode offset where each argument's content sits. Args are appended past
-        // ctor_only_tables, so the first arg lives at runtime_start + contract_length + ctor_only_tables_len.
-        let mut arg_offset_acc = runtime_start_in_deployment + contract_length + ctor_only_tables.len() / 2;
-        // The filled-in PUSH2 can only address the first 64 KiB of the deployment bytecode
-        let mut oversized_arg_offset = None;
-        let encoded: Vec<Vec<u8>> = args
-            .into_iter()
-            .enumerate()
-            .map(|(i, tok)| {
-                if tok.is_dynamic() {
-                    let encoded = tok.abi_encode();
-
-                    // Check for "__CODECOPY_DYN_ARG" calls for this specific argument. If any
-                    // exist, fill the placeholders.
-                    let tok_len = hex::encode(&encoded[62..64]);
-                    let rep_regex = Regex::new(format!("xxxxxxxxxxxxxxxxxxxxxxxxxxxx{i:02x}\\d{{4}}").as_str()).unwrap();
-                    rep_regex.find_iter(main_bytecode.clone().as_str()).for_each(|s| {
-                        if arg_offset_acc > 0xFFFF {
-                            oversized_arg_offset = Some(arg_offset_acc);
-                        }
-                        // TODO: Enforce that the arg type is a literal so that this unwrap is safe.
-                        let len_ptr = usize::from_str_radix(&s.as_str()[30..34], 16).unwrap();
-                        let contents_ptr = len_ptr + 0x20;
-
-                        // Replace 17 reserved bytes.
-                        main_bytecode.replace_range(
-                            s.range(),
-                            format!(
-                                "{}{}{}{:04x}{}{}{}{}{:04x}{}{:04x}{}",
-                                Opcode::Push2,    // PUSH2
-                                tok_len,          // len(bytes)
-                                Opcode::Push2,    // PUSH2
-                                len_ptr,          // <len_mem_ptr>
-                                Opcode::Mstore,   // MSTORE
-                                Opcode::Push2,    // PUSH2
-                                tok_len,          // len(bytes)
-                                Opcode::Push2,    // PUSH2
-                                arg_offset_acc,   // <contents_code_ptr>
-                                Opcode::Push2,    // PUSH2
-                                contents_ptr,     // <contents_mem_ptr>
-                                Opcode::Codecopy  // CODECOPY
-                            )
-                            .as_str(),
-                        );
-                    });
-
-                    // Increase argument offset accumulator.
-                    arg_offset_acc += encoded.len() - 64;
-
-                    // We don't need to store the pointer nor the length of dynamically sized
-                    // elements in the code.
-                    encoded[64..].into()
-                } else {
-                    tok.abi_encode()
-                }
-            })
-            .collect();
-        let hex_args: Vec<String> = encoded.iter().map(|tok| hex::encode(tok.as_slice())).collect();
-        let constructor_args = hex_args.join("");
-
-        if let Some(offset) = oversized_arg_offset {
-            return Err(CodegenError {
-                kind: CodegenErrorKind::OffsetExceedsTwoBytes("dynamic constructor argument for __CODECOPY_DYN_ARG".to_string(), offset),
-                span: AstSpan(vec![Span { start: 0, end: 0, file: Some(file) }]).boxed(),
-                token: None,
-            });
+            constructor_body = constructor_body.replace(ARGS_START_PLACEHOLDER, &format!("{}{args_start:04x}", Opcode::Push2));
         }
 
-        // Sucks that we can't provide a span on this error. Need to refactor at some point.
-        if main_bytecode.contains('x') {
-            tracing::error!(target = "codegen", "Failed to fill `__CODECOPY_DYN_ARG` placeholders. Dynamic argument index is invalid.");
-            return Err(CodegenError {
-                kind: CodegenErrorKind::InvalidDynArgIndex,
-                span: AstSpan(vec![Span { start: 0, end: 0, file: None }]).boxed(),
-                token: None,
-            });
-        }
-
+        let constructor_args = Codegen::abi_encode_constructor_args(args);
         let deployment_bytecode = format!("{constructor_body}{bootstrap_code}{main_bytecode}{ctor_only_tables}{constructor_args}");
 
         // Check the initcode size limit (EIP-3860, raised by EIP-7954 from Amsterdam)
@@ -1492,10 +1445,49 @@ impl Codegen {
         Ok(artifact.clone())
     }
 
-    /// Encode constructor arguments as alloy_dyn_abi::DynSolValue
-    pub fn encode_constructor_args(args: Vec<String>) -> Vec<alloy_dyn_abi::DynSolValue> {
-        let tokens: Vec<alloy_dyn_abi::DynSolValue> = args.iter().map(|tok| EToken::try_from(tok.clone()).unwrap().0).collect();
-        tokens
+    /// Reads constructor arguments given as text. With the declared constructor parameter types,
+    /// each argument is read as its type and the count must match; otherwise each type is guessed
+    /// from the text. Without arguments nothing is appended, so the deployer can append them later.
+    pub fn encode_constructor_args(args: &[String], types: Option<&[String]>) -> Result<Vec<DynSolValue>, CodegenError> {
+        let invalid =
+            |msg: String| CodegenError { kind: CodegenErrorKind::InvalidConstructorArgs(msg), span: AstSpan(vec![]).boxed(), token: None };
+        if args.is_empty() {
+            return Ok(vec![]);
+        }
+        let Some(types) = types else {
+            return args.iter().map(|arg| EToken::try_from(arg.clone()).map(|token| token.0).map_err(invalid)).collect();
+        };
+        if args.len() != types.len() {
+            return Err(invalid(format!(
+                "the constructor takes {} argument(s) ({}), but {} were given",
+                types.len(),
+                types.join(", "),
+                args.len()
+            )));
+        }
+        args.iter()
+            .zip(types)
+            .map(|(arg, ty)| {
+                DynSolType::parse(ty).and_then(|ty| ty.coerce_str(arg)).map_err(|e| invalid(format!("\"{arg}\" is not a valid {ty}: {e}")))
+            })
+            .collect()
+    }
+
+    /// The parameter types of the contract's `#define function constructor(...)`, if it declares one
+    pub fn declared_constructor_types(contract: &Contract) -> Option<Vec<String>> {
+        contract
+            .functions
+            .iter()
+            .find(|function| function.name.eq_ignore_ascii_case("constructor"))
+            .map(|function| function.inputs.iter().map(|input| input.arg_type.clone().unwrap_or_default()).collect())
+    }
+
+    /// Encodes constructor arguments as hex, the way Solidity's `abi.encode` does
+    pub fn abi_encode_constructor_args(args: Vec<DynSolValue>) -> String {
+        if args.is_empty() {
+            return String::new();
+        }
+        hex::encode(DynSolValue::Tuple(args).abi_encode_params())
     }
 
     /// Export

@@ -14,6 +14,7 @@
 //! and access to the call stack for argument resolution.
 
 use crate::prelude::{MacroDefinition, MacroInvocation};
+use std::collections::BTreeMap;
 
 /// A single entry in the macro call stack.
 ///
@@ -59,12 +60,51 @@ impl ScopeId {
 pub struct ScopeManager<'a> {
     /// Stack of scope frames from root to current
     pub frames: Vec<ScopeFrame<'a>>,
+    /// Macro sizes from the previous compile pass, for `__codesize` values that cannot be measured
+    /// in the code they are part of
+    pub codesize_hints: BTreeMap<String, usize>,
+    /// Macro sizes generated in this pass, the hints of the next pass
+    pub codesizes: BTreeMap<String, usize>,
+    /// Whether a hint was used, so the sizes must be compiled again until they are stable
+    pub codesize_hints_used: bool,
+    /// Frame indices where a `__codesize` measurement of another macro starts
+    measurements: Vec<usize>,
 }
 
 impl<'a> ScopeManager<'a> {
     /// Creates a new empty scope manager.
     pub fn new() -> Self {
-        Self { frames: Vec::new() }
+        Self {
+            frames: Vec::new(),
+            codesize_hints: BTreeMap::new(),
+            codesizes: BTreeMap::new(),
+            codesize_hints_used: false,
+            measurements: Vec::new(),
+        }
+    }
+
+    /// Starts measuring a macro for `__codesize`, in a frame pushed after this call
+    pub fn start_measurement(&mut self) {
+        self.measurements.push(self.frames.len());
+    }
+
+    /// Ends the innermost `__codesize` measurement
+    pub fn end_measurement(&mut self) {
+        self.measurements.pop();
+    }
+
+    /// The size from the previous pass for a `__codesize` of the enclosing macro `macro_name`.
+    ///
+    /// It is only needed when the reference sits in a measurement of another macro that does not
+    /// contain `macro_name`, which therefore cannot be measured there. Using it records that the
+    /// sizes must be compiled again until they are stable.
+    pub fn codesize_hint(&mut self, macro_name: &str) -> Option<usize> {
+        let enclosing = self.frames.iter().rposition(|frame| frame.macro_def.name == macro_name)?;
+        if !self.measurements.iter().any(|&start| start > enclosing) {
+            return None;
+        }
+        self.codesize_hints_used = true;
+        self.codesize_hints.get(macro_name).copied()
     }
 
     /// Returns the scope identifier for the currently executing macro.

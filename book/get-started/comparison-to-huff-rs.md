@@ -60,9 +60,11 @@ See the [Builtin Constants](../huff-language/builtin-constants.md) documentation
 ### New builtin functions
 There are new builtin functions available in `huff-neo`.
 
-- `__LEFTPAD` - Left pads a hex input or the result of a passed builtin in a code table.
+- `__LEFTPAD` - Left pads a hex input or the result of a passed builtin in a constant or a code table.
 - `__BYTES` - Converts a string to the UTF-8 representation bytes and pushes it to the stack.
 - `__ASSERT_PC` - Validates bytecode position at compile-time to ensure instructions are at expected offsets.
+- `__argsstart` - Pushes the offset of the ABI-encoded constructor arguments, so a constructor reads them as Solidity
+  does. It replaces `__CODECOPY_DYN_ARG` of `huff-rs`.
 
 #### `__BYTES()` example
 
@@ -93,6 +95,12 @@ Validates that bytecode is positioned at expected offsets, useful for ensuring j
 ```
 
 See the [Builtin Functions](../huff-language/builtin-functions.md) documentation for complete details.
+
+### Constructor arguments and tuple types
+`-i` and `-n` append the constructor arguments as Solidity's `abi.encode` does, typed by
+`#define function constructor(...)`, so the same bytecode works with arguments appended by Foundry or `cast`.
+Function, event and error definitions take tuple types such as `(address maker, uint256 amount)`, and `-g`
+declares them as structs.
 
 ### First-class macros
 Macros can now be passed as arguments to other macros and invoked dynamically, making code more reusable and flexible.
@@ -173,5 +181,5 @@ Supported features:
 See the [Compile-Time Conditionals](../huff-language/compile-time-conditionals.md) documentation for complete details and examples.
 
 ### New test capabilities
-The test module has been refactored to use `anvil` and `forge` features from `foundry` to fork the mainnet. This allows for more advanced testing capabilities.
+`hnc test` runs tests on Foundry's EVM executor, the same engine as `forge test`. Tests can use cheatcodes, fork a chain with `--rpc-url`, and print logs and traces with the verbosity levels of `forge test`. See [Tests](../huff-language/tests.md).
 

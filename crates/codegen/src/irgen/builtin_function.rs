@@ -5,10 +5,10 @@ use alloy_primitives::{B256, U256, hex, keccak256};
 use huff_neo_utils::ast::huff::RUNTIME_CODESIZE_ARG;
 use huff_neo_utils::builtin_eval::{PadDirection, eval_builtin_bytes, eval_event_hash, eval_function_signature};
 use huff_neo_utils::bytecode::{
-    AssertPcPlaceholderData, BytecodeRes, BytecodeSegments, Bytes, CircularCodesizePlaceholderData, DynConstructorArgPlaceholderData, Jump,
-    JumpPlaceholderData, Jumps, PushOpcode,
+    AssertPcPlaceholderData, BytecodeRes, BytecodeSegments, Bytes, CircularCodesizePlaceholderData, Jump, JumpPlaceholderData, Jumps,
+    PushOpcode,
 };
-use huff_neo_utils::bytes_util::{bytes32_to_hex_string, format_even_bytes, pad_n_bytes};
+use huff_neo_utils::bytes_util::{bytes32_to_hex_string, format_even_bytes};
 use huff_neo_utils::error::{CodegenError, CodegenErrorKind};
 use huff_neo_utils::evm_version::EVMVersion;
 use huff_neo_utils::prelude::{
@@ -59,7 +59,7 @@ fn validate_hex_string(s: &str, span: &AstSpan) -> Result<(), CodegenError> {
 /// - __RIGHTPAD, __LEFTPAD - Byte padding (code tables only)
 /// - __BYTES - Raw bytes insertion
 /// - __VERBATIM - Direct hex injection
-/// - __CODECOPY_DYN_ARG - Dynamic constructor arguments
+/// - __argsstart - Offset of the constructor arguments in the deployment bytecode
 /// - __ASSERT_PC - Compile-time program counter assertions
 ///
 /// TODO: First step to refactor and split the function into smaller functions
@@ -257,49 +257,12 @@ pub fn builtin_function_gen<'a>(
             // __LEFTPAD is only available in constant definitions and code tables, not in macro bodies
             return Err(invalid_arguments_error("__LEFTPAD is only available in constant definitions and code tables", &bf.span));
         }
-        BuiltinFunctionKind::DynConstructorArg => {
-            validate_arg_count(bf, 2, "__CODECOPY_DYN_ARG")?;
-
-            let arg_index = match &bf.args[0] {
-                BuiltinFunctionArg::HexLiteral(hex, _) => hex,
-                _ => {
-                    return Err(invalid_arguments_error("Expected hex literal as first argument to __CODECOPY_DYN_ARG", &bf.span));
-                }
-            };
-
-            let dest_offset = match &bf.args[1] {
-                BuiltinFunctionArg::HexLiteral(hex, _) => hex,
-                _ => {
-                    return Err(invalid_arguments_error("Expected hex literal as second argument to __CODECOPY_DYN_ARG", &bf.span));
-                }
-            };
-
-            // Enforce that the arg index is 1 byte and that the dest offset is at max
-            // 2 bytes.
-            if arg_index.len() != 2 || dest_offset.len() > 4 {
-                tracing::error!(
-                    target = "codegen",
-                    "Incorrect number of bytes in argument passed to __CODECOPY_DYN_ARG. Should be (1 byte, <= 2 bytes)"
-                );
-                return Err(invalid_arguments_error(
-                    "Incorrect number of bytes in argument passed to __CODECOPY_DYN_ARG. Should be (1 byte, <= 2 bytes)",
-                    &bf.span,
-                ));
-            }
-
-            // Insert a 17 byte placeholder- will be filled when constructor args are added
-            // to the end of the runtime code.
-            // <len (2 bytes)> <dest_mem_ptr (2 bytes)> mstore
-            // <len (2 bytes)> <contents_code_ptr (2 bytes)> <dest_mem_ptr + 0x20 (2 bytes)>
-            // codecopy
-            *offset += 17;
-            bytes.push_with_offset(
-                starting_offset,
-                Bytes::DynConstructorArgPlaceholder(DynConstructorArgPlaceholderData::new(
-                    arg_index.to_string(),
-                    pad_n_bytes(dest_offset, 2),
-                )),
-            );
+        BuiltinFunctionKind::ArgsStart => {
+            validate_arg_count(bf, 0, "__argsstart")?;
+            // Filled with the deployment offset of the arguments; rejected outside the constructor
+            let placeholder = Bytes::ArgsStartPlaceholder(bf.span.clone());
+            *offset += placeholder.len();
+            bytes.push_with_offset(starting_offset, placeholder);
         }
         BuiltinFunctionKind::Verbatim => {
             validate_arg_count(bf, 1, "__VERBATIM")?;
@@ -511,21 +474,19 @@ fn codesize<'a>(
         tracing::debug!(target: "codegen", "CIRCULAR CODESIZE INVOCATION DETECTED INJECTING PLACEHOLDER | macro: {}", ir_macro.name);
 
         // Create a CircularCodesizePlaceholder variant (starts as PUSH1, 2 bytes)
-        let placeholder = Bytes::CircularCodesizePlaceholder(CircularCodesizePlaceholderData::new(codesize_arg.to_string()));
+        let placeholder = Bytes::CircularCodesizePlaceholder(CircularCodesizePlaceholderData::new(
+            codesize_arg.to_string(),
+            scope_mgr.codesize_hint(codesize_arg),
+        ));
         (2, placeholder)
     } else {
         // We will still need to recurse to get accurate values. The target macro gets its own
         // scope frame; `macro_to_bytecode` pops it when done, leaving the caller's frame intact.
+        scope_mgr.start_measurement();
         scope_mgr.push_macro(ir_macro, *offset);
-        let res: BytecodeRes = match Codegen::macro_to_bytecode(
-            evm_version,
-            ir_macro,
-            contract,
-            scope_mgr,
-            *offset,
-            ir_macro.name.eq("CONSTRUCTOR"),
-            relax_jumps,
-        ) {
+        let res = Codegen::macro_to_bytecode(evm_version, ir_macro, contract, scope_mgr, *offset, relax_jumps);
+        scope_mgr.end_measurement();
+        let res: BytecodeRes = match res {
             Ok(r) => r,
             Err(e) => {
                 tracing::error!(

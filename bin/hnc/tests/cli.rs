@@ -429,3 +429,30 @@ fn test_command_fails_when_a_test_reverts() {
 
     tmp.close().unwrap();
 }
+
+#[test]
+fn bytecode_appends_abi_encoded_constructor_arguments() {
+    let mut cmd = cargo_bin_cmd!("hnc");
+    let tmp = assert_fs::TempDir::new().unwrap();
+    let file = tmp.child("code.huff");
+    file.write_str(
+        r#"
+#define function constructor(string,int256) nonpayable returns ()
+
+#define macro CONSTRUCTOR() = {}
+#define macro MAIN() = {}
+"#,
+    )
+    .unwrap();
+
+    // A negative number is an argument, not a flag; the result is `abi.encode("TestToken", -5)`
+    cmd.current_dir(&tmp).args(["code.huff", "-i", "TestToken", "-5", "-b"]).assert().success().stdout(predicate::eq(concat!(
+        "60008060093d393df3",
+        "0000000000000000000000000000000000000000000000000000000000000040",
+        "fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffb",
+        "0000000000000000000000000000000000000000000000000000000000000009",
+        "54657374546f6b656e0000000000000000000000000000000000000000000000",
+    )));
+
+    tmp.close().unwrap();
+}

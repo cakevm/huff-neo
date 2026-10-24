@@ -81,15 +81,12 @@ impl Abi {
 // Allows for simple ABI Generation by directly translating the AST
 impl From<huff::Contract> for Abi {
     fn from(contract: huff::Contract) -> Self {
-        // Try to get the constructor inputs from an overridden function
-        // Otherwise, use the CONSTRUCTOR macro if one exists
+        // The inputs of `#define function constructor(...)`. A CONSTRUCTOR macro without that
+        // declaration takes no arguments; its macro parameters are not ABI inputs.
         let constructor = contract
             .functions
             .iter()
-            .filter(|m| m.name.to_lowercase() == "constructor")
-            .cloned()
-            .collect::<Vec<ast::abi::FunctionDefinition>>()
-            .first()
+            .find(|function| function.name.eq_ignore_ascii_case("constructor"))
             .map(|func| Constructor {
                 inputs: func
                     .inputs
@@ -101,19 +98,7 @@ impl From<huff::Contract> for Abi {
                     })
                     .collect(),
             })
-            .or_else(|| {
-                contract.macros.get("CONSTRUCTOR").map(|func| Constructor {
-                    inputs: func
-                        .parameters
-                        .iter()
-                        .map(|argument| FunctionParam {
-                            name: argument.name.clone().unwrap_or_default(),
-                            kind: argument.name.clone().unwrap_or_default().into(),
-                            internal_type: None,
-                        })
-                        .collect(),
-                })
-            });
+            .or_else(|| contract.macros.contains_key("CONSTRUCTOR").then(|| Constructor { inputs: vec![] }));
 
         // Instantiate functions and events
         let mut functions = BTreeMap::new();
@@ -122,36 +107,40 @@ impl From<huff::Contract> for Abi {
 
         // Translate contract functions
         // Excluding constructor
-        functions.extend(contract.functions.iter().filter(|function: &&ast::abi::FunctionDefinition| function.name != "CONSTRUCTOR").map(
-            |function| {
-                (
-                    function.name.to_string(),
-                    Function {
-                        name: function.name.to_string(),
-                        inputs: function
-                            .inputs
-                            .iter()
-                            .map(|argument| FunctionParam {
-                                name: argument.name.clone().unwrap_or_default(),
-                                kind: argument.arg_type.clone().unwrap_or_default().into(),
-                                internal_type: None,
-                            })
-                            .collect(),
-                        outputs: function
-                            .outputs
-                            .iter()
-                            .map(|argument| FunctionParam {
-                                name: argument.name.clone().unwrap_or_default(),
-                                kind: argument.arg_type.clone().unwrap_or_default().into(),
-                                internal_type: None,
-                            })
-                            .collect(),
-                        constant: false,
-                        state_mutability: function.fn_type.clone(),
-                    },
-                )
-            },
-        ));
+        functions.extend(
+            contract
+                .functions
+                .iter()
+                .filter(|function: &&ast::abi::FunctionDefinition| !function.name.eq_ignore_ascii_case("constructor"))
+                .map(|function| {
+                    (
+                        function.name.to_string(),
+                        Function {
+                            name: function.name.to_string(),
+                            inputs: function
+                                .inputs
+                                .iter()
+                                .map(|argument| FunctionParam {
+                                    name: argument.name.clone().unwrap_or_default(),
+                                    kind: argument.arg_type.clone().unwrap_or_default().into(),
+                                    internal_type: None,
+                                })
+                                .collect(),
+                            outputs: function
+                                .outputs
+                                .iter()
+                                .map(|argument| FunctionParam {
+                                    name: argument.name.clone().unwrap_or_default(),
+                                    kind: argument.arg_type.clone().unwrap_or_default().into(),
+                                    internal_type: None,
+                                })
+                                .collect(),
+                            constant: false,
+                            state_mutability: function.fn_type.clone(),
+                        },
+                    )
+                }),
+        );
 
         // Translate contract events
         events.extend(contract.events.iter().map(|event| {
@@ -348,20 +337,28 @@ impl FunctionParamType {
                 sizes.iter().map(|s| { if !s.eq(&0) { format!("[{s}]") } else { "[]".to_string() } }).collect::<Vec<_>>().join("")
             ),
             FunctionParamType::FixedBytes(size) => write!(f, "bytes{size}"),
-            FunctionParamType::Tuple(inner) => write!(f, "({})", inner.iter().map(|fpt| fpt.to_string()).collect::<Vec<_>>().join(", ")),
+            FunctionParamType::Tuple(inner) => write!(f, "({})", inner.iter().map(|fpt| fpt.to_string()).collect::<Vec<_>>().join(",")),
         }
     }
 
     /// Convert string to type
     pub fn convert_string_to_type(string: &str) -> Result<Self, Box<dyn std::error::Error>> {
-        let input = string.to_string().to_lowercase();
-        let split_input: Vec<&str> = input.split('[').collect();
-        if split_input.len() > 1 {
-            let mut cleaned: Vec<String> =
-                split_input.iter().map(|x| x.replace(']', "")).map(|x| if x.is_empty() { "0".to_owned() } else { x }).collect();
-            let func_type = FunctionParamType::convert_string_to_type(&cleaned.remove(0))?;
-            let sizes: Vec<usize> = cleaned.iter().map(|x| x.parse::<usize>().unwrap()).collect();
-            return Ok(Self::Array(Box::new(func_type), sizes));
+        let input = string.trim().to_lowercase();
+        // Array sizes are the trailing `[n]` or `[]` groups, so brackets inside a tuple stay with it
+        if input.ends_with(']') {
+            let mut base = input.as_str();
+            let mut sizes = Vec::new();
+            while let Some(rest) = base.strip_suffix(']') {
+                let open = rest.rfind('[').ok_or_else(|| format!("Failed to create FunctionParamType from string: {string}"))?;
+                let size = &rest[open + 1..];
+                sizes.push(if size.is_empty() { 0 } else { size.parse::<usize>()? });
+                base = &rest[..open];
+            }
+            sizes.reverse();
+            return Ok(Self::Array(Box::new(FunctionParamType::convert_string_to_type(base)?), sizes));
+        }
+        if let Some(inner) = input.strip_prefix('(').and_then(|rest| rest.strip_suffix(')')) {
+            return Ok(Self::Tuple(split_tuple_components(inner).into_iter().map(Self::convert_string_to_type).collect::<Result<_, _>>()?));
         }
         if input.starts_with("uint") {
             // Default to 256 if no size
@@ -405,6 +402,25 @@ impl FunctionParamType {
             Err(format!("Failed to create FunctionParamType from string: {string}"))?
         }
     }
+}
+
+/// Splits the components of a tuple type at its top-level commas
+fn split_tuple_components(inner: &str) -> Vec<&str> {
+    let mut components = Vec::new();
+    let (mut depth, mut start) = (0usize, 0);
+    for (i, c) in inner.char_indices() {
+        match c {
+            '(' => depth += 1,
+            ')' => depth = depth.saturating_sub(1),
+            ',' if depth == 0 => {
+                components.push(&inner[start..i]);
+                start = i + 1;
+            }
+            _ => {}
+        }
+    }
+    components.push(&inner[start..]);
+    components
 }
 
 impl From<&str> for FunctionParamType {

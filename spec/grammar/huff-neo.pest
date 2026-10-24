@@ -58,8 +58,8 @@ definition = {
 // Example: #define function transfer(address to, uint256 amount) nonpayable returns(bool)
 function_definition = {
     "#define" ~ "function" ~ identifier ~ parameter_list
-    ~ mutability_specifier*
-    ~ ("returns" ~ parameter_list)?
+    ~ mutability_specifier
+    ~ "returns" ~ parameter_list
 }
 
 mutability_specifier = { "view" | "pure" | "payable" | "nonpayable" }
@@ -80,31 +80,26 @@ indexed_parameter = { type_name ~ "indexed"? ~ identifier? }
 
 storage_location = { "memory" | "storage" | "calldata" }
 
-// Solidity type names with optional array suffixes
-// Examples: uint256, address, bytes32[], uint256[][3], (address,(bool,bytes))[], MyStruct
-type_name = { (elementary_type | mapping_type | tuple_type | user_defined_type) ~ array_suffix* }
+// ABI type names with optional array suffixes
+// Examples: uint256, address, bytes32[], uint256[][3], (address,(bool,bytes))[]
+type_name = { (elementary_type | tuple_type) ~ array_suffix* }
 
 // Examples: [], [5]
 array_suffix = { "[" ~ decimal_literal? ~ "]" }
 
-// Examples: address, bool, string, bytes, bytes32, uint, uint8, int256, fixed128x18
+// Examples: address, bool, string, bytes, bytes32, uint, uint8, int256
 elementary_type = @{
     ( "address"
     | "bool"
     | "string"
     | ("uint" | "int" | "bytes") ~ ASCII_DIGIT*
-    | ("ufixed" | "fixed") ~ (ASCII_DIGIT+ ~ "x" ~ ASCII_DIGIT+)?
     ) ~ !ident_char
 }
 
-// Example: mapping(address => uint256)
-mapping_type = { "mapping" ~ "(" ~ type_name ~ "=>" ~ type_name ~ ")" }
-
-// Examples: (address,uint256), (address,(bool,bytes))
-tuple_type = { "(" ~ (parameter ~ ("," ~ parameter)*)? ~ ")" }
-
-// Examples: MyStruct, MyContract.MyStruct
-user_defined_type = { identifier ~ ("." ~ identifier)* }
+// A tuple is the ABI form of a struct; component names are optional and not part of the type
+// Examples: (address,uint256), (address maker, (bool,bytes) data)
+tuple_type = { "(" ~ tuple_component ~ ("," ~ tuple_component)* ~ ")" }
+tuple_component = { type_name ~ identifier? }
 
 // ============================================================================
 // CONSTANT DEFINITIONS
@@ -385,23 +380,24 @@ opcode_operand = {
 //   __RIGHTPAD(0x42)                          __RIGHTPAD(__FUNC_SIG("transfer(address,uint256)"))
 //   __LEFTPAD([ADDRESS])                      __VERBATIM(0x1234)
 //   __BYTES("hello")                          __BYTES([GREETING])
-//   __ASSERT_PC([TARGET_PC] + <offset>)       __CODECOPY_DYN_ARG(0x00, 0x20)
-// __LEFTPAD is only valid in constant definitions and code tables. A builtin used as the
-// argument of __RIGHTPAD/__LEFTPAD/__VERBATIM must evaluate to bytes (e.g. __FUNC_SIG, __BYTES).
+//   __ASSERT_PC([TARGET_PC] + <offset>)       __argsstart()  // offset of the constructor arguments
+// __LEFTPAD is only valid in constant definitions and code tables. __argsstart is only valid in
+// the constructor and the macros it invokes. A builtin used as the argument of
+// __RIGHTPAD/__LEFTPAD/__VERBATIM must evaluate to bytes (e.g. __FUNC_SIG, __BYTES).
 builtin_function_call = {
     ("__FUNC_SIG" | "__EVENT_HASH" | "__ERROR") ~ "(" ~ (string_literal | identifier) ~ ")"
     | ("__tablesize" | "__tablestart" | "__codesize" | "__EMBED_TABLE") ~ "(" ~ identifier ~ ")"
     | ("__RIGHTPAD" | "__LEFTPAD" | "__VERBATIM") ~ "(" ~ (hex_literal | constant_reference | builtin_function_call) ~ ")"
     | "__BYTES" ~ "(" ~ (string_literal | constant_reference) ~ ")"
     | "__ASSERT_PC" ~ "(" ~ expression ~ ")"
-    | "__CODECOPY_DYN_ARG" ~ "(" ~ hex_literal ~ "," ~ hex_literal ~ ")"
+    | "__argsstart" ~ "(" ~ ")"
 }
 
 // Reserved builtin names (same set as builtin_function_call); they are never labels or macros
 builtin_name = @{
     ( "__FUNC_SIG" | "__EVENT_HASH" | "__ERROR" | "__tablesize" | "__tablestart" | "__codesize"
     | "__EMBED_TABLE" | "__RIGHTPAD" | "__LEFTPAD" | "__VERBATIM" | "__BYTES" | "__ASSERT_PC"
-    | "__CODECOPY_DYN_ARG"
+    | "__argsstart"
     ) ~ !ident_char
 }
 

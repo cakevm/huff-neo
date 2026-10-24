@@ -1,21 +1,25 @@
 use alloy_primitives::{Address, KECCAK256_EMPTY, U256, address, hex, keccak256};
-use foundry_evm::backend::DatabaseError;
+use foundry_evm::constants::{CALLER, TEST_CONTRACT_ADDRESS};
+use foundry_evm::core::evm::EthEvmNetwork;
+use foundry_evm::executors::Executor;
+use foundry_evm::traces::{InternalTraceMode, TraceRequirements, render_trace_arena_inner};
 use huff_neo_lexer::Lexer;
 use huff_neo_parser::Parser;
-use huff_neo_test_runner::prelude::{DecoratorError, DecoratorErrorKind, Outcome, RunnerError, TestResult, TestRunner, TestStatus};
+use huff_neo_test_runner::prelude::{
+    DecoratorError, DecoratorErrorKind, Outcome, RunnerError, TestResult, TestRunner, TestStatus, decode_huff_internal_calls,
+};
 use huff_neo_utils::file::full_file_source::FullFileSource;
 use huff_neo_utils::prelude::{Contract, EVMVersion, SupportedEVMVersions, Token};
-use revm::Database;
-use revm::database::{CacheDB, EmptyDBTyped};
+use revm::DatabaseRef;
 use revm::primitives::hardfork::SpecId;
 
 #[test]
 fn test_runner_return() {
-    let mut db = CacheDB::<EmptyDBTyped<DatabaseError>>::default();
-    let mut runner = TestRunner::default();
+    let runner = TestRunner::default();
+    let mut executor = runner.new_executor().unwrap();
     let code = "602060005260206000F3";
-    let deployed_addr = runner.deploy_code(&mut db, code.to_string()).unwrap();
-    let result = runner.call(String::from("RETURN"), &mut db, deployed_addr, U256::ZERO, String::default()).unwrap();
+    let deployed_addr = runner.deploy_code(&mut executor, code).unwrap();
+    let result = runner.call(String::from("RETURN"), &mut executor, deployed_addr, U256::ZERO, String::default()).unwrap();
 
     assert_eq!(result.name, "RETURN");
     assert_eq!(std::mem::discriminant(&result.status), std::mem::discriminant(&TestStatus::Success));
@@ -24,12 +28,25 @@ fn test_runner_return() {
 }
 
 #[test]
+fn test_runner_rejects_invalid_hex() {
+    let runner = TestRunner::default();
+    let mut executor = runner.new_executor().unwrap();
+
+    let deploy = runner.deploy_code(&mut executor, "60zz");
+    assert!(matches!(deploy, Err(RunnerError::InvalidHex("bytecode", _))));
+
+    let deployed_addr = runner.deploy_code(&mut executor, "00").unwrap();
+    let call = runner.call(String::from("ODD"), &mut executor, deployed_addr, U256::ZERO, String::from("abc"));
+    assert!(matches!(call, Err(RunnerError::InvalidHex("calldata", _))));
+}
+
+#[test]
 fn test_runner_stop() {
-    let mut db = CacheDB::<EmptyDBTyped<DatabaseError>>::default();
-    let mut runner = TestRunner::default();
+    let runner = TestRunner::default();
+    let mut executor = runner.new_executor().unwrap();
     let code = "00";
-    let deployed_addr = runner.deploy_code(&mut db, code.to_string()).unwrap();
-    let result = runner.call(String::from("STOP"), &mut db, deployed_addr, U256::ZERO, String::default()).unwrap();
+    let deployed_addr = runner.deploy_code(&mut executor, code).unwrap();
+    let result = runner.call(String::from("STOP"), &mut executor, deployed_addr, U256::ZERO, String::default()).unwrap();
 
     assert_eq!(result.name, "STOP");
     assert_eq!(std::mem::discriminant(&result.status), std::mem::discriminant(&TestStatus::Success));
@@ -39,11 +56,11 @@ fn test_runner_stop() {
 
 #[test]
 fn test_runner_revert() {
-    let mut db = CacheDB::<EmptyDBTyped<DatabaseError>>::default();
-    let mut runner = TestRunner::default();
+    let runner = TestRunner::default();
+    let mut executor = runner.new_executor().unwrap();
     let code = "60006000FD";
-    let deployed_addr = runner.deploy_code(&mut db, code.to_string()).unwrap();
-    let result = runner.call(String::from("REVERT"), &mut db, deployed_addr, U256::ZERO, String::default()).unwrap();
+    let deployed_addr = runner.deploy_code(&mut executor, code).unwrap();
+    let result = runner.call(String::from("REVERT"), &mut executor, deployed_addr, U256::ZERO, String::default()).unwrap();
 
     assert_eq!(result.name, "REVERT");
     assert_eq!(std::mem::discriminant(&result.status), std::mem::discriminant(&TestStatus::Revert));
@@ -66,10 +83,10 @@ fn dupn_code() -> String {
 
 #[test]
 fn test_runner_amsterdam_dupn() {
-    let mut db = CacheDB::<EmptyDBTyped<DatabaseError>>::default();
-    let mut runner = runner_with_spec(SpecId::AMSTERDAM);
-    let deployed_addr = runner.deploy_code(&mut db, dupn_code()).unwrap();
-    let result = runner.call(String::from("DUPN"), &mut db, deployed_addr, U256::ZERO, String::default()).unwrap();
+    let runner = runner_with_spec(SpecId::AMSTERDAM);
+    let mut executor = runner.new_executor().unwrap();
+    let deployed_addr = runner.deploy_code(&mut executor, &dupn_code()).unwrap();
+    let result = runner.call(String::from("DUPN"), &mut executor, deployed_addr, U256::ZERO, String::default()).unwrap();
 
     assert_eq!(std::mem::discriminant(&result.status), std::mem::discriminant(&TestStatus::Success));
     assert_eq!(result.return_data, Some(format!("{:064x}", 17)));
@@ -78,10 +95,10 @@ fn test_runner_amsterdam_dupn() {
 #[test]
 fn test_runner_pre_amsterdam_dupn_halts() {
     // Before Amsterdam 0xe6 is not a valid opcode, so the same code must halt
-    let mut db = CacheDB::<EmptyDBTyped<DatabaseError>>::default();
-    let mut runner = runner_with_spec(SpecId::OSAKA);
-    let deployed_addr = runner.deploy_code(&mut db, dupn_code()).unwrap();
-    let result = runner.call(String::from("DUPN"), &mut db, deployed_addr, U256::ZERO, String::default()).unwrap();
+    let runner = runner_with_spec(SpecId::OSAKA);
+    let mut executor = runner.new_executor().unwrap();
+    let deployed_addr = runner.deploy_code(&mut executor, &dupn_code()).unwrap();
+    let result = runner.call(String::from("DUPN"), &mut executor, deployed_addr, U256::ZERO, String::default()).unwrap();
 
     assert_eq!(std::mem::discriminant(&result.status), std::mem::discriminant(&TestStatus::Revert));
     assert_eq!(result.return_data, None);
@@ -94,23 +111,25 @@ fn test_runner_gas_excludes_intrinsic_cost() {
     // charge for value transfers; reported gas must only cover execution on either side of the fork
     for spec in [SpecId::OSAKA, SpecId::AMSTERDAM] {
         for value in [U256::ZERO, U256::from(1)] {
-            let mut db = CacheDB::<EmptyDBTyped<DatabaseError>>::default();
-            let mut runner = runner_with_spec(spec);
-            let deployed_addr = runner.deploy_code(&mut db, "00".to_string()).unwrap();
-            let result = runner.call(String::from("STOP"), &mut db, deployed_addr, value, String::default()).unwrap();
+            let runner = runner_with_spec(spec);
+            let mut executor = runner.new_executor().unwrap();
+            let deployed_addr = runner.deploy_code(&mut executor, "00").unwrap();
+            let result = runner.call(String::from("STOP"), &mut executor, deployed_addr, value, String::default()).unwrap();
             assert_eq!(result.gas, 0, "STOP on {spec:?} with value {value}");
 
-            let mut db = CacheDB::<EmptyDBTyped<DatabaseError>>::default();
-            let mut runner = runner_with_spec(spec);
-            let deployed_addr = runner.deploy_code(&mut db, "602060005260206000F3".to_string()).unwrap();
-            let result = runner.call(String::from("RETURN"), &mut db, deployed_addr, value, String::default()).unwrap();
+            let runner = runner_with_spec(spec);
+            let mut executor = runner.new_executor().unwrap();
+            let deployed_addr = runner.deploy_code(&mut executor, "602060005260206000F3").unwrap();
+            let result = runner.call(String::from("RETURN"), &mut executor, deployed_addr, value, String::default()).unwrap();
             assert_eq!(result.gas, 18, "RETURN on {spec:?} with value {value}");
         }
     }
 }
 
-/// In-memory database the source tests run against
-type TestDb = CacheDB<EmptyDBTyped<DatabaseError>>;
+/// A fresh executor for one test of the default runner
+fn new_executor() -> Executor<EthEvmNetwork> {
+    TestRunner::default().new_executor().unwrap()
+}
 
 /// Parses a source file into a contract.
 fn parse_contract(source: &str) -> Contract {
@@ -121,20 +140,22 @@ fn parse_contract(source: &str) -> Contract {
     contract
 }
 
-/// Runs the named test macro of the source with the given runner and database.
-fn run_source_test_with(runner: &mut TestRunner, db: &mut TestDb, source: &str, name: &str) -> Result<TestResult, Box<RunnerError>> {
+/// Runs the named test macro of the source with the given runner, on a fresh executor of that runner.
+fn run_source_test_with(runner: &TestRunner, source: &str, name: &str) -> Result<TestResult, Box<RunnerError>> {
+    let mut executor = runner.new_executor().unwrap();
     let contract = parse_contract(source);
-    runner.run_test(db, contract.macros.get(name).unwrap(), &contract).map_err(Box::new)
+    runner.run_test(&mut executor, contract.macros.get(name).unwrap(), &contract).map_err(Box::new)
 }
 
-/// Runs the named test macro of the source against the given database.
-fn run_source_test_in(db: &mut TestDb, source: &str, name: &str) -> Result<TestResult, Box<RunnerError>> {
-    run_source_test_with(&mut TestRunner::default(), db, source, name)
+/// Runs the named test macro of the source on the given executor, which keeps the state afterwards.
+fn run_source_test_in(executor: &mut Executor<EthEvmNetwork>, source: &str, name: &str) -> Result<TestResult, Box<RunnerError>> {
+    let contract = parse_contract(source);
+    TestRunner::default().run_test(executor, contract.macros.get(name).unwrap(), &contract).map_err(Box::new)
 }
 
 /// Runs the named test macro of the source.
 fn run_source_test(source: &str, name: &str) -> Result<TestResult, Box<RunnerError>> {
-    run_source_test_in(&mut TestDb::default(), source, name)
+    run_source_test_in(&mut new_executor(), source, name)
 }
 
 /// The decorator error of test `T` in a source whose decorators cannot be applied.
@@ -243,10 +264,13 @@ fn test_runner_stores_slots_of_other_addresses() {
     #define test T() = { 0x01 sload 0x00 mstore 0x20 0x00 return }
     "#;
 
-    let mut db = TestDb::default();
-    let result = run_source_test_in(&mut db, source, "T").unwrap();
+    let mut executor = new_executor();
+    let result = run_source_test_in(&mut executor, source, "T").unwrap();
     assert_eq!(result.return_data, Some(format!("{:064x}", 0x2b)));
-    assert_eq!(db.storage(address!("0000000000000000000000000000000000001000"), U256::from(1)).unwrap(), U256::from(0x2a));
+    assert_eq!(
+        executor.backend().storage_ref(address!("0000000000000000000000000000000000001000"), U256::from(1)).unwrap(),
+        U256::from(0x2a)
+    );
 }
 
 #[test]
@@ -345,7 +369,7 @@ fn test_runner_applies_slot_number_decorator() {
 
     let mut runner = runner_with_spec(SpecId::AMSTERDAM);
     runner.evm_version = EVMVersion::new(SupportedEVMVersions::Amsterdam);
-    let result = run_source_test_with(&mut runner, &mut TestDb::default(), source, "T").unwrap();
+    let result = run_source_test_with(&runner, source, "T").unwrap();
     assert_eq!(result.return_data, Some(format!("{:064x}", 12345)));
 }
 
@@ -535,13 +559,32 @@ fn test_runner_rejects_wrong_expectation_arguments() {
     }
 }
 
+/// A test body that calls the Foundry cheatcode with this signature and one word argument
+fn call_cheatcode(signature: &str, arg: &str) -> String {
+    format!(
+        "__FUNC_SIG(\"{signature}\") 0xe0 shl 0x00 mstore {arg} 0x04 mstore \
+         0x00 0x00 0x24 0x00 0x00 0x7109709ECfa91a80626fF3989D68f67F5b1DD12D gas call pop"
+    )
+}
+
 #[test]
-fn test_runner_fails_a_test_calling_cheatcodes() {
-    // Without cheatcode support the call would hit an empty account and silently succeed
-    let source = "#define test T() = { 0x00 0x00 0x00 0x00 0x00 0x7109709ECfa91a80626fF3989D68f67F5b1DD12D gas call pop }";
-    let result = run_test_t(source);
+fn test_runner_serves_cheatcodes() {
+    let roll = call_cheatcode("roll(uint256)", "0x2a");
+    let result = run_test_t(&format!("#[expect_return(42)]\n#define test T() = {{ {roll} number 0x00 mstore 0x20 0x00 return }}"));
+    assert!(result.passed, "{:?}", result.failures);
+}
+
+#[test]
+fn test_runner_fails_a_test_with_a_failed_cheatcode_assertion() {
+    // A failed assertion does not revert, so only Foundry's failure flag reveals it
+    let assert_false = call_cheatcode("assertTrue(bool)", "0x00");
+    let result = run_test_t(&format!("#define test T() = {{ {assert_false} stop }}"));
     assert!(!result.passed);
-    assert_eq!(result.failures[0].expectation, "cheatcodes");
+    assert_eq!(result.outcome, Outcome::Return { data: String::new() });
+    assert_eq!(result.failures[0].expectation, "vm.assert");
+
+    let assert_true = call_cheatcode("assertTrue(bool)", "0x01");
+    assert!(run_test_t(&format!("#define test T() = {{ {assert_true} stop }}")).passed);
 }
 
 #[test]
@@ -588,12 +631,12 @@ fn test_runner_applies_etch_decorator() {
 fn test_runner_applies_nonce_decorator() {
     let source = "#[nonce(0x1000, 5), nonce(caller, 7)]\n#define test T() = { stop }";
 
-    let mut db = TestDb::default();
-    let result = run_source_test_in(&mut db, source, "T").unwrap();
+    let mut executor = new_executor();
+    let result = run_source_test_in(&mut executor, source, "T").unwrap();
     assert!(result.passed, "{:?}", result.failures);
-    assert_eq!(db.basic(OTHER).unwrap().unwrap().nonce, 5);
-    // The test transaction is sent with the sender's nonce and increments it
-    assert_eq!(db.basic(TestRunner::default().env.tx.caller).unwrap().unwrap().nonce, 8);
+    assert_eq!(executor.backend().basic_ref(OTHER).unwrap().unwrap().nonce, 5);
+    // Like Foundry, the test call itself does not count as a transaction of the sender
+    assert_eq!(executor.backend().basic_ref(TestRunner::default().env.tx.caller).unwrap().unwrap().nonce, 7);
 }
 
 #[test]
@@ -609,7 +652,7 @@ fn test_runner_expect_storage_and_balance_pass() {
     let source = r#"
     #define constant SLOT = FREE_STORAGE_POINTER()
     #define macro MAIN() = { [SLOT] sload }
-    #[value(5)]
+    #[value(5), deal(this, 0)]
     #[expect_storage([SLOT], 0x2a), expect_storage(0x01, 0x07, at = 0x1000), expect_balance(this, 5)]
     #[store(0x01, 0x07, at = 0x1000)]
     #define test T() = { 0x2a [SLOT] sstore }
@@ -716,12 +759,14 @@ fn test_runner_expect_balance_and_storage_check_inclusive_bounds() {
         ("min = 5, max = 5", true),
         ("min = 0, max = 4", false),
     ] {
-        let result = run_test_t(&format!("#[value(5), expect_balance(this, {bounds}), expect_storage(0x00, {bounds})]\n{test}"));
+        let result =
+            run_test_t(&format!("#[value(5), deal(this, 0), expect_balance(this, {bounds}), expect_storage(0x00, {bounds})]\n{test}"));
         assert_eq!(result.passed, passes, "{bounds}: {:?}", result.failures);
         assert_eq!(result.failures.len(), if passes { 0 } else { 2 }, "{bounds}");
     }
 
-    let failures = failures(&format!("#[value(5), expect_balance(this, min = 6, max = 9), expect_storage(0x00, max = 4)]\n{test}"));
+    let failures =
+        failures(&format!("#[value(5), deal(this, 0), expect_balance(this, min = 6, max = 9), expect_storage(0x00, max = 4)]\n{test}"));
     assert!(failures[0].1.ends_with("expected at most 0x4, got 0x5"), "{failures:?}");
     assert!(failures[1].1.ends_with("expected at least 6 and at most 9, got 5"), "{failures:?}");
 }
@@ -730,7 +775,7 @@ fn test_runner_expect_balance_and_storage_check_inclusive_bounds() {
 fn test_runner_expectation_bounds_accept_hex_decimal_and_constants() {
     let source = r#"
     #define constant CAP = 0x0a
-    #[value(5), store(0x00, 7)]
+    #[value(5), deal(this, 0), store(0x00, 7)]
     #[expect_balance(this, min = 0x05, max = [CAP]), expect_storage(0x00, min = 7, max = [CAP])]
     #define test T() = { stop }
     "#;
@@ -764,4 +809,45 @@ fn test_runner_test_calling_a_fn_ends_without_entering_it() {
 
     let result = run_test_t(source);
     assert!(result.passed, "{:?}", result.failures);
+}
+
+#[test]
+fn test_runner_uses_foundrys_test_and_sender_addresses() {
+    let source = "#define test T() = { address 0x00 mstore caller 0x20 mstore 0x40 0x00 return }";
+    let result = run_test_t(source);
+    assert_eq!(result.address, Some(TEST_CONTRACT_ADDRESS));
+    assert_eq!(result.return_data, Some(format!("{:0>64}{:0>64}", hex::encode(TEST_CONTRACT_ADDRESS), hex::encode(CALLER))));
+}
+
+#[test]
+fn test_runner_shows_huff_functions_as_internal_calls() {
+    let source = r#"
+    #define fn ONLY_OWNER() = takes (0) returns (0) { caller pop }
+    #define fn ADD() = takes (2) returns (1) { add }
+    #define fn ADD_TWICE() = takes (2) returns (1) { ADD() 0x01 ADD() }
+    #define fn FAIL() = takes (0) returns (0) { 0x00 0x00 revert }
+    #define test T() = { ONLY_OWNER() 0x01 0x02 ADD() pop 0x03 0x04 ADD_TWICE() pop }
+    #define test REVERTS() = { ONLY_OWNER() FAIL() }
+    "#;
+    let runner = TestRunner {
+        trace_requirements: TraceRequirements::none().with_decode_internal(InternalTraceMode::Simple),
+        ..TestRunner::default()
+    };
+
+    let render = |name: &str| {
+        let result = run_source_test_with(&runner, source, name).unwrap();
+        let mut arena = result.traces.unwrap();
+        decode_huff_internal_calls(&mut arena, result.address.unwrap(), &result.functions);
+        render_trace_arena_inner(&arena, false, false)
+    };
+
+    let trace = render("T");
+    for call in ["ONLY_OWNER()", "ADD(0x1, 0x2)", "← 0x3", "ADD_TWICE(0x3, 0x4)", "ADD(0x3, 0x4)", "ADD(0x7, 0x1)", "← 0x8"] {
+        assert!(trace.contains(call), "missing {call} in\n{trace}");
+    }
+
+    // A call that never returns is left out
+    let trace = render("REVERTS");
+    assert!(trace.contains("ONLY_OWNER()"), "{trace}");
+    assert!(!trace.contains("FAIL()"), "{trace}");
 }
