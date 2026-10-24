@@ -11,6 +11,7 @@
   - Example: `#[expect_storage([COUNTER_SLOT], 0x02), expect_balance(this, 5), expect_balance(caller, min = 1)]`
 - Run tests on Foundry's EVM executor, the engine of `forge test`, so tests can call Foundry cheatcodes.
 - Fail a test whose `vm.assert*` cheatcode fails.
+- Update the `hnc test` verbosity levels to match forge: `-vvvv` no longer prints every executed opcode, and `-vvvvv` shows storage changes in traces.
 - Update the book: show how to test a macro that jumps to a label defined in `MAIN`.
 - Update the book: reorganize the test page by topic and replace its example with a tested contract.
 - **Breaking**: Deploy tests at Foundry's test address `0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496`, which changes the addresses of contracts a test creates.

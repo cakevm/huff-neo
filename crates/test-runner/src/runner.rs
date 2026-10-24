@@ -46,8 +46,6 @@ pub struct TestRunner {
     pub trace_requirements: TraceRequirements,
     /// Whether to collect the logs of each test, for console logs in the report
     pub collect_logs: bool,
-    /// Whether to print every call of a test as it runs
-    pub print_traces: bool,
     /// The network families the executor runs for
     pub networks: NetworkConfigs,
 }
@@ -76,7 +74,6 @@ impl TestRunner {
             cheats_config,
             trace_requirements: TraceRequirements::none(),
             collect_logs: false,
-            print_traces: false,
             networks: NetworkConfigs::default(),
         }
     }
@@ -86,8 +83,7 @@ impl TestRunner {
         let backend = Backend::spawn(fork).map_err(|e| RunnerError::GenericError(format!("Failed to spawn backend: {e}")))?;
         let executor = ExecutorBuilder::<EthEvmNetwork>::new()
             .inspectors(|stack| {
-                let stack =
-                    stack.cheatcodes(self.cheats_config.clone()).trace_requirements(self.trace_requirements).print(self.print_traces);
+                let stack = stack.cheatcodes(self.cheats_config.clone()).trace_requirements(self.trace_requirements);
                 if self.collect_logs { stack.logs(false) } else { stack }
             })
             .spec_id(self.env.evm_env.cfg_env.spec)

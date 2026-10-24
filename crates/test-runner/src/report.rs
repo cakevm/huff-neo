@@ -8,7 +8,12 @@ use std::time::Instant;
 use yansi::Paint;
 
 /// Print a report of the test results, formatted according to the `report_kind` parameter.
-pub async fn print_test_report(results: Vec<TestResult>, report_kind: ReportKind, start: Instant) -> eyre::Result<()> {
+pub async fn print_test_report(
+    results: Vec<TestResult>,
+    report_kind: ReportKind,
+    with_storage_changes: bool,
+    start: Instant,
+) -> eyre::Result<()> {
     // Gather how many of our tests passed *before* generating our report,
     // as we pass ownership of `results` to both the `ReportKind::Table`
     // and `ReportKind::List` arms.
@@ -72,7 +77,7 @@ pub async fn print_test_report(results: Vec<TestResult>, report_kind: ReportKind
                 }
 
                 if let Some(traces) = result.traces {
-                    print_call_trace(traces).await?;
+                    print_call_trace(traces, with_storage_changes).await?;
                 }
             }
         }
@@ -97,7 +102,7 @@ pub async fn print_test_report(results: Vec<TestResult>, report_kind: ReportKind
 }
 
 /// Print the call trace for a given test result.
-async fn print_call_trace(mut arena: SparsedTraceArena) -> eyre::Result<()> {
+async fn print_call_trace(mut arena: SparsedTraceArena, with_storage_changes: bool) -> eyre::Result<()> {
     // Create a signature identifier to decode unknown function selectors and events
     let identifier = SignaturesIdentifier::new(false)?;
 
@@ -108,7 +113,7 @@ async fn print_call_trace(mut arena: SparsedTraceArena) -> eyre::Result<()> {
     decode_trace_arena(&mut arena, &decoder).await;
 
     println!("├─ {}", Paint::cyan("TRACES"));
-    println!("{}", render_trace_arena_inner(&arena, false, false));
+    println!("{}", render_trace_arena_inner(&arena, false, with_storage_changes));
 
     Ok(())
 }
