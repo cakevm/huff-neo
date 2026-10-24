@@ -317,12 +317,15 @@ See [Tests](./huff-language/tests.md) for writing tests.
   replay a deployed contract on a fork.
 * `--debug`: Opens a single test in the interactive debugger. Use `-m` to pick the test.
 * `--decode-internal`: Shows the calls of Huff functions (`#define fn`) in traces, with their stack arguments and
-  return values. Inline macros have no calls and do not appear. Needs a trace, so add `-vvv` or `-vvvv`:
+  return values. Each call names the file that defines the function, so functions of an included file show that
+  file. Inline macros have no calls and do not appear. Needs a trace, so add `-vvv` or `-vvvv`:
 
 ```text
-[188] 0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496::fallback()
-  ├─ [23] ADD(0x1, 0x2)
-  │   └─ ← 0x3
+[74] 0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496::fallback()
+  ├─ [59] Main.huff::DOUBLE(0x3)
+  │   ├─ [23] SafeMath.huff::ADD(0x3, 0x3)
+  │   │   └─ ← 0x6
+  │   └─ ← 0x6
   └─ ← [Stop]
 ```
 * `-v`, `-vv`, ...: Adds detail to the `list` report, with the same levels as `forge test`:

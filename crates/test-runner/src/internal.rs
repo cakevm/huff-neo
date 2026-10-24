@@ -8,6 +8,8 @@ use serde::Serialize;
 pub struct HuffFunction {
     /// The name of the function
     pub name: String,
+    /// The name of the file that defines the function, which traces show before the name
+    pub file: Option<String>,
     /// The program counter of the JUMPDEST the function starts at
     pub entry_pc: usize,
     /// How many stack items the function takes
@@ -52,7 +54,10 @@ pub fn decode_huff_internal_calls(arena: &mut SparsedTraceArena, address: Addres
                 let call = &open[depth];
                 let function = &functions[call.function];
                 let decoded = DecodedInternalCall {
-                    func_name: function.name.clone(),
+                    func_name: match &function.file {
+                        Some(file) => format!("{file}::{}", function.name),
+                        None => function.name.clone(),
+                    },
                     args: Some(top_of_stack(&steps[call.start + 1], function.takes)),
                     return_data: (function.returns > 0).then(|| top_of_stack(&steps[i], function.returns)),
                 };

@@ -22,6 +22,7 @@ use revm::interpreter::SuccessOrHalt;
 use revm::primitives::hardfork::SpecId;
 use revm::state::Bytecode;
 use std::collections::HashMap;
+use std::path::Path;
 use std::sync::Arc;
 
 /// Container for EVM environment (cfg + block) and transaction.
@@ -218,7 +219,14 @@ impl TestRunner {
             .filter(|f| f.outlined)
             .filter_map(|f| {
                 let entry_pc = res.label_indices.get_any(&format!("goto_{}", f.name))?;
-                Some(HuffFunction { name: f.name.clone(), entry_pc, takes: f.takes, returns: f.returns })
+                // The file name without its directory, like forge shows the contract of an internal call
+                let file = f
+                    .span
+                    .0
+                    .iter()
+                    .find_map(|span| span.file.as_ref())
+                    .and_then(|source| Path::new(&source.path).file_name().map(|name| name.to_string_lossy().into_owned()));
+                Some(HuffFunction { name: f.name.clone(), file, entry_pc, takes: f.takes, returns: f.returns })
             })
             .collect();
 
