@@ -32,7 +32,7 @@ fn test_rejects_multiple_builtin_names_as_macros() {
         "__tablestart",
         "__RIGHTPAD",
         "__LEFTPAD",
-        "__CODECOPY_DYN_ARG",
+        "__argsstart",
         "__VERBATIM",
         "__BYTES",
         "__ASSERT_PC",

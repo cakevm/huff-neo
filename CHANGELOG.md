@@ -11,6 +11,8 @@
   - Example: `#[expect_storage([COUNTER_SLOT], 0x02), expect_balance(this, 5), expect_balance(caller, min = 1)]`
 - Add Huff function calls to the traces of `hnc test --decode-internal`, named after the file that defines them and with their stack arguments and return values.
   - Example: `hnc ./src/Math.huff test -vvvv --decode-internal`
+- Add the `__argsstart()` builtin, which pushes the offset of the constructor arguments so a constructor can copy and decode them as Solidity does.
+  - Example: `__argsstart() dup1 codesize sub swap1 0x00 codecopy`
 - Run tests on Foundry's EVM executor, the engine of `forge test`, so tests can call Foundry cheatcodes.
 - Fail a test whose `vm.assert*` cheatcode fails.
 - **Breaking**: Use forge's verbosity levels in `hnc test`.
@@ -25,6 +27,9 @@
 - **Breaking**: Isolate the calls a test makes by default, as `forge test` does, which raises their gas unless `--no-isolate` is passed.
 - **Breaking**: Remove the `-p` flag, which printed nothing.
 - **Breaking**: Reject unknown values of `-e` and of the `hnc test` `--format`, which fell back to a default.
+- **Breaking**: Append the `-i` and `-n` constructor arguments as Solidity's `abi.encode` does, read as the types of `#define function constructor(...)` when declared.
+  - A wrong number of arguments or a value that does not fit its declared type is an error.
+- **Breaking**: Remove the `__CODECOPY_DYN_ARG` builtin, which copied zeros instead of the argument and needed a layout only `hnc -i` produced, in favour of `__argsstart()`.
 - **Breaking**: Keep the case of artifact paths, so `./src/Token.huff` is written to `artifacts/src/Token.huff.json` instead of `artifacts/SRC/TOKEN.HUFF.json`.
 - **Breaking**: Deploy tests at Foundry's test address `0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496`, which changes the addresses of contracts a test creates.
 - Fix `-a` deleting the whole output directory before writing the artifacts, so `-d ./src` removed the sources.
@@ -40,6 +45,7 @@
 - Update the book: show how to test a macro that jumps to a label defined in `MAIN`.
 - Update the book: reorganize the test page by topic and replace its example with a tested contract.
 - Update the book: document every CLI flag as implemented.
+- Update the book: document `__argsstart()` and fix builtin names written in uppercase.
 
 ## [1.6.2] - 2026-10-17
 - Add stacked decorator blocks on tests, merged in source order, with an optional trailing comma.

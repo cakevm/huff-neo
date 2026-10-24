@@ -88,6 +88,41 @@ Code tables are normally appended after the bytecode. `__EMBED_TABLE` inserts th
 }
 ```
 
+### `__argsstart()`
+Pushes the offset in the deployment bytecode where the constructor arguments start. A deployer, such as
+Foundry, `cast` or `hnc -i`, appends the arguments to the deployment bytecode as Solidity's `abi.encode` does, so
+the constructor copies them from there and reads them like calldata. A Solidity constructor does the same with an
+offset that solc fills in.
+
+The arguments are the code from this offset to the end, so `codesize` minus the offset is their length, `0` when
+there are none. The offset is not `__codesize(CONSTRUCTOR)`, which counts only the constructor macro, while the
+arguments also follow the bootstrap, the runtime and the tables only the constructor uses.
+
+Constructor arguments are not part of the deployed code, so `__argsstart()` can only be used in the
+`CONSTRUCTOR` and the macros it invokes. In `MAIN`, in tests and in code tables it is a compile error.
+
+#### Example
+```javascript
+#define function constructor(string,uint256) nonpayable returns ()
+
+#define macro CONSTRUCTOR() = takes (0) returns (0) {
+    __argsstart() dup1 codesize sub     // [len, start]
+    swap1 0x00 codecopy                 // abi.encode(name, decimals) at memory 0x00
+
+    0x20 mload 0x00 sstore              // slot 0: decimals, the second head word
+    0x00 mload dup1 mload 0x01 sstore   // slot 1: the name's length, at the offset in the first head word
+    0x20 add mload 0x02 sstore          // slot 2: the first 32 bytes of the name
+}
+
+#define macro MAIN() = takes (0) returns (0) {
+    0x00 0x00 return
+}
+```
+
+```shell
+hnc ./src/Token.huff -b -i "TestToken" 18
+```
+
 ### `__VERBATIM(<hex>|<constant>|<builtin function>)`
 This function is used to insert raw hex data into the compiled bytecode without a PUSH opcode. It is useful for inserting raw opcodes or data into the compiled bytecode.
 

@@ -2,6 +2,7 @@ use alloy_dyn_abi::{DynSolValue, Word};
 use alloy_primitives::{Address, I256, U256};
 use huff_neo_codegen::Codegen;
 use huff_neo_utils::bytes_util::*;
+use huff_neo_utils::prelude::CodegenErrorKind;
 use std::str::FromStr;
 
 #[test]
@@ -22,7 +23,7 @@ fn encode_simple_constructor_args() {
     .map(|s| s.to_string())
     .collect();
 
-    let results = Codegen::encode_constructor_args(args);
+    let results = Codegen::encode_constructor_args(args, None).unwrap();
     assert_eq!(results[0], DynSolValue::String("Hello".to_string()));
     assert_eq!(results[1], DynSolValue::Uint(U256::from_str("10000").unwrap(), 256));
     assert_eq!(results[2], DynSolValue::Bool(false));
@@ -49,7 +50,7 @@ fn encode_array_constructor_args() {
     .map(|s| s.to_string())
     .collect();
 
-    let results = Codegen::encode_constructor_args(args);
+    let results = Codegen::encode_constructor_args(args, None).unwrap();
 
     assert_eq!(
         results[0],
@@ -94,7 +95,7 @@ fn encode_missing_brackets_array_constructor_args() {
     .map(|s| s.to_string())
     .collect();
 
-    let results = Codegen::encode_constructor_args(args);
+    let results = Codegen::encode_constructor_args(args, None).unwrap();
 
     assert_eq!(
         results[0],
@@ -120,4 +121,49 @@ fn encode_missing_brackets_array_constructor_args() {
     assert_eq!(results[3], expected_array);
     assert_eq!(results[4], expected_array);
     assert_eq!(results[5], expected_array);
+}
+
+#[test]
+fn encodes_constructor_args_like_abi_encode() {
+    // `cast abi-encode 'f(string,uint256)' TestToken 18`
+    let expected = concat!(
+        "0000000000000000000000000000000000000000000000000000000000000040",
+        "0000000000000000000000000000000000000000000000000000000000000012",
+        "0000000000000000000000000000000000000000000000000000000000000009",
+        "54657374546f6b656e0000000000000000000000000000000000000000000000",
+    );
+    let args = vec!["TestToken".to_string(), "18".to_string()];
+
+    let guessed = Codegen::encode_constructor_args(args.clone(), None).unwrap();
+    assert_eq!(Codegen::abi_encode_constructor_args(guessed), expected);
+
+    let types = ["string".to_string(), "uint256".to_string()];
+    let typed = Codegen::encode_constructor_args(args, Some(&types)).unwrap();
+    assert_eq!(Codegen::abi_encode_constructor_args(typed), expected);
+}
+
+#[test]
+fn reads_constructor_args_as_the_declared_types() {
+    // A hex value is guessed as bytes32, but the declared type decides
+    let types = ["uint8".to_string(), "bytes".to_string(), "address[]".to_string()];
+    let args = vec!["0x12".to_string(), "0xdeadbeef".to_string(), "[0x0000000000000000000000000000000000000001]".to_string()];
+
+    let values = Codegen::encode_constructor_args(args, Some(&types)).unwrap();
+    assert_eq!(values[0], DynSolValue::Uint(U256::from(0x12), 8));
+    assert_eq!(values[1], DynSolValue::Bytes(vec![0xde, 0xad, 0xbe, 0xef]));
+    assert_eq!(values[2], DynSolValue::Array(vec![DynSolValue::Address(Address::with_last_byte(1))]));
+}
+
+#[test]
+fn rejects_constructor_args_that_do_not_match_the_declaration() {
+    let types = ["string".to_string(), "uint256".to_string()];
+
+    let missing = Codegen::encode_constructor_args(vec!["TestToken".to_string()], Some(&types)).unwrap_err();
+    assert!(matches!(missing.kind, CodegenErrorKind::InvalidConstructorArgs(msg) if msg.contains("takes 2 arguments")));
+
+    let invalid = Codegen::encode_constructor_args(vec!["TestToken".to_string(), "abc".to_string()], Some(&types)).unwrap_err();
+    assert!(matches!(invalid.kind, CodegenErrorKind::InvalidConstructorArgs(msg) if msg.contains("not a valid uint256")));
+
+    // Without arguments nothing is appended, so a deployer can append them later
+    assert!(Codegen::encode_constructor_args(vec![], Some(&types)).unwrap().is_empty());
 }

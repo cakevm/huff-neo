@@ -55,6 +55,6 @@ At compile time, `__NOOP` generates no bytecode. When the compiler encounters `_
 
 ## See Also
 
-- [Builtin Functions](./builtin-functions.md) - Compile-time functions like `__FUNC_SIG()` and `__TABLESIZE()`
+- [Builtin Functions](./builtin-functions.md) - Compile-time functions like `__FUNC_SIG()` and `__tablesize()`
 - [Constants](./constants.md) - User-defined constants and `FREE_STORAGE_POINTER()`
 - [Macros and Functions](./macros-and-functions.md) - How to use `__NOOP` with macro arguments

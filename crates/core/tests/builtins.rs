@@ -71,61 +71,67 @@ fn test_codesize_builtin_preserves_macro_args() {
 }
 
 #[test]
-fn test_dyn_constructor_arg_builtin() {
+fn test_argsstart_builtin() {
+    let source: &str = r#"
+        #define macro MAIN() = {}
+
+        #define macro CONSTRUCTOR() = {
+            // Copy the constructor arguments to memory
+            __argsstart() dup1 codesize sub swap1 0x00 codecopy
+        }
+    "#;
+
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let tokens = Lexer::new(flattened_source).map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut contract = Parser::new(tokens, None).parse().unwrap();
+    contract.derive_storage_pointers();
+
+    let evm_version = &EVMVersion::default();
+    let (constructor_code, has_custom_bootstrap) = Codegen::generate_constructor_bytecode(evm_version, &contract, None, false).unwrap();
+    let main_code = Codegen::generate_main_bytecode(evm_version, &contract, None, false).unwrap();
+    let args = Codegen::encode_constructor_args(vec![String::from("testing"), String::from("18")], None).unwrap();
+    let final_bytecode = Codegen::new()
+        .churn(evm_version, Arc::new(FileSource::default()), args, &main_code, &constructor_code, has_custom_bootstrap, None, None, false)
+        .unwrap();
+
+    // The arguments start after the constructor body (9 bytes), the bootstrap (9 bytes) and the
+    // empty runtime: 0x12. They are encoded as `abi.encode("testing", 18)`.
+    assert_eq!(
+        final_bytecode.bytecode,
+        format!(
+            "61001280380390{}{}{}{}{}",
+            "5f39",
+            "60008060123d393df3",
+            "0000000000000000000000000000000000000000000000000000000000000040",
+            "0000000000000000000000000000000000000000000000000000000000000012",
+            "000000000000000000000000000000000000000000000000000000000000000774657374696e6700000000000000000000000000000000000000000000000000"
+        )
+    );
+}
+
+#[test]
+fn test_argsstart_builtin_outside_constructor() {
+    // Constructor arguments are not part of the deployed code, so MAIN cannot read them
     let source: &str = r#"
         #define macro MAIN() = {
-            // Store first dynamic constructor argument in memory @ 0x20
-            __CODECOPY_DYN_ARG(0x00, 0x20)
+            __argsstart()
         }
 
         #define macro CONSTRUCTOR() = {}
     "#;
 
-    // Parse tokens
     let flattened_source = FullFileSource { source, file: None, spans: vec![] };
-    let lexer = Lexer::new(flattened_source);
-    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
-    let mut parser = Parser::new(tokens, None);
-
-    // Parse the AST
-    let mut contract = parser.parse().unwrap();
-
-    // Derive storage pointers
+    let tokens = Lexer::new(flattened_source).map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut contract = Parser::new(tokens, None).parse().unwrap();
     contract.derive_storage_pointers();
 
-    // Instantiate Codegen
-    let mut cg = Codegen::new();
-
-    // The codegen instance should have no artifact
-    assert!(cg.artifact.is_none());
-
     let evm_version = &EVMVersion::default();
-
-    // Have the Codegen create the constructor bytecode
     let (constructor_code, has_custom_bootstrap) = Codegen::generate_constructor_bytecode(evm_version, &contract, None, false).unwrap();
     let main_code = Codegen::generate_main_bytecode(evm_version, &contract, None, false).unwrap();
-
-    let args = Codegen::encode_constructor_args(vec![String::from("testing")]);
-    let final_bytecode = cg.churn(
-        &EVMVersion::default(),
-        Arc::new(FileSource::default()),
-        args,
-        main_code.as_str(),
-        constructor_code.as_str(),
-        has_custom_bootstrap,
-        None,
-        None,
-        false,
-    );
-
-    // CODECOPY source offset for the first dynamic arg is its absolute position in deployment
-    // bytecode: ctor_body_len (0) + bootstrap_size (9) + main_len (17) = 26 = 0x1a.
-    assert_eq!(
-        final_bytecode.unwrap().bytecode,
-        String::from(
-            "60118060093d393df36100076100205261000761001a6100403974657374696e6700000000000000000000000000000000000000000000000000"
-        )
-    );
+    let err = Codegen::new()
+        .churn(evm_version, Arc::new(FileSource::default()), vec![], &main_code, &constructor_code, has_custom_bootstrap, None, None, false)
+        .unwrap_err();
+    assert_eq!(err.kind, CodegenErrorKind::ArgsStartOutsideConstructor);
 }
 
 #[test]

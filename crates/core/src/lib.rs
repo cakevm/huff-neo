@@ -3,7 +3,6 @@
 #![warn(unused_extern_crates)]
 #![forbid(unsafe_code)]
 
-use alloy_primitives::hex;
 use huff_neo_codegen::*;
 use huff_neo_lexer::*;
 use huff_neo_parser::*;
@@ -206,17 +205,11 @@ impl<'a, 'l> Compiler<'a, 'l> {
         //     || cache::get_cached_artifacts(cloned_files, ol)
         // });
 
-        // Get our constructor arguments as a hex encoded string to compare to the cache
-        let inputs = self.get_constructor_args();
-        let encoded_inputs = Codegen::encode_constructor_args(inputs);
-        let encoded: Vec<Vec<u8>> = encoded_inputs.iter().map(|tok| tok.abi_encode()).collect();
-        let constructor_args = encoded.iter().map(|tok| hex::encode(tok.as_slice())).collect();
-
         let mut artifacts: Vec<Arc<Artifact>> = vec![];
 
         // Get Cached or Generate Artifacts
         tracing::debug!(target: "core", "Output directory: {}", output.0);
-        match cache::get_cached_artifacts(&files, &output, constructor_args, &self.constant_overrides_hex()) {
+        match cache::get_cached_artifacts(&files, &output, &self.get_constructor_args(), &self.constant_overrides_hex()) {
             Some(arts) => artifacts = arts,
             None => {
                 tracing::debug!(target: "core", "FINISHED RECURSING DEPENDENCIES!");
@@ -580,7 +573,11 @@ impl<'a, 'l> Compiler<'a, 'l> {
         };
 
         // Encode Constructor Arguments
-        let encoded_inputs = Codegen::encode_constructor_args(inputs);
+        let encoded_inputs =
+            Codegen::encode_constructor_args(inputs, Codegen::declared_constructor_types(&contract).as_deref()).map_err(|mut e| {
+                e.span = AstSpan(vec![Span { start: 0, end: 0, file: Some(Arc::clone(&file)) }]).boxed();
+                CompilerError::CodegenError(e)
+            })?;
         tracing::info!(target: "core", "ENCODED {} INPUTS", encoded_inputs.len());
 
         // Generate Artifact with ABI

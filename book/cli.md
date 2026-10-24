@@ -174,13 +174,17 @@ hnc ./src/ERC20.huff -g IToken
 Arguments: `[CONSTRUCTOR_ARGS]`
 
 Passing the `-i` flag sets the constructor arguments of the contract that is being compiled, separated by spaces.
-The type of each argument is read from its text: a decimal number is a `uint256`, a signed number an `int256`,
-`true` or `false` a `bool`, `0x` with 40 hex digits an `address`, other `0x` values of up to 32 bytes a 32-byte
-word, longer ones `bytes`, and a word a `string`. To enter the arguments interactively instead, use the `-n` flag.
+They are appended to the deployment bytecode as Solidity's `abi.encode` does, the same as Foundry or `cast` append
+them, and the constructor finds them with [`__argsstart()`](./huff-language/builtin-functions.md#__argsstart).
+To enter the arguments interactively instead, use the `-n` flag.
 
-The arguments are appended to the deployment bytecode in Huff's layout, which differs from Solidity's ABI encoding.
-Dynamic values (`string`, `bytes`) come first, as their raw bytes padded to 32 bytes without an offset or length,
-followed by the static values as 32-byte words. A contract reads a dynamic argument with `__CODECOPY_DYN_ARG`.
+When the contract declares its constructor, for example `#define function constructor(string,uint256)`, each
+argument is read as the declared type, and the number of arguments must match. Arrays are written as
+`"[1,2,3]"`. Without a declaration the type is guessed from the text: a decimal number is a `uint256`, a signed
+number an `int256`, `true` or `false` a `bool`, `0x` with 40 hex digits an `address`, other `0x` values of up to
+32 bytes a `bytes32`, longer ones `bytes`, and anything else a `string`.
+
+Without `-i` nothing is appended, so a deployer can append the arguments to the same bytecode.
 
 Example (assuming `ERC20.huff`'s constructor accepts a string and a uint):
 ```shell
@@ -230,8 +234,8 @@ hnc ./src/Contract.huff -m MY_CUSTOM_MAIN
 
 ### `-n` Interactive Inputs
 
-Passing the `-n` flag prompts for each constructor argument instead of taking them from `-i`, appends
-them to the bytecode, and writes the artifacts to the `-o` file or the `-d` directory. Add `-b` to also
+Passing the `-n` flag prompts for each argument of the declared constructor instead of taking them from `-i`,
+appends them to the bytecode as `-i` does, and writes the artifacts to the `-o` file or the `-d` directory. Add `-b` to also
 print the bytecode.
 
 Example:

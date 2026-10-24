@@ -118,10 +118,11 @@ The compiler is organized as a Rust workspace with the following key crates:
 
 #### Built-in Functions
 - `__FUNC_SIG()`, `__EVENT_HASH()`, `__ERROR()` - ABI encoding helpers
-- `__RIGHTPAD()`, `__LEFTPAD()` - Byte padding (code tables only)
+- `__RIGHTPAD()`, `__LEFTPAD()` - Byte padding (`__LEFTPAD()` in constants and code tables only)
 - `__BYTES()` - Raw bytes insertion
-- `__TABLESIZE()`, `__TABLESTART()` - Jump table utilities
-- `__CODESIZE()` - Get size of compiled macro
+- `__tablesize()`, `__tablestart()` - Jump table utilities
+- `__codesize()` - Get size of compiled macro
+- `__argsstart()` - Offset of the constructor arguments (constructor only)
 
 #### Important Files for Understanding Flow
 - `crates/codegen/src/lib.rs` - Main bytecode generation logic

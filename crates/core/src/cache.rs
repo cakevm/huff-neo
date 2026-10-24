@@ -1,5 +1,6 @@
 use std::{collections::BTreeMap, sync::Arc};
 
+use huff_neo_codegen::Codegen;
 use huff_neo_utils::file::file_source::FileSource;
 use huff_neo_utils::file::full_file_source::OutputLocation;
 use huff_neo_utils::prelude::Artifact;
@@ -9,7 +10,7 @@ use walkdir::WalkDir;
 pub fn get_cached_artifacts(
     files: &[Arc<FileSource>],
     out: &OutputLocation,
-    constructor_args: String,
+    constructor_args: &[String],
     constant_overrides: &BTreeMap<String, String>,
 ) -> Option<Vec<Arc<Artifact>>> {
     // Check if the file artifacts are already generated the the default "./artifacts/" directory or
@@ -24,7 +25,7 @@ pub fn get_cached_artifacts(
 pub fn resolve_existing_artifacts(
     files: &[Arc<FileSource>],
     output: &OutputLocation,
-    constructor_args: String,
+    constructor_args: &[String],
     constant_overrides: &BTreeMap<String, String>,
 ) -> Option<Vec<(Arc<FileSource>, Artifact)>> {
     let mut artifacts: Vec<(Arc<FileSource>, Artifact)> = Vec::new();
@@ -54,7 +55,10 @@ pub fn resolve_existing_artifacts(
                 // If we expected compilation, the sources must match
                 match expected {
                     Some(expected_fs) => {
-                        if !artifact.bytecode.ends_with(&constructor_args) {
+                        let types = artifact.abi.as_ref().and_then(Codegen::abi_constructor_types);
+                        let encoded_args = Codegen::encode_constructor_args(constructor_args.to_vec(), types.as_deref())
+                            .map(Codegen::abi_encode_constructor_args);
+                        if !encoded_args.is_ok_and(|args| artifact.bytecode.ends_with(&args)) {
                             tracing::warn!(target: "core", "Mismatched Constructor Args for Cached Artifact \"{}\"", artifact.file.path);
                             return None;
                         }

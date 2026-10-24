@@ -11,7 +11,6 @@ mod arguments;
 use crate::arguments::base::TestCommands;
 use crate::arguments::base::{HuffArgs, LabelFormat, get_input};
 use crate::arguments::constants::parse_constant_overrides;
-use alloy_primitives::hex;
 use clap::{CommandFactory, Parser};
 use comfy_table::{Cell, Color, Row, Table, modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL};
 use foundry_cli::utils::LoadConfig;
@@ -395,18 +394,23 @@ fn main() {
                             Paint::blue(&"[INTERACTIVE]".to_string()),
                             artifact.file.path
                         );
-                        for input in &args.inputs {
-                            let arg_input = get_input(&format!(
-                                "Enter a {:?} for constructor param{}:",
-                                input.kind,
-                                if !input.name.is_empty() { format!(" \"{}\"", input.name) } else { Default::default() }
-                            ));
-                            let encoded = Codegen::encode_constructor_args(vec![arg_input]).iter().fold(String::default(), |acc, str| {
-                                let inner: Vec<u8> = str.abi_encode();
-                                let hex_args: String = hex::encode(inner.as_slice());
-                                format!("{acc}{hex_args}")
-                            });
-                            appended_args.push_str(&encoded);
+                        let inputs: Vec<String> = args
+                            .inputs
+                            .iter()
+                            .map(|input| {
+                                get_input(&format!(
+                                    "Enter a {:?} for constructor param{}:",
+                                    input.kind,
+                                    if !input.name.is_empty() { format!(" \"{}\"", input.name) } else { Default::default() }
+                                ))
+                            })
+                            .collect();
+                        match Codegen::encode_constructor_args(inputs, Codegen::abi_constructor_types(abi).as_deref()) {
+                            Ok(values) => appended_args = Codegen::abi_encode_constructor_args(values),
+                            Err(e) => {
+                                eprintln!("{}", Paint::red(&CompilerError::CodegenError(e).to_string()));
+                                exit(1);
+                            }
                         }
                     }
                     None => {

@@ -1209,8 +1209,8 @@ pub enum BuiltinFunctionKind {
     RightPad,
     /// Leftpad function (only available in code tables)
     LeftPad,
-    /// Dynamic constructor arg function
-    DynConstructorArg,
+    /// Offset in the deployment bytecode where the constructor arguments start
+    ArgsStart,
     /// Inject Raw Bytes
     Verbatim,
     /// Bytes function to convert a string to bytes
@@ -1231,7 +1231,7 @@ impl From<String> for BuiltinFunctionKind {
             "__ERROR" => BuiltinFunctionKind::Error,
             "__RIGHTPAD" => BuiltinFunctionKind::RightPad,
             "__LEFTPAD" => BuiltinFunctionKind::LeftPad,
-            "__CODECOPY_DYN_ARG" => BuiltinFunctionKind::DynConstructorArg,
+            "__argsstart" => BuiltinFunctionKind::ArgsStart,
             "__VERBATIM" => BuiltinFunctionKind::Verbatim,
             "__BYTES" => BuiltinFunctionKind::Bytes,
             "__ASSERT_PC" => BuiltinFunctionKind::AssertPc,
@@ -1256,7 +1256,7 @@ impl TryFrom<&String> for BuiltinFunctionKind {
             "__ERROR" => Ok(BuiltinFunctionKind::Error),
             "__RIGHTPAD" => Ok(BuiltinFunctionKind::RightPad),
             "__LEFTPAD" => Ok(BuiltinFunctionKind::LeftPad),
-            "__CODECOPY_DYN_ARG" => Ok(BuiltinFunctionKind::DynConstructorArg),
+            "__argsstart" => Ok(BuiltinFunctionKind::ArgsStart),
             "__VERBATIM" => Ok(BuiltinFunctionKind::Verbatim),
             "__BYTES" => Ok(BuiltinFunctionKind::Bytes),
             "__ASSERT_PC" => Ok(BuiltinFunctionKind::AssertPc),
@@ -1277,7 +1277,7 @@ impl Display for BuiltinFunctionKind {
             BuiltinFunctionKind::Error => write!(f, "__ERROR"),
             BuiltinFunctionKind::RightPad => write!(f, "__RIGHTPAD"),
             BuiltinFunctionKind::LeftPad => write!(f, "__LEFTPAD"),
-            BuiltinFunctionKind::DynConstructorArg => write!(f, "__CODECOPY_DYN_ARG"),
+            BuiltinFunctionKind::ArgsStart => write!(f, "__argsstart"),
             BuiltinFunctionKind::Verbatim => write!(f, "__VERBATIM"),
             BuiltinFunctionKind::Bytes => write!(f, "__BYTES"),
             BuiltinFunctionKind::AssertPc => write!(f, "__ASSERT_PC"),
@@ -1299,7 +1299,7 @@ impl BuiltinFunctionKind {
                 | "__ERROR"
                 | "__RIGHTPAD"
                 | "__LEFTPAD"
-                | "__CODECOPY_DYN_ARG"
+                | "__argsstart"
                 | "__VERBATIM"
                 | "__BYTES"
                 | "__ASSERT_PC"

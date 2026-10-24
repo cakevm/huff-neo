@@ -194,27 +194,8 @@ impl CircularCodesizePlaceholderData {
     }
 }
 
-/// Data for a dynamic constructor argument placeholder
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct DynConstructorArgPlaceholderData {
-    /// The constructor argument name
-    pub arg_name: String,
-    /// The destination offset (as a padded hex string)
-    pub dest_offset: String,
-}
-
-impl DynConstructorArgPlaceholderData {
-    /// Create a new dynamic constructor arg placeholder
-    pub fn new(arg_name: String, dest_offset: String) -> Self {
-        Self { arg_name, dest_offset }
-    }
-
-    /// Generate the placeholder string
-    /// Format: 28 'x' characters + arg_name + dest_offset (pre-padded)
-    pub fn placeholder_string(&self) -> String {
-        format!("{}{}{}", "xx".repeat(14), self.arg_name, self.dest_offset)
-    }
-}
+/// The bytecode of `__argsstart()` until the layout is known: a PUSH2 whose value the compiler fills in
+pub const ARGS_START_PLACEHOLDER: &str = "61xxxx";
 
 /// Data for an __ASSERT_PC placeholder
 /// This placeholder generates no bytecode but validates the PC during bytecode generation
@@ -242,8 +223,8 @@ pub enum Bytes {
     JumpPlaceholder(JumpPlaceholderData),
     /// Circular codesize placeholder - "cccc" for self-referential __codesize
     CircularCodesizePlaceholder(CircularCodesizePlaceholderData),
-    /// Dynamic constructor arg placeholder
-    DynConstructorArgPlaceholder(DynConstructorArgPlaceholderData),
+    /// `__argsstart()` placeholder - "61xxxx", a PUSH2 filled with the offset of the constructor arguments
+    ArgsStartPlaceholder,
     /// Assert PC placeholder - validates program counter after jump relaxation
     AssertPcPlaceholder(AssertPcPlaceholderData),
 }
@@ -255,7 +236,7 @@ impl Bytes {
             Bytes::Raw(s) => s.clone(),
             Bytes::JumpPlaceholder(data) => data.to_hex(),
             Bytes::CircularCodesizePlaceholder(data) => data.to_hex(),
-            Bytes::DynConstructorArgPlaceholder(data) => data.placeholder_string(),
+            Bytes::ArgsStartPlaceholder => ARGS_START_PLACEHOLDER.to_string(),
             Bytes::AssertPcPlaceholder(_) => String::new(), // Generates no bytecode
         }
     }
@@ -278,10 +259,7 @@ impl Bytes {
                 // 1 byte for opcode + N bytes for value
                 1 + data.push_opcode.byte_size()
             }
-            Bytes::DynConstructorArgPlaceholder(data) => {
-                // 28 'x' characters = 14 bytes + arg_name + dest_offset
-                14 + (data.arg_name.len() / 2) + (data.dest_offset.len() / 2)
-            }
+            Bytes::ArgsStartPlaceholder => ARGS_START_PLACEHOLDER.len() / 2,
             Bytes::AssertPcPlaceholder(_) => 0, // Generates no bytecode
         }
     }

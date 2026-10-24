@@ -221,8 +221,10 @@ pub enum CodegenErrorKind {
     InvalidCodeLength(usize),
     /// Test Invocation
     TestInvocation(String),
-    /// Incorrect dynamic argument index
-    InvalidDynArgIndex,
+    /// Constructor arguments that do not match the declared constructor or cannot be read
+    InvalidConstructorArgs(String),
+    /// `__argsstart()` outside the constructor, where constructor arguments do not exist
+    ArgsStartOutsideConstructor,
     /// Missing Table Size
     MissingTableSize(String),
     /// Unsupported Builtin Function
@@ -366,8 +368,11 @@ impl<W: Write> Report<W> for CodegenError {
             CodegenErrorKind::TestInvocation(msg) => {
                 write!(f.out, "Test cannot be invoked: \"{msg}\"")
             }
-            CodegenErrorKind::InvalidDynArgIndex => {
-                write!(f.out, "Invalid Dynamic Constructor Argument Index")
+            CodegenErrorKind::InvalidConstructorArgs(msg) => {
+                write!(f.out, "Invalid constructor arguments: {msg}")
+            }
+            CodegenErrorKind::ArgsStartOutsideConstructor => {
+                write!(f.out, "__argsstart() can only be used in the constructor")
             }
             CodegenErrorKind::MissingTableSize(table_name) => {
                 write!(f.out, "Missing Table Size for table: \"{table_name}\"")
@@ -776,8 +781,15 @@ impl fmt::Display for CompilerError {
                 CodegenErrorKind::TestInvocation(_) => {
                     write!(f, "\nError: Test Invocation\n{}\n", ce.span.error(None))
                 }
-                CodegenErrorKind::InvalidDynArgIndex => {
-                    write!(f, "\nError: Invalid Dynamic Constructor Argument Index:\n{}\n", ce.span.error(None))
+                CodegenErrorKind::InvalidConstructorArgs(msg) => {
+                    write!(f, "\nError: Invalid constructor arguments: {msg}\n{}\n", ce.span.error(None))
+                }
+                CodegenErrorKind::ArgsStartOutsideConstructor => {
+                    write!(
+                        f,
+                        "\nError: __argsstart() can only be used in the constructor, as constructor arguments are not part of the deployed code\n{}\n",
+                        ce.span.error(None)
+                    )
                 }
                 CodegenErrorKind::MissingTableSize(table_name) => {
                     write!(f, "\nError: Missing Table Size for table: \"{table_name}\"\n{}\n", ce.span.error(None))

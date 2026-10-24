@@ -4942,7 +4942,6 @@ dependencies = [
  "alloy-primitives",
  "huff-neo-utils",
  "indexmap 2.14.0",
- "regex",
  "serde_json",
  "tracing",
 ]

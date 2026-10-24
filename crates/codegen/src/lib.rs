@@ -4,6 +4,7 @@
 #![forbid(unsafe_code)]
 
 use crate::irgen::builtin_function::builtin_pad;
+use alloy_dyn_abi::{DynSolType, DynSolValue};
 use alloy_primitives::{U256, hex};
 use huff_neo_utils::ast::huff::*;
 use huff_neo_utils::ast::span::AstSpan;
@@ -21,9 +22,7 @@ use huff_neo_utils::{
     prelude::{CodegenErrorKind, EVMVersion, PushValue, Span, deploy_bootstrap, format_even_bytes, pad_n_bytes},
     types::EToken,
 };
-use regex::Regex;
 use std::{
-    cmp::Ordering,
     collections::{BTreeMap, HashMap},
     fs,
     path::Path,
@@ -1321,7 +1320,7 @@ impl Codegen {
         evm_version: &EVMVersion,
         file: Arc<FileSource>,
         contract: &Contract,
-        mut args: Vec<alloy_dyn_abi::DynSolValue>,
+        args: Vec<alloy_dyn_abi::DynSolValue>,
         main: MainBytecodeOutput,
         constructor: Option<ConstructorMacroBytecode>,
         no_size_limit: bool,
@@ -1333,7 +1332,7 @@ impl Codegen {
             self.artifact.as_mut().unwrap()
         };
 
-        let MainBytecodeOutput { bytecode: mut main_bytecode, source_map: main_source_map, table_offsets: main_table_offsets } = main;
+        let MainBytecodeOutput { bytecode: main_bytecode, source_map: main_source_map, table_offsets: main_table_offsets } = main;
 
         let contract_length = main_bytecode.len() / 2;
 
@@ -1370,7 +1369,7 @@ impl Codegen {
         let external_table_offsets: HashMap<String, usize> =
             main_table_offsets.iter().map(|(name, off)| (name.clone(), runtime_start_in_deployment + off)).collect();
 
-        let (constructor_body, ctor_only_tables, constructor_source_map) = match constructor {
+        let (mut constructor_body, ctor_only_tables, constructor_source_map) = match constructor {
             Some(c) => {
                 let out = Codegen::gen_table_bytecode(contract, c.bytecode_res, ctor_tables_base_offset, &external_table_offsets)?;
                 (out.body, out.tables, Some(out.source_map))
@@ -1378,96 +1377,29 @@ impl Codegen {
             None => (String::new(), String::new(), None),
         };
 
-        // Sort constructor arguments so that statically sized args are inserted last.
-        args.sort_by(|a, b| {
-            if a.is_dynamic() && !b.is_dynamic() {
-                Ordering::Less
-            } else if !a.is_dynamic() && b.is_dynamic() {
-                Ordering::Greater
-            } else {
-                Ordering::Equal
+        // `__argsstart()` in the constructor pushes the offset the arguments are appended at
+        let args_start = runtime_start_in_deployment + contract_length + ctor_only_tables.len() / 2;
+        if constructor_body.contains(ARGS_START_PLACEHOLDER) {
+            if args_start > 0xFFFF {
+                return Err(CodegenError {
+                    kind: CodegenErrorKind::OffsetExceedsTwoBytes("constructor arguments for __argsstart()".to_string(), args_start),
+                    span: AstSpan(vec![Span { start: 0, end: 0, file: Some(file) }]).boxed(),
+                    token: None,
+                });
             }
-        });
+            constructor_body = constructor_body.replace(ARGS_START_PLACEHOLDER, &format!("{}{args_start:04x}", Opcode::Push2));
+        }
 
-        // `__CODECOPY_DYN_ARG` placeholders in main_bytecode are filled with the absolute
-        // deployment-bytecode offset where each argument's content sits. Args are appended past
-        // ctor_only_tables, so the first arg lives at runtime_start + contract_length + ctor_only_tables_len.
-        let mut arg_offset_acc = runtime_start_in_deployment + contract_length + ctor_only_tables.len() / 2;
-        // The filled-in PUSH2 can only address the first 64 KiB of the deployment bytecode
-        let mut oversized_arg_offset = None;
-        let encoded: Vec<Vec<u8>> = args
-            .into_iter()
-            .enumerate()
-            .map(|(i, tok)| {
-                if tok.is_dynamic() {
-                    let encoded = tok.abi_encode();
-
-                    // Check for "__CODECOPY_DYN_ARG" calls for this specific argument. If any
-                    // exist, fill the placeholders.
-                    let tok_len = hex::encode(&encoded[62..64]);
-                    let rep_regex = Regex::new(format!("xxxxxxxxxxxxxxxxxxxxxxxxxxxx{i:02x}\\d{{4}}").as_str()).unwrap();
-                    rep_regex.find_iter(main_bytecode.clone().as_str()).for_each(|s| {
-                        if arg_offset_acc > 0xFFFF {
-                            oversized_arg_offset = Some(arg_offset_acc);
-                        }
-                        // TODO: Enforce that the arg type is a literal so that this unwrap is safe.
-                        let len_ptr = usize::from_str_radix(&s.as_str()[30..34], 16).unwrap();
-                        let contents_ptr = len_ptr + 0x20;
-
-                        // Replace 17 reserved bytes.
-                        main_bytecode.replace_range(
-                            s.range(),
-                            format!(
-                                "{}{}{}{:04x}{}{}{}{}{:04x}{}{:04x}{}",
-                                Opcode::Push2,    // PUSH2
-                                tok_len,          // len(bytes)
-                                Opcode::Push2,    // PUSH2
-                                len_ptr,          // <len_mem_ptr>
-                                Opcode::Mstore,   // MSTORE
-                                Opcode::Push2,    // PUSH2
-                                tok_len,          // len(bytes)
-                                Opcode::Push2,    // PUSH2
-                                arg_offset_acc,   // <contents_code_ptr>
-                                Opcode::Push2,    // PUSH2
-                                contents_ptr,     // <contents_mem_ptr>
-                                Opcode::Codecopy  // CODECOPY
-                            )
-                            .as_str(),
-                        );
-                    });
-
-                    // Increase argument offset accumulator.
-                    arg_offset_acc += encoded.len() - 64;
-
-                    // We don't need to store the pointer nor the length of dynamically sized
-                    // elements in the code.
-                    encoded[64..].into()
-                } else {
-                    tok.abi_encode()
-                }
-            })
-            .collect();
-        let hex_args: Vec<String> = encoded.iter().map(|tok| hex::encode(tok.as_slice())).collect();
-        let constructor_args = hex_args.join("");
-
-        if let Some(offset) = oversized_arg_offset {
+        // Constructor arguments only exist in the deployment code, so the runtime cannot read them
+        if main_bytecode.contains(ARGS_START_PLACEHOLDER) {
             return Err(CodegenError {
-                kind: CodegenErrorKind::OffsetExceedsTwoBytes("dynamic constructor argument for __CODECOPY_DYN_ARG".to_string(), offset),
+                kind: CodegenErrorKind::ArgsStartOutsideConstructor,
                 span: AstSpan(vec![Span { start: 0, end: 0, file: Some(file) }]).boxed(),
                 token: None,
             });
         }
 
-        // Sucks that we can't provide a span on this error. Need to refactor at some point.
-        if main_bytecode.contains('x') {
-            tracing::error!(target = "codegen", "Failed to fill `__CODECOPY_DYN_ARG` placeholders. Dynamic argument index is invalid.");
-            return Err(CodegenError {
-                kind: CodegenErrorKind::InvalidDynArgIndex,
-                span: AstSpan(vec![Span { start: 0, end: 0, file: None }]).boxed(),
-                token: None,
-            });
-        }
-
+        let constructor_args = Codegen::abi_encode_constructor_args(args);
         let deployment_bytecode = format!("{constructor_body}{bootstrap_code}{main_bytecode}{ctor_only_tables}{constructor_args}");
 
         // Check the initcode size limit (EIP-3860, raised by EIP-7954 from Amsterdam)
@@ -1492,10 +1424,55 @@ impl Codegen {
         Ok(artifact.clone())
     }
 
-    /// Encode constructor arguments as alloy_dyn_abi::DynSolValue
-    pub fn encode_constructor_args(args: Vec<String>) -> Vec<alloy_dyn_abi::DynSolValue> {
-        let tokens: Vec<alloy_dyn_abi::DynSolValue> = args.iter().map(|tok| EToken::try_from(tok.clone()).unwrap().0).collect();
-        tokens
+    /// Reads constructor arguments given as text. With the declared constructor parameter types,
+    /// each argument is read as its type and the count must match; otherwise each type is guessed
+    /// from the text. Without arguments nothing is appended, so the deployer can append them later.
+    pub fn encode_constructor_args(args: Vec<String>, types: Option<&[String]>) -> Result<Vec<DynSolValue>, CodegenError> {
+        let invalid =
+            |msg: String| CodegenError { kind: CodegenErrorKind::InvalidConstructorArgs(msg), span: AstSpan(vec![]).boxed(), token: None };
+        let Some(types) = types.filter(|_| !args.is_empty()) else {
+            return args.into_iter().map(|arg| EToken::try_from(arg).map(|token| token.0).map_err(invalid)).collect();
+        };
+        if args.len() != types.len() {
+            return Err(invalid(format!(
+                "the constructor takes {} arguments ({}), but {} were given",
+                types.len(),
+                types.join(", "),
+                args.len()
+            )));
+        }
+        args.iter()
+            .zip(types)
+            .map(|(arg, ty)| {
+                DynSolType::parse(ty).and_then(|ty| ty.coerce_str(arg)).map_err(|e| invalid(format!("\"{arg}\" is not a valid {ty}: {e}")))
+            })
+            .collect()
+    }
+
+    /// The parameter types of the contract's `#define function constructor(...)`, if it declares one
+    pub fn declared_constructor_types(contract: &Contract) -> Option<Vec<String>> {
+        contract
+            .functions
+            .iter()
+            .find(|function| function.name.to_lowercase() == "constructor")
+            .map(|function| function.inputs.iter().map(|input| input.arg_type.clone().unwrap_or_default()).collect())
+    }
+
+    /// The constructor parameter types of a generated ABI. An ABI without a declared constructor
+    /// still lists the `CONSTRUCTOR` macro with no inputs, so only a non-empty list counts as declared.
+    pub fn abi_constructor_types(abi: &Abi) -> Option<Vec<String>> {
+        abi.constructor
+            .as_ref()
+            .filter(|constructor| !constructor.inputs.is_empty())
+            .map(|constructor| constructor.inputs.iter().map(|input| input.kind.to_string()).collect())
+    }
+
+    /// Encodes constructor arguments as hex, the way Solidity's `abi.encode` does
+    pub fn abi_encode_constructor_args(args: Vec<DynSolValue>) -> String {
+        if args.is_empty() {
+            return String::new();
+        }
+        hex::encode(DynSolValue::Tuple(args).abi_encode_params())
     }
 
     /// Export

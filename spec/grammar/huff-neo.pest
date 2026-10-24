@@ -385,8 +385,9 @@ opcode_operand = {
 //   __RIGHTPAD(0x42)                          __RIGHTPAD(__FUNC_SIG("transfer(address,uint256)"))
 //   __LEFTPAD([ADDRESS])                      __VERBATIM(0x1234)
 //   __BYTES("hello")                          __BYTES([GREETING])
-//   __ASSERT_PC([TARGET_PC] + <offset>)       __CODECOPY_DYN_ARG(0x00, 0x20)
-// __LEFTPAD is only valid in constant definitions and code tables. A builtin used as the
+//   __ASSERT_PC([TARGET_PC] + <offset>)       __argsstart()  // offset of the constructor arguments
+// __LEFTPAD is only valid in constant definitions and code tables. __argsstart is only valid in
+// the constructor and the macros it invokes. A builtin used as the
 // argument of __RIGHTPAD/__LEFTPAD/__VERBATIM must evaluate to bytes (e.g. __FUNC_SIG, __BYTES).
 builtin_function_call = {
     ("__FUNC_SIG" | "__EVENT_HASH" | "__ERROR") ~ "(" ~ (string_literal | identifier) ~ ")"
@@ -394,14 +395,14 @@ builtin_function_call = {
     | ("__RIGHTPAD" | "__LEFTPAD" | "__VERBATIM") ~ "(" ~ (hex_literal | constant_reference | builtin_function_call) ~ ")"
     | "__BYTES" ~ "(" ~ (string_literal | constant_reference) ~ ")"
     | "__ASSERT_PC" ~ "(" ~ expression ~ ")"
-    | "__CODECOPY_DYN_ARG" ~ "(" ~ hex_literal ~ "," ~ hex_literal ~ ")"
+    | "__argsstart" ~ "(" ~ ")"
 }
 
 // Reserved builtin names (same set as builtin_function_call); they are never labels or macros
 builtin_name = @{
     ( "__FUNC_SIG" | "__EVENT_HASH" | "__ERROR" | "__tablesize" | "__tablestart" | "__codesize"
     | "__EMBED_TABLE" | "__RIGHTPAD" | "__LEFTPAD" | "__VERBATIM" | "__BYTES" | "__ASSERT_PC"
-    | "__CODECOPY_DYN_ARG"
+    | "__argsstart"
     ) ~ !ident_char
 }
 
