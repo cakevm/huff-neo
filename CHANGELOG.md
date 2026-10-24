@@ -4,7 +4,7 @@
 
 ## Unreleased
 
-## [1.6.3] - 2026-10-24
+## [1.7.0] - 2026-10-24
 - Add the `deal(address, wei)`, `etch(address, bytes...)` and `nonce(address, n)` test decorators to set balances, code and nonces before a test runs.
   - Example: `#[deal(caller, 1000), etch(0x1000, "0x5f5ff3"), nonce(this, 5)]`
 - Add the `expect_storage` and `expect_balance` test expectations to check state after a test, with an exact value or inclusive `min =` and `max =` bounds.
