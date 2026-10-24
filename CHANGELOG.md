@@ -5,11 +5,13 @@
 ## Unreleased
 - Add the `skip` test decorator, with an optional reason, to skip a test without compiling or running it.
   - Example: `#[skip("needs a mainnet fork")]`
+- Add remappings for the libraries in `lib/` that have none, as forge infers them, so `#include "foundry-huff-neo/test.huff"` works after `forge install`.
 - **Breaking**: Stop a test at a failed `vm.assert*`, as `forge test` does, instead of letting it run on.
   - A failed cheatcode reverts, and it fails the test even when the test expects a revert or reverts to a state snapshot afterwards.
 - Fix test failures showing cheatcode errors and `Error(string)` reverts as raw hex instead of their message.
 - Fix a test that calls `vm.skip(true)` failing instead of being skipped, as in `forge test`.
 - Fix a relative `#include` inside a file included by an absolute path resolving against the working directory.
+- Fix a remapping applying to every occurrence of its prefix in a path, and pick the longest matching prefix as forge does.
 - Fix a test with the name of a macro replacing the macro, which made invoking the macro fail with "Test Invocation".
 
 ## [1.7.0] - 2026-10-24

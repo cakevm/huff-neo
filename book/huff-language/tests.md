@@ -24,7 +24,9 @@ Foundry's test address `0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496` and called f
 A test can call [Foundry cheatcodes](https://getfoundry.sh/reference/cheatcodes/overview) at
 `0x7109709ECfa91a80626fF3989D68f67F5b1DD12D`, for example to change the block in the middle of a test.
 [foundry-huff-neo](https://github.com/cakevm/foundry-huff-neo) provides every cheatcode as a macro, such as
-`VM_WARP`, with assertions such as `ASSERT_EQ`.
+`VM_WARP`, with assertions such as `ASSERT_EQ`. Install it with `forge install cakevm/foundry-huff-neo` and include
+it with `#include "foundry-huff-neo/test.huff"`. As in forge, a library in `lib/` is found without a remapping;
+remappings in `foundry.toml` or `remappings.txt` take precedence.
 
 A failed cheatcode reverts, as in `forge test`, and a failed `vm.assert*` is a failed cheatcode. A test that passes
 the revert on, as the foundry-huff-neo macros do, stops there and fails with the cheatcode's message, even when it
