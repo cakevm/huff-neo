@@ -3,18 +3,20 @@
 # Huff Neo Compiler changelog
 
 ## Unreleased
-- Run tests on Foundry's EVM executor, the engine of `forge test`, so tests can call Foundry cheatcodes.
-- Fail a test whose `vm.assert*` cheatcode fails.
-- **Breaking**: Deploy tests at Foundry's test address `0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496`, which changes the addresses of contracts a test creates.
+
+## [1.6.3] - 2026-10-24
 - Add the `deal(address, wei)`, `etch(address, bytes...)` and `nonce(address, n)` test decorators to set balances, code and nonces before a test runs.
   - Example: `#[deal(caller, 1000), etch(0x1000, "0x5f5ff3"), nonce(this, 5)]`
 - Add the `expect_storage` and `expect_balance` test expectations to check state after a test, with an exact value or inclusive `min =` and `max =` bounds.
   - Example: `#[expect_storage([COUNTER_SLOT], 0x02), expect_balance(this, 5), expect_balance(caller, min = 1)]`
+- Run tests on Foundry's EVM executor, the engine of `forge test`, so tests can call Foundry cheatcodes.
+- Fail a test whose `vm.assert*` cheatcode fails.
+- Update the book: show how to test a macro that jumps to a label defined in `MAIN`.
+- Update the book: reorganize the test page by topic and replace its example with a tested contract.
+- **Breaking**: Deploy tests at Foundry's test address `0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496`, which changes the addresses of contracts a test creates.
 - Fix `FREE_STORAGE_POINTER()` constants used only by tests failing with "Storage Pointers Not Derived".
 - Fix a test that calls a `fn` halting with `StackUnderflow` when it ends without `stop`.
 - Fix `extcodehash` returning zero for accounts created by `hnc test`.
-- Update the book: show how to test a macro that jumps to a label defined in `MAIN`.
-- Update the book: reorganize the test page by topic and replace its example with a tested contract.
 - Fix `remappings.txt` with Windows line endings.
 
 ## [1.6.2] - 2026-10-17
