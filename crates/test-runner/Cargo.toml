@@ -18,7 +18,6 @@ huff-neo-utils.workspace = true
 
 alloy-evm.workspace = true
 alloy-primitives.workspace = true
-anvil.workspace = true
 comfy-table.workspace = true
 eyre.workspace = true
 foundry-cli.workspace = true
@@ -29,7 +28,6 @@ foundry-evm.workspace = true
 foundry-evm-core.workspace = true
 foundry-evm-networks.workspace = true
 foundry-evm-traces.workspace = true
-op-revm.workspace = true
 revm.workspace = true
 serde.workspace = true
 serde_json.workspace = true
