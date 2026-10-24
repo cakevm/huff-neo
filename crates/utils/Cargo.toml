@@ -37,3 +37,6 @@ js-sys.workspace = true
 [features]
 default = []
 wasm = ["dep:tsify", "dep:wasm-bindgen"]
+
+[dev-dependencies]
+assert_fs.workspace = true

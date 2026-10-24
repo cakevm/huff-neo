@@ -1,8 +1,10 @@
 use crate::prelude::{EnvOverrides, Failure, HuffFunction, Outcome, RunnerError, SpecContext, TestResult, TestSpec, TestStatus};
+use crate::spec::skipped;
 use alloy_evm::EvmEnv;
 use alloy_primitives::{Address, Bytes, U256, hex};
 use foundry_evm::backend::{Backend, DatabaseExt};
 use foundry_evm::constants::CALLER;
+use foundry_evm::core::decode::SkipReason;
 use foundry_evm::core::evm::EthEvmNetwork;
 use foundry_evm::executors::{Executor, ExecutorBuilder, RawCallResult};
 use foundry_evm::fork::CreateFork;
@@ -72,10 +74,10 @@ impl Default for TestRunner {
     }
 }
 
-/// Settings for Foundry cheatcodes in `hnc test`. A failed `vm.assert*` fails the test through
-/// Foundry's failure flag instead of a revert, so it can never count as an expected revert.
+/// Settings for Foundry cheatcodes in `hnc test`. A failed `vm.assert*` reverts, as in `forge test`,
+/// so the test stops there and the failure survives a `vm.revertToState`.
 pub fn cheats_config(config: CheatsConfig) -> CheatsConfig {
-    CheatsConfig { assertions_revert: false, ..config }
+    CheatsConfig { assertions_revert: true, ..config }
 }
 
 impl TestRunner {
@@ -162,23 +164,22 @@ impl TestRunner {
         let result =
             executor.transact_raw(sender, transact_to, calldata, value).map_err(|e| RunnerError::TransactError(format!("{e:?}")))?;
 
-        let outcome = outcome_of(&result);
-        // A failed `vm.assert*` does not revert; Foundry marks the failure in the cheatcode state
+        // `vm.skip(true)` ends the test with a payload Foundry records, so it is told apart from a revert
+        let outcome = match result.skip_reason() {
+            Some(SkipReason(reason)) => Outcome::Skip { reason },
+            None => outcome_of(&result),
+        };
+        // Foundry's failure flag, which a DSTest-style `fail()` sets by writing the `failed` slot of the
+        // cheatcode address, fails the test as in forge
         let mut failures = Vec::new();
         if executor.has_global_failure(&result.state_changeset) {
-            failures.push(Failure {
-                expectation: String::from("vm.assert"),
-                message: String::from(if self.collect_logs {
-                    "a vm.assert* cheatcode failed, see its message in the console logs"
-                } else {
-                    "a vm.assert* cheatcode failed, run with -vv to see its message"
-                }),
-            });
+            failures.push(Failure { expectation: String::from("failed"), message: String::from("the test set Foundry's failure flag") });
         }
         let passed = matches!(outcome, Outcome::Return { .. }) && failures.is_empty();
         let (return_data, revert_reason) = match &outcome {
             Outcome::Return { data } | Outcome::Revert { data } => ((!data.is_empty()).then(|| data.clone()), None),
             Outcome::Halt { reason } => (None, Some(format!("Transaction halted with reason: {reason}"))),
+            Outcome::Skip { .. } => (None, None),
         };
 
         // NOTE: We subtract the intrinsic base cost of the CALL transaction, which depends on the
@@ -187,7 +188,7 @@ impl TestRunner {
             name,
             return_data,
             gas: result.gas_used.saturating_sub(call_base_gas(executor.spec_id(), value)),
-            status: TestStatus::from_passed(passed),
+            status: TestStatus::from_outcome(&outcome, passed),
             revert_reason,
             passed,
             outcome,
@@ -210,6 +211,9 @@ impl TestRunner {
         m: &MacroDefinition,
         contract: &Contract,
     ) -> Result<TestResult, RunnerError> {
+        if let Some(reason) = skipped(m.decorator.as_ref())? {
+            return Ok(skipped_result(m.name.clone(), reason));
+        }
         let evm_version = &self.evm_version;
 
         // Update the table size in the contract
@@ -281,8 +285,8 @@ impl TestRunner {
         if matches!(res.outcome, Outcome::Return { .. }) {
             res.failures.extend(spec.expectations.check_post_state(executor.backend())?);
         }
-        res.passed = res.failures.is_empty();
-        res.status = TestStatus::from_passed(res.passed);
+        res.passed = res.failures.is_empty() && !matches!(res.outcome, Outcome::Skip { .. });
+        res.status = TestStatus::from_outcome(&res.outcome, res.passed);
 
         // Add source map and address for debugging
         res.source_map = Some(source_map);
@@ -335,6 +339,28 @@ fn outcome_of(result: &RawCallResult<EthEvmNetwork>) -> Outcome {
         Some(SuccessOrHalt::Revert) => Outcome::Revert { data },
         Some(SuccessOrHalt::Halt(reason)) => Outcome::Halt { reason: format!("{reason:?}") },
         other => Outcome::Halt { reason: format!("{other:?}") },
+    }
+}
+
+/// The result of a test a `skip` flag skips, which does not run
+fn skipped_result(name: String, reason: Option<String>) -> TestResult {
+    TestResult {
+        name,
+        return_data: None,
+        gas: 0,
+        status: TestStatus::Skipped,
+        revert_reason: None,
+        passed: false,
+        outcome: Outcome::Skip { reason },
+        failures: Vec::new(),
+        traces: None,
+        logs: None,
+        functions: Vec::new(),
+        source_map: None,
+        address: None,
+        source_code: None,
+        bytecode: None,
+        source_files: Vec::new(),
     }
 }
 

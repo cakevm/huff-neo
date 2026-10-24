@@ -16,7 +16,7 @@ pub struct TestResult {
     pub gas: u64,
     pub status: TestStatus,
     pub revert_reason: Option<String>,
-    /// Whether the test met every expectation; the same as `status` being `Success`
+    /// Whether the test ran and met every expectation; the same as `status` being `Success`
     pub passed: bool,
     /// How the test call ended
     pub outcome: Outcome,
@@ -54,6 +54,7 @@ pub struct TestResult {
 pub enum TestStatus {
     Success,
     Revert,
+    Skipped,
 }
 
 /// The format of the test report
@@ -70,8 +71,13 @@ pub enum ReportKind {
 
 impl TestStatus {
     /// The status of a test that met, or did not meet, every expectation
-    pub fn from_passed(passed: bool) -> Self {
+    fn from_passed(passed: bool) -> Self {
         if passed { Self::Success } else { Self::Revert }
+    }
+
+    /// The status of a test that ended this way and met, or did not meet, every expectation
+    pub fn from_outcome(outcome: &Outcome, passed: bool) -> Self {
+        if matches!(outcome, Outcome::Skip { .. }) { Self::Skipped } else { Self::from_passed(passed) }
     }
 }
 
@@ -81,6 +87,7 @@ impl From<TestStatus> for String {
         match status {
             TestStatus::Success => Paint::green("PASS").to_string(),
             TestStatus::Revert => Paint::red("FAIL").to_string(),
+            TestStatus::Skipped => Paint::yellow("SKIP").to_string(),
         }
     }
 }
@@ -91,6 +98,7 @@ impl From<TestStatus> for Cell {
         match status {
             TestStatus::Success => Cell::new("PASS").fg(Color::Green),
             TestStatus::Revert => Cell::new("FAIL").fg(Color::Red),
+            TestStatus::Skipped => Cell::new("SKIP").fg(Color::Yellow),
         }
     }
 }

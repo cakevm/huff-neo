@@ -4,6 +4,21 @@
 
 ## Unreleased
 
+## [1.7.1] - 2026-10-24
+- Add the `skip` test decorator, with an optional reason, to skip a test without compiling or running it.
+  - Example: `#[skip("needs a mainnet fork")]`
+- Add a remapping for each library in `lib/` without one, as forge infers them, so `#include "foundry-huff-neo/test.huff"` works after `forge install`.
+  - An include such as `utils/Math.huff` now resolves into `lib/utils/` when that library exists.
+- **Breaking**: Stop a test at a failed `vm.assert*`, as `forge test` does, instead of letting it run on.
+  - A failed cheatcode reverts, which fails a test that passes the revert on, even with `expect_revert` or after `vm.revertToState`.
+  - A test that ignores the success flag of a failed `vm.assert*` call now passes.
+- **Breaking**: Reject a test with the name of a macro, which replaced the macro and made invoking it fail with "Test Invocation".
+- Fix test failures showing cheatcode errors and `Error(string)` reverts as raw hex without their message.
+- Fix a test that calls `vm.skip(true)` failing instead of being skipped, as in `forge test`.
+- Fix a relative `#include` inside a file included by an absolute path resolving against the working directory.
+- Fix a remapping applying to every occurrence of its prefix in a path, and pick the longest matching prefix as forge does.
+- Update the book: document skipping tests, failed cheatcodes, and foundry-huff-neo's cheatcode macros with how `lib/` libraries are found.
+
 ## [1.7.0] - 2026-10-24
 - Add the `deal(address, wei)`, `etch(address, bytes...)` and `nonce(address, n)` test decorators to set balances, code and nonces before a test runs.
   - Example: `#[deal(caller, 1000), etch(0x1000, "0x5f5ff3"), nonce(this, 5)]`

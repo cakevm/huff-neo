@@ -567,6 +567,42 @@ fn call_cheatcode(signature: &str, arg: &str) -> String {
     )
 }
 
+/// Calls a cheatcode with one word argument and reverts with its error when it fails
+fn call_cheatcode_or_revert(signature: &str, arg: &str) -> String {
+    format!(
+        "__FUNC_SIG(\"{signature}\") 0xe0 shl 0x00 mstore {arg} 0x04 mstore \
+         0x00 0x00 0x24 0x00 0x00 0x7109709ECfa91a80626fF3989D68f67F5b1DD12D gas call ok jumpi \
+         returndatasize 0x00 0x00 returndatacopy returndatasize 0x00 revert ok:"
+    )
+}
+
+#[test]
+fn test_runner_skips_a_test_with_a_skip_decorator() {
+    // A skipped test is not compiled, so its body may be unfinished
+    let result = run_test_t("#[skip(\"needs a fork\")]\n#define test T() = { UNDEFINED_MACRO() }");
+    assert_eq!(result.status, TestStatus::Skipped);
+    assert!(!result.passed);
+    assert_eq!(result.outcome, Outcome::Skip { reason: Some(String::from("needs a fork")) });
+    assert!(result.failures.is_empty());
+
+    assert_eq!(run_test_t("#[skip]\n#define test T() = { stop }").outcome, Outcome::Skip { reason: None });
+}
+
+#[test]
+fn test_runner_skips_a_test_that_calls_vm_skip() {
+    let skip = call_cheatcode_or_revert("skip(bool)", "0x01");
+    let result = run_test_t(&format!("#define test T() = {{ {skip} stop }}"));
+    assert_eq!(result.status, TestStatus::Skipped);
+    assert_eq!(result.outcome, Outcome::Skip { reason: None });
+
+    let no_skip = call_cheatcode_or_revert("skip(bool)", "0x00");
+    assert!(run_test_t(&format!("#define test T() = {{ {no_skip} stop }}")).passed);
+
+    // Revert data that only looks like a skip is a revert
+    let fake = run_test_t("#define test T() = { 0x464f554e4452593a3a534b4950 0x00 mstore 0x0d 0x13 revert }");
+    assert_eq!(fake.status, TestStatus::Revert);
+}
+
 #[test]
 fn test_runner_serves_cheatcodes() {
     let roll = call_cheatcode("roll(uint256)", "0x2a");
@@ -576,14 +612,20 @@ fn test_runner_serves_cheatcodes() {
 
 #[test]
 fn test_runner_fails_a_test_with_a_failed_cheatcode_assertion() {
-    // A failed assertion does not revert, so only Foundry's failure flag reveals it
-    let assert_false = call_cheatcode("assertTrue(bool)", "0x00");
+    // A failed assertion reverts, as in `forge test`, and the test passes the revert on
+    let assert_false = call_cheatcode_or_revert("assertTrue(bool)", "0x00");
     let result = run_test_t(&format!("#define test T() = {{ {assert_false} stop }}"));
     assert!(!result.passed);
-    assert_eq!(result.outcome, Outcome::Return { data: String::new() });
-    assert_eq!(result.failures[0].expectation, "vm.assert");
+    assert!(matches!(result.outcome, Outcome::Revert { .. }));
+    assert_eq!(result.failures[0].expectation, "cheatcode");
+    assert_eq!(result.failures[0].message, "assertion failed");
 
-    let assert_true = call_cheatcode("assertTrue(bool)", "0x01");
+    // It is not the revert a test expects
+    let result = run_test_t(&format!("#[expect_revert]\n#define test T() = {{ {assert_false} stop }}"));
+    assert!(!result.passed);
+    assert_eq!(result.failures[0].expectation, "cheatcode");
+
+    let assert_true = call_cheatcode_or_revert("assertTrue(bool)", "0x01");
     assert!(run_test_t(&format!("#define test T() = {{ {assert_true} stop }}")).passed);
 }
 

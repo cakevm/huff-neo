@@ -173,6 +173,8 @@ enum DecoratorKind {
     ExpectStorage,
     /// `expect_balance(address, wei)` or `expect_balance(address, min = n, max = m)`: a balance after the test
     ExpectBalance,
+    /// `skip` or `skip("reason")`: the test is not run
+    Skip,
 }
 
 /// The flags that say how the test must end; a test can have only one of them
@@ -190,7 +192,7 @@ enum OutcomeFlag {
 
 impl DecoratorKind {
     /// Every flag with its name in the source
-    const NAMES: [(Self, &'static str); 24] = [
+    const NAMES: [(Self, &'static str); 25] = [
         (Self::Calldata, "calldata"),
         (Self::Value, "value"),
         (Self::Store, "store"),
@@ -215,6 +217,7 @@ impl DecoratorKind {
         (Self::ExpectGas, "expect_gas"),
         (Self::ExpectStorage, "expect_storage"),
         (Self::ExpectBalance, "expect_balance"),
+        (Self::Skip, "skip"),
     ];
 
     /// The flag with this name, or `None` for a name `hnc test` does not know
@@ -431,6 +434,8 @@ impl TestSpec {
                     spec.expectations.outcome = eval.expected_outcome(flag, outcome)?;
                     spec.expectations.outcome_flag = Some(flag.name.clone());
                 }
+                // The runner skips the test before it gets here, see `skipped`
+                DecoratorKind::Skip => {}
                 DecoratorKind::ExpectGas => {
                     let usage = "`expect_gas` takes `min =` and/or `max =`, e.g. expect_gas(max = 30000)";
                     let args = FlagArgs::new(flag, 0..=0, &["min", "max"], usage)?;
@@ -680,6 +685,26 @@ impl Evaluator<'_> {
             None => (keccak256(name)[..4].try_into().expect("a selector is 4 bytes"), false),
         })
     }
+}
+
+/// The reason a `skip` flag gives, if any
+fn skip_reason(flag: &DecoratorFlag) -> Result<Option<String>, RunnerError> {
+    let usage = "`skip` takes nothing, or a reason, e.g. skip(\"needs a mainnet fork\")";
+    let args = FlagArgs::new(flag, 0..=1, &[], usage)?;
+    match args.positional.first() {
+        None => Ok(None),
+        Some(DecoratorArg { value: DecoratorValue::Str(reason), .. }) => Ok(Some(reason.clone())),
+        Some(arg) => Err(decorator_error(flag, DecoratorErrorKind::InvalidValue, usage, arg.span.clone())),
+    }
+}
+
+/// Whether a test's decorator skips it, with the reason when given. The runner checks this before
+/// it compiles the test, so a skipped test may be unfinished.
+pub fn skipped(decorator: Option<&Decorator>) -> Result<Option<Option<String>>, RunnerError> {
+    decorator
+        .and_then(|decorator| decorator.flags.iter().find(|flag| DecoratorKind::from_name(&flag.name) == Some(DecoratorKind::Skip)))
+        .map(skip_reason)
+        .transpose()
 }
 
 /// The only argument of a flag that takes one value

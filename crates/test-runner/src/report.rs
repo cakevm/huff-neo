@@ -1,4 +1,4 @@
-use crate::prelude::{HuffFunction, ReportKind, TestResult, TestStatus, decode_huff_internal_calls};
+use crate::prelude::{HuffFunction, Outcome, ReportKind, TestResult, TestStatus, decode_huff_internal_calls};
 use alloy_primitives::Address;
 use comfy_table::{Attribute, Cell, Color, ContentArrangement, Row, Table, modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL};
 use foundry_evm::decode::decode_console_logs;
@@ -16,8 +16,9 @@ pub async fn print_test_report(results: Vec<TestResult>, report_kind: ReportKind
     // Gather how many of our tests passed *before* generating our report,
     // as we pass ownership of `results` to both the `ReportKind::Table`
     // and `ReportKind::List` arms.
-    let n_passed = results.iter().filter(|r| std::mem::discriminant(&r.status) == std::mem::discriminant(&TestStatus::Success)).count();
-    let n_results = results.len();
+    let n_passed = results.iter().filter(|r| r.status == TestStatus::Success).count();
+    let n_skipped = results.iter().filter(|r| r.status == TestStatus::Skipped).count();
+    let n_failed = results.len() - n_passed - n_skipped;
 
     // Generate and print a report of the test results, formatted based on
     // the `report_kind` input.
@@ -54,6 +55,9 @@ pub async fn print_test_report(results: Vec<TestResult>, report_kind: ReportKind
                     Paint::yellow("Gas used:"),
                     result.gas
                 );
+                if let Outcome::Skip { reason: Some(reason) } = &result.outcome {
+                    println!("{}", Paint::yellow(&format!("├─ skipped: {reason}")));
+                }
                 for failure in &result.failures {
                     println!("{}", Paint::red(&format!("├─ {}: {}", failure.expectation, failure.message)));
                 }
@@ -75,7 +79,7 @@ pub async fn print_test_report(results: Vec<TestResult>, report_kind: ReportKind
                     }
                 }
 
-                let show_traces = verbosity >= 4 || (verbosity == 3 && !result.passed);
+                let show_traces = verbosity >= 4 || (verbosity == 3 && result.status == TestStatus::Revert);
                 if show_traces && let Some(traces) = result.traces {
                     print_call_trace(traces, result.address, &result.functions, verbosity >= 5).await?;
                 }
@@ -90,11 +94,13 @@ pub async fn print_test_report(results: Vec<TestResult>, report_kind: ReportKind
             return Ok(());
         }
     }
+    let skipped = if n_skipped > 0 { format!(", {} skipped", Paint::yellow(&n_skipped)) } else { String::new() };
+    // The share of the tests that ran, which leaves out the skipped ones
+    let share = (n_passed * 100).checked_div(n_passed + n_failed).map(|share| format!(" ({}%)", Paint::yellow(&share))).unwrap_or_default();
     println!(
-        "➜ {} tests passed, {} tests failed ({}%). ⏱ : {}",
+        "➜ {} tests passed, {} tests failed{skipped}{share}. ⏱ : {}",
         Paint::green(&n_passed),
-        Paint::red(&(n_results - n_passed)),
-        Paint::yellow(&(n_passed * 100 / n_results)),
+        Paint::red(&n_failed),
         Paint::magenta(&format!("{:.4?}", start.elapsed()))
     );
 

@@ -15,9 +15,8 @@ pub struct Remapper {
 }
 
 impl Remapper {
-    /// Extracts remappings from configuration files.
-    ///
-    /// Currently only supports `foundry.toml` remapping definitions.
+    /// Extracts remappings from `foundry.toml` and `remappings.txt`, and infers one for each library
+    /// in `lib/` that neither defines, as forge does.
     pub fn new(root: impl AsRef<str>) -> Self {
         let mut inner = HashMap::<String, String>::new();
 
@@ -26,6 +25,9 @@ impl Remapper {
 
         // And from remappings.txt
         Remapper::from_file(root.as_ref(), &mut inner);
+
+        // And infer the rest from the installed libraries
+        Remapper::from_libs(root.as_ref(), &mut inner);
 
         // Return the constructed remappings
         Self { remappings: inner, base_dir: root.as_ref().to_string() }
@@ -105,6 +107,22 @@ impl Remapper {
         }
     }
 
+    /// Infers a remapping for each library in `lib/` without one, as forge does: `name/` to the
+    /// library's `src/` folder when it has one, or to the library itself
+    pub fn from_libs(root: &str, inner: &mut HashMap<String, String>) {
+        let Ok(entries) = fs::read_dir(Path::new(root).join("lib")) else {
+            return;
+        };
+        for entry in entries.filter_map(Result::ok).filter(|entry| entry.path().is_dir()) {
+            let name = entry.file_name().to_string_lossy().into_owned();
+            if name.starts_with('.') || inner.contains_key(&name) || inner.contains_key(&format!("{name}/")) {
+                continue;
+            }
+            let to = if entry.path().join("src").is_dir() { format!("lib/{name}/src/") } else { format!("lib/{name}/") };
+            inner.insert(format!("{name}/"), to);
+        }
+    }
+
     /// Get remappings from a remappings.txt file
     pub fn from_file(root: &str, inner: &mut HashMap<String, String>) {
         let mut remappings: HashMap<String, String> = HashMap::new();
@@ -126,16 +144,10 @@ impl Remapper {
 }
 
 impl Remapper {
-    /// Tries to replace path segments in a string with our remappings
+    /// Remaps the start of a path with the remapping of the longest matching prefix, as forge does
     pub fn remap(&self, path: &str) -> Option<String> {
-        let mut path = path.to_string();
-        for (k, v) in self.remappings.iter() {
-            if path.starts_with(k) {
-                tracing::debug!(target: "parser", "found key {} and value {}", k, v);
-                path = path.replace(k, v);
-                return Some(format!("{}{path}", self.base_dir));
-            }
-        }
-        None
+        let (from, to) = self.remappings.iter().filter(|(from, _)| path.starts_with(from.as_str())).max_by_key(|(from, _)| from.len())?;
+        tracing::debug!(target: "parser", "found key {} and value {}", from, to);
+        Some(format!("{}{to}{}", self.base_dir, &path[from.len()..]))
     }
 }

@@ -22,9 +22,17 @@ Foundry's test address `0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496` and called f
 `0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38`, unless `caller(..)`, `--sender` or `--target-address` change them.
 
 A test can call [Foundry cheatcodes](https://getfoundry.sh/reference/cheatcodes/overview) at
-`0x7109709ECfa91a80626fF3989D68f67F5b1DD12D`, for example to change the block in the middle of a test. A failed
-`vm.assert*` fails the test; run with `-vv` to see its message. For tests written in Solidity that call a deployed
-Huff contract, use Foundry with [foundry-huff-neo](https://github.com/cakevm/foundry-huff-neo).
+`0x7109709ECfa91a80626fF3989D68f67F5b1DD12D`, for example to change the block in the middle of a test.
+[foundry-huff-neo](https://github.com/cakevm/foundry-huff-neo) provides every cheatcode as a macro, such as
+`VM_WARP`, with assertions such as `ASSERT_EQ`. Install it with `forge install cakevm/foundry-huff-neo` and include
+it with `#include "foundry-huff-neo/test.huff"`. As in forge, a library in the `lib/` folder of the working directory
+is found without a remapping; remappings in `foundry.toml` or `remappings.txt` take precedence.
+
+A failed cheatcode, such as a failed `vm.assert*`, reverts as in `forge test`. A test that passes
+the revert on, as the foundry-huff-neo macros do, stops there and fails with the cheatcode's message, even when it
+expects a revert. A test that ignores the call's success flag carries on as if the cheatcode had succeeded.
+
+For tests written in Solidity that call a deployed Huff contract, use Foundry with foundry-huff-neo.
 
 ## Decorators
 Decorators sit directly above a test and hold one or more flags: `#[flag_a(inputs...), flag_b(inputs...)]`. A test
@@ -146,6 +154,22 @@ A reverted or halted test keeps no state, so `expect_storage` and `expect_balanc
 `expect_revert`, `expect_partial_revert` or `expect_halt`. When a test reverts without expecting it, only the
 unexpected revert is reported.
 
+### Skipping a test
+`skip` skips a test, with an optional reason. A skipped test is not compiled or run, so it may be unfinished. A test
+can also skip itself while it runs by calling `vm.skip(true)` and passing its revert on, for example when it needs a
+fork. Skipped tests are listed
+as `[SKIP]` and never fail the run.
+
+```javascript
+#[skip("needs a mainnet fork")]
+#define test SWAP_ON_MAINNET() = { stop }
+```
+
+```text
+[SKIP] SWAP_ON_MAINNET - Gas used: 0
+├─ skipped: needs a mainnet fork
+```
+
 ### Decorator values
 A value that stands for a 32-byte word, such as a slot, an amount, an address or a bound, can be written as:
 * a hex literal (`0xbeef`), a decimal literal (`100`), or `true` / `false`
@@ -186,8 +210,9 @@ A failing test lists every expectation it did not meet:
 └─ 92665351
 ```
 
-With `--format json`, each result has a `passed` flag, an `outcome` (`return`, `revert` or `halt`, with its data or
-reason) and the list of `failures`. `hnc test` exits with status 1 when a test fails.
+With `--format json`, each result has a `passed` flag, an `outcome` (`return`, `revert`, `halt` or `skip`, with its
+data or reason) and the list of `failures`. A skipped test has the status `Skipped` and `passed` set to `false`.
+`hnc test` exits with status 1 when a test fails, but not for skipped tests.
 
 Run with `-vv` to see console logs, `-vvv` to see the execution trace of failing tests, `-vvvv` for the traces of all
 tests, and `-vvvvv` to add storage changes to the traces, as in `forge test`. See the [CLI Resources](../cli.md).
