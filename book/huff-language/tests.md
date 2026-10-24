@@ -178,6 +178,56 @@ reason) and the list of `failures`.
 `hnc test` does not support Foundry cheatcodes yet. A test that calls the cheatcode address
 `0x7109709ECfa91a80626fF3989D68f67F5b1DD12D` fails instead of silently doing nothing.
 
+### Labels defined in MAIN
+A macro often jumps to a label that `MAIN` defines, such as a shared error exit. A test that invokes the macro
+directly does not compile, because the label does not exist in the test: `Unmatched Jump Labels: "unauthorized"`.
+
+Define the label in the test instead. A macro sees the labels of the code that invokes it, so the jump lands in
+the test, which can end the way the label in `MAIN` would and check it with an expectation:
+
+```javascript
+#define error Unauthorized()
+#define constant OWNER_SLOT = FREE_STORAGE_POINTER()
+
+// Jumps to MAIN's `unauthorized` label unless the caller is the owner
+#define macro ONLY_OWNER() = takes (0) returns (0) {
+    [OWNER_SLOT] sload caller eq iszero unauthorized jumpi
+}
+
+#define macro MAIN() = takes (0) returns (0) {
+    ONLY_OWNER()
+    stop
+
+    unauthorized:
+        __ERROR(Unauthorized) 0x00 mstore 0x04 0x00 revert
+}
+
+#[store([OWNER_SLOT], 0xbeef), caller(0xdead), expect_revert(__ERROR(Unauthorized))]
+#define test REJECTS_STRANGER() = {
+    ONLY_OWNER()
+    stop
+
+    unauthorized:
+        __ERROR(Unauthorized) 0x00 mstore 0x04 0x00 revert
+}
+```
+
+When several tests need the same labels, define them once in a macro and invoke it after the test code. The
+other macros the test invokes see its labels too:
+
+```javascript
+#define macro TERMINALS() = {
+    unauthorized:
+        __ERROR(Unauthorized) 0x00 mstore 0x04 0x00 revert
+}
+
+#[store([OWNER_SLOT], 0xbeef), caller(0xdead), expect_revert(__ERROR(Unauthorized))]
+#define test REJECTS_STRANGER() = { ONLY_OWNER() stop TERMINALS() }
+
+#[store([OWNER_SLOT], 0xbeef), caller(0xbeef)]
+#define test ALLOWS_OWNER() = { ONLY_OWNER() stop TERMINALS() }
+```
+
 ## Example
 ```javascript
 #include "huffmate/utils/Errors.huff"
