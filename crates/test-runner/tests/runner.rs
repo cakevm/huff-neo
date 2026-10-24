@@ -12,7 +12,7 @@ use revm::primitives::hardfork::SpecId;
 
 #[test]
 fn test_runner_return() {
-    let mut runner = TestRunner::default();
+    let runner = TestRunner::default();
     let mut executor = runner.new_executor(None).unwrap();
     let code = "602060005260206000F3";
     let deployed_addr = runner.deploy_code(&mut executor, code.to_string()).unwrap();
@@ -26,7 +26,7 @@ fn test_runner_return() {
 
 #[test]
 fn test_runner_stop() {
-    let mut runner = TestRunner::default();
+    let runner = TestRunner::default();
     let mut executor = runner.new_executor(None).unwrap();
     let code = "00";
     let deployed_addr = runner.deploy_code(&mut executor, code.to_string()).unwrap();
@@ -40,7 +40,7 @@ fn test_runner_stop() {
 
 #[test]
 fn test_runner_revert() {
-    let mut runner = TestRunner::default();
+    let runner = TestRunner::default();
     let mut executor = runner.new_executor(None).unwrap();
     let code = "60006000FD";
     let deployed_addr = runner.deploy_code(&mut executor, code.to_string()).unwrap();
@@ -67,7 +67,7 @@ fn dupn_code() -> String {
 
 #[test]
 fn test_runner_amsterdam_dupn() {
-    let mut runner = runner_with_spec(SpecId::AMSTERDAM);
+    let runner = runner_with_spec(SpecId::AMSTERDAM);
     let mut executor = runner.new_executor(None).unwrap();
     let deployed_addr = runner.deploy_code(&mut executor, dupn_code()).unwrap();
     let result = runner.call(String::from("DUPN"), &mut executor, deployed_addr, U256::ZERO, String::default()).unwrap();
@@ -79,7 +79,7 @@ fn test_runner_amsterdam_dupn() {
 #[test]
 fn test_runner_pre_amsterdam_dupn_halts() {
     // Before Amsterdam 0xe6 is not a valid opcode, so the same code must halt
-    let mut runner = runner_with_spec(SpecId::OSAKA);
+    let runner = runner_with_spec(SpecId::OSAKA);
     let mut executor = runner.new_executor(None).unwrap();
     let deployed_addr = runner.deploy_code(&mut executor, dupn_code()).unwrap();
     let result = runner.call(String::from("DUPN"), &mut executor, deployed_addr, U256::ZERO, String::default()).unwrap();
@@ -95,13 +95,13 @@ fn test_runner_gas_excludes_intrinsic_cost() {
     // charge for value transfers; reported gas must only cover execution on either side of the fork
     for spec in [SpecId::OSAKA, SpecId::AMSTERDAM] {
         for value in [U256::ZERO, U256::from(1)] {
-            let mut runner = runner_with_spec(spec);
+            let runner = runner_with_spec(spec);
             let mut executor = runner.new_executor(None).unwrap();
             let deployed_addr = runner.deploy_code(&mut executor, "00".to_string()).unwrap();
             let result = runner.call(String::from("STOP"), &mut executor, deployed_addr, value, String::default()).unwrap();
             assert_eq!(result.gas, 0, "STOP on {spec:?} with value {value}");
 
-            let mut runner = runner_with_spec(spec);
+            let runner = runner_with_spec(spec);
             let mut executor = runner.new_executor(None).unwrap();
             let deployed_addr = runner.deploy_code(&mut executor, "602060005260206000F3".to_string()).unwrap();
             let result = runner.call(String::from("RETURN"), &mut executor, deployed_addr, value, String::default()).unwrap();
@@ -125,7 +125,7 @@ fn parse_contract(source: &str) -> Contract {
 }
 
 /// Runs the named test macro of the source with the given runner, on a fresh executor of that runner.
-fn run_source_test_with(runner: &mut TestRunner, source: &str, name: &str) -> Result<TestResult, Box<RunnerError>> {
+fn run_source_test_with(runner: &TestRunner, source: &str, name: &str) -> Result<TestResult, Box<RunnerError>> {
     let mut executor = runner.new_executor(None).unwrap();
     let contract = parse_contract(source);
     runner.run_test(&mut executor, contract.macros.get(name).unwrap(), &contract).map_err(Box::new)
@@ -353,7 +353,7 @@ fn test_runner_applies_slot_number_decorator() {
 
     let mut runner = runner_with_spec(SpecId::AMSTERDAM);
     runner.evm_version = EVMVersion::new(SupportedEVMVersions::Amsterdam);
-    let result = run_source_test_with(&mut runner, source, "T").unwrap();
+    let result = run_source_test_with(&runner, source, "T").unwrap();
     assert_eq!(result.return_data, Some(format!("{:064x}", 12345)));
 }
 

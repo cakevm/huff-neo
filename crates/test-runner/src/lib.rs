@@ -1,6 +1,5 @@
 use crate::{errors::RunnerError, types::TestResult};
-use alloy_primitives::Address;
-use huff_neo_utils::prelude::{Contract, EVMVersion, MacroDefinition, SupportedEVMVersions};
+use huff_neo_utils::prelude::{Contract, MacroDefinition, SupportedEVMVersions};
 
 /// The runner module
 pub mod runner;
@@ -24,7 +23,7 @@ use alloy_primitives::map::AddressHashMap;
 use foundry_compilers::{compilers::solc::SolcLanguage, multi::MultiCompilerLanguage};
 use foundry_debugger::Debugger;
 use foundry_evm::fork::CreateFork;
-use foundry_evm::traces::{InternalTraceMode, TraceKind};
+use foundry_evm::traces::TraceKind;
 use foundry_evm_traces::debug::{ArtifactData, ContractSources, SourceData};
 use revm::primitives::hardfork::SpecId;
 use std::path::PathBuf;
@@ -45,38 +44,15 @@ pub type TestMacros<'t> = Vec<&'t MacroDefinition>;
 /// Builder for the HuffTester
 #[derive(Clone, Debug, Default)]
 pub struct HuffTesterConfig {
-    /// The address which will be used to deploy the initial contracts and send all
-    /// transactions
-    pub sender: Option<Address>,
-    /// The EVM spec to use
-    pub evm_spec: Option<SpecId>,
     /// The fork to use at launch
     pub fork: Option<CreateFork>,
     /// Whether to collect debug info
     pub debug: bool,
-    /// Whether to enable steps tracking in the tracer.
-    pub decode_internal: InternalTraceMode,
-    /// Whether to enable call isolation
-    pub isolation: bool,
-    /// The target address for the contract
-    pub target_address: Option<Address>,
-    /// The EVM version the test macros are compiled for
-    pub evm_version: EVMVersion,
 }
 
 impl HuffTesterConfig {
     pub fn new() -> Self {
         Self::default()
-    }
-
-    pub fn sender(mut self, sender: Address) -> Self {
-        self.sender = Some(sender);
-        self
-    }
-
-    pub fn evm_spec(mut self, spec: SpecId) -> Self {
-        self.evm_spec = Some(spec);
-        self
     }
 
     pub fn with_fork(mut self, fork: Option<CreateFork>) -> Self {
@@ -86,26 +62,6 @@ impl HuffTesterConfig {
 
     pub fn set_debug(mut self, enable: bool) -> Self {
         self.debug = enable;
-        self
-    }
-
-    pub fn set_decode_internal(mut self, mode: InternalTraceMode) -> Self {
-        self.decode_internal = mode;
-        self
-    }
-
-    pub fn enable_isolation(mut self, enable: bool) -> Self {
-        self.isolation = enable;
-        self
-    }
-
-    pub fn target_address(mut self, target_address: Option<Address>) -> Self {
-        self.target_address = target_address;
-        self
-    }
-
-    pub fn evm_version(mut self, evm_version: EVMVersion) -> Self {
-        self.evm_version = evm_version;
         self
     }
 }
@@ -163,7 +119,7 @@ impl<'t> HuffTester<'t> {
     }
 
     /// Execute tests
-    pub fn execute(mut self) -> Result<Vec<TestResult>, RunnerError> {
+    pub fn execute(self) -> Result<Vec<TestResult>, RunnerError> {
         // Check if any test macros exist
         if self.macros.is_empty() {
             return Err(RunnerError::GenericError(String::from("No test macros found.")));

@@ -12,6 +12,7 @@ use foundry_evm_networks::NetworkConfigs;
 use huff_neo_codegen::Codegen;
 use huff_neo_utils::ast::huff::MacroDefinition;
 use huff_neo_utils::prelude::{Contract, EVMVersion, deploy_bootstrap};
+use huff_neo_utils::scope::ScopeManager;
 use revm::context::TxEnv;
 use revm::context::result::HaltReason;
 use revm::context_interface::block::BlobExcessGasAndPrice;
@@ -20,6 +21,7 @@ use revm::context_interface::cfg::gas_params::Eip2780TxInfo;
 use revm::interpreter::SuccessOrHalt;
 use revm::primitives::hardfork::SpecId;
 use revm::state::Bytecode;
+use std::collections::HashMap;
 use std::sync::Arc;
 
 /// Container for EVM environment (cfg + block) and transaction.
@@ -32,7 +34,9 @@ pub struct Env {
 /// Runs test macros on Foundry's executor, with its cheatcodes, tracer and log collector.
 #[derive(Debug)]
 pub struct TestRunner {
+    /// Environment every test starts from, including the sender of its call
     pub env: Env,
+    /// Address the test macros run at instead of being deployed
     pub target_address: Option<Address>,
     /// EVM version the test macros are compiled for
     pub evm_version: EVMVersion,
@@ -97,30 +101,8 @@ impl TestRunner {
         executor.set_balance(address, amount).map_err(db_error)
     }
 
-    /// Set the value of a storage slot of an account, creating the account if it does not exist.
-    pub fn set_storage(
-        &self,
-        executor: &mut Executor<EthEvmNetwork>,
-        address: Address,
-        slot: U256,
-        value: U256,
-    ) -> Result<(), RunnerError> {
-        executor.set_storage_slot(address, slot, value).map_err(db_error)
-    }
-
-    /// Set the nonce of an account, creating the account if it does not exist.
-    pub fn set_nonce(&self, executor: &mut Executor<EthEvmNetwork>, address: Address, nonce: u64) -> Result<(), RunnerError> {
-        executor.set_account_nonce(address, nonce).map_err(db_error)
-    }
-
-    /// Set the code of an account, creating the account if it does not exist.
-    pub fn set_code(&self, executor: &mut Executor<EthEvmNetwork>, address: Address, code: String) -> Result<(), RunnerError> {
-        let code = Bytecode::new_raw(Bytes::from(hex::decode(code).expect("Invalid code")));
-        executor.set_code(address, code).map_err(db_error)
-    }
-
     /// Deploy arbitrary bytecode and return the contract address.
-    pub fn deploy_code(&mut self, executor: &mut Executor<EthEvmNetwork>, code: String) -> Result<Address, RunnerError> {
+    pub fn deploy_code(&self, executor: &mut Executor<EthEvmNetwork>, code: String) -> Result<Address, RunnerError> {
         // Wrap code in a bootstrap constructor
         let (bootstrap_code, _) = deploy_bootstrap(code.len() / 2, 0);
         // The following should never panic, as any potential compilation error
@@ -139,7 +121,7 @@ impl TestRunner {
 
     /// Perform a call to a deployed contract
     pub fn call(
-        &mut self,
+        &self,
         name: String,
         executor: &mut Executor<EthEvmNetwork>,
         transact_to: Address,
@@ -147,23 +129,23 @@ impl TestRunner {
         data: String,
     ) -> Result<TestResult, RunnerError> {
         self.set_balance(executor, self.env.tx.caller, U256::MAX)?;
-        self.call_from(name, executor, self.env.tx.caller, transact_to, value, data)
+        let calldata = Bytes::from(hex::decode(data).expect("Invalid calldata"));
+        self.call_from(name, executor, self.env.tx.caller, transact_to, value, calldata)
     }
 
     /// Perform a call to a deployed contract from the given sender, in the executor's current
     /// environment; the sender must already hold the funds for the call
     fn call_from(
-        &mut self,
+        &self,
         name: String,
         executor: &mut Executor<EthEvmNetwork>,
         sender: Address,
         transact_to: Address,
         value: U256,
-        data: String,
+        calldata: Bytes,
     ) -> Result<TestResult, RunnerError> {
         // The sender may be the deployer of the test or an address set by a `caller` decorator
         use_sender_nonce(executor, sender)?;
-        let calldata = Bytes::from(hex::decode(data).expect("Invalid calldata"));
         let result =
             executor.transact_raw(sender, transact_to, calldata, value).map_err(|e| RunnerError::TransactError(format!("{e:?}")))?;
 
@@ -182,7 +164,6 @@ impl TestRunner {
             Outcome::Halt { reason } => (None, Some(format!("Transaction halted with reason: {reason}"))),
         };
 
-        // Return our test result
         // NOTE: We subtract the intrinsic base cost of the CALL transaction, which depends on the
         // active hardfork (EIP-2780 reprices it from Amsterdam).
         Ok(TestResult {
@@ -206,33 +187,32 @@ impl TestRunner {
 
     /// Compile a test macro and run it on the executor, which holds the chain state of this test
     pub fn run_test(
-        &mut self,
+        &self,
         executor: &mut Executor<EthEvmNetwork>,
         m: &MacroDefinition,
         contract: &Contract,
     ) -> Result<TestResult, RunnerError> {
-        let evm_version = self.evm_version;
-
-        let name = m.name.to_owned();
+        let evm_version = &self.evm_version;
 
         // Update the table size in the contract
-        let contract = Codegen::update_table_size(&evm_version, contract)?;
+        let contract = Codegen::update_table_size(evm_version, contract)?;
 
         // Compile the passed test macro
-        let mut scope_mgr = huff_neo_utils::scope::ScopeManager::new();
+        let mut scope_mgr = ScopeManager::new();
         scope_mgr.push_macro(m, 0);
-        let res = Codegen::macro_to_bytecode(&evm_version, m, &contract, &mut scope_mgr, 0, false, false)?;
+        let res = Codegen::macro_to_bytecode(evm_version, m, &contract, &mut scope_mgr, 0, false, false)?;
 
         // Generate table bytecode for compiled test macro. Test macros run standalone (no
         // bootstrap, no upstream dedup target), so base_offset = 0 and the external map is empty.
-        let table_out = Codegen::gen_table_bytecode(&contract, res, 0, &std::collections::HashMap::new())?;
+        let table_out = Codegen::gen_table_bytecode(&contract, res, 0, &HashMap::new())?;
         let bytecode = format!("{}{}", table_out.body, table_out.tables);
         let source_map = table_out.source_map;
 
         // Deploy compiled test macro
         let address = match self.target_address {
             Some(address) => {
-                self.set_code(executor, address, bytecode.clone())?;
+                let code = Bytecode::new_raw(Bytes::from(hex::decode(&bytecode).expect("Invalid code")));
+                executor.set_code(address, code).map_err(db_error)?;
                 address
             }
             None => {
@@ -240,7 +220,7 @@ impl TestRunner {
                 // Foundry's test contract address
                 let sender = self.env.tx.caller;
                 if executor.get_nonce(sender).map_err(db_error)? == 0 {
-                    self.set_nonce(executor, sender, 1)?;
+                    executor.set_account_nonce(sender, 1).map_err(db_error)?;
                 }
                 self.deploy_code(executor, bytecode.clone())?
             }
@@ -256,20 +236,20 @@ impl TestRunner {
         apply_env_overrides(executor, &self.env, &spec.env);
         self.set_balance(executor, sender, U256::MAX)?;
         for slot in &spec.storage {
-            self.set_storage(executor, slot.address, slot.slot, slot.value)?;
+            executor.set_storage_slot(slot.address, slot.slot, slot.value).map_err(db_error)?;
         }
         for balance in &spec.balances {
             self.set_balance(executor, balance.address, balance.value)?;
         }
         for code in &spec.code {
-            self.set_code(executor, code.address, hex::encode(&code.value))?;
+            executor.set_code(code.address, Bytecode::new_raw(Bytes::copy_from_slice(&code.value))).map_err(db_error)?;
         }
         for nonce in &spec.nonces {
-            self.set_nonce(executor, nonce.address, nonce.value)?;
+            executor.set_account_nonce(nonce.address, nonce.value).map_err(db_error)?;
         }
 
         // Call the deployed test
-        let mut res = self.call_from(name, executor, sender, address, spec.value, hex::encode(&spec.calldata))?;
+        let mut res = self.call_from(m.name.clone(), executor, sender, address, spec.value, Bytes::from(spec.calldata))?;
 
         // Check how the test ended against what its decorators expect. A test that did not return
         // kept none of its state, and the outcome failure already says why.
@@ -287,7 +267,7 @@ impl TestRunner {
         // Get the full source code for debugging
         // Use the flattened source from the contract if available
         res.source_code = contract.flattened_source.clone();
-        res.bytecode = Some(bytecode.clone());
+        res.bytecode = Some(bytecode);
         res.source_files = contract.source_files.clone();
 
         Ok(res)

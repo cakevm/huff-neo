@@ -71,7 +71,7 @@ pub async fn print_test_report(results: Vec<TestResult>, report_kind: ReportKind
                     }
                 }
 
-                if let Some(traces) = result.traces.clone() {
+                if let Some(traces) = result.traces {
                     print_call_trace(traces).await?;
                 }
             }

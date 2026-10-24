@@ -289,15 +289,8 @@ fn main() {
             };
 
             let chain_id = env.evm_env.cfg_env.chain_id;
-            let tester_config = HuffTesterConfig::new()
-                .set_debug(test_args.debug)
-                .set_decode_internal(decode_internal)
-                .evm_spec(evm_spec)
-                .evm_version(evm_version)
-                .sender(evm_opts.sender)
-                .with_fork(evm_opts.get_fork_resolved(&config, chain_id, resolved_fork.as_ref()))
-                .enable_isolation(evm_opts.isolate)
-                .target_address(test_args.target_address);
+            let fork = evm_opts.get_fork_resolved(&config, chain_id, resolved_fork.as_ref());
+            let tester_config = HuffTesterConfig::new().set_debug(test_args.debug).with_fork(fork);
 
             // Call traces are always recorded for the report; logs from -vvv; every step, state
             // changes and live printing from -vvvv; the debugger needs every step as well
