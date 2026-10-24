@@ -149,6 +149,9 @@ impl Contract {
     }
 
     /// Derives the FreeStoragePointers into their bytes32 representation
+    ///
+    /// Slots are assigned in order of first use: the constructor, then MAIN, then each test with its
+    /// decorators, so pointers only tests use never move the contract's own slots.
     pub fn derive_storage_pointers(&mut self) {
         let mut storage_pointers: Vec<(String, [u8; 32])> = Vec::new();
         let mut last_assigned_free_pointer = 0;
@@ -167,6 +170,20 @@ impl Contract {
             Some(m) => self.recurse_ast_constants(m, &mut storage_pointers, &mut last_assigned_free_pointer, false),
             None => {
                 tracing::error!(target: "ast", "'MAIN' MACRO NOT FOUND WHILE DERIVING STORAGE POINTERS!")
+            }
+        }
+
+        // Derive pointers that only tests use, in definition order. They come after the contract's own
+        // pointers, so tests never change the slots of the deployed contract.
+        for test in self.macros.values().filter(|m| m.test) {
+            self.recurse_ast_constants(test, &mut storage_pointers, &mut last_assigned_free_pointer, false);
+            let decorator_constants =
+                test.decorator.iter().flat_map(|d| &d.flags).flat_map(|f| &f.args).filter_map(|arg| match &arg.value {
+                    DecoratorValue::Constant(name) => Some(name),
+                    _ => None,
+                });
+            for name in decorator_constants {
+                self.assign_free_storage_pointers(name, &test.name, &mut storage_pointers, &mut last_assigned_free_pointer);
             }
         }
 

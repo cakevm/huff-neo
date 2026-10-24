@@ -3,6 +3,13 @@
 # Huff Neo Compiler changelog
 
 ## Unreleased
+- Add the `deal(address, wei)`, `etch(address, bytes...)` and `nonce(address, n)` test decorators to set balances, code and nonces before a test runs.
+  - Example: `#[deal(caller, 1000), etch(0x1000, "0x5f5ff3"), nonce(this, 5)]`
+- Add the `expect_storage` and `expect_balance` test expectations to check state after a test, with an exact value or inclusive `min =` and `max =` bounds.
+  - Example: `#[expect_storage([COUNTER_SLOT], 0x02), expect_balance(this, 5), expect_balance(caller, min = 1)]`
+- Fix `FREE_STORAGE_POINTER()` constants used only by tests failing with "Storage Pointers Not Derived".
+- Fix a test that calls a `fn` halting with `StackUnderflow` when it ends without `stop`.
+- Fix `extcodehash` returning zero for accounts created by `hnc test`.
 - Fix `remappings.txt` with Windows line endings.
 
 ## [1.6.2] - 2026-10-17

@@ -1,6 +1,6 @@
 use crate::prelude::{EnvOverrides, Failure, Outcome, RunnerError, SpecContext, TestResult, TestSpec, TestStatus};
 use alloy_evm::{Evm, EvmEnv, EvmFactory, eth::EthEvmFactory};
-use alloy_primitives::{Address, B256, Bytes, U256, hex};
+use alloy_primitives::{Address, Bytes, U256, hex};
 use anvil::eth::backend::mem::inspector::AnvilInspector;
 use foundry_evm::backend::DatabaseError;
 use foundry_evm_core::constants::CHEATCODE_ADDRESS;
@@ -47,26 +47,7 @@ impl TestRunner {
         DB: Database + DatabaseCommit + std::fmt::Debug,
         <DB as Database>::Error: std::fmt::Debug,
     {
-        let basic_account = db.basic(address).map_err(|e| RunnerError::GenericError(format!("{e:?}")))?;
-
-        let mut changes = HashMap::default();
-        let account = match basic_account {
-            Some(mut account_info) => {
-                let original_info = account_info.clone();
-                account_info.balance = amount;
-                Account::from(original_info).with_info(account_info).with_touched_mark()
-            }
-            None => {
-                let info = AccountInfo { balance: amount, nonce: 0, code_hash: B256::ZERO, code: None, account_id: None };
-                // The database skips untouched accounts on commit, so a new account must be touched as well
-                Account::from(info).with_created_mark().with_touched_mark()
-            }
-        };
-
-        changes.insert(address, account);
-        db.commit(changes);
-
-        Ok(())
+        update_account_info(db, address, |info| info.balance = amount)
     }
 
     /// Set the value of a storage slot of an account, creating the account if it does not exist.
@@ -75,8 +56,8 @@ impl TestRunner {
         DB: Database + DatabaseCommit + std::fmt::Debug,
         <DB as Database>::Error: std::fmt::Debug,
     {
-        let basic_account = db.basic(address).map_err(|e| RunnerError::GenericError(format!("{e:?}")))?;
-        let original_value = db.storage(address, slot).map_err(|e| RunnerError::GenericError(format!("{e:?}")))?;
+        let basic_account = db.basic(address).map_err(db_error)?;
+        let original_value = db.storage(address, slot).map_err(db_error)?;
         let storage = std::iter::once((slot, EvmStorageSlot::new_changed(original_value, value, TransactionId::ZERO)));
 
         let mut changes = HashMap::default();
@@ -91,37 +72,27 @@ impl TestRunner {
         Ok(())
     }
 
+    /// Set the nonce of an account, creating the account if it does not exist.
+    pub fn set_nonce<DB>(&self, db: &mut DB, address: Address, nonce: u64) -> Result<(), RunnerError>
+    where
+        DB: Database + DatabaseCommit + std::fmt::Debug,
+        <DB as Database>::Error: std::fmt::Debug,
+    {
+        update_account_info(db, address, |info| info.nonce = nonce)
+    }
+
+    /// Set the code of an account, creating the account if it does not exist.
     pub fn set_code<DB>(&self, db: &mut DB, address: Address, code: String) -> Result<(), RunnerError>
     where
         DB: Database + DatabaseCommit + std::fmt::Debug,
         <DB as Database>::Error: std::fmt::Debug,
     {
-        let basic_account = db.basic(address).map_err(|e| RunnerError::GenericError(format!("{e:?}")))?;
-
-        let mut changes = HashMap::default();
-        let account = match basic_account {
-            Some(mut account_info) => {
-                let original_info = account_info.clone();
-                account_info.code = Some(Bytecode::new_raw(Bytes::from(hex::decode(code).expect("Invalid code"))));
-                Account::from(original_info).with_info(account_info).with_touched_mark()
-            }
-            None => {
-                let info = AccountInfo {
-                    balance: U256::ZERO,
-                    nonce: 0,
-                    code_hash: B256::ZERO,
-                    code: Some(Bytecode::new_raw(Bytes::from(hex::decode(code).expect("Invalid code")))),
-                    account_id: None,
-                };
-                // The database skips untouched accounts on commit, so a new account must be touched as well
-                Account::from(info).with_created_mark().with_touched_mark()
-            }
-        };
-
-        changes.insert(address, account);
-        db.commit(changes);
-
-        Ok(())
+        let code = Bytecode::new_raw(Bytes::from(hex::decode(code).expect("Invalid code")));
+        update_account_info(db, address, |info| {
+            // `extcodehash` reads the stored hash, so it must match the new code
+            info.code_hash = code.hash_slow();
+            info.code = Some(code);
+        })
     }
 
     /// Deploy arbitrary bytecode to our REVM instance and return the contract address.
@@ -182,10 +153,12 @@ impl TestRunner {
         DB: Database<Error = DatabaseError> + DatabaseCommit + std::fmt::Debug,
         <DB as Database>::Error: std::fmt::Debug,
     {
+        self.set_balance(db, self.env.tx.caller, U256::MAX)?;
         self.call_in_env(name, db, self.env.clone(), transact_to, value, data)
     }
 
-    /// Perform a call to a deployed contract in the given environment instead of the runner's
+    /// Perform a call to a deployed contract in the given environment instead of the runner's; the
+    /// sender must already hold the funds for the call
     fn call_in_env<DB>(
         &mut self,
         name: String,
@@ -204,9 +177,8 @@ impl TestRunner {
         env.tx.data = hex::decode(data).expect("Invalid calldata").into();
         env.tx.value = value;
 
-        self.set_balance(db, env.tx.caller, U256::MAX)?;
         // The sender may be the deployer of the test or an address set by a `caller` decorator
-        let sender = db.basic(env.tx.caller).map_err(|e| RunnerError::GenericError(format!("{e:?}")))?;
+        let sender = db.basic(env.tx.caller).map_err(db_error)?;
         env.tx.nonce = sender.map_or(0, |account| account.nonce);
 
         let mut inspector = self.inspector.clone();
@@ -307,19 +279,34 @@ impl TestRunner {
             None => self.deploy_code(db, bytecode.clone())?,
         };
 
-        // Apply the setup requested by the test decorator
+        // Apply the setup requested by the test decorator. The sender is funded first, so a `deal`
+        // to the sender sets its balance instead.
         let spec = TestSpec::from_decorator(m.decorator.as_ref(), &contract, SpecContext { this: address, caller: self.env.tx.caller })?;
-        for write in &spec.storage {
-            self.set_storage(db, write.address, write.slot, write.value)?;
+        let mut env = self.env.clone();
+        apply_env_overrides(&mut env, &spec.env);
+        self.set_balance(db, env.tx.caller, U256::MAX)?;
+        for slot in &spec.storage {
+            self.set_storage(db, slot.address, slot.slot, slot.value)?;
+        }
+        for balance in &spec.balances {
+            self.set_balance(db, balance.address, balance.value)?;
+        }
+        for code in &spec.code {
+            self.set_code(db, code.address, hex::encode(&code.value))?;
+        }
+        for nonce in &spec.nonces {
+            self.set_nonce(db, nonce.address, nonce.value)?;
         }
 
         // Call the deployed test
-        let mut env = self.env.clone();
-        apply_env_overrides(&mut env, &spec.env);
         let mut res = self.call_in_env(name, db, env, address, spec.value, hex::encode(&spec.calldata))?;
 
-        // Check how the test ended against what its decorators expect
+        // Check how the test ended against what its decorators expect. A test that did not return
+        // kept none of its state, and the outcome failure already says why.
         res.failures.extend(spec.expectations.check(&res.outcome, res.gas, &contract));
+        if matches!(res.outcome, Outcome::Return { .. }) {
+            res.failures.extend(spec.expectations.check_post_state(db)?);
+        }
         res.passed = res.failures.is_empty();
         res.status = TestStatus::from_passed(res.passed);
 
@@ -349,6 +336,39 @@ impl<CTX, INTR: InterpreterTypes> Inspector<CTX, INTR> for CheatcodeGuard {
         self.called |= inputs.target_address == CHEATCODE_ADDRESS;
         None
     }
+}
+
+/// Changes the info of an account, such as its balance or code, creating the account if it does not exist
+fn update_account_info<DB>(db: &mut DB, address: Address, update: impl FnOnce(&mut AccountInfo)) -> Result<(), RunnerError>
+where
+    DB: Database + DatabaseCommit,
+    <DB as Database>::Error: std::fmt::Debug,
+{
+    let account = match db.basic(address).map_err(db_error)? {
+        Some(original_info) => {
+            let mut info = original_info.clone();
+            update(&mut info);
+            Account::from(original_info).with_info(info)
+        }
+        None => {
+            // The default code hash is the empty code's, which `extcodehash` reads for an account without code
+            let mut info = AccountInfo::default();
+            update(&mut info);
+            Account::from(info).with_created_mark()
+        }
+    };
+
+    let mut changes = HashMap::default();
+    // The database skips untouched accounts on commit, so a new account must be touched as well
+    changes.insert(address, account.with_touched_mark());
+    db.commit(changes);
+
+    Ok(())
+}
+
+/// Wraps a database failure as a runner error
+pub(crate) fn db_error(err: impl std::fmt::Debug) -> RunnerError {
+    RunnerError::GenericError(format!("{err:?}"))
 }
 
 /// Sets the transaction and block fields a test overrides
