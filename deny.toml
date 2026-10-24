@@ -46,18 +46,6 @@ ignore = [
   # https://rustsec.org/advisories/RUSTSEC-2026-0195
   "RUSTSEC-2026-0194",
   "RUSTSEC-2026-0195",
-  # zip: SUID/SGID bits preserved during extraction. zip 8 is only pulled by soldeer-core (via
-  # foundry-config); its newest release still requires zip 8 and hnc never extracts archives.
-  # https://rustsec.org/advisories/RUSTSEC-2026-0367
-  "RUSTSEC-2026-0367",
-  # zip: `ZipArchive::extract` creates symlinks pointing outside the destination. Same
-  # soldeer-only exposure as above; not reachable from hnc and no fixed release on that path.
-  # https://rustsec.org/advisories/RUSTSEC-2026-0368
-  "RUSTSEC-2026-0368",
-  # zip: extraction applies Unix permissions through symlinks. Same soldeer-only exposure as
-  # above; not reachable from hnc and no fixed release on that path.
-  # https://rustsec.org/advisories/RUSTSEC-2026-0369
-  "RUSTSEC-2026-0369",
   # crypto-bigint: timing variability in operations meant to be constant-time. 0.7.x is updated
   # to the fixed 0.7.6, but 0.5.5 stays pinned by alloy-signer -> k256 -> elliptic-curve 0.13 and
   # the 0.5 line has no fix. hnc never signs with a secret key, and verifying a signature only

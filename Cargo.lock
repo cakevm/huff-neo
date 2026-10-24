@@ -3239,7 +3239,7 @@ dependencies = [
  "libc",
  "option-ext",
  "redox_users 0.5.2",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -3475,7 +3475,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -3730,8 +3730,8 @@ checksum = "77ce24cb58228fbb8aa041425bb1050850ac19177686ea6e0f41a70416f56fdb"
 
 [[package]]
 name = "forge-script-sequence"
-version = "1.8.5"
-source = "git+https://github.com/foundry-rs/foundry?tag=v1.8.5#51a52c59cffd940f76eddd0b4bb1791aa4b5ac7f"
+version = "1.8.6"
+source = "git+https://github.com/foundry-rs/foundry?tag=v1.8.6#6bad0a66de7c83f7b33695044138f0f5fa4c5990"
 dependencies = [
  "alloy-network",
  "alloy-primitives",
@@ -3773,8 +3773,8 @@ dependencies = [
 
 [[package]]
 name = "foundry-cheatcodes"
-version = "1.8.5"
-source = "git+https://github.com/foundry-rs/foundry?tag=v1.8.5#51a52c59cffd940f76eddd0b4bb1791aa4b5ac7f"
+version = "1.8.6"
+source = "git+https://github.com/foundry-rs/foundry?tag=v1.8.6#6bad0a66de7c83f7b33695044138f0f5fa4c5990"
 dependencies = [
  "alloy-chains",
  "alloy-consensus",
@@ -3831,8 +3831,8 @@ dependencies = [
 
 [[package]]
 name = "foundry-cheatcodes-spec"
-version = "1.8.5"
-source = "git+https://github.com/foundry-rs/foundry?tag=v1.8.5#51a52c59cffd940f76eddd0b4bb1791aa4b5ac7f"
+version = "1.8.6"
+source = "git+https://github.com/foundry-rs/foundry?tag=v1.8.6#6bad0a66de7c83f7b33695044138f0f5fa4c5990"
 dependencies = [
  "alloy-sol-types",
  "foundry-macros",
@@ -3841,8 +3841,8 @@ dependencies = [
 
 [[package]]
 name = "foundry-cli"
-version = "1.8.5"
-source = "git+https://github.com/foundry-rs/foundry?tag=v1.8.5#51a52c59cffd940f76eddd0b4bb1791aa4b5ac7f"
+version = "1.8.6"
+source = "git+https://github.com/foundry-rs/foundry?tag=v1.8.6#6bad0a66de7c83f7b33695044138f0f5fa4c5990"
 dependencies = [
  "alloy-chains",
  "alloy-dyn-abi",
@@ -3892,16 +3892,16 @@ dependencies = [
 
 [[package]]
 name = "foundry-cli-markdown"
-version = "1.8.5"
-source = "git+https://github.com/foundry-rs/foundry?tag=v1.8.5#51a52c59cffd940f76eddd0b4bb1791aa4b5ac7f"
+version = "1.8.6"
+source = "git+https://github.com/foundry-rs/foundry?tag=v1.8.6#6bad0a66de7c83f7b33695044138f0f5fa4c5990"
 dependencies = [
  "clap",
 ]
 
 [[package]]
 name = "foundry-common"
-version = "1.8.5"
-source = "git+https://github.com/foundry-rs/foundry?tag=v1.8.5#51a52c59cffd940f76eddd0b4bb1791aa4b5ac7f"
+version = "1.8.6"
+source = "git+https://github.com/foundry-rs/foundry?tag=v1.8.6#6bad0a66de7c83f7b33695044138f0f5fa4c5990"
 dependencies = [
  "alloy-chains",
  "alloy-consensus",
@@ -3970,8 +3970,8 @@ dependencies = [
 
 [[package]]
 name = "foundry-common-fmt"
-version = "1.8.5"
-source = "git+https://github.com/foundry-rs/foundry?tag=v1.8.5#51a52c59cffd940f76eddd0b4bb1791aa4b5ac7f"
+version = "1.8.6"
+source = "git+https://github.com/foundry-rs/foundry?tag=v1.8.6#6bad0a66de7c83f7b33695044138f0f5fa4c5990"
 dependencies = [
  "alloy-consensus",
  "alloy-dyn-abi",
@@ -4003,7 +4003,7 @@ dependencies = [
  "dyn-clone",
  "foundry-compilers-artifacts",
  "foundry-compilers-core",
- "itertools 0.14.0",
+ "itertools 0.15.0",
  "path-slash",
  "rayon",
  "semver 1.0.28",
@@ -4085,8 +4085,8 @@ dependencies = [
 
 [[package]]
 name = "foundry-config"
-version = "1.8.5"
-source = "git+https://github.com/foundry-rs/foundry?tag=v1.8.5#51a52c59cffd940f76eddd0b4bb1791aa4b5ac7f"
+version = "1.8.6"
+source = "git+https://github.com/foundry-rs/foundry?tag=v1.8.6#6bad0a66de7c83f7b33695044138f0f5fa4c5990"
 dependencies = [
  "alloy-chains",
  "alloy-primitives",
@@ -4126,8 +4126,8 @@ dependencies = [
 
 [[package]]
 name = "foundry-debugger"
-version = "1.8.5"
-source = "git+https://github.com/foundry-rs/foundry?tag=v1.8.5#51a52c59cffd940f76eddd0b4bb1791aa4b5ac7f"
+version = "1.8.6"
+source = "git+https://github.com/foundry-rs/foundry?tag=v1.8.6#6bad0a66de7c83f7b33695044138f0f5fa4c5990"
 dependencies = [
  "alloy-dyn-abi",
  "alloy-primitives",
@@ -4147,8 +4147,8 @@ dependencies = [
 
 [[package]]
 name = "foundry-evm"
-version = "1.8.5"
-source = "git+https://github.com/foundry-rs/foundry?tag=v1.8.5#51a52c59cffd940f76eddd0b4bb1791aa4b5ac7f"
+version = "1.8.6"
+source = "git+https://github.com/foundry-rs/foundry?tag=v1.8.6#6bad0a66de7c83f7b33695044138f0f5fa4c5990"
 dependencies = [
  "alloy-dyn-abi",
  "alloy-eips",
@@ -4188,8 +4188,8 @@ dependencies = [
 
 [[package]]
 name = "foundry-evm-abi"
-version = "1.8.5"
-source = "git+https://github.com/foundry-rs/foundry?tag=v1.8.5#51a52c59cffd940f76eddd0b4bb1791aa4b5ac7f"
+version = "1.8.6"
+source = "git+https://github.com/foundry-rs/foundry?tag=v1.8.6#6bad0a66de7c83f7b33695044138f0f5fa4c5990"
 dependencies = [
  "alloy-primitives",
  "alloy-sol-types",
@@ -4201,8 +4201,8 @@ dependencies = [
 
 [[package]]
 name = "foundry-evm-core"
-version = "1.8.5"
-source = "git+https://github.com/foundry-rs/foundry?tag=v1.8.5#51a52c59cffd940f76eddd0b4bb1791aa4b5ac7f"
+version = "1.8.6"
+source = "git+https://github.com/foundry-rs/foundry?tag=v1.8.6#6bad0a66de7c83f7b33695044138f0f5fa4c5990"
 dependencies = [
  "alloy-chains",
  "alloy-consensus",
@@ -4254,8 +4254,8 @@ dependencies = [
 
 [[package]]
 name = "foundry-evm-coverage"
-version = "1.8.5"
-source = "git+https://github.com/foundry-rs/foundry?tag=v1.8.5#51a52c59cffd940f76eddd0b4bb1791aa4b5ac7f"
+version = "1.8.6"
+source = "git+https://github.com/foundry-rs/foundry?tag=v1.8.6#6bad0a66de7c83f7b33695044138f0f5fa4c5990"
 dependencies = [
  "alloy-primitives",
  "eyre",
@@ -4271,8 +4271,8 @@ dependencies = [
 
 [[package]]
 name = "foundry-evm-fuzz"
-version = "1.8.5"
-source = "git+https://github.com/foundry-rs/foundry?tag=v1.8.5#51a52c59cffd940f76eddd0b4bb1791aa4b5ac7f"
+version = "1.8.6"
+source = "git+https://github.com/foundry-rs/foundry?tag=v1.8.6#6bad0a66de7c83f7b33695044138f0f5fa4c5990"
 dependencies = [
  "alloy-dyn-abi",
  "alloy-json-abi",
@@ -4297,8 +4297,8 @@ dependencies = [
 
 [[package]]
 name = "foundry-evm-hardforks"
-version = "1.8.5"
-source = "git+https://github.com/foundry-rs/foundry?tag=v1.8.5#51a52c59cffd940f76eddd0b4bb1791aa4b5ac7f"
+version = "1.8.6"
+source = "git+https://github.com/foundry-rs/foundry?tag=v1.8.6#6bad0a66de7c83f7b33695044138f0f5fa4c5990"
 dependencies = [
  "alloy-chains",
  "alloy-hardforks",
@@ -4313,8 +4313,8 @@ dependencies = [
 
 [[package]]
 name = "foundry-evm-networks"
-version = "1.8.5"
-source = "git+https://github.com/foundry-rs/foundry?tag=v1.8.5#51a52c59cffd940f76eddd0b4bb1791aa4b5ac7f"
+version = "1.8.6"
+source = "git+https://github.com/foundry-rs/foundry?tag=v1.8.6#6bad0a66de7c83f7b33695044138f0f5fa4c5990"
 dependencies = [
  "alloy-chains",
  "alloy-eips",
@@ -4330,13 +4330,13 @@ dependencies = [
 
 [[package]]
 name = "foundry-evm-sancov"
-version = "1.8.5"
-source = "git+https://github.com/foundry-rs/foundry?tag=v1.8.5#51a52c59cffd940f76eddd0b4bb1791aa4b5ac7f"
+version = "1.8.6"
+source = "git+https://github.com/foundry-rs/foundry?tag=v1.8.6#6bad0a66de7c83f7b33695044138f0f5fa4c5990"
 
 [[package]]
 name = "foundry-evm-traces"
-version = "1.8.5"
-source = "git+https://github.com/foundry-rs/foundry?tag=v1.8.5#51a52c59cffd940f76eddd0b4bb1791aa4b5ac7f"
+version = "1.8.6"
+source = "git+https://github.com/foundry-rs/foundry?tag=v1.8.6#6bad0a66de7c83f7b33695044138f0f5fa4c5990"
 dependencies = [
  "alloy-dyn-abi",
  "alloy-json-abi",
@@ -4396,8 +4396,8 @@ dependencies = [
 
 [[package]]
 name = "foundry-linking"
-version = "1.8.5"
-source = "git+https://github.com/foundry-rs/foundry?tag=v1.8.5#51a52c59cffd940f76eddd0b4bb1791aa4b5ac7f"
+version = "1.8.6"
+source = "git+https://github.com/foundry-rs/foundry?tag=v1.8.6#6bad0a66de7c83f7b33695044138f0f5fa4c5990"
 dependencies = [
  "alloy-primitives",
  "foundry-compilers",
@@ -4407,8 +4407,8 @@ dependencies = [
 
 [[package]]
 name = "foundry-macros"
-version = "1.8.5"
-source = "git+https://github.com/foundry-rs/foundry?tag=v1.8.5#51a52c59cffd940f76eddd0b4bb1791aa4b5ac7f"
+version = "1.8.6"
+source = "git+https://github.com/foundry-rs/foundry?tag=v1.8.6#6bad0a66de7c83f7b33695044138f0f5fa4c5990"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4417,8 +4417,8 @@ dependencies = [
 
 [[package]]
 name = "foundry-tui"
-version = "1.8.5"
-source = "git+https://github.com/foundry-rs/foundry?tag=v1.8.5#51a52c59cffd940f76eddd0b4bb1791aa4b5ac7f"
+version = "1.8.6"
+source = "git+https://github.com/foundry-rs/foundry?tag=v1.8.6#6bad0a66de7c83f7b33695044138f0f5fa4c5990"
 dependencies = [
  "crossterm",
  "ratatui",
@@ -5349,7 +5349,7 @@ checksum = "3640c1c38b8e4e43584d8df18be5fc6b0aa314ce6ebf51b53313d4306cca8e46"
 dependencies = [
  "hermit-abi",
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -5418,7 +5418,7 @@ dependencies = [
  "portable-atomic",
  "portable-atomic-util",
  "serde_core",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -5990,7 +5990,7 @@ version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -6227,7 +6227,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b685c8311c9171d1bd2895222965d25616b2de2cb5819dd3504ed9250df9fecd"
 dependencies = [
  "ahash",
- "hashbrown 0.16.1",
+ "hashbrown 0.17.1",
  "parking_lot",
  "stable_deref_trait",
 ]
@@ -8402,7 +8402,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -8461,7 +8461,7 @@ dependencies = [
  "security-framework",
  "security-framework-sys",
  "webpki-root-certs",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -9248,7 +9248,7 @@ dependencies = [
  "solar-config",
  "solar-data-structures",
  "solar-macros",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "tracing",
  "unicode-width",
 ]
@@ -9326,9 +9326,9 @@ dependencies = [
 
 [[package]]
 name = "soldeer-commands"
-version = "0.12.0"
+version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b1149d04975bf4da754f2cd9e0b3ab51f33899eb5ff80f4889d93222c60faaef"
+checksum = "87df5e663584879612c94cade5639d622e81c8867fabce161a7de3ffb401f8a8"
 dependencies = [
  "bon",
  "clap",
@@ -9344,9 +9344,9 @@ dependencies = [
 
 [[package]]
 name = "soldeer-core"
-version = "0.12.0"
+version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2ca40c75555686674209accf592806aaa42a9a518e87fc4cae03fd62e4efdccd"
+checksum = "8fcc83a67cb03e2950606303043a62a0e65a149e644d8617b757dc80e2276e30"
 dependencies = [
  "bon",
  "chrono",
@@ -9369,7 +9369,7 @@ dependencies = [
  "tokio",
  "toml_edit",
  "uuid 1.23.1",
- "zip 8.6.0",
+ "zip",
 ]
 
 [[package]]
@@ -9575,9 +9575,9 @@ dependencies = [
  "serde_json",
  "sha2 0.11.0",
  "tempfile",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "url",
- "zip 9.0.4",
+ "zip",
 ]
 
 [[package]]
@@ -9680,10 +9680,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.3.4",
+ "getrandom 0.4.3",
  "once_cell",
  "rustix",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -9922,7 +9922,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "230a1b821ccbd75b185820a1f1ff7b14d21da1e442e22c0863ea5f08771a8874"
 dependencies = [
  "rustix",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -10912,7 +10912,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -11215,20 +11215,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.119",
-]
-
-[[package]]
-name = "zip"
-version = "8.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2d04a6b5381502aa6087c94c669499eb1602eb9c5e8198e534de571f7154809b"
-dependencies = [
- "crc32fast",
- "flate2",
- "indexmap 2.14.0",
- "memchr",
- "typed-path",
- "zopfli",
 ]
 
 [[package]]
