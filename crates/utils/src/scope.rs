@@ -59,12 +59,26 @@ impl ScopeId {
 pub struct ScopeManager<'a> {
     /// Stack of scope frames from root to current
     pub frames: Vec<ScopeFrame<'a>>,
+    /// Size of the root macro from the previous compile pass. A `__codesize` of the root measured
+    /// from code that is not the root, such as another macro's `__codesize`, uses it for its width.
+    pub root_size_hint: Option<usize>,
+    /// Whether a `__codesize` of the root was generated, so its size must reach a fixed point
+    pub root_size_needed: bool,
 }
 
 impl<'a> ScopeManager<'a> {
     /// Creates a new empty scope manager.
     pub fn new() -> Self {
-        Self { frames: Vec::new() }
+        Self { frames: Vec::new(), root_size_hint: None, root_size_needed: false }
+    }
+
+    /// The size hint for a `__codesize` of `macro_name`, when it names the root macro
+    pub fn size_hint_for(&mut self, macro_name: &str) -> Option<usize> {
+        if !self.frames.first().is_some_and(|root| root.macro_def.name == macro_name) {
+            return None;
+        }
+        self.root_size_needed = true;
+        self.root_size_hint
     }
 
     /// Returns the scope identifier for the currently executing macro.

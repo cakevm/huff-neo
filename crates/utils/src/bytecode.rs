@@ -143,19 +143,28 @@ pub struct CircularCodesizePlaceholderData {
     /// as the surrounding segments. Set once that invocation is fully generated; without it the
     /// size of the whole code is pushed.
     pub measured_range: Option<(usize, usize)>,
+    /// Size of the named macro from the previous compile pass, used when the code being generated
+    /// does not contain the named macro, so its size cannot be measured here
+    pub size_hint: Option<usize>,
 }
 
 impl CircularCodesizePlaceholderData {
     /// Create a new unresolved circular codesize placeholder
     /// Starts with PUSH1 optimistically, may grow during resolution
-    pub fn new(macro_name: String) -> Self {
-        Self { macro_name, push_opcode: PushOpcode::Push1, resolved_value: None, measured_range: None }
+    pub fn new(macro_name: String, size_hint: Option<usize>) -> Self {
+        Self { macro_name, push_opcode: PushOpcode::Push1, resolved_value: None, measured_range: None, size_hint }
+    }
+
+    /// The size this placeholder pushes: the measured invocation, else the size hint, else the
+    /// whole code it is part of
+    pub fn size(&self, measured: impl FnOnce((usize, usize)) -> usize, total_length: usize) -> usize {
+        self.measured_range.map(measured).or(self.size_hint).unwrap_or(total_length)
     }
 
     /// Create a circular codesize placeholder with a resolved value
     pub fn with_value(macro_name: String, size: usize) -> Self {
         let push_opcode = PushOpcode::optimal_for(size);
-        Self { macro_name, push_opcode, resolved_value: Some(size), measured_range: None }
+        Self { macro_name, push_opcode, resolved_value: Some(size), measured_range: None, size_hint: None }
     }
 
     /// Check if this codesize has been resolved
@@ -457,7 +466,7 @@ impl BytecodeSegments {
         let mut growth = 0;
         for segment in &mut self.segments {
             if let Bytes::CircularCodesizePlaceholder(ref mut data) = segment.bytes {
-                let size = data.measured_range.map_or(total_length, |(start, end)| end - start);
+                let size = data.size(|(start, end)| end - start, total_length);
                 growth += data.resolve(size);
             }
         }

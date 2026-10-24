@@ -235,8 +235,8 @@ pub enum CodegenErrorKind {
     /// `__codesize(RUNTIME)` referenced inside a code table. Code tables contribute to the
     /// runtime size, so embedding the runtime size inside one creates a circular dependency.
     CodesizeRuntimeInCodeTable,
-    /// MAIN codegen failed to converge on a stable runtime size within the iteration cap.
-    RuntimeSizeNotConverged(usize),
+    /// Codegen failed to converge on stable `__codesize` values within the iteration cap.
+    CodesizeNotConverged(usize),
     /// Unsupported Statement Type
     UnsupportedStatementType(String),
     /// Duplicate Label in Same Scope
@@ -386,8 +386,8 @@ impl<W: Write> Report<W> for CodegenError {
             CodegenErrorKind::CodesizeRuntimeInCodeTable => {
                 write!(f.out, "__codesize(RUNTIME) is not allowed inside a code table")
             }
-            CodegenErrorKind::RuntimeSizeNotConverged(iterations) => {
-                write!(f.out, "__codesize(RUNTIME) did not converge after {iterations} MAIN codegen iterations")
+            CodegenErrorKind::CodesizeNotConverged(iterations) => {
+                write!(f.out, "__codesize did not converge after {iterations} codegen passes")
             }
             CodegenErrorKind::UnsupportedStatementType(st) => {
                 write!(f.out, "Unsupported Statement Type: \"{st}\"")
@@ -807,12 +807,8 @@ impl fmt::Display for CompilerError {
                 CodegenErrorKind::CodesizeRuntimeInCodeTable => {
                     write!(f, "\nError: __codesize(RUNTIME) is not allowed inside a code table\n{}\n", ce.span.error(None))
                 }
-                CodegenErrorKind::RuntimeSizeNotConverged(iterations) => {
-                    write!(
-                        f,
-                        "\nError: __codesize(RUNTIME) did not converge after {iterations} MAIN codegen iterations\n{}\n",
-                        ce.span.error(None)
-                    )
+                CodegenErrorKind::CodesizeNotConverged(iterations) => {
+                    write!(f, "\nError: __codesize did not converge after {iterations} codegen passes\n{}\n", ce.span.error(None))
                 }
                 CodegenErrorKind::UnsupportedStatementType(st) => {
                     write!(f, "\nError: Unsupported Statement Type: \"{st}\"\n{}\n", ce.span.error(None))

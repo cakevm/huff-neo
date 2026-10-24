@@ -37,6 +37,8 @@ Pushes the code size of the macro or function passed to the stack.
 
 Used inside the macro it names (or inside a macro that macro invokes), it pushes the size of that enclosing invocation as emitted, including expanded macros and resized jumps.
 
+MAIN and the constructor can push each other's size, for example a constructor that copies `__codesize(MAIN)` bytes while MAIN uses `__codesize(CONSTRUCTOR)`. Each value is the exact size, also when the width of one push changes the size of the other macro.
+
 #### `__codesize(RUNTIME)`
 `RUNTIME` is a reserved argument that resolves at compile time to the byte length of the runtime section as the compiler emits it — `MAIN`'s body plus its appended runtime tables. Usable in both `MAIN` and `CONSTRUCTOR` (directly or via a derived `#define constant`).
 

@@ -475,7 +475,10 @@ fn codesize<'a>(
         tracing::debug!(target: "codegen", "CIRCULAR CODESIZE INVOCATION DETECTED INJECTING PLACEHOLDER | macro: {}", ir_macro.name);
 
         // Create a CircularCodesizePlaceholder variant (starts as PUSH1, 2 bytes)
-        let placeholder = Bytes::CircularCodesizePlaceholder(CircularCodesizePlaceholderData::new(codesize_arg.to_string()));
+        let placeholder = Bytes::CircularCodesizePlaceholder(CircularCodesizePlaceholderData::new(
+            codesize_arg.to_string(),
+            scope_mgr.size_hint_for(codesize_arg),
+        ));
         (2, placeholder)
     } else {
         // We will still need to recurse to get accurate values. The target macro gets its own

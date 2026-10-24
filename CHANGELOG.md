@@ -46,6 +46,7 @@
 - Fix a test that calls a `fn` halting with `StackUnderflow` when it ends without `stop`.
 - Fix the test runner panicking on invalid hex in code or calldata instead of returning an error.
 - Fix `__codesize(CONSTRUCTOR)` leaving out builtins, labels and jumps of the constructor, which made it too small.
+- Fix `__codesize` being off by a byte when MAIN and the constructor push each other's size.
 - Fix `extcodehash` returning zero for accounts created by `hnc test`.
 - Fix `remappings.txt` with Windows line endings.
 - Fix `-g` and the artifact ABI listing `#define function constructor` as a function named `constructor`.

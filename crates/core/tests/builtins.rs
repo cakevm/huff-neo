@@ -70,6 +70,32 @@ fn test_codesize_of_constructor_counts_builtins() {
 }
 
 #[test]
+fn test_codesize_of_main_and_constructor_referencing_each_other() {
+    // Each size depends on the width of the other's push: MAIN is over 255 bytes, so the
+    // constructor pushes its size with PUSH2, while the constructor fits in a PUSH1
+    let main_padding = "0x01 pop ".repeat(150);
+    let source = format!(
+        r#"
+        #define macro CONSTRUCTOR() = takes(0) returns(0) {{
+            __codesize(MAIN) dup1 __codesize(CONSTRUCTOR) 0x00 codecopy 0x00 return
+        }}
+
+        #define macro MAIN() = takes(0) returns(0) {{
+            __codesize(CONSTRUCTOR) pop {main_padding}
+        }}
+    "#
+    );
+
+    let (constructor, _) = compile_to_constructor_bytecode(&source).unwrap();
+    let main = compile_to_bytecode(&source).unwrap();
+    assert_eq!(constructor.len() / 2, 10);
+    assert_eq!(main.len() / 2, 453);
+    // MAIN pushes the constructor size, and the constructor pushes the MAIN size
+    assert!(main.starts_with("600a"));
+    assert!(constructor.starts_with("6101c5"));
+}
+
+#[test]
 fn test_codesize_builtin_preserves_macro_args() {
     // Measuring another macro must not disturb the invoking macro's argument scope,
     // so args resolve on both sides of the builtin.

@@ -44,13 +44,14 @@ pub(crate) const MAX_MACRO_RECURSION_DEPTH: usize = 100;
 /// though typical contracts converge in a few iterations.
 const JUMP_RELAXATION_MAX_ITERATIONS: usize = 20;
 
-/// Maximum number of MAIN codegen passes used to converge `__codesize(RUNTIME)`.
+/// Maximum number of codegen passes of MAIN or the constructor used to converge `__codesize`.
 ///
 /// When MAIN (or a constant referenced by MAIN) uses `__codesize(RUNTIME)`, the runtime size
-/// depends on the embedded value, which depends on the runtime size. Each pass recompiles MAIN
-/// with the previous pass's measured size. PUSH widths only grow (never shrink) across passes,
-/// and the contract size limit caps the value at PUSH3, so convergence is normally 2–3 iterations.
-const MAIN_RUNTIME_SIZE_MAX_ITERATIONS: usize = 10;
+/// depends on the embedded value, which depends on the runtime size. Likewise, when MAIN and the
+/// constructor push each other's size, each size depends on the width of the other's push. Each
+/// pass recompiles with the previous pass's measured sizes. PUSH widths only grow (never shrink)
+/// across passes, and the size limits cap the values at PUSH3, so convergence takes 2–3 passes.
+const CODESIZE_MAX_ITERATIONS: usize = 10;
 
 /// Compiles Huff contracts into EVM bytecode.
 ///
@@ -217,33 +218,40 @@ impl Codegen {
         alternative_main: Option<String>,
         relax_jumps: bool,
     ) -> Result<MainBytecodeOutput, CodegenError> {
-        // Iterate to a fixed point on `__codesize(RUNTIME)`. Each pass recompiles MAIN with the
-        // previous pass's measured runtime size. PUSH widths only grow across passes, the contract
-        // size limit caps them at PUSH3, so we converge in a handful of iterations.
+        // Iterate to a fixed point on `__codesize(RUNTIME)` and on the size of MAIN itself. Each
+        // pass recompiles MAIN with the previous pass's runtime size and MAIN size, which a
+        // `__codesize(MAIN)` inside another macro's `__codesize` needs. PUSH widths only grow across
+        // passes, the contract size limit caps them at PUSH3, so we converge in a handful of passes.
         let mut iter_contract = contract.clone();
         let mut current_size = iter_contract.runtime_size.unwrap_or(0);
-        for _ in 0..MAIN_RUNTIME_SIZE_MAX_ITERATIONS {
+        let mut main_size = None;
+        for _ in 0..CODESIZE_MAX_ITERATIONS {
             iter_contract.runtime_size = Some(current_size);
-            let result = Self::generate_main_bytecode_inner(evm_version, &iter_contract, alternative_main.clone(), relax_jumps)?;
+            let (result, new_main_size) =
+                Self::generate_main_bytecode_inner(evm_version, &iter_contract, alternative_main.clone(), relax_jumps, main_size)?;
             let new_size = result.bytecode.len() / 2;
-            if new_size == current_size {
+            if new_size == current_size && main_size == new_main_size {
                 return Ok(result);
             }
             current_size = new_size;
+            main_size = new_main_size;
         }
         Err(CodegenError {
-            kind: CodegenErrorKind::RuntimeSizeNotConverged(MAIN_RUNTIME_SIZE_MAX_ITERATIONS),
+            kind: CodegenErrorKind::CodesizeNotConverged(CODESIZE_MAX_ITERATIONS),
             span: AstSpan(vec![]).boxed(),
             token: None,
         })
     }
 
+    /// Compiles MAIN once, with its size from the previous pass. Also returns its size without the
+    /// appended tables when a `__codesize(MAIN)` needs it, so it must reach a fixed point.
     fn generate_main_bytecode_inner(
         evm_version: &EVMVersion,
         contract: &Contract,
         alternative_main: Option<String>,
         relax_jumps: bool,
-    ) -> Result<MainBytecodeOutput, CodegenError> {
+        main_size: Option<usize>,
+    ) -> Result<(MainBytecodeOutput, Option<usize>), CodegenError> {
         // Update table sizes
         let contract = Self::update_table_size(evm_version, contract)?;
 
@@ -255,18 +263,20 @@ impl Codegen {
 
         // Create scope manager and push the main macro
         let mut scope_mgr = ScopeManager::new();
+        scope_mgr.root_size_hint = main_size;
         scope_mgr.push_macro(m_macro, 0);
 
         // For each MacroInvocation Statement, recurse into bytecode
         let bytecode_res: BytecodeRes = Codegen::macro_to_bytecode(evm_version, m_macro, &contract, &mut scope_mgr, 0, relax_jumps)?;
         Codegen::reject_args_start(&bytecode_res)?;
+        let main_size = scope_mgr.root_size_needed.then(|| bytecode_res.bytes.total_byte_size());
 
         tracing::debug!(target: "codegen", "Generated main bytecode. Appending table bytecode...");
 
         // Main bytecode is not shifted by a bootstrap and has no upstream dedup map.
         let table_out = Codegen::gen_table_bytecode(&contract, bytecode_res, 0, &HashMap::new())?;
         let bytecode = format!("{}{}", table_out.body, table_out.tables);
-        Ok(MainBytecodeOutput { bytecode, source_map: table_out.source_map, table_offsets: table_out.local_table_offsets })
+        Ok((MainBytecodeOutput { bytecode, source_map: table_out.source_map, table_offsets: table_out.local_table_offsets }, main_size))
     }
 
     /// Rejects `__argsstart()` in code that runs as the runtime, such as MAIN or a test, since
@@ -321,12 +331,29 @@ impl Codegen {
         // Find the constructor macro
         let c_macro = Codegen::get_macro_by_name(&constructor_macro, &contract)?;
 
-        // Create scope manager and push the constructor macro
-        let mut scope_mgr = ScopeManager::new();
-        scope_mgr.push_macro(c_macro, 0);
-
-        // For each MacroInvocation Statement, recurse into bytecode
-        let bytecode_res: BytecodeRes = Codegen::macro_to_bytecode(evm_version, c_macro, &contract, &mut scope_mgr, 0, relax_jumps)?;
+        // Iterate to a fixed point on the constructor's own size, which a `__codesize(CONSTRUCTOR)`
+        // inside another macro's `__codesize` needs, as MAIN does
+        let mut constructor_size = None;
+        let mut converged = None;
+        for _ in 0..CODESIZE_MAX_ITERATIONS {
+            let mut scope_mgr = ScopeManager::new();
+            scope_mgr.root_size_hint = constructor_size;
+            scope_mgr.push_macro(c_macro, 0);
+            let res: BytecodeRes = Codegen::macro_to_bytecode(evm_version, c_macro, &contract, &mut scope_mgr, 0, relax_jumps)?;
+            let new_size = scope_mgr.root_size_needed.then(|| res.bytes.total_byte_size());
+            if constructor_size == new_size {
+                converged = Some(res);
+                break;
+            }
+            constructor_size = new_size;
+        }
+        let Some(bytecode_res) = converged else {
+            return Err(CodegenError {
+                kind: CodegenErrorKind::CodesizeNotConverged(CODESIZE_MAX_ITERATIONS),
+                span: AstSpan(vec![]).boxed(),
+                token: None,
+            });
+        };
 
         // A constructor body containing a RETURN means the user is supplying their own deployment
         // bootstrap; suppress the compiler's auto-bootstrap in that case.
@@ -983,10 +1010,13 @@ impl Codegen {
                         }
                     }
                     Bytes::CircularCodesizePlaceholder(ref mut placeholder) if mode == ResizeMode::Widen => {
-                        let size = placeholder.measured_range.map_or(total_length, |(start, end)| {
-                            current_offset(&original_offsets, &offsets, end_offset, end)
-                                - current_offset(&original_offsets, &offsets, end_offset, start)
-                        });
+                        let size = placeholder.size(
+                            |(start, end)| {
+                                current_offset(&original_offsets, &offsets, end_offset, end)
+                                    - current_offset(&original_offsets, &offsets, end_offset, start)
+                            },
+                            total_length,
+                        );
                         if !placeholder.push_opcode.can_represent(size) {
                             placeholder.push_opcode = PushOpcode::optimal_for(size);
                             changed = true;
