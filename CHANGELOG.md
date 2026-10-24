@@ -10,6 +10,7 @@
 - Fix `FREE_STORAGE_POINTER()` constants used only by tests failing with "Storage Pointers Not Derived".
 - Fix a test that calls a `fn` halting with `StackUnderflow` when it ends without `stop`.
 - Fix `extcodehash` returning zero for accounts created by `hnc test`.
+- Update the book: show how to test a macro that jumps to a label defined in `MAIN`.
 - Fix `remappings.txt` with Windows line endings.
 
 ## [1.6.2] - 2026-10-17
