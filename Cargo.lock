@@ -4856,14 +4856,12 @@ dependencies = [
 name = "hnc"
 version = "1.7.0"
 dependencies = [
- "alloy-eips",
  "alloy-primitives",
  "assert_cmd",
  "assert_fs",
  "clap",
  "comfy-table 7.2.2",
  "foundry-cli",
- "foundry-common",
  "foundry-config",
  "foundry-evm-traces",
  "huff-neo-codegen",
@@ -4871,7 +4869,6 @@ dependencies = [
  "huff-neo-test-runner",
  "huff-neo-utils",
  "predicates",
- "serde",
  "serde_json",
  "shadow-rs",
  "thiserror 2.0.18",
@@ -4952,6 +4949,7 @@ version = "1.7.0"
 dependencies = [
  "alloy-dyn-abi",
  "alloy-primitives",
+ "assert_fs",
  "criterion",
  "huff-neo-codegen",
  "huff-neo-lexer",
@@ -5009,9 +5007,7 @@ dependencies = [
  "clap",
  "comfy-table 7.2.2",
  "eyre",
- "foundry-cli",
  "foundry-compilers",
- "foundry-config",
  "foundry-debugger",
  "foundry-evm",
  "foundry-evm-core",

@@ -1427,15 +1427,18 @@ impl Codegen {
     /// Reads constructor arguments given as text. With the declared constructor parameter types,
     /// each argument is read as its type and the count must match; otherwise each type is guessed
     /// from the text. Without arguments nothing is appended, so the deployer can append them later.
-    pub fn encode_constructor_args(args: Vec<String>, types: Option<&[String]>) -> Result<Vec<DynSolValue>, CodegenError> {
+    pub fn encode_constructor_args(args: &[String], types: Option<&[String]>) -> Result<Vec<DynSolValue>, CodegenError> {
         let invalid =
             |msg: String| CodegenError { kind: CodegenErrorKind::InvalidConstructorArgs(msg), span: AstSpan(vec![]).boxed(), token: None };
-        let Some(types) = types.filter(|_| !args.is_empty()) else {
-            return args.into_iter().map(|arg| EToken::try_from(arg).map(|token| token.0).map_err(invalid)).collect();
+        if args.is_empty() {
+            return Ok(vec![]);
+        }
+        let Some(types) = types else {
+            return args.iter().map(|arg| EToken::try_from(arg.clone()).map(|token| token.0).map_err(invalid)).collect();
         };
         if args.len() != types.len() {
             return Err(invalid(format!(
-                "the constructor takes {} arguments ({}), but {} were given",
+                "the constructor takes {} argument(s) ({}), but {} were given",
                 types.len(),
                 types.join(", "),
                 args.len()
@@ -1454,17 +1457,8 @@ impl Codegen {
         contract
             .functions
             .iter()
-            .find(|function| function.name.to_lowercase() == "constructor")
+            .find(|function| function.name.eq_ignore_ascii_case("constructor"))
             .map(|function| function.inputs.iter().map(|input| input.arg_type.clone().unwrap_or_default()).collect())
-    }
-
-    /// The constructor parameter types of a generated ABI. An ABI without a declared constructor
-    /// still lists the `CONSTRUCTOR` macro with no inputs, so only a non-empty list counts as declared.
-    pub fn abi_constructor_types(abi: &Abi) -> Option<Vec<String>> {
-        abi.constructor
-            .as_ref()
-            .filter(|constructor| !constructor.inputs.is_empty())
-            .map(|constructor| constructor.inputs.iter().map(|input| input.kind.to_string()).collect())
     }
 
     /// Encodes constructor arguments as hex, the way Solidity's `abi.encode` does

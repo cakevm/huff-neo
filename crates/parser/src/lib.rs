@@ -2186,7 +2186,9 @@ impl Parser {
                         _ => String::new(),
                     };
                     self.match_kind(TokenKind::CloseBracket)?;
-                    tuple.push_str(&format!("[{size}]"));
+                    tuple.push('[');
+                    tuple.push_str(&size);
+                    tuple.push(']');
                 }
                 Ok(tuple)
             }
@@ -2202,7 +2204,7 @@ impl Parser {
     /// Parses a component of a tuple type, whose optional name is not part of the type
     fn parse_tuple_component(&mut self) -> Result<String, ParserError> {
         let component = self.parse_arg_type()?;
-        if self.check(TokenKind::Ident("x".to_string())) {
+        if matches!(self.current_token.kind, TokenKind::Ident(_)) {
             self.consume();
         }
         Ok(component)

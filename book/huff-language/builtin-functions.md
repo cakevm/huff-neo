@@ -12,7 +12,7 @@ At compile time, the invocation of `__EVENT_HASH` is substituted with `PUSH32 ev
 ### `__ERROR(<error definition>)`
 At compile time, the invocation of `__ERROR` is substituted with `PUSH32 error_selector`, where `error_selector` is the left-padded 4 byte error selector of the passed error definition.
 
-### `__LEFTPAD(<string>|<hex>|<builtin function>)`
+### `__LEFTPAD(<hex>|<constant>|<builtin function>)`
 At compile time, the invocation of `__LEFTPAD` is substituted with `padded_literal`, where `padded_literal` is the left padded version of the passed input. This function is only available as constant assignment or in a code table.
 
 #### Example
@@ -22,7 +22,7 @@ __LEFTPAD(0x123)
 0x0000000000000000000000000000000000000000000000000000000000000123
 ```
 
-### `__RIGHTPAD(<string>|<hex>|<builtin function>)`
+### `__RIGHTPAD(<hex>|<constant>|<builtin function>)`
 At compile time, the invocation of `__RIGHTPAD` is substituted with `PUSH32 padded_literal`, where `padded_literal` is the right padded version of the passed input.
 
 #### Example

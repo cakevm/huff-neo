@@ -194,8 +194,9 @@ impl CircularCodesizePlaceholderData {
     }
 }
 
-/// The bytecode of `__argsstart()` until the layout is known: a PUSH2 whose value the compiler fills in
-pub const ARGS_START_PLACEHOLDER: &str = "61xxxx";
+/// The bytecode of `__argsstart()` until the layout is known: a PUSH2 whose value the compiler fills in.
+/// Its value is not hex, so it cannot be mistaken for code or for a jump placeholder.
+pub const ARGS_START_PLACEHOLDER: &str = "61yyyy";
 
 /// Data for an __ASSERT_PC placeholder
 /// This placeholder generates no bytecode but validates the PC during bytecode generation
@@ -223,7 +224,7 @@ pub enum Bytes {
     JumpPlaceholder(JumpPlaceholderData),
     /// Circular codesize placeholder - "cccc" for self-referential __codesize
     CircularCodesizePlaceholder(CircularCodesizePlaceholderData),
-    /// `__argsstart()` placeholder - "61xxxx", a PUSH2 filled with the offset of the constructor arguments
+    /// `__argsstart()` placeholder - a PUSH2 filled with the offset of the constructor arguments
     ArgsStartPlaceholder,
     /// Assert PC placeholder - validates program counter after jump relaxation
     AssertPcPlaceholder(AssertPcPlaceholderData),

@@ -386,6 +386,7 @@ fn main() {
         tracing::info!(target: "cli", "ENTERING INTERACTIVE MODE");
         for artifact in &mut artifacts {
             let mut appended_args = String::default();
+            let mut constructor_args = Vec::new();
             match artifact.abi {
                 Some(ref abi) => match abi.constructor {
                     Some(ref args) => {
@@ -405,8 +406,12 @@ fn main() {
                                 ))
                             })
                             .collect();
-                        match Codegen::encode_constructor_args(inputs, Codegen::abi_constructor_types(abi).as_deref()) {
-                            Ok(values) => appended_args = Codegen::abi_encode_constructor_args(values),
+                        let types: Vec<String> = args.inputs.iter().map(|input| input.kind.to_string()).collect();
+                        match Codegen::encode_constructor_args(&inputs, Some(&types)) {
+                            Ok(values) => {
+                                appended_args = Codegen::abi_encode_constructor_args(values);
+                                constructor_args = inputs;
+                            }
                             Err(e) => {
                                 eprintln!("{}", Paint::red(&CompilerError::CodegenError(e).to_string()));
                                 exit(1);
@@ -424,6 +429,7 @@ fn main() {
             match Arc::get_mut(artifact) {
                 Some(art) => {
                     art.bytecode = format!("{}{appended_args}", art.bytecode);
+                    art.constructor_args = constructor_args;
                 }
                 None => {
                     tracing::warn!(target: "cli", "FAILED TO ACQUIRE MUTABLE REF TO ARTIFACT")

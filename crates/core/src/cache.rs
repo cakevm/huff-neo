@@ -1,6 +1,5 @@
 use std::{collections::BTreeMap, sync::Arc};
 
-use huff_neo_codegen::Codegen;
 use huff_neo_utils::file::file_source::FileSource;
 use huff_neo_utils::file::full_file_source::OutputLocation;
 use huff_neo_utils::prelude::Artifact;
@@ -55,10 +54,7 @@ pub fn resolve_existing_artifacts(
                 // If we expected compilation, the sources must match
                 match expected {
                     Some(expected_fs) => {
-                        let types = artifact.abi.as_ref().and_then(Codegen::abi_constructor_types);
-                        let encoded_args = Codegen::encode_constructor_args(constructor_args.to_vec(), types.as_deref())
-                            .map(Codegen::abi_encode_constructor_args);
-                        if !encoded_args.is_ok_and(|args| artifact.bytecode.ends_with(&args)) {
+                        if artifact.constructor_args != constructor_args {
                             tracing::warn!(target: "core", "Mismatched Constructor Args for Cached Artifact \"{}\"", artifact.file.path);
                             return None;
                         }
@@ -79,8 +75,9 @@ pub fn resolve_existing_artifacts(
                 }
             }
             Err(e) => {
-                // If the artifact is invalid, log the error and continue
-                tracing::error!(target: "core", "Invalid artifact file: {}", e);
+                // The output directory may hold other JSON files, which are only an error when an
+                // artifact was expected
+                tracing::debug!(target: "core", "Not an artifact file: {}", e);
                 if expected.is_some() {
                     tracing::error!(target: "core", "Expected artifact file to be compiled: {}", entry.path().display());
                     return None;

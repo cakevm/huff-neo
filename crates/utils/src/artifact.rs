@@ -115,6 +115,10 @@ pub struct Artifact {
     /// A cached artifact is only reused when these match the overrides of the current build.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub constant_overrides: BTreeMap<String, String>,
+    /// Constructor arguments the artifact was compiled with, as given on the command line.
+    /// A cached artifact is only reused when these match the arguments of the current build.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub constructor_args: Vec<String>,
 }
 
 impl Artifact {

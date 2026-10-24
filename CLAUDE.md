@@ -74,7 +74,7 @@ The compiler is organized as a Rust workspace with the following key crates:
 4. **`crates/codegen`** - Generates EVM bytecode from the AST
 5. **`crates/core`** - Core compiler logic, coordinates lexer/parser/codegen
 6. **`crates/utils`** - Shared types, error handling, AST definitions
-7. **`crates/test-runner`** - Executes Huff test macros using Anvil/REVM
+7. **`crates/test-runner`** - Executes Huff test macros on Foundry's EVM executor
 8. **`crates/js`** - WASM bindings for JavaScript/browser usage
 
 ### Compilation Pipeline
@@ -120,6 +120,9 @@ The compiler is organized as a Rust workspace with the following key crates:
 - `__FUNC_SIG()`, `__EVENT_HASH()`, `__ERROR()` - ABI encoding helpers
 - `__RIGHTPAD()`, `__LEFTPAD()` - Byte padding (`__LEFTPAD()` in constants and code tables only)
 - `__BYTES()` - Raw bytes insertion
+- `__VERBATIM()` - Raw hex insertion without a PUSH
+- `__EMBED_TABLE()` - Insert a code table at the current position
+- `__ASSERT_PC()` - Compile-time program counter check
 - `__tablesize()`, `__tablestart()` - Jump table utilities
 - `__codesize()` - Get size of compiled macro
 - `__argsstart()` - Offset of the constructor arguments (constructor only)
@@ -175,5 +178,5 @@ When making changes to language features or behavior, always update the correspo
 
 - Rust 1.98+ required
 - Uses Alloy for Ethereum types (replacing ethers)
-- REVM for EVM execution in tests
+- Foundry's EVM executor (on REVM) for tests
 - Foundry integration for testing infrastructure

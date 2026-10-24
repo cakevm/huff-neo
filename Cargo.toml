@@ -44,7 +44,6 @@ yansi = "1.0.1"
 
 # alloy
 alloy-dyn-abi = { version = "1.7.0", default-features = false }
-alloy-eips = { version = "2.5.0", default-features = false }
 alloy-evm = { version = "0.39.0", default-features = false }
 alloy-primitives = { version = "1.7.0", default-features = false, features = ["std"] }
 
@@ -53,7 +52,6 @@ revm = { version = "43.0.2", default-features = false, features = ["optional_no_
 
 # foundry
 foundry-cli = { git = "https://github.com/foundry-rs/foundry", tag = "v1.8.6" }
-foundry-common = { git = "https://github.com/foundry-rs/foundry", tag = "v1.8.6" }
 foundry-compilers = { version = "0.21.0", default-features = false }
 foundry-config = { git = "https://github.com/foundry-rs/foundry", tag = "v1.8.6" }
 foundry-debugger = { git = "https://github.com/foundry-rs/foundry", tag = "v1.8.6" }

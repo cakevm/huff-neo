@@ -10,7 +10,7 @@ function interfaces should only be defined for externally facing functions.
 
 Events can contain `indexed` and non-indexed values.
 
-Parameters can be tuples, the ABI form of a Solidity struct, written as their component types in parentheses.
+Parameters of functions, events and errors can be tuples, the ABI form of a Solidity struct, written as their component types in parentheses.
 Component names are optional, and a tuple can be nested or used as an array. The selector uses the canonical
 type, so `swap((address maker, uint256 amount) order)` has the selector of `swap((address,uint256))`, the same
 as a Solidity function taking a struct with those fields. Each tuple becomes a struct in the interface `-g`
@@ -30,4 +30,9 @@ Define a function that takes a struct and returns an array of them:
 Define an event:
 ```javascript
 #define event TestEvent(address indexed, uint256)
+```
+
+Define an error that takes a struct:
+```javascript
+#define error InvalidOrder((address maker, uint256 amount) order)
 ```

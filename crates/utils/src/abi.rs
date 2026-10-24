@@ -81,15 +81,12 @@ impl Abi {
 // Allows for simple ABI Generation by directly translating the AST
 impl From<huff::Contract> for Abi {
     fn from(contract: huff::Contract) -> Self {
-        // Try to get the constructor inputs from an overridden function
-        // Otherwise, use the CONSTRUCTOR macro if one exists
+        // The inputs of `#define function constructor(...)`. A CONSTRUCTOR macro without that
+        // declaration takes no arguments; its macro parameters are not ABI inputs.
         let constructor = contract
             .functions
             .iter()
-            .filter(|m| m.name.to_lowercase() == "constructor")
-            .cloned()
-            .collect::<Vec<ast::abi::FunctionDefinition>>()
-            .first()
+            .find(|function| function.name.eq_ignore_ascii_case("constructor"))
             .map(|func| Constructor {
                 inputs: func
                     .inputs
@@ -101,19 +98,7 @@ impl From<huff::Contract> for Abi {
                     })
                     .collect(),
             })
-            .or_else(|| {
-                contract.macros.get("CONSTRUCTOR").map(|func| Constructor {
-                    inputs: func
-                        .parameters
-                        .iter()
-                        .map(|argument| FunctionParam {
-                            name: argument.name.clone().unwrap_or_default(),
-                            kind: argument.name.clone().unwrap_or_default().into(),
-                            internal_type: None,
-                        })
-                        .collect(),
-                })
-            });
+            .or_else(|| contract.macros.contains_key("CONSTRUCTOR").then(|| Constructor { inputs: vec![] }));
 
         // Instantiate functions and events
         let mut functions = BTreeMap::new();

@@ -26,6 +26,7 @@ tracing-subscriber.workspace = true
 walkdir.workspace = true
 
 [dev-dependencies]
+assert_fs.workspace = true
 criterion.workspace = true
 rand.workspace = true
 

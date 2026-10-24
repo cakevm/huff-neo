@@ -58,8 +58,8 @@ definition = {
 // Example: #define function transfer(address to, uint256 amount) nonpayable returns(bool)
 function_definition = {
     "#define" ~ "function" ~ identifier ~ parameter_list
-    ~ mutability_specifier*
-    ~ ("returns" ~ parameter_list)?
+    ~ mutability_specifier
+    ~ "returns" ~ parameter_list
 }
 
 mutability_specifier = { "view" | "pure" | "payable" | "nonpayable" }
@@ -80,31 +80,26 @@ indexed_parameter = { type_name ~ "indexed"? ~ identifier? }
 
 storage_location = { "memory" | "storage" | "calldata" }
 
-// Solidity type names with optional array suffixes
-// Examples: uint256, address, bytes32[], uint256[][3], (address,(bool,bytes))[], MyStruct
-type_name = { (elementary_type | mapping_type | tuple_type | user_defined_type) ~ array_suffix* }
+// ABI type names with optional array suffixes
+// Examples: uint256, address, bytes32[], uint256[][3], (address,(bool,bytes))[]
+type_name = { (elementary_type | tuple_type) ~ array_suffix* }
 
 // Examples: [], [5]
 array_suffix = { "[" ~ decimal_literal? ~ "]" }
 
-// Examples: address, bool, string, bytes, bytes32, uint, uint8, int256, fixed128x18
+// Examples: address, bool, string, bytes, bytes32, uint, uint8, int256
 elementary_type = @{
     ( "address"
     | "bool"
     | "string"
     | ("uint" | "int" | "bytes") ~ ASCII_DIGIT*
-    | ("ufixed" | "fixed") ~ (ASCII_DIGIT+ ~ "x" ~ ASCII_DIGIT+)?
     ) ~ !ident_char
 }
 
-// Example: mapping(address => uint256)
-mapping_type = { "mapping" ~ "(" ~ type_name ~ "=>" ~ type_name ~ ")" }
-
-// Examples: (address,uint256), (address,(bool,bytes))
-tuple_type = { "(" ~ (parameter ~ ("," ~ parameter)*)? ~ ")" }
-
-// Examples: MyStruct, MyContract.MyStruct
-user_defined_type = { identifier ~ ("." ~ identifier)* }
+// A tuple is the ABI form of a struct; component names are optional and not part of the type
+// Examples: (address,uint256), (address maker, (bool,bytes) data)
+tuple_type = { "(" ~ tuple_component ~ ("," ~ tuple_component)* ~ ")" }
+tuple_component = { type_name ~ identifier? }
 
 // ============================================================================
 // CONSTANT DEFINITIONS

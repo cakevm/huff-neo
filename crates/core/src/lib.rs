@@ -574,7 +574,7 @@ impl<'a, 'l> Compiler<'a, 'l> {
 
         // Encode Constructor Arguments
         let encoded_inputs =
-            Codegen::encode_constructor_args(inputs, Codegen::declared_constructor_types(&contract).as_deref()).map_err(|mut e| {
+            Codegen::encode_constructor_args(&inputs, Codegen::declared_constructor_types(&contract).as_deref()).map_err(|mut e| {
                 e.span = AstSpan(vec![Span { start: 0, end: 0, file: Some(Arc::clone(&file)) }]).boxed();
                 CompilerError::CodegenError(e)
             })?;
@@ -597,6 +597,7 @@ impl<'a, 'l> Compiler<'a, 'l> {
                     }
                 }
                 artifact.constant_overrides = self.constant_overrides_hex();
+                artifact.constructor_args = self.get_constructor_args();
                 Ok((artifact, found_overrides))
             }
             Err(e) => {

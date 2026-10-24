@@ -46,8 +46,8 @@ Options:
 
 Passing the `-a` flag will generate `Artifact` JSON file(s) in the `./artifacts`
 directory or wherever the `-d` flag designates, at the path of each source file: `./src/ERC20.huff` is written to
-`./artifacts/src/ERC20.huff.json`. Other files in the directory are left alone. The `Artifact` JSON contains
-the following information:
+`./artifacts/src/ERC20.huff.json`. The path is taken as given, so pass a relative path to keep the artifacts inside
+the directory. Other files in the directory are left alone. The `Artifact` JSON contains the following information:
 * File
   * Path
   * Source
@@ -55,6 +55,9 @@ the following information:
 * Bytecode
 * Runtime Bytecode
 * Contract ABI
+* Source maps of the constructor and the runtime
+* Whether the constructor returns its own runtime
+* The constant overrides and constructor arguments it was compiled with
 
 Example:
 ```shell

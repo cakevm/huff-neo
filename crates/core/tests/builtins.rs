@@ -89,7 +89,7 @@ fn test_argsstart_builtin() {
     let evm_version = &EVMVersion::default();
     let (constructor_code, has_custom_bootstrap) = Codegen::generate_constructor_bytecode(evm_version, &contract, None, false).unwrap();
     let main_code = Codegen::generate_main_bytecode(evm_version, &contract, None, false).unwrap();
-    let args = Codegen::encode_constructor_args(vec![String::from("testing"), String::from("18")], None).unwrap();
+    let args = Codegen::encode_constructor_args(&[String::from("testing"), String::from("18")], None).unwrap();
     let final_bytecode = Codegen::new()
         .churn(evm_version, Arc::new(FileSource::default()), args, &main_code, &constructor_code, has_custom_bootstrap, None, None, false)
         .unwrap();
@@ -131,6 +131,26 @@ fn test_argsstart_builtin_outside_constructor() {
     let err = Codegen::new()
         .churn(evm_version, Arc::new(FileSource::default()), vec![], &main_code, &constructor_code, has_custom_bootstrap, None, None, false)
         .unwrap_err();
+    assert_eq!(err.kind, CodegenErrorKind::ArgsStartOutsideConstructor);
+}
+
+#[test]
+fn test_argsstart_builtin_in_test() {
+    // Tests run as runtime code, without constructor arguments
+    let source: &str = r#"
+        #define test ARGS() = {
+            __argsstart()
+        }
+    "#;
+
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let tokens = Lexer::new(flattened_source).map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let contract = Parser::new(tokens, None).parse().unwrap();
+
+    let test = contract.macros.get("ARGS").unwrap();
+    let mut scope_mgr = ScopeManager::new();
+    scope_mgr.push_macro(test, 0);
+    let err = Codegen::macro_to_bytecode(&EVMVersion::default(), test, &contract, &mut scope_mgr, 0, false, false).unwrap_err();
     assert_eq!(err.kind, CodegenErrorKind::ArgsStartOutsideConstructor);
 }
 

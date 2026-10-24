@@ -40,7 +40,7 @@ pub fn gen_sol_interfaces(artifacts: &Vec<Arc<Artifact>>, interface: Option<Stri
                     "{}error {}({});",
                     "\t",
                     e.name,
-                    e.inputs.iter().map(|i| param(&i.kind, &mut structs)).collect::<Vec<_>>().join(", "),
+                    e.inputs.iter().map(|i| sol_type(&i.kind, &mut structs)).collect::<Vec<_>>().join(", "),
                 ));
             });
             a.functions.iter().for_each(|(_, f)| {
@@ -70,7 +70,7 @@ pub fn gen_sol_interfaces(artifacts: &Vec<Arc<Artifact>>, interface: Option<Stri
     interfaces
 }
 
-/// A parameter of a function or error, with the `memory` location its type needs
+/// A function parameter, with the `memory` location its type needs
 fn param(kind: &FunctionParamType, structs: &mut Vec<(FunctionParamType, String)>) -> String {
     format!("{}{}", sol_type(kind, structs), if kind.is_memory_type() { " memory" } else { "" })
 }
