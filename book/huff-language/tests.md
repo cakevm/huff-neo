@@ -17,10 +17,14 @@ must end and what state it must leave behind.
 
 Run the tests of a file with `hnc test`. For more information, see the [CLI Resources](../cli.md).
 
-Huff tests check the code of a contract from the inside. For tests that call a deployed contract, or that need
-Foundry cheatcodes, use Foundry with [foundry-huff-neo](https://github.com/cakevm/foundry-huff-neo). `hnc test` does
-not support cheatcodes yet: a test that calls the cheatcode address `0x7109709ECfa91a80626fF3989D68f67F5b1DD12D`
-fails instead of silently doing nothing.
+`hnc test` runs each test on Foundry's EVM executor, the same engine as `forge test`. The test is deployed at
+Foundry's test address `0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496` and called from Foundry's default sender
+`0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38`, unless `caller(..)`, `--sender` or `--target-address` change them.
+
+A test can call [Foundry cheatcodes](https://getfoundry.sh/reference/cheatcodes/overview) at
+`0x7109709ECfa91a80626fF3989D68f67F5b1DD12D`, for example to change the block in the middle of a test. A failed
+`vm.assert*` fails the test; run with `-vvv` to see its message. For tests written in Solidity that call a deployed
+Huff contract, use Foundry with [foundry-huff-neo](https://github.com/cakevm/foundry-huff-neo).
 
 ## Decorators
 Decorators sit directly above a test and hold one or more flags: `#[flag_a(inputs...), flag_b(inputs...)]`. A test

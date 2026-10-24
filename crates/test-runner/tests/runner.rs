@@ -1,4 +1,5 @@
 use alloy_primitives::{Address, KECCAK256_EMPTY, U256, address, hex, keccak256};
+use foundry_evm::constants::{CALLER, TEST_CONTRACT_ADDRESS};
 use foundry_evm::core::evm::EthEvmNetwork;
 use foundry_evm::executors::Executor;
 use huff_neo_lexer::Lexer;
@@ -790,4 +791,12 @@ fn test_runner_test_calling_a_fn_ends_without_entering_it() {
 
     let result = run_test_t(source);
     assert!(result.passed, "{:?}", result.failures);
+}
+
+#[test]
+fn test_runner_uses_foundrys_test_and_sender_addresses() {
+    let source = "#define test T() = { address 0x00 mstore caller 0x20 mstore 0x40 0x00 return }";
+    let result = run_test_t(source);
+    assert_eq!(result.address, Some(TEST_CONTRACT_ADDRESS));
+    assert_eq!(result.return_data, Some(format!("{:0>64}{:0>64}", hex::encode(TEST_CONTRACT_ADDRESS), hex::encode(CALLER))));
 }

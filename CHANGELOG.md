@@ -3,6 +3,9 @@
 # Huff Neo Compiler changelog
 
 ## Unreleased
+- Run tests on Foundry's EVM executor, the engine of `forge test`, so tests can call Foundry cheatcodes.
+- Fail a test whose `vm.assert*` cheatcode fails.
+- **Breaking**: Deploy tests at Foundry's test address `0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496`, which changes the addresses of contracts a test creates.
 - Add the `deal(address, wei)`, `etch(address, bytes...)` and `nonce(address, n)` test decorators to set balances, code and nonces before a test runs.
   - Example: `#[deal(caller, 1000), etch(0x1000, "0x5f5ff3"), nonce(this, 5)]`
 - Add the `expect_storage` and `expect_balance` test expectations to check state after a test, with an exact value or inclusive `min =` and `max =` bounds.

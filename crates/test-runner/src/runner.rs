@@ -2,6 +2,7 @@ use crate::prelude::{EnvOverrides, Failure, Outcome, RunnerError, SpecContext, T
 use alloy_evm::EvmEnv;
 use alloy_primitives::{Address, Bytes, U256, hex};
 use foundry_evm::backend::{Backend, DatabaseExt};
+use foundry_evm::constants::CALLER;
 use foundry_evm::core::evm::EthEvmNetwork;
 use foundry_evm::executors::{Executor, ExecutorBuilder, RawCallResult};
 use foundry_evm::fork::CreateFork;
@@ -49,7 +50,10 @@ pub struct TestRunner {
 
 impl Default for TestRunner {
     fn default() -> Self {
-        Self::new(Env::default(), None, EVMVersion::default(), Arc::new(cheats_config(CheatsConfig::default())))
+        // Send from Foundry's default sender, as `hnc test` does
+        let mut env = Env::default();
+        env.tx.caller = CALLER;
+        Self::new(env, None, EVMVersion::default(), Arc::new(cheats_config(CheatsConfig::default())))
     }
 }
 
@@ -231,7 +235,15 @@ impl TestRunner {
                 self.set_code(executor, address, bytecode.clone())?;
                 address
             }
-            None => self.deploy_code(executor, bytecode.clone())?,
+            None => {
+                // Like forge, a fresh sender deploys the test with nonce 1, so the test runs at
+                // Foundry's test contract address
+                let sender = self.env.tx.caller;
+                if executor.get_nonce(sender).map_err(db_error)? == 0 {
+                    self.set_nonce(executor, sender, 1)?;
+                }
+                self.deploy_code(executor, bytecode.clone())?
+            }
         };
         // On a fork, only allowed accounts may call cheatcodes
         executor.backend_mut().allow_cheatcode_access(address);
