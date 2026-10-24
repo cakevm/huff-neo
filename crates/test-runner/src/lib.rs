@@ -1,4 +1,4 @@
-use crate::{errors::RunnerError, runner::TestRunner, types::TestResult};
+use crate::{errors::RunnerError, types::TestResult};
 use alloy_primitives::Address;
 use huff_neo_utils::prelude::{Contract, EVMVersion, MacroDefinition, SupportedEVMVersions};
 
@@ -21,21 +21,17 @@ pub mod spec;
 pub mod outcome;
 
 use alloy_primitives::map::AddressHashMap;
-/// Re-export the Inspector from anvil crate
-pub use anvil::eth::backend::mem::inspector::AnvilInspector;
 use foundry_compilers::{compilers::solc::SolcLanguage, multi::MultiCompilerLanguage};
 use foundry_debugger::Debugger;
-use foundry_evm::backend::Backend;
-use foundry_evm::core::evm::EthEvmNetwork;
 use foundry_evm::fork::CreateFork;
-use foundry_evm::traces::{InternalTraceMode, SparsedTraceArena, TraceKind};
+use foundry_evm::traces::{InternalTraceMode, TraceKind};
 use foundry_evm_traces::debug::{ArtifactData, ContractSources, SourceData};
-use revm::database::CacheDB;
 use revm::primitives::hardfork::SpecId;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-pub use crate::runner::Env;
+pub use crate::runner::{Env, TestRunner, cheats_config};
+pub use foundry_evm::inspectors::CheatsConfig;
 pub use revm::context::TxEnv;
 
 /// Prelude wraps all modules within the crate
@@ -148,7 +144,7 @@ pub struct HuffTester<'t> {
 /// HuffTester implementation
 impl<'t> HuffTester<'t> {
     /// Create a new instance of `HuffTester` from a contract's AST.
-    pub fn new(ast: &'t Contract, match_test_name: Option<String>, inspector: AnvilInspector, config: HuffTesterConfig, env: Env) -> Self {
+    pub fn new(ast: &'t Contract, match_test_name: Option<String>, config: HuffTesterConfig, runner: TestRunner) -> Self {
         Self {
             ast,
             macros: {
@@ -161,7 +157,7 @@ impl<'t> HuffTester<'t> {
                 }
                 macros
             },
-            runner: TestRunner::new(env, inspector, config.target_address, config.evm_version),
+            runner,
             config,
         }
     }
@@ -178,11 +174,9 @@ impl<'t> HuffTester<'t> {
             .macros
             .into_iter()
             .map(|macro_def| {
-                // Every test gets its own backend; each one must fork the same chain state
-                let db = Backend::<EthEvmNetwork>::spawn(self.config.fork.clone())
-                    .map_err(|_| RunnerError::GenericError("Failed to spawn backend".to_string()))?;
-                let mut cache_db = CacheDB::new(db);
-                self.runner.run_test(&mut cache_db, macro_def, self.ast)
+                // Every test gets its own executor; each one must fork the same chain state
+                let mut executor = self.runner.new_executor(self.config.fork.clone())?;
+                self.runner.run_test(&mut executor, macro_def, self.ast)
             })
             .collect::<Result<Vec<TestResult>, RunnerError>>();
 
@@ -203,14 +197,11 @@ impl<'t> HuffTester<'t> {
             return Err(RunnerError::GenericError("No test result found".to_string()));
         };
 
-        let Some(trace_area) = test_result.clone().inspector.tracer else {
+        let Some(arena) = test_result.traces.clone() else {
             return Err(RunnerError::GenericError("No trace found".to_string()));
         };
 
-        let traces = [(
-            TraceKind::Execution,
-            SparsedTraceArena { arena: trace_area.into_traces(), ignored: Default::default(), diagnostics: Default::default() },
-        )];
+        let traces = [(TraceKind::Execution, arena)];
 
         eprintln!("DEBUG: Starting debugger for test: {}", test_result.name);
         eprintln!("DEBUG: Has source map: {}", test_result.source_map.is_some());

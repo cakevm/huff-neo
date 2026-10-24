@@ -3,7 +3,7 @@ use crate::runner::db_error;
 use crate::spec::{AccountValue, ExpectedSlot, ExpectedValue};
 use alloy_primitives::{U256, hex};
 use huff_neo_utils::prelude::Contract;
-use revm::Database;
+use revm::DatabaseRef;
 use serde::Serialize;
 
 /// How the test call ended
@@ -94,15 +94,15 @@ impl Expectations {
     }
 
     /// The storage and balance expectations the state after the test does not meet
-    pub fn check_post_state<DB>(&self, db: &mut DB) -> Result<Vec<Failure>, RunnerError>
+    pub fn check_post_state<DB>(&self, db: &DB) -> Result<Vec<Failure>, RunnerError>
     where
-        DB: Database,
-        <DB as Database>::Error: std::fmt::Debug,
+        DB: DatabaseRef,
+        <DB as DatabaseRef>::Error: std::fmt::Debug,
     {
         let mut failures = Vec::new();
 
         for ExpectedSlot { address, slot, expected } in &self.storage {
-            let actual = db.storage(*address, *slot).map_err(db_error)?;
+            let actual = db.storage_ref(*address, *slot).map_err(db_error)?;
             if !expected.matches(actual) {
                 failures.push(Failure {
                     expectation: String::from("expect_storage"),
@@ -111,7 +111,7 @@ impl Expectations {
             }
         }
         for AccountValue { address, value: expected } in &self.balances {
-            let actual = db.basic(*address).map_err(db_error)?.map_or(U256::ZERO, |account| account.balance);
+            let actual = db.basic_ref(*address).map_err(db_error)?.map_or(U256::ZERO, |account| account.balance);
             if !expected.matches(actual) {
                 failures.push(Failure {
                     expectation: String::from("expect_balance"),

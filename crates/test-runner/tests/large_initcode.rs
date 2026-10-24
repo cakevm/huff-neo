@@ -14,6 +14,7 @@ use revm::context::result::{ExecutionResult, Output};
 use revm::context::{TransactTo, TxEnv};
 use revm::database::{CacheDB, EmptyDBTyped};
 use revm::primitives::hardfork::SpecId;
+use revm::state::AccountInfo;
 use revm::{Context, ExecuteCommitEvm, MainBuilder, MainContext};
 use std::sync::Arc;
 
@@ -66,7 +67,7 @@ fn deploy(spec: SpecId, initcode: &str) -> Result<ExecutionResult, String> {
     let mut runner = TestRunner::default();
     runner.env.evm_env.cfg_env.set_spec_and_mainnet_gas_params(spec);
     runner.env.evm_env.cfg_env.disable_base_fee = true;
-    runner.set_balance(&mut db, runner.env.tx.caller, U256::MAX).unwrap();
+    db.insert_account_info(runner.env.tx.caller, AccountInfo { balance: U256::MAX, ..Default::default() });
 
     let tx = TxEnv {
         caller: runner.env.tx.caller,

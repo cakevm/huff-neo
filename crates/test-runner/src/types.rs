@@ -1,6 +1,7 @@
 use crate::outcome::{Failure, Outcome};
-use anvil::eth::backend::mem::inspector::AnvilInspector;
+use alloy_primitives::Log;
 use comfy_table::{Cell, Color};
+use foundry_evm::traces::SparsedTraceArena;
 use huff_neo_utils::artifact::SourceMapEntry;
 use serde::Serialize;
 use yansi::Paint;
@@ -19,8 +20,12 @@ pub struct TestResult {
     pub outcome: Outcome,
     /// The expectations the test did not meet
     pub failures: Vec<Failure>,
+    /// The call traces of the test, as far as the runner records them
     #[serde(skip)]
-    pub inspector: AnvilInspector,
+    pub traces: Option<SparsedTraceArena>,
+    /// The logs the test emitted, when the runner collects them
+    #[serde(skip)]
+    pub logs: Option<Vec<Log>>,
     /// Source map for the test bytecode (for debugging)
     #[serde(skip)]
     pub source_map: Option<Vec<SourceMapEntry>>,

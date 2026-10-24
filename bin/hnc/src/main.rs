@@ -16,11 +16,11 @@ use alloy_primitives::hex;
 use clap::{CommandFactory, Parser};
 use comfy_table::{Cell, Color, Row, Table, modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL};
 use foundry_cli::utils::LoadConfig;
-use foundry_evm_traces::{InternalTraceMode, TracingInspectorConfig};
+use foundry_evm_traces::{InternalTraceMode, TraceRequirements};
 use huff_neo_codegen::Codegen;
 use huff_neo_core::Compiler;
 use huff_neo_test_runner::{
-    AnvilInspector, Env, HuffTester, HuffTesterConfig, TxEnv,
+    CheatsConfig, Env, HuffTester, HuffTesterConfig, TestRunner, TxEnv, cheats_config,
     prelude::{ReportKind, TestStatus, print_test_report},
     spec_id_for,
 };
@@ -263,17 +263,6 @@ fn main() {
         let mut any_failed = false;
 
         for contract in &contracts {
-            let mut inspector = AnvilInspector::default().with_tracing();
-            if test_args.verbosity > 2 {
-                inspector = inspector.with_log_collector();
-            }
-            if test_args.verbosity > 3 || test_args.debug {
-                inspector = inspector.with_tracing_config(TracingInspectorConfig::all().with_state_diffs());
-                if test_args.verbosity > 3 {
-                    inspector = inspector.with_trace_printer();
-                }
-            }
-
             let (evm_env, mut tx_env, resolved_fork): (_, TxEnv, _) = rt.block_on(evm_opts.env_resolved()).unwrap();
             // EIP-7825 caps any single transaction at 16M gas; foundry's default tx gas limit (~1B)
             // exceeds this and trips `CallerGasLimitMoreThanBlock`.
@@ -284,9 +273,6 @@ fn main() {
             if let Some(sender) = test_args.evm.sender {
                 env.tx.caller = sender;
             }
-
-            // Disable base fee because simulation would fail
-            env.evm_env.cfg_env.disable_base_fee = true;
 
             // An explicit `--evm-version` overrides the hardfork from the foundry config, so tests
             // execute with the same rules they were compiled for.
@@ -313,7 +299,20 @@ fn main() {
                 .enable_isolation(evm_opts.isolate)
                 .target_address(test_args.target_address);
 
-            let tester = HuffTester::new(contract, test_args.match_.clone(), inspector, tester_config, env);
+            // Call traces are always recorded for the report; logs from -vvv; every step, state
+            // changes and live printing from -vvvv; the debugger needs every step as well
+            let cheats_config = cheats_config(CheatsConfig::new(&config, evm_opts.clone(), None, None, false));
+            let mut runner = TestRunner::new(env, test_args.target_address, evm_version, Arc::new(cheats_config));
+            runner.trace_requirements = TraceRequirements::none()
+                .with_calls(true)
+                .with_state_changes(test_args.verbosity > 3)
+                .with_debug(test_args.debug)
+                .with_decode_internal(decode_internal);
+            runner.collect_logs = test_args.verbosity > 2;
+            runner.print_traces = test_args.verbosity > 3;
+            runner.networks = evm_opts.networks;
+
+            let tester = HuffTester::new(contract, test_args.match_.clone(), tester_config, runner);
 
             let _guard = rt.enter();
             let start = Instant::now();

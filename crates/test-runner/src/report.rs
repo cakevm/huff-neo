@@ -1,7 +1,6 @@
 use crate::prelude::{ReportKind, TestResult, TestStatus};
 use comfy_table::{Attribute, Cell, Color, ContentArrangement, Row, Table, modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL};
 use foundry_evm::decode::decode_console_logs;
-use foundry_evm::inspectors::{LogCollector, TracingInspector};
 use foundry_evm::traces::{
     CallTraceDecoderBuilder, SparsedTraceArena, decode_trace_arena, identifier::SignaturesIdentifier, render_trace_arena_inner,
 };
@@ -55,17 +54,14 @@ pub async fn print_test_report(results: Vec<TestResult>, report_kind: ReportKind
                     println!("{}", Paint::red(&format!("├─ {}: {}", failure.expectation, failure.message)));
                 }
 
-                let num_logs = match result.inspector.log_collector {
-                    Some(LogCollector::Capture { ref logs }) => logs.len(),
-                    _ => 0,
-                };
+                let num_logs = result.logs.as_ref().map_or(0, Vec::len);
 
                 if let Some(return_data) = result.return_data.clone() {
                     println!("├─ {}", Paint::cyan("RETURN DATA"));
                     println!("{} {return_data}", if num_logs == 0 { "└─" } else { "├─" });
                 }
 
-                if let Some(LogCollector::Capture { ref logs }) = result.inspector.log_collector {
+                if let Some(logs) = &result.logs {
                     let filtered_logs = decode_console_logs(logs);
                     if !filtered_logs.is_empty() {
                         println!("├─ {}", Paint::cyan("CONSOLE LOGS"));
@@ -75,8 +71,8 @@ pub async fn print_test_report(results: Vec<TestResult>, report_kind: ReportKind
                     }
                 }
 
-                if let Some(tracer) = result.inspector.tracer.clone() {
-                    print_call_trace(tracer).await?;
+                if let Some(traces) = result.traces.clone() {
+                    print_call_trace(traces).await?;
                 }
             }
         }
@@ -101,7 +97,7 @@ pub async fn print_test_report(results: Vec<TestResult>, report_kind: ReportKind
 }
 
 /// Print the call trace for a given test result.
-async fn print_call_trace(tracer: TracingInspector) -> eyre::Result<()> {
+async fn print_call_trace(mut arena: SparsedTraceArena) -> eyre::Result<()> {
     // Create a signature identifier to decode unknown function selectors and events
     let identifier = SignaturesIdentifier::new(false)?;
 
@@ -109,7 +105,6 @@ async fn print_call_trace(tracer: TracingInspector) -> eyre::Result<()> {
     let decoder = CallTraceDecoderBuilder::new().with_signature_identifier(identifier).build();
 
     // Decode and render the trace
-    let mut arena = SparsedTraceArena { arena: tracer.into_traces(), ignored: Default::default(), diagnostics: Default::default() };
     decode_trace_arena(&mut arena, &decoder).await;
 
     println!("├─ {}", Paint::cyan("TRACES"));
