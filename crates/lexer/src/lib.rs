@@ -381,7 +381,8 @@ impl<'a> Lexer<'a> {
                 }
                 '(' => {
                     match self.context_stack.top() {
-                        Context::Abi => {
+                        // A tuple type nests a parenthesis inside the arguments
+                        Context::Abi | Context::AbiArgs => {
                             debug!(target: "lexer", "PUSH CONTEXT AbiArgs");
                             self.context_stack.push(Context::AbiArgs)
                         }

@@ -13,6 +13,8 @@
   - Example: `hnc ./src/Math.huff test -vvvv --decode-internal`
 - Add the `__argsstart()` builtin, which pushes the offset of the constructor arguments so a constructor can copy and decode them as Solidity does.
   - Example: `__argsstart() dup1 codesize sub swap1 0x00 codecopy`
+- Add tuple types to function, event and error definitions, such as `#define function fill((address maker, uint256 amount) order)`, with nested tuples and arrays of tuples.
+  - `-g` declares each tuple type as a struct in the interface.
 - Run tests on Foundry's EVM executor, the engine of `forge test`, so tests can call Foundry cheatcodes.
 - Fail a test whose `vm.assert*` cheatcode fails.
 - **Breaking**: Use forge's verbosity levels in `hnc test`.
@@ -42,6 +44,7 @@
 - Fix a test that calls a `fn` halting with `StackUnderflow` when it ends without `stop`.
 - Fix `extcodehash` returning zero for accounts created by `hnc test`.
 - Fix `remappings.txt` with Windows line endings.
+- Fix `-g` and the ABI listing `#define function constructor` as a function named `constructor`.
 - Update the book: show how to test a macro that jumps to a label defined in `MAIN`.
 - Update the book: reorganize the test page by topic and replace its example with a tested contract.
 - Update the book: document every CLI flag as implemented.

@@ -157,7 +157,8 @@ hnc ./src/LargeContract.huff -b --no-size-limit
 
 Passing the `-g` flag will generate a Solidity interface for the Huff contract
 provided. This interface is generated based off of the function and event
-definitions within the contract.
+definitions within the contract. Solidity has no anonymous tuples, so each tuple type is declared as a struct
+`TupleN` with the fields `_0`, `_1` and so on, which encodes the same.
 
 The Solidity file is named `I<HUFF_FILE_NAME>.sol` and saved in the same directory as the Huff contract.
 When a single contract is compiled, `-g` takes an optional name for the interface instead. With several
@@ -180,7 +181,7 @@ To enter the arguments interactively instead, use the `-n` flag.
 
 When the contract declares its constructor, for example `#define function constructor(string,uint256)`, each
 argument is read as the declared type, and the number of arguments must match. Arrays are written as
-`"[1,2,3]"`. Without a declaration the type is guessed from the text: a decimal number is a `uint256`, a signed
+`"[1,2,3]"` and tuples as `"(7,true)"`. Without a declaration the type is guessed from the text: a decimal number is a `uint256`, a signed
 number an `int256`, `true` or `false` a `bool`, `0x` with 40 hex digits an `address`, other `0x` values of up to
 32 bytes a `bytes32`, longer ones `bytes`, and anything else a `string`.
 

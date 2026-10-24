@@ -167,3 +167,21 @@ fn rejects_constructor_args_that_do_not_match_the_declaration() {
     // Without arguments nothing is appended, so a deployer can append them later
     assert!(Codegen::encode_constructor_args(vec![], Some(&types)).unwrap().is_empty());
 }
+
+#[test]
+fn encodes_tuple_constructor_args_like_abi_encode() {
+    // `cast abi-encode 'f((uint256,bool),(address,uint8)[])' '(7,true)' '[(0x0000000000000000000000000000000000000001,2)]'`
+    let expected = concat!(
+        "0000000000000000000000000000000000000000000000000000000000000007",
+        "0000000000000000000000000000000000000000000000000000000000000001",
+        "0000000000000000000000000000000000000000000000000000000000000060",
+        "0000000000000000000000000000000000000000000000000000000000000001",
+        "0000000000000000000000000000000000000000000000000000000000000001",
+        "0000000000000000000000000000000000000000000000000000000000000002",
+    );
+    let types = ["(uint256,bool)".to_string(), "(address,uint8)[]".to_string()];
+    let args = vec!["(7,true)".to_string(), "[(0x0000000000000000000000000000000000000001,2)]".to_string()];
+
+    let values = Codegen::encode_constructor_args(args, Some(&types)).unwrap();
+    assert_eq!(Codegen::abi_encode_constructor_args(values), expected);
+}
