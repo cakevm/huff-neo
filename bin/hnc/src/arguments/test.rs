@@ -49,10 +49,6 @@ pub struct TestArgs {
     #[arg(long)]
     pub decode_internal: bool,
 
-    /// Print a gas report.
-    #[arg(long, env = "FORGE_GAS_REPORT")]
-    pub gas_report: bool,
-
     /// Anvil node parameters
     #[command(flatten)]
     pub evm: EvmArgs,

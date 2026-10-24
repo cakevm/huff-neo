@@ -248,16 +248,7 @@ fn main() {
             }
         };
 
-        let (mut config, mut evm_opts) = test_args.load_config_and_evm_opts().unwrap();
-
-        // Explicitly enable isolation for gas reports for more correct gas accounting.
-        if test_args.gas_report {
-            evm_opts.isolate = true;
-        } else {
-            // Do not collect gas report traces if gas report is not enabled.
-            config.fuzz.gas_report_samples = 0;
-            config.invariant.gas_report_samples = 0;
-        }
+        let (config, evm_opts) = test_args.load_config_and_evm_opts().unwrap();
 
         let rt = tokio::runtime::Builder::new_multi_thread().enable_all().build().unwrap();
         let mut any_failed = false;

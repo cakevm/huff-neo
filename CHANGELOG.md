@@ -15,6 +15,7 @@
 - Update the book: reorganize the test page by topic and replace its example with a tested contract.
 - **Breaking**: Use forge's verbosity levels in `hnc test`, so traces are no longer printed by default and `-vvvv` no longer prints every executed opcode.
   - Example: `-vv` console logs, `-vvv` traces of failing tests, `-vvvv` traces of all tests, `-vvvvv` with storage changes
+- **Breaking**: Remove the `--gas-report` flag of `hnc test`, which never printed a report.
 - **Breaking**: Deploy tests at Foundry's test address `0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496`, which changes the addresses of contracts a test creates.
 - Fix `FREE_STORAGE_POINTER()` constants used only by tests failing with "Storage Pointers Not Derived".
 - Fix a test that calls a `fn` halting with `StackUnderflow` when it ends without `stop`.
