@@ -1,26 +1,25 @@
-use crate::arguments::evm::EvmArgs;
 use alloy_primitives::Address;
 use clap::ArgAction;
 use clap::Parser;
+use foundry_cli::opts::EvmArgs;
 use foundry_config::figment::value::{Dict, Map};
-use foundry_config::figment::{Metadata, Profile, Provider};
+use foundry_config::figment::{Figment, Metadata, Profile, Provider};
 use foundry_config::{Config, figment};
+use huff_neo_test_runner::prelude::ReportKind;
 use huff_neo_utils::shell::Verbosity;
-
-foundry_config::merge_impl_figment_convert!(TestArgs, evm);
 
 /// The Test CLI Args
 #[derive(Parser, Debug, Clone)]
 pub struct TestArgs {
-    /// Format the test output as a list, table, or JSON.
-    #[clap(long = "format")]
-    pub format: Option<String>,
+    /// The format of the test report
+    #[clap(long = "format", value_enum, default_value_t = ReportKind::List)]
+    pub format: ReportKind,
 
     /// Match a specific test by name.
     #[clap(short = 'm', long = "match")]
     pub match_: Option<String>,
 
-    /// Target address for the contract
+    /// Run each test at this address instead of deploying it, e.g. to replay a deployed contract on a fork
     #[arg(long)]
     pub target_address: Option<Address>,
 
@@ -61,5 +60,12 @@ impl Provider for TestArgs {
 
     fn data(&self) -> Result<Map<Profile, Dict>, figment::Error> {
         Ok(Map::from([(Config::selected_profile(), Dict::default())]))
+    }
+}
+
+/// The configuration of `hnc test`: the Foundry config of the project, overridden by the EVM flags
+impl From<&TestArgs> for Figment {
+    fn from(args: &TestArgs) -> Self {
+        Config::figment().merge(&args.evm).merge(args)
     }
 }

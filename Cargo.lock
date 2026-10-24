@@ -5007,6 +5007,7 @@ version = "1.6.3"
 dependencies = [
  "alloy-evm",
  "alloy-primitives",
+ "clap",
  "comfy-table 7.2.2",
  "eyre",
  "foundry-cli",

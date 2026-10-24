@@ -46,6 +46,12 @@ pub struct TestRunner {
     pub trace_requirements: TraceRequirements,
     /// Whether to collect the logs of each test, for console logs in the report
     pub collect_logs: bool,
+    /// Whether to print console logs while a test runs
+    pub live_logs: bool,
+    /// Whether to run every call of a test as its own transaction, as Foundry's `--isolate` does
+    pub isolation: bool,
+    /// The balance the sender of the tests starts with
+    pub initial_balance: U256,
     /// The network families the executor runs for
     pub networks: NetworkConfigs,
 }
@@ -74,6 +80,9 @@ impl TestRunner {
             cheats_config,
             trace_requirements: TraceRequirements::none(),
             collect_logs: false,
+            live_logs: false,
+            isolation: false,
+            initial_balance: U256::MAX,
             networks: NetworkConfigs::default(),
         }
     }
@@ -83,8 +92,11 @@ impl TestRunner {
         let backend = Backend::spawn(fork).map_err(|e| RunnerError::GenericError(format!("Failed to spawn backend: {e}")))?;
         let executor = ExecutorBuilder::<EthEvmNetwork>::new()
             .inspectors(|stack| {
-                let stack = stack.cheatcodes(self.cheats_config.clone()).trace_requirements(self.trace_requirements);
-                if self.collect_logs { stack.logs(false) } else { stack }
+                let stack = stack
+                    .cheatcodes(self.cheats_config.clone())
+                    .trace_requirements(self.trace_requirements)
+                    .enable_isolation(self.isolation);
+                if self.collect_logs || self.live_logs { stack.logs(self.live_logs) } else { stack }
             })
             .spec_id(self.env.evm_env.cfg_env.spec)
             .gas_limit(self.env.tx.gas_limit)
@@ -107,7 +119,7 @@ impl TestRunner {
         let bootstrap = Bytes::from(hex::decode(format!("{bootstrap_code}{code}")).expect("Invalid bootstrap bytecode"));
 
         let sender = self.env.tx.caller;
-        self.set_balance(executor, sender, U256::MAX)?;
+        self.set_balance(executor, sender, self.initial_balance)?;
         use_sender_nonce(executor, sender)?;
         let deployed = executor
             .deploy(sender, bootstrap, U256::ZERO, None)
@@ -124,7 +136,7 @@ impl TestRunner {
         value: U256,
         data: String,
     ) -> Result<TestResult, RunnerError> {
-        self.set_balance(executor, self.env.tx.caller, U256::MAX)?;
+        self.set_balance(executor, self.env.tx.caller, self.initial_balance)?;
         let calldata = Bytes::from(hex::decode(data).expect("Invalid calldata"));
         self.call_from(name, executor, self.env.tx.caller, transact_to, value, calldata)
     }
@@ -230,7 +242,7 @@ impl TestRunner {
         let spec = TestSpec::from_decorator(m.decorator.as_ref(), &contract, SpecContext { this: address, caller: self.env.tx.caller })?;
         let sender = spec.env.caller.unwrap_or(self.env.tx.caller);
         apply_env_overrides(executor, &self.env, &spec.env);
-        self.set_balance(executor, sender, U256::MAX)?;
+        self.set_balance(executor, sender, self.initial_balance)?;
         for slot in &spec.storage {
             executor.set_storage_slot(slot.address, slot.slot, slot.value).map_err(db_error)?;
         }

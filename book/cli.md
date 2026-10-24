@@ -19,26 +19,25 @@ Arguments:
   [PATH]  The contract(s) to compile
 
 Options:
-  -s, --source-path <SOURCE>              The contracts source path [default: ./contracts]
-  -o, --output <OUTPUT>                   The output file path
-  -d, --output-directory <OUTPUTDIR>      The output directory [default: ./artifacts]
-  -i, --inputs <INPUTS>...                The input constructor arguments
-  -n, --interactive                       Interactively input the constructor args
+  -s, --source-path <SOURCE>              A directory whose Huff contracts are compiled when no path is given
+  -o, --output <OUTPUT>                   The file the artifact is written to, with `-a`
+  -d, --output-directory <OUTPUTDIR>      The directory the artifacts are written to, with `-a` [default: ./artifacts]
+  -i, --inputs <INPUTS>...                The constructor arguments, separated by spaces
+  -n, --interactive                       Prompt for the constructor arguments, then write the artifacts
   -a, --artifacts                         Whether to generate artifacts or not
       --relax-jumps                       Apply branch relaxation to minimize deployment gas
-  -g, --interface [<INTERFACE>...]        Generate solidity interface for a Huff artifact
+  -g, --interface [<INTERFACE>...]        Generate a Solidity interface next to each contract, optionally with this name
   -b, --bytecode                          Generate and log bytecode
   -r, --bin-runtime                       Generate and log runtime bytecode
-  -p, --print                             Prints out to the terminal
   -v, --verbose                           Verbose output
   -l, --label-indices                     Prints out the jump label PC indices for the specified contract
       --format <FORMAT>                   Output format for the label indices [default: table] [possible values: table, json]
   -c, --constants <CONSTANTS>...          Override / set constants for the compilation environment
   -m, --alt-main <ALTERNATIVE_MAIN>       Compile a specific macro
   -t, --alt-constructor <ALT_CONSTRUCTOR> Compile a specific constructor macro
-  -e, --evm-version <EVM_VERSION>         Set the EVM version [default: osaka]
-      --flattened-source                  Output the flattened source code with all dependencies resolved
+  -e, --evm-version <EVM_VERSION>         The EVM version to compile for, and to run tests with [default: osaka]
       --no-size-limit                     Skip the contract and initcode size limit checks (EIP-170/EIP-3860, raised by EIP-7954 in Amsterdam)
+      --flattened-source                  Output the flattened source code with all dependencies resolved
   -V, --version                           Print version
   -h, --help                              Print help
 ```
@@ -93,12 +92,12 @@ override has no effect and is most likely a typo.
 
 Arguments: `<OUTPUT_DIR>`, Default: `./artifacts`
 
-Passing the `-d` flag allows you to designate the directory that the `Artifact`
-JSON file will be exported to.
+Passing the `-d` flag together with `-a` designates the directory that the `Artifact`
+JSON files are exported to. Without `-a`, no artifact is written.
 
 Example:
 ```shell
-hnc ./src/ERC20.huff -d ./my_artifacts
+hnc ./src/ERC20.huff -a -d ./my_artifacts
 ```
 
 ### `-e` EVM Version
@@ -114,6 +113,7 @@ This determines which opcodes are available. Supported versions:
 - `osaka` - CLZ (default)
 - `amsterdam` - SLOTNUM, DUPN, SWAPN, EXCHANGE, and the larger contract size limits of EIP-7954
 
+An unknown version is rejected and the error lists the supported ones.
 The EVM version also selects the contract size limits (see [`--no-size-limit`](#--no-size-limit)).
 When running tests, an explicit `-e` also executes them with the rules and gas schedule of that
 hardfork, instead of the one from the Foundry config.
@@ -158,26 +158,28 @@ Passing the `-g` flag will generate a Solidity interface for the Huff contract
 provided. This interface is generated based off of the function and event
 definitions within the contract.
 
-The solidity file will always be named `I<HUFF_FILE_NAME>.sol`, and it will be
-saved in the same directory as the Huff contract itself.
+The Solidity file is named `I<HUFF_FILE_NAME>.sol` and saved in the same directory as the Huff contract.
+When a single contract is compiled, `-g` takes an optional name for the interface instead. With several
+contracts, the name is ignored.
 
 Example:
 ```shell
 hnc ./src/ERC20.huff -g
+hnc ./src/ERC20.huff -g IToken
 ```
 
 ### `-i` Inputs
 
 Arguments: `[CONSTRUCTOR_ARGS]`
 
-Passing the `-i` flag allows you to set the constructor arguments for the
-contract that is being compiled. All inputs should be separated by a comma.
-If you'd like to input the constructor arguments interactively instead,
-use the `-n` flag.
+Passing the `-i` flag sets the constructor arguments of the contract that is being compiled. The
+arguments are separated by spaces and ABI-encoded after the bytecode. The constructor's types come
+from a `#define function constructor(...)` in the contract. To enter the arguments interactively
+instead, use the `-n` flag.
 
-Example (assuming `ERC20.huff`'s constructor accepts a String and a uint):
+Example (assuming `ERC20.huff`'s constructor accepts a string and a uint):
 ```shell
-hnc ./src/ERC20.huff -i "TestToken", 18
+hnc ./src/ERC20.huff -i "TestToken" 18 -b
 ```
 
 ### `-l` Label Indices
@@ -223,8 +225,9 @@ hnc ./src/Contract.huff -m MY_CUSTOM_MAIN
 
 ### `-n` Interactive Inputs
 
-Passing the `-n` flag allows you to input constructor arguments
-interactively through the CLI rather than via the `-i` flag.
+Passing the `-n` flag prompts for each constructor argument instead of taking them from `-i`, appends
+them to the bytecode, and writes the artifacts to the `-o` file or the `-d` directory. Add `-b` to also
+print the bytecode.
 
 Example:
 ```shell
@@ -235,21 +238,12 @@ hnc ./src/ERC20.huff -n
 
 Arguments: `<FILE_PATH>`
 
-Passing the `-o` flag allows you to export the artifact to a specific file
-rather than a folder.
+Passing the `-o` flag together with `-a` exports the artifact to a specific file rather than a
+folder. Without `-a`, no artifact is written.
 
 Example:
 ```shell
-hnc ./src/ERC20.huff -o ./artifact.json
-```
-
-### `-p` Print
-
-Passing the `-p` flag prints the compilation output to the terminal.
-
-Example:
-```shell
-hnc ./src/ERC20.huff -p
+hnc ./src/ERC20.huff -a -o ./artifact.json
 ```
 
 ### `--relax-jumps`
@@ -267,14 +261,14 @@ hnc ./src/ERC20.huff --relax-jumps -b
 
 ### `-s` Source Path
 
-Arguments: `<CONTRACTS_FOLDER>`, Default: `./contracts`
+Arguments: `<CONTRACTS_FOLDER>`
 
-Passing the `-s` flag allows you to change the directory that the compiler scans
-for Huff contracts.
+Passing the `-s` flag compiles every Huff contract in the given directory when no path is given.
+A directory passed as the path does the same.
 
 Example:
 ```shell
-hnc -s ./src/
+hnc -s ./src/ -b
 ```
 
 ### `-t` Alternative Constructor
@@ -292,7 +286,8 @@ hnc ./src/Contract.huff -t MY_CUSTOM_CONSTRUCTOR
 ### `-r` Runtime Bytecode
 
 Passing the `-r` flag will tell the compiler to print the runtime bytecode
-of the compiled contract.
+of the compiled contract. It fails for a contract whose `CONSTRUCTOR` returns its own bytecode,
+because the deployed runtime is then only known at deployment. Use `-b` for such contracts.
 
 ### `-v` Verbose Output
 
@@ -309,15 +304,20 @@ hnc ./src/ERC20.huff -v
 
 ### `test`
 
-- Format: `hnc ./path/to/Contract.huff test [--format <list|table|json>] [-m <TEST_NAME>] [-v...]`
+- Format: `hnc ./path/to/Contract.huff test [OPTIONS]`
 
-The test subcommand is the entry point to running tests within a Huff contract.
-It exits with status `1` when any test fails, so scripts and CI can rely on the exit code.
+The test subcommand runs the tests of a Huff contract on Foundry's EVM executor, the same engine as
+`forge test`. It exits with status `1` when any test fails, so scripts and CI can rely on the exit code.
+See [Tests](./huff-language/tests.md) for writing tests.
 
-#### Optional Flags
-* `--format`: Formats the test report as a list, table, or JSON.
-* `-m` or `--match`: Runs a specific test with the name passed to this flag.
-* `-v`, `-vv`, ...: Adds detail to the test report, with the same levels as `forge test`:
+#### Test options
+* `--format <list|table|json>`: Formats the test report. Default: `list`. Other values are rejected.
+* `-m` or `--match <NAME>`: Runs only the test with this name.
+* `--target-address <ADDRESS>`: Runs each test at this address instead of deploying it, for example to
+  replay a deployed contract on a fork.
+* `--debug`: Opens a single test in the interactive debugger. Use `-m` to pick the test.
+* `--decode-internal`: Reserved for decoding internal calls in traces. It has no effect yet.
+* `-v`, `-vv`, ...: Adds detail to the `list` report, with the same levels as `forge test`:
 
 | Level    | Prints                                               |
 |----------|------------------------------------------------------|
@@ -327,3 +327,27 @@ It exits with status `1` when any test fails, so scripts and CI can rely on the 
 | `-vvvvv` | execution traces of all tests, with storage changes  |
 
 Without `-v`, the report shows whether each test passed, its gas, and why a failing test failed.
+
+#### EVM options
+`hnc test` takes the EVM options of `forge test`, and reads the `foundry.toml` of the project like
+`forge` does. See `hnc test --help` for the full list. The most common ones:
+
+| Option                                   | Effect                                                                        |
+|------------------------------------------|-------------------------------------------------------------------------------|
+| `-r`, `--rpc-url <URL>`                  | Runs the tests on a fork of this chain                                        |
+| `--fork-block-number <BLOCK>`            | Forks at this block                                                           |
+| `--sender <ADDRESS>`                     | Sends the tests from this address                                             |
+| `--initial-balance <WEI>`                | The balance the sender starts with                                            |
+| `--hardfork <NAME>`                      | Runs the tests with the rules of this hardfork; `-e` overrides it             |
+| `--gas-limit <GAS>`                      | The gas limit of the block and of each test transaction                       |
+| `--chain`, `--block-number`, `--block-timestamp`, `--gas-price`, `--base-fee`, ... | Set the environment of every test   |
+| `--ffi`                                  | Allows the `vm.ffi` cheatcode                                                 |
+| `--no-isolate`                           | Turns off call isolation. It is on by default, as in `forge test`, and meters each call a test makes as its own transaction |
+| `--live-logs`                            | Prints console logs while the tests run                                       |
+
+Decorators such as `caller(..)` or `block_number(..)` override these values for a single test.
+
+Example:
+```shell
+hnc ./src/Swap.huff test -r $MAINNET_RPC --fork-block-number 21758848 --target-address 0x738e... -vvvv
+```

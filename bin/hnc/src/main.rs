@@ -11,7 +11,6 @@ mod arguments;
 use crate::arguments::base::TestCommands;
 use crate::arguments::base::{HuffArgs, LabelFormat, get_input};
 use crate::arguments::constants::parse_constant_overrides;
-use alloy_eips::eip7825::MAX_TX_GAS_LIMIT_OSAKA;
 use alloy_primitives::hex;
 use clap::{CommandFactory, Parser};
 use comfy_table::{Cell, Color, Row, Table, modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL};
@@ -21,7 +20,7 @@ use huff_neo_codegen::Codegen;
 use huff_neo_core::Compiler;
 use huff_neo_test_runner::{
     CheatsConfig, Env, HuffTester, HuffTesterConfig, TestRunner, TxEnv, cheats_config,
-    prelude::{ReportKind, TestStatus, print_test_report},
+    prelude::{TestStatus, print_test_report},
     spec_id_for,
 };
 use huff_neo_utils::ast::span::AstSpan;
@@ -62,7 +61,7 @@ fn main() {
     }
 
     // Check if no argument is provided
-    if cli.path.is_none() {
+    if cli.path.is_none() && cli.source.is_none() {
         println!("{}", Paint::red("No input file provided"));
         // Print help and exit
         command.print_help().unwrap();
@@ -254,10 +253,7 @@ fn main() {
         let mut any_failed = false;
 
         for contract in &contracts {
-            let (evm_env, mut tx_env, resolved_fork): (_, TxEnv, _) = rt.block_on(evm_opts.env_resolved()).unwrap();
-            // EIP-7825 caps any single transaction at 16M gas; foundry's default tx gas limit (~1B)
-            // exceeds this and trips `CallerGasLimitMoreThanBlock`.
-            tx_env.gas_limit = tx_env.gas_limit.min(MAX_TX_GAS_LIMIT_OSAKA);
+            let (evm_env, tx_env, resolved_fork): (_, TxEnv, _) = rt.block_on(evm_opts.env_resolved()).unwrap();
             let mut env = Env { evm_env, tx: tx_env };
 
             // Set the sender address if provided.
@@ -293,6 +289,9 @@ fn main() {
                 .with_debug(test_args.debug)
                 .with_decode_internal(decode_internal);
             runner.collect_logs = test_args.verbosity >= 2;
+            runner.live_logs = config.live_logs;
+            runner.isolation = evm_opts.isolate;
+            runner.initial_balance = evm_opts.initial_balance;
             runner.networks = evm_opts.networks;
 
             let tester = HuffTester::new(contract, test_args.match_.clone(), tester_config, runner);
@@ -303,7 +302,7 @@ fn main() {
                 Ok(res) => {
                     any_failed |= res.iter().any(|r| r.status != TestStatus::Success);
                     rt.block_on(async {
-                        match print_test_report(res, ReportKind::from(&test_args.format), test_args.verbosity, start).await {
+                        match print_test_report(res, test_args.format, test_args.verbosity, start).await {
                             Ok(_) => {}
                             Err(e) => {
                                 eprintln!("{}", Paint::red(&format!("{e}")));
@@ -390,55 +389,56 @@ fn main() {
         }
     }
 
-    if cli.bytecode {
-        if cli.interactive {
-            tracing::info!(target: "cli", "ENTERING INTERACTIVE MODE");
-            for artifact in &mut artifacts {
-                let mut appended_args = String::default();
-                match artifact.abi {
-                    Some(ref abi) => match abi.constructor {
-                        Some(ref args) => {
-                            println!(
-                                "{} Constructor Arguments for Contract: \"{}\"",
-                                Paint::blue(&"[INTERACTIVE]".to_string()),
-                                artifact.file.path
-                            );
-                            for input in &args.inputs {
-                                let arg_input = get_input(&format!(
-                                    "Enter a {:?} for constructor param{}:",
-                                    input.kind,
-                                    if !input.name.is_empty() { format!(" \"{}\"", input.name) } else { Default::default() }
-                                ));
-                                let encoded =
-                                    Codegen::encode_constructor_args(vec![arg_input]).iter().fold(String::default(), |acc, str| {
-                                        let inner: Vec<u8> = str.abi_encode();
-                                        let hex_args: String = hex::encode(inner.as_slice());
-                                        format!("{acc}{hex_args}")
-                                    });
-                                appended_args.push_str(&encoded);
-                            }
+    // Prompt for the constructor arguments, append them to the bytecode and export the artifacts
+    if cli.interactive {
+        tracing::info!(target: "cli", "ENTERING INTERACTIVE MODE");
+        for artifact in &mut artifacts {
+            let mut appended_args = String::default();
+            match artifact.abi {
+                Some(ref abi) => match abi.constructor {
+                    Some(ref args) => {
+                        println!(
+                            "{} Constructor Arguments for Contract: \"{}\"",
+                            Paint::blue(&"[INTERACTIVE]".to_string()),
+                            artifact.file.path
+                        );
+                        for input in &args.inputs {
+                            let arg_input = get_input(&format!(
+                                "Enter a {:?} for constructor param{}:",
+                                input.kind,
+                                if !input.name.is_empty() { format!(" \"{}\"", input.name) } else { Default::default() }
+                            ));
+                            let encoded = Codegen::encode_constructor_args(vec![arg_input]).iter().fold(String::default(), |acc, str| {
+                                let inner: Vec<u8> = str.abi_encode();
+                                let hex_args: String = hex::encode(inner.as_slice());
+                                format!("{acc}{hex_args}")
+                            });
+                            appended_args.push_str(&encoded);
                         }
-                        None => {
-                            tracing::warn!(target: "cli", "NO CONSTRUCTOR FOR ABI: {:?}", abi)
-                        }
-                    },
-                    None => {
-                        tracing::warn!(target: "cli", "NO ABI FOR ARTIFACT: {:?}", artifact)
-                    }
-                }
-                match Arc::get_mut(artifact) {
-                    Some(art) => {
-                        art.bytecode = format!("{}{appended_args}", art.bytecode);
                     }
                     None => {
-                        tracing::warn!(target: "cli", "FAILED TO ACQUIRE MUTABLE REF TO ARTIFACT")
+                        tracing::warn!(target: "cli", "NO CONSTRUCTOR FOR ABI: {:?}", abi)
                     }
+                },
+                None => {
+                    tracing::warn!(target: "cli", "NO ABI FOR ARTIFACT: {:?}", artifact)
                 }
             }
-            tracing::debug!(target: "cli", "Re-exporting artifacts...");
-            Compiler::export_artifacts(&artifacts, &OutputLocation(cli.output.unwrap_or_else(|| cli.outputdir.clone())));
-            tracing::info!(target: "cli", "RE-EXPORTED INTERACTIVE ARTIFACTS");
+            match Arc::get_mut(artifact) {
+                Some(art) => {
+                    art.bytecode = format!("{}{appended_args}", art.bytecode);
+                }
+                None => {
+                    tracing::warn!(target: "cli", "FAILED TO ACQUIRE MUTABLE REF TO ARTIFACT")
+                }
+            }
         }
+        tracing::debug!(target: "cli", "Re-exporting artifacts...");
+        Compiler::export_artifacts(&artifacts, &OutputLocation(cli.output.unwrap_or_else(|| cli.outputdir.clone())));
+        tracing::info!(target: "cli", "RE-EXPORTED INTERACTIVE ARTIFACTS");
+    }
+
+    if cli.bytecode {
         match sources.len() {
             1 => {
                 if cli.bin_runtime {

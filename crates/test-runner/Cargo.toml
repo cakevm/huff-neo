@@ -18,6 +18,7 @@ huff-neo-utils.workspace = true
 
 alloy-evm.workspace = true
 alloy-primitives.workspace = true
+clap.workspace = true
 comfy-table.workspace = true
 eyre.workspace = true
 foundry-cli.workspace = true

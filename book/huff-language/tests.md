@@ -15,7 +15,7 @@ must end and what state it must leave behind.
 }
 ```
 
-Run the tests of a file with `hnc test`. For more information, see the [CLI Resources](../cli.md).
+Run the tests of a file with `hnc ./path/to/Contract.huff test`. For more information, see the [CLI Resources](../cli.md).
 
 `hnc test` runs each test on Foundry's EVM executor, the same engine as `forge test`. The test is deployed at
 Foundry's test address `0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496` and called from Foundry's default sender
@@ -80,7 +80,7 @@ code or nonce of the same address twice is an error that points at both flags.
 | `etch(address, bytes...)`          | the code at an address, e.g. `etch(0x1000, "0x5f5ff3")`           |
 | `nonce(address, n)`                | the nonce of an account                                           |
 
-The sender of the test has an unlimited balance unless it is dealt one. The test itself and its sender cannot be
+The sender of the test starts with Foundry's initial balance (`--initial-balance`) unless it is dealt one. The test itself and its sender cannot be
 etched.
 
 ### Expectations

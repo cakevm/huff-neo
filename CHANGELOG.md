@@ -13,11 +13,23 @@
 - Fail a test whose `vm.assert*` cheatcode fails.
 - Update the book: show how to test a macro that jumps to a label defined in `MAIN`.
 - Update the book: reorganize the test page by topic and replace its example with a tested contract.
+- Update the book: document every CLI flag as implemented.
 - **Breaking**: Use forge's verbosity levels in `hnc test`, so traces are no longer printed by default and `-vvvv` no longer prints every executed opcode.
   - Example: `-vv` console logs, `-vvv` traces of failing tests, `-vvvv` traces of all tests, `-vvvvv` with storage changes
 - **Breaking**: Remove the `--gas-report` flag of `hnc test`, which never printed a report.
+- **Breaking**: Take the EVM options of `forge test` in `hnc test`, so the fork URL moves from `-f` to `-r` and `--ffi`, `--isolate`, `--initial-balance`, `--hardfork` and `--live-logs` become available.
+  - Example: `hnc ./src/Swap.huff test -r $MAINNET_RPC --fork-block-number 21758848 --initial-balance 1000000`
+- **Breaking**: Start the sender of `hnc test` with Foundry's initial balance instead of the maximum balance.
+- **Breaking**: Isolate the calls a test makes by default, as `forge test` does, which raises their gas unless `--no-isolate` is passed.
+- **Breaking**: Remove the `-p` flag, which printed nothing.
+- **Breaking**: Reject unknown values of `-e` and of the `hnc test` `--format`, which fell back to a default.
 - **Breaking**: Deploy tests at Foundry's test address `0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496`, which changes the addresses of contracts a test creates.
 - Fix `FREE_STORAGE_POINTER()` constants used only by tests failing with "Storage Pointers Not Derived".
+- Fix `-s` being ignored, so `hnc -s ./src` compiles the contracts in that directory.
+- Fix `-n` without `-b` prompting for nothing and writing no artifacts.
+- Fix `-g` with a bare file name failing to write the interface.
+- Fix the gas of a test transaction being capped at 16,777,216 regardless of `--gas-limit`.
+- Fix `--no-storage-caching` and `--no-rpc-rate-limit` having no effect in `hnc test`.
 - Fix a test that calls a `fn` halting with `StackUnderflow` when it ends without `stop`.
 - Fix `extcodehash` returning zero for accounts created by `hnc test`.
 - Fix `remappings.txt` with Windows line endings.

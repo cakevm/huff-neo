@@ -80,7 +80,7 @@ pub async fn print_test_report(results: Vec<TestResult>, report_kind: ReportKind
                 }
             }
         }
-        ReportKind::JSON => {
+        ReportKind::Json => {
             if let Ok(o) = serde_json::to_string_pretty(&results) {
                 println!("{o}");
             } else {

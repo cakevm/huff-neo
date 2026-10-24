@@ -82,9 +82,8 @@ pub fn gen_sol_interfaces(artifacts: &Vec<Arc<Artifact>>, interface: Option<Stri
 /// @return Unit type if success, error if failure.
 pub fn export_interfaces(interfaces: &Vec<(PathBuf, String, String)>) -> Result<(), std::io::Error> {
     for (path, name, interface) in interfaces {
-        let path_str = format!("{}/{name}.sol", path.to_str().unwrap_or(""));
-        let file_path = Path::new(&path_str);
-        fs::write(file_path, interface)?;
+        // A bare file name has an empty parent, so the interface lands next to it
+        fs::write(path.join(format!("{name}.sol")), interface)?;
     }
     Ok(())
 }
