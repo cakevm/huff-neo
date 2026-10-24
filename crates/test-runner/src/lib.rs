@@ -25,7 +25,6 @@ pub mod internal;
 use alloy_primitives::map::AddressHashMap;
 use foundry_compilers::{compilers::solc::SolcLanguage, multi::MultiCompilerLanguage};
 use foundry_debugger::Debugger;
-use foundry_evm::fork::CreateFork;
 use foundry_evm::traces::TraceKind;
 use foundry_evm_traces::debug::{ArtifactData, ContractSources, SourceData};
 use revm::primitives::hardfork::SpecId;
@@ -43,31 +42,6 @@ pub mod prelude {
 
 /// A vector of shared references to test macro definitions
 pub type TestMacros<'t> = Vec<&'t MacroDefinition>;
-
-/// Builder for the HuffTester
-#[derive(Clone, Debug, Default)]
-pub struct HuffTesterConfig {
-    /// The fork to use at launch
-    pub fork: Option<CreateFork>,
-    /// Whether to collect debug info
-    pub debug: bool,
-}
-
-impl HuffTesterConfig {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn with_fork(mut self, fork: Option<CreateFork>) -> Self {
-        self.fork = fork;
-        self
-    }
-
-    pub fn set_debug(mut self, enable: bool) -> Self {
-        self.debug = enable;
-        self
-    }
-}
 
 /// Returns the REVM hardfork that matches a Huff EVM version
 pub fn spec_id_for(version: &SupportedEVMVersions) -> SpecId {
@@ -96,14 +70,14 @@ pub struct HuffTester<'t> {
     /// The test runner
     pub runner: TestRunner,
 
-    /// The configuration for the test runner
-    pub config: HuffTesterConfig,
+    /// Whether to open the single matched test in the debugger after running it
+    pub debug: bool,
 }
 
 /// HuffTester implementation
 impl<'t> HuffTester<'t> {
     /// Create a new instance of `HuffTester` from a contract's AST.
-    pub fn new(ast: &'t Contract, match_test_name: Option<String>, config: HuffTesterConfig, runner: TestRunner) -> Self {
+    pub fn new(ast: &'t Contract, match_test_name: Option<String>, runner: TestRunner, debug: bool) -> Self {
         Self {
             ast,
             macros: {
@@ -117,7 +91,7 @@ impl<'t> HuffTester<'t> {
                 macros
             },
             runner,
-            config,
+            debug,
         }
     }
 
@@ -134,12 +108,12 @@ impl<'t> HuffTester<'t> {
             .into_iter()
             .map(|macro_def| {
                 // Every test gets its own executor; each one must fork the same chain state
-                let mut executor = self.runner.new_executor(self.config.fork.clone())?;
+                let mut executor = self.runner.new_executor()?;
                 self.runner.run_test(&mut executor, macro_def, self.ast)
             })
             .collect::<Result<Vec<TestResult>, RunnerError>>();
 
-        if !self.config.debug {
+        if !self.debug {
             return results;
         }
 

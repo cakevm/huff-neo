@@ -19,7 +19,7 @@ use foundry_evm_traces::{InternalTraceMode, TraceRequirements};
 use huff_neo_codegen::Codegen;
 use huff_neo_core::Compiler;
 use huff_neo_test_runner::{
-    CheatsConfig, Env, HuffTester, HuffTesterConfig, TestRunner, TxEnv, cheats_config,
+    CheatsConfig, Env, HuffTester, TestRunner, TxEnv, cheats_config,
     prelude::{TestStatus, print_test_report},
     spec_id_for,
 };
@@ -266,13 +266,10 @@ fn main() {
             let evm_spec = evm_version_override.map_or_else(|| config.evm_spec_id(), |v| spec_id_for(v.version()));
             env.evm_env.cfg_env.set_spec_and_mainnet_gas_params(evm_spec);
 
-            // Choose the internal function tracing mode, if --decode-internal is provided.
-            // Calls of Huff functions are found from the recorded jumps and their stack
+            // With --decode-internal, calls of Huff functions are found from the recorded jumps and their stack
             let decode_internal = if test_args.decode_internal { InternalTraceMode::Simple } else { InternalTraceMode::None };
 
             let chain_id = env.evm_env.cfg_env.chain_id;
-            let fork = evm_opts.get_fork_resolved(&config, chain_id, resolved_fork.as_ref());
-            let tester_config = HuffTesterConfig::new().set_debug(test_args.debug).with_fork(fork);
 
             // Like forge: console logs from -vv, call traces from -vvv, storage changes from
             // -vvvvv; the debugger needs every step
@@ -288,8 +285,9 @@ fn main() {
             runner.isolation = evm_opts.isolate;
             runner.initial_balance = evm_opts.initial_balance;
             runner.networks = evm_opts.networks;
+            runner.fork = evm_opts.get_fork_resolved(&config, chain_id, resolved_fork.as_ref());
 
-            let tester = HuffTester::new(contract, test_args.match_.clone(), tester_config, runner);
+            let tester = HuffTester::new(contract, test_args.match_.clone(), runner, test_args.debug);
 
             let _guard = rt.enter();
             let start = Instant::now();

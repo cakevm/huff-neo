@@ -44,7 +44,7 @@ pub struct TestArgs {
     #[arg(long)]
     pub decode_internal: bool,
 
-    /// Anvil node parameters
+    /// EVM, fork and environment options
     #[command(flatten)]
     pub evm: EvmArgs,
 }

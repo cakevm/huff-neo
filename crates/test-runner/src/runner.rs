@@ -11,6 +11,7 @@ use foundry_evm::traces::TraceRequirements;
 use foundry_evm_networks::NetworkConfigs;
 use huff_neo_codegen::Codegen;
 use huff_neo_utils::ast::huff::MacroDefinition;
+use huff_neo_utils::bytecode::LabelIndices;
 use huff_neo_utils::prelude::{Contract, EVMVersion, deploy_bootstrap};
 use huff_neo_utils::scope::ScopeManager;
 use revm::context::TxEnv;
@@ -24,6 +25,9 @@ use revm::state::Bytecode;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
+
+/// Foundry's default `--initial-balance`: 2^96 - 1 wei
+const DEFAULT_INITIAL_BALANCE: U256 = U256::from_limbs([u64::MAX, u32::MAX as u64, 0, 0]);
 
 /// Container for EVM environment (cfg + block) and transaction.
 #[derive(Clone, Debug, Default)]
@@ -51,10 +55,12 @@ pub struct TestRunner {
     pub live_logs: bool,
     /// Whether to run every call of a test as its own transaction, as Foundry's `--isolate` does
     pub isolation: bool,
-    /// The balance the sender of the tests starts with
+    /// The balance a deployed test and its sender start with
     pub initial_balance: U256,
     /// The network families the executor runs for
     pub networks: NetworkConfigs,
+    /// The chain every test forks, or none to start each test on an empty chain
+    pub fork: Option<CreateFork>,
 }
 
 impl Default for TestRunner {
@@ -83,14 +89,15 @@ impl TestRunner {
             collect_logs: false,
             live_logs: false,
             isolation: false,
-            initial_balance: U256::MAX,
+            initial_balance: DEFAULT_INITIAL_BALANCE,
             networks: NetworkConfigs::default(),
+            fork: None,
         }
     }
 
-    /// A fresh executor for one test, on an empty chain or the given fork
-    pub fn new_executor(&self, fork: Option<CreateFork>) -> Result<Executor<EthEvmNetwork>, RunnerError> {
-        let backend = Backend::spawn(fork).map_err(|e| RunnerError::GenericError(format!("Failed to spawn backend: {e}")))?;
+    /// A fresh executor for one test, on an empty chain or the runner's fork
+    pub fn new_executor(&self) -> Result<Executor<EthEvmNetwork>, RunnerError> {
+        let backend = Backend::spawn(self.fork.clone()).map_err(|e| RunnerError::GenericError(format!("Failed to spawn backend: {e}")))?;
         let executor = ExecutorBuilder::<EthEvmNetwork>::new()
             .inspectors(|stack| {
                 let stack = stack
@@ -111,7 +118,7 @@ impl TestRunner {
     }
 
     /// Deploy arbitrary bytecode and return the contract address.
-    pub fn deploy_code(&self, executor: &mut Executor<EthEvmNetwork>, code: String) -> Result<Address, RunnerError> {
+    pub fn deploy_code(&self, executor: &mut Executor<EthEvmNetwork>, code: &str) -> Result<Address, RunnerError> {
         // Wrap code in a bootstrap constructor
         let (bootstrap_code, _) = deploy_bootstrap(code.len() / 2, 0);
         // The following should never panic, as any potential compilation error
@@ -164,7 +171,11 @@ impl TestRunner {
         if executor.has_global_failure(&result.state_changeset) {
             failures.push(Failure {
                 expectation: String::from("vm.assert"),
-                message: String::from("a vm.assert* cheatcode failed; run with -vv to see its message"),
+                message: String::from(if self.collect_logs {
+                    "a vm.assert* cheatcode failed, see its message in the console logs"
+                } else {
+                    "a vm.assert* cheatcode failed, run with -vv to see its message"
+                }),
             });
         }
         let passed = matches!(outcome, Outcome::Return { .. }) && failures.is_empty();
@@ -212,23 +223,7 @@ impl TestRunner {
         scope_mgr.push_macro(m, 0);
         let res = Codegen::macro_to_bytecode(evm_version, m, &contract, &mut scope_mgr, 0, false, false)?;
 
-        // Where each outlined function starts, so traces can show its calls
-        let functions: Vec<HuffFunction> = contract
-            .macros
-            .values()
-            .filter(|f| f.outlined)
-            .filter_map(|f| {
-                let entry_pc = res.label_indices.get_any(&format!("goto_{}", f.name))?;
-                // The file name without its directory, like forge shows the contract of an internal call
-                let file = f
-                    .span
-                    .0
-                    .iter()
-                    .find_map(|span| span.file.as_ref())
-                    .and_then(|source| Path::new(&source.path).file_name().map(|name| name.to_string_lossy().into_owned()));
-                Some(HuffFunction { name: f.name.clone(), file, entry_pc, takes: f.takes, returns: f.returns })
-            })
-            .collect();
+        let functions = huff_functions(&contract, &res.label_indices);
 
         // Generate table bytecode for compiled test macro. Test macros run standalone (no
         // bootstrap, no upstream dedup target), so base_offset = 0 and the external map is empty.
@@ -250,7 +245,10 @@ impl TestRunner {
                 if executor.get_nonce(sender).map_err(db_error)? == 0 {
                     executor.set_account_nonce(sender, 1).map_err(db_error)?;
                 }
-                self.deploy_code(executor, bytecode.clone())?
+                let address = self.deploy_code(executor, &bytecode)?;
+                // Like forge, the test contract starts with the initial balance
+                self.set_balance(executor, address, self.initial_balance)?;
+                address
             }
         };
         // On a fork, only allowed accounts may call cheatcodes
@@ -301,6 +299,26 @@ impl TestRunner {
 
         Ok(res)
     }
+}
+
+/// Where each outlined function of the compiled test starts, so traces can show its calls
+fn huff_functions(contract: &Contract, label_indices: &LabelIndices) -> Vec<HuffFunction> {
+    contract
+        .macros
+        .values()
+        .filter(|f| f.outlined)
+        .filter_map(|f| {
+            let entry_pc = label_indices.get_any(&format!("goto_{}", f.name))?;
+            // The file name without its directory, like forge shows the contract of an internal call
+            let file = f
+                .span
+                .0
+                .iter()
+                .find_map(|span| span.file.as_ref())
+                .and_then(|source| Path::new(&source.path).file_name().map(|name| name.to_string_lossy().into_owned()));
+            Some(HuffFunction { name: f.name.clone(), file, entry_pc, takes: f.takes, returns: f.returns })
+        })
+        .collect()
 }
 
 /// Sends the next transaction of the sender with its current nonce

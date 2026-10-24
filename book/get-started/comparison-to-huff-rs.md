@@ -173,5 +173,5 @@ Supported features:
 See the [Compile-Time Conditionals](../huff-language/compile-time-conditionals.md) documentation for complete details and examples.
 
 ### New test capabilities
-The test module has been refactored to use `anvil` and `forge` features from `foundry` to fork the mainnet. This allows for more advanced testing capabilities.
+`hnc test` runs tests on Foundry's EVM executor, the same engine as `forge test`. Tests can use cheatcodes, fork a chain with `--rpc-url`, and print logs and traces with the verbosity levels of `forge test`. See [Tests](../huff-language/tests.md).
 

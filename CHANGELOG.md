@@ -9,19 +9,19 @@
   - Example: `#[deal(caller, 1000), etch(0x1000, "0x5f5ff3"), nonce(this, 5)]`
 - Add the `expect_storage` and `expect_balance` test expectations to check state after a test, with an exact value or inclusive `min =` and `max =` bounds.
   - Example: `#[expect_storage([COUNTER_SLOT], 0x02), expect_balance(this, 5), expect_balance(caller, min = 1)]`
-- Run tests on Foundry's EVM executor, the engine of `forge test`, so tests can call Foundry cheatcodes.
-- Fail a test whose `vm.assert*` cheatcode fails.
 - Add Huff function calls to the traces of `hnc test --decode-internal`, named after the file that defines them and with their stack arguments and return values.
   - Example: `hnc ./src/Math.huff test -vvvv --decode-internal`
-- Update the book: show how to test a macro that jumps to a label defined in `MAIN`.
-- Update the book: reorganize the test page by topic and replace its example with a tested contract.
-- Update the book: document every CLI flag as implemented.
-- **Breaking**: Use forge's verbosity levels in `hnc test`, so traces are no longer printed by default and `-vvvv` no longer prints every executed opcode.
-  - Example: `-vv` console logs, `-vvv` traces of failing tests, `-vvvv` traces of all tests, `-vvvvv` with storage changes
+- Run tests on Foundry's EVM executor, the engine of `forge test`, so tests can call Foundry cheatcodes.
+- Fail a test whose `vm.assert*` cheatcode fails.
+- **Breaking**: Use forge's verbosity levels in `hnc test`.
+  - `-vv` prints console logs, `-vvv` the traces of failing tests, `-vvvv` the traces of all tests, and `-vvvvv` adds storage changes.
+  - Traces are no longer printed by default, and `-vvvv` no longer prints every executed opcode.
 - **Breaking**: Remove the `--gas-report` flag of `hnc test`, which never printed a report.
-- **Breaking**: Take the EVM options of `forge test` in `hnc test`, so the fork URL moves from `-f` to `-r` and `--ffi`, `--isolate`, `--initial-balance`, `--hardfork` and `--live-logs` become available.
+- **Breaking**: Take the EVM options of `forge test` in `hnc test`.
+  - The fork URL moves from `-f` to `-r`.
+  - Add `--ffi`, `--isolate`, `--initial-balance`, `--hardfork` and `--live-logs`.
   - Example: `hnc ./src/Swap.huff test -r $MAINNET_RPC --fork-block-number 21758848 --initial-balance 1000000`
-- **Breaking**: Start the sender of `hnc test` with Foundry's initial balance instead of the maximum balance.
+- **Breaking**: Start a deployed test and its sender with Foundry's initial balance, as `forge test` does, instead of no balance and the maximum balance.
 - **Breaking**: Isolate the calls a test makes by default, as `forge test` does, which raises their gas unless `--no-isolate` is passed.
 - **Breaking**: Remove the `-p` flag, which printed nothing.
 - **Breaking**: Reject unknown values of `-e` and of the `hnc test` `--format`, which fell back to a default.
@@ -35,6 +35,9 @@
 - Fix a test that calls a `fn` halting with `StackUnderflow` when it ends without `stop`.
 - Fix `extcodehash` returning zero for accounts created by `hnc test`.
 - Fix `remappings.txt` with Windows line endings.
+- Update the book: show how to test a macro that jumps to a label defined in `MAIN`.
+- Update the book: reorganize the test page by topic and replace its example with a tested contract.
+- Update the book: document every CLI flag as implemented.
 
 ## [1.6.2] - 2026-10-17
 - Add stacked decorator blocks on tests, merged in source order, with an optional trailing comma.

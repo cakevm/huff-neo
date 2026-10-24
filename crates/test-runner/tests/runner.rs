@@ -16,9 +16,9 @@ use revm::primitives::hardfork::SpecId;
 #[test]
 fn test_runner_return() {
     let runner = TestRunner::default();
-    let mut executor = runner.new_executor(None).unwrap();
+    let mut executor = runner.new_executor().unwrap();
     let code = "602060005260206000F3";
-    let deployed_addr = runner.deploy_code(&mut executor, code.to_string()).unwrap();
+    let deployed_addr = runner.deploy_code(&mut executor, code).unwrap();
     let result = runner.call(String::from("RETURN"), &mut executor, deployed_addr, U256::ZERO, String::default()).unwrap();
 
     assert_eq!(result.name, "RETURN");
@@ -30,9 +30,9 @@ fn test_runner_return() {
 #[test]
 fn test_runner_stop() {
     let runner = TestRunner::default();
-    let mut executor = runner.new_executor(None).unwrap();
+    let mut executor = runner.new_executor().unwrap();
     let code = "00";
-    let deployed_addr = runner.deploy_code(&mut executor, code.to_string()).unwrap();
+    let deployed_addr = runner.deploy_code(&mut executor, code).unwrap();
     let result = runner.call(String::from("STOP"), &mut executor, deployed_addr, U256::ZERO, String::default()).unwrap();
 
     assert_eq!(result.name, "STOP");
@@ -44,9 +44,9 @@ fn test_runner_stop() {
 #[test]
 fn test_runner_revert() {
     let runner = TestRunner::default();
-    let mut executor = runner.new_executor(None).unwrap();
+    let mut executor = runner.new_executor().unwrap();
     let code = "60006000FD";
-    let deployed_addr = runner.deploy_code(&mut executor, code.to_string()).unwrap();
+    let deployed_addr = runner.deploy_code(&mut executor, code).unwrap();
     let result = runner.call(String::from("REVERT"), &mut executor, deployed_addr, U256::ZERO, String::default()).unwrap();
 
     assert_eq!(result.name, "REVERT");
@@ -71,8 +71,8 @@ fn dupn_code() -> String {
 #[test]
 fn test_runner_amsterdam_dupn() {
     let runner = runner_with_spec(SpecId::AMSTERDAM);
-    let mut executor = runner.new_executor(None).unwrap();
-    let deployed_addr = runner.deploy_code(&mut executor, dupn_code()).unwrap();
+    let mut executor = runner.new_executor().unwrap();
+    let deployed_addr = runner.deploy_code(&mut executor, &dupn_code()).unwrap();
     let result = runner.call(String::from("DUPN"), &mut executor, deployed_addr, U256::ZERO, String::default()).unwrap();
 
     assert_eq!(std::mem::discriminant(&result.status), std::mem::discriminant(&TestStatus::Success));
@@ -83,8 +83,8 @@ fn test_runner_amsterdam_dupn() {
 fn test_runner_pre_amsterdam_dupn_halts() {
     // Before Amsterdam 0xe6 is not a valid opcode, so the same code must halt
     let runner = runner_with_spec(SpecId::OSAKA);
-    let mut executor = runner.new_executor(None).unwrap();
-    let deployed_addr = runner.deploy_code(&mut executor, dupn_code()).unwrap();
+    let mut executor = runner.new_executor().unwrap();
+    let deployed_addr = runner.deploy_code(&mut executor, &dupn_code()).unwrap();
     let result = runner.call(String::from("DUPN"), &mut executor, deployed_addr, U256::ZERO, String::default()).unwrap();
 
     assert_eq!(std::mem::discriminant(&result.status), std::mem::discriminant(&TestStatus::Revert));
@@ -99,14 +99,14 @@ fn test_runner_gas_excludes_intrinsic_cost() {
     for spec in [SpecId::OSAKA, SpecId::AMSTERDAM] {
         for value in [U256::ZERO, U256::from(1)] {
             let runner = runner_with_spec(spec);
-            let mut executor = runner.new_executor(None).unwrap();
-            let deployed_addr = runner.deploy_code(&mut executor, "00".to_string()).unwrap();
+            let mut executor = runner.new_executor().unwrap();
+            let deployed_addr = runner.deploy_code(&mut executor, "00").unwrap();
             let result = runner.call(String::from("STOP"), &mut executor, deployed_addr, value, String::default()).unwrap();
             assert_eq!(result.gas, 0, "STOP on {spec:?} with value {value}");
 
             let runner = runner_with_spec(spec);
-            let mut executor = runner.new_executor(None).unwrap();
-            let deployed_addr = runner.deploy_code(&mut executor, "602060005260206000F3".to_string()).unwrap();
+            let mut executor = runner.new_executor().unwrap();
+            let deployed_addr = runner.deploy_code(&mut executor, "602060005260206000F3").unwrap();
             let result = runner.call(String::from("RETURN"), &mut executor, deployed_addr, value, String::default()).unwrap();
             assert_eq!(result.gas, 18, "RETURN on {spec:?} with value {value}");
         }
@@ -115,7 +115,7 @@ fn test_runner_gas_excludes_intrinsic_cost() {
 
 /// A fresh executor for one test of the default runner
 fn new_executor() -> Executor<EthEvmNetwork> {
-    TestRunner::default().new_executor(None).unwrap()
+    TestRunner::default().new_executor().unwrap()
 }
 
 /// Parses a source file into a contract.
@@ -129,7 +129,7 @@ fn parse_contract(source: &str) -> Contract {
 
 /// Runs the named test macro of the source with the given runner, on a fresh executor of that runner.
 fn run_source_test_with(runner: &TestRunner, source: &str, name: &str) -> Result<TestResult, Box<RunnerError>> {
-    let mut executor = runner.new_executor(None).unwrap();
+    let mut executor = runner.new_executor().unwrap();
     let contract = parse_contract(source);
     runner.run_test(&mut executor, contract.macros.get(name).unwrap(), &contract).map_err(Box::new)
 }
@@ -639,7 +639,7 @@ fn test_runner_expect_storage_and_balance_pass() {
     let source = r#"
     #define constant SLOT = FREE_STORAGE_POINTER()
     #define macro MAIN() = { [SLOT] sload }
-    #[value(5)]
+    #[value(5), deal(this, 0)]
     #[expect_storage([SLOT], 0x2a), expect_storage(0x01, 0x07, at = 0x1000), expect_balance(this, 5)]
     #[store(0x01, 0x07, at = 0x1000)]
     #define test T() = { 0x2a [SLOT] sstore }
@@ -746,12 +746,14 @@ fn test_runner_expect_balance_and_storage_check_inclusive_bounds() {
         ("min = 5, max = 5", true),
         ("min = 0, max = 4", false),
     ] {
-        let result = run_test_t(&format!("#[value(5), expect_balance(this, {bounds}), expect_storage(0x00, {bounds})]\n{test}"));
+        let result =
+            run_test_t(&format!("#[value(5), deal(this, 0), expect_balance(this, {bounds}), expect_storage(0x00, {bounds})]\n{test}"));
         assert_eq!(result.passed, passes, "{bounds}: {:?}", result.failures);
         assert_eq!(result.failures.len(), if passes { 0 } else { 2 }, "{bounds}");
     }
 
-    let failures = failures(&format!("#[value(5), expect_balance(this, min = 6, max = 9), expect_storage(0x00, max = 4)]\n{test}"));
+    let failures =
+        failures(&format!("#[value(5), deal(this, 0), expect_balance(this, min = 6, max = 9), expect_storage(0x00, max = 4)]\n{test}"));
     assert!(failures[0].1.ends_with("expected at most 0x4, got 0x5"), "{failures:?}");
     assert!(failures[1].1.ends_with("expected at least 6 and at most 9, got 5"), "{failures:?}");
 }
@@ -760,7 +762,7 @@ fn test_runner_expect_balance_and_storage_check_inclusive_bounds() {
 fn test_runner_expectation_bounds_accept_hex_decimal_and_constants() {
     let source = r#"
     #define constant CAP = 0x0a
-    #[value(5), store(0x00, 7)]
+    #[value(5), deal(this, 0), store(0x00, 7)]
     #[expect_balance(this, min = 0x05, max = [CAP]), expect_storage(0x00, min = 7, max = [CAP])]
     #define test T() = { stop }
     "#;

@@ -80,8 +80,8 @@ code or nonce of the same address twice is an error that points at both flags.
 | `etch(address, bytes...)`          | the code at an address, e.g. `etch(0x1000, "0x5f5ff3")`           |
 | `nonce(address, n)`                | the nonce of an account                                           |
 
-The sender of the test starts with Foundry's initial balance (`--initial-balance`) unless it is dealt one. The test itself and its sender cannot be
-etched.
+A deployed test and its sender start with Foundry's initial balance (`--initial-balance`, by default
+`0xffffffffffffffffffffffff` wei), as in `forge test`, unless they are dealt another one. The test itself and its sender cannot be etched.
 
 ### Expectations
 A test passes when it ends the way its decorators expect. Without an expectation, a test must return: `stop`,
@@ -137,7 +137,7 @@ Storage values are compared as unsigned 256-bit numbers. `at` also works togethe
 #define constant COUNTER_SLOT = FREE_STORAGE_POINTER()
 #define macro INCREMENT() = { [COUNTER_SLOT] sload 0x01 add [COUNTER_SLOT] sstore }
 
-#[value(5), store([COUNTER_SLOT], 0x01)]
+#[value(5), deal(this, 0), store([COUNTER_SLOT], 0x01)]
 #[expect_storage([COUNTER_SLOT], 0x02), expect_balance(this, 5)]
 #define test INCREMENT_ADDS_ONE() = { INCREMENT() }
 ```
@@ -182,6 +182,8 @@ A failing test lists every expectation it did not meet:
 [FAIL] FAILS_TWICE     - Gas used: 16
 ├─ expect_revert: expected revert data 0x82b42900 (Unauthorized), got 0x92665351 (InsufficientBalance)
 ├─ expect_gas: used 16 gas, more than max 1
+├─ RETURN DATA
+└─ 92665351
 ```
 
 With `--format json`, each result has a `passed` flag, an `outcome` (`return`, `revert` or `halt`, with its data or

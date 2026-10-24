@@ -25,21 +25,21 @@ Options:
   -i, --inputs <INPUTS>...                The constructor arguments, separated by spaces
   -n, --interactive                       Prompt for the constructor arguments, then write the artifacts
   -a, --artifacts                         Whether to generate artifacts or not
-      --relax-jumps                       Apply branch relaxation to minimize deployment gas
+      --relax-jumps                       Apply branch relaxation to minimize deployment gas (use PUSH1 where possible)
   -g, --interface [<INTERFACE>...]        Generate a Solidity interface next to each contract, optionally with this name
   -b, --bytecode                          Generate and log bytecode
-  -r, --bin-runtime                       Generate and log runtime bytecode
+  -r, --bin-runtime                       Generate and log runtime bytecode. Errors if CONSTRUCTOR returns custom bytes (runtime ≠ MAIN)
   -v, --verbose                           Verbose output
   -l, --label-indices                     Prints out the jump label PC indices for the specified contract
       --format <FORMAT>                   Output format for the label indices [default: table] [possible values: table, json]
-  -c, --constants <CONSTANTS>...          Override / set constants for the compilation environment
+  -c, --constants <CONSTANTS>...          Override / set constants for the compilation environment. Accepts hex values (0x...) or true/false
   -m, --alt-main <ALTERNATIVE_MAIN>       Compile a specific macro
-  -t, --alt-constructor <ALT_CONSTRUCTOR> Compile a specific constructor macro
-  -e, --evm-version <EVM_VERSION>         The EVM version to compile for, and to run tests with [default: osaka]
+  -t, --alt-constructor <ALTERNATIVE_CONSTRUCTOR> Compile a specific constructor macro
+  -e, --evm-version <EVM_VERSION>         The EVM version to compile for, and to run tests with [default: osaka] [possible values: paris, shanghai, cancun, prague, osaka, amsterdam]
       --no-size-limit                     Skip the contract and initcode size limit checks (EIP-170/EIP-3860, raised by EIP-7954 in Amsterdam)
       --flattened-source                  Output the flattened source code with all dependencies resolved
   -V, --version                           Print version
-  -h, --help                              Print help
+  -h, --help                              Print help (see more with '--help')
 ```
 
 ### `-a` Artifacts
@@ -343,18 +343,21 @@ Without `-v`, the report shows whether each test passed, its gas, and why a fail
 `hnc test` takes the EVM options of `forge test`, and reads the `foundry.toml` of the project like
 `forge` does. See `hnc test --help` for the full list. The most common ones:
 
-| Option                                   | Effect                                                                        |
-|------------------------------------------|-------------------------------------------------------------------------------|
-| `-r`, `--rpc-url <URL>`                  | Runs the tests on a fork of this chain                                        |
-| `--fork-block-number <BLOCK>`            | Forks at this block                                                           |
-| `--sender <ADDRESS>`                     | Sends the tests from this address                                             |
-| `--initial-balance <WEI>`                | The balance the sender starts with                                            |
-| `--hardfork <NAME>`                      | Runs the tests with the rules of this hardfork; `-e` overrides it             |
-| `--gas-limit <GAS>`                      | The gas limit of the block and of each test transaction                       |
-| `--chain`, `--block-number`, `--block-timestamp`, `--gas-price`, `--base-fee`, ... | Set the environment of every test   |
-| `--ffi`                                  | Allows the `vm.ffi` cheatcode                                                 |
-| `--no-isolate`                           | Turns off call isolation. It is on by default, as in `forge test`, and meters each call a test makes as its own transaction |
-| `--live-logs`                            | Prints console logs while the tests run                                       |
+| Option                        | Effect                                                            |
+|-------------------------------|-------------------------------------------------------------------|
+| `-r`, `--rpc-url <URL>`       | Runs the tests on a fork of this chain                            |
+| `--fork-block-number <BLOCK>` | Forks at this block                                               |
+| `--sender <ADDRESS>`          | Sends the tests from this address                                 |
+| `--initial-balance <WEI>`     | The balance the test and its sender start with                    |
+| `--hardfork <NAME>`           | Runs the tests with the rules of this hardfork; `-e` overrides it |
+| `--gas-limit <GAS>`           | The gas limit of the block and of each test transaction           |
+| `--ffi`                       | Allows the `vm.ffi` cheatcode                                     |
+| `--no-isolate`                | Turns off call isolation                                          |
+| `--live-logs`                 | Prints console logs while the tests run                           |
+
+The block environment of every test is set with `--chain`, `--block-number`, `--block-timestamp`, `--gas-price`,
+`--base-fee` and the other options listed by `hnc test --help`. Call isolation is on by default, as in `forge test`,
+and meters each call a test makes as its own transaction.
 
 Decorators such as `caller(..)` or `block_number(..)` override these values for a single test.
 
