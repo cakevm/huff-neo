@@ -1,10 +1,9 @@
 use alloy_primitives::{Address, U256};
 use foundry_evm::traces::{CallTraceStep, DecodedInternalCall, DecodedTraceStep, SparsedTraceArena};
 use revm::bytecode::opcode::{JUMP, JUMPDEST};
-use serde::Serialize;
 
 /// An outlined Huff function (`#define fn`) of a compiled test, which traces show as an internal call
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HuffFunction {
     /// The name of the function
     pub name: String,

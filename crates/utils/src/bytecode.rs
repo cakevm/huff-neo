@@ -100,11 +100,6 @@ impl JumpPlaceholderData {
         Self { label, push_opcode, suffix, target_offset: Some(target_offset) }
     }
 
-    /// Check if this jump has been resolved
-    pub fn is_resolved(&self) -> bool {
-        self.target_offset.is_some()
-    }
-
     /// Resolve this jump to a target offset
     pub fn resolve(&mut self, target_offset: usize) {
         self.target_offset = Some(target_offset);
@@ -122,11 +117,6 @@ impl JumpPlaceholderData {
         };
 
         format!("{}{}{}", self.push_opcode.to_hex(), value_hex, self.suffix)
-    }
-
-    /// Legacy method for compatibility - same as to_hex()
-    pub fn placeholder_string(&self) -> String {
-        self.to_hex()
     }
 }
 
@@ -161,17 +151,6 @@ impl CircularCodesizePlaceholderData {
         self.measured_range.map(measured).or(self.size_hint).unwrap_or(total_length)
     }
 
-    /// Create a circular codesize placeholder with a resolved value
-    pub fn with_value(macro_name: String, size: usize) -> Self {
-        let push_opcode = PushOpcode::optimal_for(size);
-        Self { macro_name, push_opcode, resolved_value: Some(size), measured_range: None, size_hint: None }
-    }
-
-    /// Check if this codesize has been resolved
-    pub fn is_resolved(&self) -> bool {
-        self.resolved_value.is_some()
-    }
-
     /// Resolve this codesize to a specific size
     ///
     /// Keeps the current width if the size fits, since the surrounding code is already laid out for
@@ -195,11 +174,6 @@ impl CircularCodesizePlaceholderData {
             // Unresolved: use "cccc" placeholder (2 bytes = PUSH1 size)
             "cccc".to_string()
         }
-    }
-
-    /// Legacy method for compatibility - same as to_hex()
-    pub fn placeholder_string(&self) -> String {
-        self.to_hex()
     }
 }
 

@@ -276,7 +276,7 @@ fn main() {
             let mut runner = TestRunner::new(env, test_args.target_address, evm_version, Arc::new(cheats_config));
             runner.trace_requirements = TraceRequirements::none()
                 .with_calls(test_args.verbosity >= 3)
-                .with_state_changes(test_args.verbosity > 4)
+                .with_state_changes(test_args.verbosity >= 5)
                 .with_debug(test_args.debug)
                 .with_decode_internal(decode_internal);
             runner.collect_logs = test_args.verbosity >= 2;
@@ -389,24 +389,25 @@ fn main() {
             let mut constructor_args = Vec::new();
             match artifact.abi {
                 Some(ref abi) => match abi.constructor {
-                    Some(ref args) => {
+                    // A constructor without parameters has nothing to ask for
+                    Some(ref args) if !args.inputs.is_empty() => {
                         println!(
                             "{} Constructor Arguments for Contract: \"{}\"",
                             Paint::blue(&"[INTERACTIVE]".to_string()),
                             artifact.file.path
                         );
-                        let inputs: Vec<String> = args
+                        let (inputs, types): (Vec<String>, Vec<String>) = args
                             .inputs
                             .iter()
                             .map(|input| {
-                                get_input(&format!(
+                                let value = get_input(&format!(
                                     "Enter a {:?} for constructor param{}:",
                                     input.kind,
                                     if !input.name.is_empty() { format!(" \"{}\"", input.name) } else { Default::default() }
-                                ))
+                                ));
+                                (value, input.kind.to_string())
                             })
-                            .collect();
-                        let types: Vec<String> = args.inputs.iter().map(|input| input.kind.to_string()).collect();
+                            .unzip();
                         match Codegen::encode_constructor_args(&inputs, Some(&types)) {
                             Ok(values) => {
                                 appended_args = Codegen::abi_encode_constructor_args(values);
@@ -418,8 +419,8 @@ fn main() {
                             }
                         }
                     }
-                    None => {
-                        tracing::warn!(target: "cli", "NO CONSTRUCTOR FOR ABI: {:?}", abi)
+                    _ => {
+                        tracing::warn!(target: "cli", "NO CONSTRUCTOR ARGUMENTS FOR ABI: {:?}", abi)
                     }
                 },
                 None => {

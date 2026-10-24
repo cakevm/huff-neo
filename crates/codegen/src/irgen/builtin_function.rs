@@ -259,8 +259,7 @@ pub fn builtin_function_gen<'a>(
         }
         BuiltinFunctionKind::ArgsStart => {
             validate_arg_count(bf, 0, "__argsstart")?;
-            // The offset is only known once the deployment layout is, so a fixed-width PUSH2 is
-            // reserved. Runtime code rejects it when it is finalized, see `reject_args_start`.
+            // Filled with the deployment offset of the arguments; rejected outside the constructor
             let placeholder = Bytes::ArgsStartPlaceholder(bf.span.clone());
             *offset += placeholder.len();
             bytes.push_with_offset(starting_offset, placeholder);
@@ -477,14 +476,17 @@ fn codesize<'a>(
         // Create a CircularCodesizePlaceholder variant (starts as PUSH1, 2 bytes)
         let placeholder = Bytes::CircularCodesizePlaceholder(CircularCodesizePlaceholderData::new(
             codesize_arg.to_string(),
-            scope_mgr.size_hint_for(codesize_arg),
+            scope_mgr.codesize_hint(codesize_arg),
         ));
         (2, placeholder)
     } else {
         // We will still need to recurse to get accurate values. The target macro gets its own
         // scope frame; `macro_to_bytecode` pops it when done, leaving the caller's frame intact.
+        scope_mgr.start_measurement();
         scope_mgr.push_macro(ir_macro, *offset);
-        let res: BytecodeRes = match Codegen::macro_to_bytecode(evm_version, ir_macro, contract, scope_mgr, *offset, relax_jumps) {
+        let res = Codegen::macro_to_bytecode(evm_version, ir_macro, contract, scope_mgr, *offset, relax_jumps);
+        scope_mgr.end_measurement();
+        let res: BytecodeRes = match res {
             Ok(r) => r,
             Err(e) => {
                 tracing::error!(

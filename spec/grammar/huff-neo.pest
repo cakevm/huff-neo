@@ -382,8 +382,8 @@ opcode_operand = {
 //   __BYTES("hello")                          __BYTES([GREETING])
 //   __ASSERT_PC([TARGET_PC] + <offset>)       __argsstart()  // offset of the constructor arguments
 // __LEFTPAD is only valid in constant definitions and code tables. __argsstart is only valid in
-// the constructor and the macros it invokes. A builtin used as the
-// argument of __RIGHTPAD/__LEFTPAD/__VERBATIM must evaluate to bytes (e.g. __FUNC_SIG, __BYTES).
+// the constructor and the macros it invokes. A builtin used as the argument of
+// __RIGHTPAD/__LEFTPAD/__VERBATIM must evaluate to bytes (e.g. __FUNC_SIG, __BYTES).
 builtin_function_call = {
     ("__FUNC_SIG" | "__EVENT_HASH" | "__ERROR") ~ "(" ~ (string_literal | identifier) ~ ")"
     | ("__tablesize" | "__tablestart" | "__codesize" | "__EMBED_TABLE") ~ "(" ~ identifier ~ ")"

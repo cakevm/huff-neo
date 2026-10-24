@@ -1,6 +1,6 @@
 # Builtin Functions
 
-Several builtin functions are provided by the Huff compiler. The functions can be used inside a macro, function definition to generate the desired bytecode. `__RIGHTPAD`, `__LEFTPAD`, `__FUNC_SIG` and `__BYTES` can also be used in a code table. The builtin functions are evaluated at compile time and substituted with the corresponding bytecode.
+Several builtin functions are provided by the Huff compiler. The functions can be used inside a macro or function definition to generate the desired bytecode. `__RIGHTPAD`, `__LEFTPAD`, `__FUNC_SIG` and `__BYTES` can also be used in a code table. The builtin functions are evaluated at compile time and substituted with the corresponding bytecode.
 
 
 ### `__FUNC_SIG(<string>|<function definition>)`
@@ -23,7 +23,7 @@ __LEFTPAD(0x123)
 ```
 
 ### `__RIGHTPAD(<hex>|<constant>|<builtin function>)`
-At compile time, the invocation of `__RIGHTPAD` is substituted with `PUSH32 padded_literal`, where `padded_literal` is the right padded version of the passed input.
+At compile time, the invocation of `__RIGHTPAD` is substituted with `PUSH32 padded_literal`, where `padded_literal` is the right padded version of the passed input. In a code table, only the 32 padded bytes are emitted.
 
 #### Example
 ```plaintext
@@ -37,7 +37,7 @@ Pushes the code size of the macro or function passed to the stack.
 
 Used inside the macro it names (or inside a macro that macro invokes), it pushes the size of that enclosing invocation as emitted, including expanded macros and resized jumps.
 
-MAIN and the constructor can push each other's size, for example a constructor that copies `__codesize(MAIN)` bytes while MAIN uses `__codesize(CONSTRUCTOR)`. Each value is the exact size, also when the width of one push changes the size of the other macro.
+Two macros can push each other's size, for example a constructor that copies `__codesize(MAIN)` bytes while MAIN uses `__codesize(CONSTRUCTOR)`. Each value is the exact size, also when the width of one push changes the size of the other macro.
 
 #### `__codesize(RUNTIME)`
 `RUNTIME` is a reserved argument that resolves at compile time to the byte length of the runtime section as the compiler emits it — `MAIN`'s body plus its appended runtime tables. Usable in both `MAIN` and `CONSTRUCTOR` (directly or via a derived `#define constant`).
@@ -100,7 +100,8 @@ The arguments are the code from this offset to the end, so `codesize` minus the 
 there are none. The offset is not `__codesize(CONSTRUCTOR)`, which counts only the constructor macro, while the
 arguments also follow the bootstrap, the runtime and the tables only the constructor uses.
 
-Constructor arguments are not part of the deployed code, so `__argsstart()` can only be used in the
+The offset is pushed with two bytes, so the arguments must start within the first 64 KiB of the deployment
+bytecode. Constructor arguments are not part of the deployed code, so `__argsstart()` can only be used in the
 `CONSTRUCTOR` and the macros it invokes. In `MAIN`, in tests and in code tables it is a compile error.
 
 #### Example

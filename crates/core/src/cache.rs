@@ -45,7 +45,7 @@ pub fn resolve_existing_artifacts(
         .filter(|e| e.file_type().is_file() && e.path().extension().is_some_and(|ext| ext == "json"));
     for entry in artifact_files {
         // Are we expecting this file to be compiled
-        let formatted_path = entry.path().display().to_string().replace(".json", "").replace(output_dir, ".").to_lowercase();
+        let formatted_path = entry.path().with_extension("").display().to_string().replace(output_dir, ".").to_lowercase();
         let expected = file_sources.remove(&formatted_path);
 
         // Try to read the file into an artifact

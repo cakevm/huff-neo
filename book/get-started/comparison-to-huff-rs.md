@@ -60,7 +60,7 @@ See the [Builtin Constants](../huff-language/builtin-constants.md) documentation
 ### New builtin functions
 There are new builtin functions available in `huff-neo`.
 
-- `__LEFTPAD` - Left pads a hex input or the result of a passed builtin in a code table.
+- `__LEFTPAD` - Left pads a hex input or the result of a passed builtin in a constant or a code table.
 - `__BYTES` - Converts a string to the UTF-8 representation bytes and pushes it to the stack.
 - `__ASSERT_PC` - Validates bytecode position at compile-time to ensure instructions are at expected offsets.
 - `__argsstart` - Pushes the offset of the ABI-encoded constructor arguments, so a constructor reads them as Solidity

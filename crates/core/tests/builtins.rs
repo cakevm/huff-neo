@@ -96,6 +96,35 @@ fn test_codesize_of_main_and_constructor_referencing_each_other() {
 }
 
 #[test]
+fn test_codesize_of_macros_referencing_each_other() {
+    // A is 256 bytes once it pushes the size of B with PUSH2, so B must push A's size with PUSH2 too
+    let source = format!(
+        r#"
+        #define macro A() = takes(0) returns(0) {{
+            __codesize(B) pop {}
+        }}
+
+        #define macro B() = takes(0) returns(0) {{
+            __codesize(A) pop {}
+        }}
+
+        #define macro MAIN() = takes(0) returns(0) {{
+            A() B()
+        }}
+    "#,
+        "0x01 pop ".repeat(84),
+        "0x01 pop ".repeat(85)
+    );
+
+    let main = compile_to_bytecode(&source).unwrap();
+    let (a, b) = main.split_at(256 * 2);
+    // A pushes the size of B (259 bytes), and B pushes the size of A (256 bytes)
+    assert!(a.starts_with("610103"));
+    assert!(b.starts_with("610100"));
+    assert_eq!(b.len() / 2, 259);
+}
+
+#[test]
 fn test_codesize_builtin_preserves_macro_args() {
     // Measuring another macro must not disturb the invoking macro's argument scope,
     // so args resolve on both sides of the builtin.
