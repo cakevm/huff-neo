@@ -577,6 +577,33 @@ fn call_cheatcode_or_revert(signature: &str, arg: &str) -> String {
 }
 
 #[test]
+fn test_runner_skips_a_test_with_a_skip_decorator() {
+    // A skipped test is not compiled, so its body may be unfinished
+    let result = run_test_t("#[skip(\"needs a fork\")]\n#define test T() = { UNDEFINED_MACRO() }");
+    assert_eq!(result.status, TestStatus::Skipped);
+    assert!(!result.passed);
+    assert_eq!(result.outcome, Outcome::Skip { reason: Some(String::from("needs a fork")) });
+    assert!(result.failures.is_empty());
+
+    assert_eq!(run_test_t("#[skip]\n#define test T() = { stop }").outcome, Outcome::Skip { reason: None });
+}
+
+#[test]
+fn test_runner_skips_a_test_that_calls_vm_skip() {
+    let skip = call_cheatcode_or_revert("skip(bool)", "0x01");
+    let result = run_test_t(&format!("#define test T() = {{ {skip} stop }}"));
+    assert_eq!(result.status, TestStatus::Skipped);
+    assert_eq!(result.outcome, Outcome::Skip { reason: None });
+
+    let no_skip = call_cheatcode_or_revert("skip(bool)", "0x00");
+    assert!(run_test_t(&format!("#define test T() = {{ {no_skip} stop }}")).passed);
+
+    // Revert data that only looks like a skip is a revert
+    let fake = run_test_t("#define test T() = { 0x464f554e4452593a3a534b4950 0x00 mstore 0x0d 0x13 revert }");
+    assert_eq!(fake.status, TestStatus::Revert);
+}
+
+#[test]
 fn test_runner_serves_cheatcodes() {
     let roll = call_cheatcode("roll(uint256)", "0x2a");
     let result = run_test_t(&format!("#[expect_return(42)]\n#define test T() = {{ {roll} number 0x00 mstore 0x20 0x00 return }}"));

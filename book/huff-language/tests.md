@@ -152,6 +152,21 @@ A reverted or halted test keeps no state, so `expect_storage` and `expect_balanc
 `expect_revert`, `expect_partial_revert` or `expect_halt`. When a test reverts without expecting it, only the
 unexpected revert is reported.
 
+### Skipping a test
+`skip` skips a test, with an optional reason. A skipped test is not compiled or run, so it may be unfinished. A test
+can also skip itself while it runs with `vm.skip(true)`, for example when it needs a fork. Skipped tests are listed
+as `[SKIP]` and never fail the run.
+
+```javascript
+#[skip("needs a mainnet fork")]
+#define test SWAP_ON_MAINNET() = { stop }
+```
+
+```text
+[SKIP] SWAP_ON_MAINNET - Gas used: 0
+├─ skipped: needs a mainnet fork
+```
+
 ### Decorator values
 A value that stands for a 32-byte word, such as a slot, an amount, an address or a bound, can be written as:
 * a hex literal (`0xbeef`), a decimal literal (`100`), or `true` / `false`
@@ -192,8 +207,8 @@ A failing test lists every expectation it did not meet:
 └─ 92665351
 ```
 
-With `--format json`, each result has a `passed` flag, an `outcome` (`return`, `revert` or `halt`, with its data or
-reason) and the list of `failures`. `hnc test` exits with status 1 when a test fails.
+With `--format json`, each result has a `passed` flag, an `outcome` (`return`, `revert`, `halt` or `skip`, with its
+data or reason) and the list of `failures`. `hnc test` exits with status 1 when a test fails.
 
 Run with `-vv` to see console logs, `-vvv` to see the execution trace of failing tests, `-vvvv` for the traces of all
 tests, and `-vvvvv` to add storage changes to the traces, as in `forge test`. See the [CLI Resources](../cli.md).

@@ -292,7 +292,7 @@ fn main() {
             let start = Instant::now();
             match tester.execute() {
                 Ok(res) => {
-                    any_failed |= res.iter().any(|r| r.status != TestStatus::Success);
+                    any_failed |= res.iter().any(|r| r.status == TestStatus::Revert);
                     rt.block_on(async {
                         match print_test_report(res, test_args.format, test_args.verbosity, start).await {
                             Ok(_) => {}

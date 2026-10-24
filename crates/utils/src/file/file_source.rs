@@ -102,7 +102,8 @@ impl FileSource {
     /// Localizes a file path, if path is relative
     pub fn localize_file(parent: &str, child: &str) -> Option<String> {
         let mut prefixed_parent;
-        if !parent.starts_with('.') {
+        // A relative parent is relative to the working directory; an absolute one stays absolute
+        if !parent.starts_with('.') && !parent.starts_with('/') {
             prefixed_parent = "./".to_owned();
             prefixed_parent.push_str(parent);
         } else {

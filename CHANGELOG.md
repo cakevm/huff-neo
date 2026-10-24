@@ -3,9 +3,14 @@
 # Huff Neo Compiler changelog
 
 ## Unreleased
+- Add the `skip` test decorator, with an optional reason, to skip a test without compiling or running it.
+  - Example: `#[skip("needs a mainnet fork")]`
 - **Breaking**: Stop a test at a failed `vm.assert*`, as `forge test` does, instead of letting it run on.
   - A failed cheatcode reverts, and it fails the test even when the test expects a revert or reverts to a state snapshot afterwards.
 - Fix test failures showing cheatcode errors and `Error(string)` reverts as raw hex instead of their message.
+- Fix a test that calls `vm.skip(true)` failing instead of being skipped, as in `forge test`.
+- Fix a relative `#include` inside a file included by an absolute path resolving against the working directory.
+- Fix a test with the name of a macro replacing the macro, which made invoking the macro fail with "Test Invocation".
 
 ## [1.7.0] - 2026-10-24
 - Add the `deal(address, wei)`, `etch(address, bytes...)` and `nonce(address, n)` test decorators to set balances, code and nonces before a test runs.

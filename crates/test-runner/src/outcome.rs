@@ -21,6 +21,8 @@ pub enum Outcome {
     Revert { data: String },
     /// The call halted exceptionally, e.g. out of gas or on an invalid jump
     Halt { reason: String },
+    /// The test was skipped, by a `skip` decorator or by `vm.skip(true)`, with the reason when given
+    Skip { reason: Option<String> },
 }
 
 /// An expectation the test did not meet
@@ -79,6 +81,10 @@ impl Expectations {
     /// The expectations the test call did not meet
     pub fn check(&self, outcome: &Outcome, gas: u64, contract: &Contract) -> Vec<Failure> {
         let mut failures = Vec::new();
+        // A skipped test has nothing to check
+        if matches!(outcome, Outcome::Skip { .. }) {
+            return failures;
+        }
 
         // A failed cheatcode, such as a failed `vm.assert*`, fails the test even where a revert is expected
         if let Outcome::Revert { data } = outcome
@@ -197,6 +203,7 @@ fn describe_outcome(outcome: &Outcome, contract: &Contract) -> String {
         Outcome::Return { data } => format!("returned {}", display_hex(&decode_hex(data))),
         Outcome::Revert { data } => format!("reverted with {}", describe_revert(&decode_hex(data), contract)),
         Outcome::Halt { reason } => format!("halted with {reason}"),
+        Outcome::Skip { .. } => String::from("was skipped"),
     }
 }
 
