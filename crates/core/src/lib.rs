@@ -713,19 +713,13 @@ impl<'a, 'l> Compiler<'a, 'l> {
 
     /// Export Artifacts
     ///
-    /// 1. Cleans any previous artifacts in the output directory.
-    /// 2. Exports artifacts in parallel as serialized json `Artifact` objects.
+    /// Writes each artifact as JSON to the output file, or below the output directory at the path
+    /// of its source file. Other files in the output directory are left alone.
     pub fn export_artifacts(artifacts: &Vec<Arc<Artifact>>, output: &OutputLocation) {
         // Exit if empty output location
         if output.0.is_empty() {
             tracing::warn!(target: "core", "Exiting artifact export with empty output location!");
             return;
-        }
-
-        // Clean the Output Directory
-        tracing::warn!(target: "core", "REMOVING DIRECTORY: \"{}\"", output.0);
-        if !output.0.is_empty() && fs::remove_dir_all(&output.0).is_ok() {
-            tracing::info!(target: "core", "OUTPUT DIRECTORY DELETED!");
         }
 
         // Is the output a directory or a file?
@@ -736,7 +730,7 @@ impl<'a, 'l> Compiler<'a, 'l> {
             // If it's a file type, we just export to `output.0`
             let json_out = match is_file {
                 true => output.0.clone(),
-                false => format!("{}/{}.json", output.0, a.file.path.to_uppercase().replacen("./", "", 1)),
+                false => format!("{}/{}.json", output.0, a.file.path.replacen("./", "", 1)),
             };
 
             if let Err(e) = a.export(&json_out) {

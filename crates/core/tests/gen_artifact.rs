@@ -84,3 +84,20 @@ fn test_missing_constructor_with_inputs() {
         }
     }
 }
+
+#[test]
+fn test_export_artifacts_keeps_other_files_and_the_path_case() {
+    // Exporting must not clean the output directory, which may be a source folder
+    let output_dir = std::env::temp_dir().join(format!("hnc-export-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&output_dir);
+    std::fs::create_dir_all(&output_dir).unwrap();
+    std::fs::write(output_dir.join("notes.txt"), "keep me").unwrap();
+
+    let file = FileSource { source: Some(String::new()), path: "./src/Token.huff".to_string(), access: None, dependencies: vec![] };
+    let artifact = Artifact { file: Arc::new(file), ..Default::default() };
+    Compiler::export_artifacts(&vec![Arc::new(artifact)], &OutputLocation(output_dir.to_string_lossy().into_owned()));
+
+    assert_eq!(std::fs::read_to_string(output_dir.join("notes.txt")).unwrap(), "keep me");
+    assert!(output_dir.join("src/Token.huff.json").is_file());
+    std::fs::remove_dir_all(&output_dir).unwrap();
+}

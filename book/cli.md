@@ -45,7 +45,8 @@ Options:
 ### `-a` Artifacts
 
 Passing the `-a` flag will generate `Artifact` JSON file(s) in the `./artifacts`
-directory or wherever the `-d` flag designates. The `Artifact` JSON contains
+directory or wherever the `-d` flag designates, at the path of each source file: `./src/ERC20.huff` is written to
+`./artifacts/src/ERC20.huff.json`. Other files in the directory are left alone. The `Artifact` JSON contains
 the following information:
 * File
   * Path
@@ -172,10 +173,14 @@ hnc ./src/ERC20.huff -g IToken
 
 Arguments: `[CONSTRUCTOR_ARGS]`
 
-Passing the `-i` flag sets the constructor arguments of the contract that is being compiled. The
-arguments are separated by spaces and ABI-encoded after the bytecode. The constructor's types come
-from a `#define function constructor(...)` in the contract. To enter the arguments interactively
-instead, use the `-n` flag.
+Passing the `-i` flag sets the constructor arguments of the contract that is being compiled, separated by spaces.
+The type of each argument is read from its text: a decimal number is a `uint256`, a signed number an `int256`,
+`true` or `false` a `bool`, `0x` with 40 hex digits an `address`, other `0x` values of up to 32 bytes a 32-byte
+word, longer ones `bytes`, and a word a `string`. To enter the arguments interactively instead, use the `-n` flag.
+
+The arguments are appended to the deployment bytecode in Huff's layout, which differs from Solidity's ABI encoding.
+Dynamic values (`string`, `bytes`) come first, as their raw bytes padded to 32 bytes without an offset or length,
+followed by the static values as 32-byte words. A contract reads a dynamic argument with `__CODECOPY_DYN_ARG`.
 
 Example (assuming `ERC20.huff`'s constructor accepts a string and a uint):
 ```shell

@@ -25,7 +25,9 @@
 - **Breaking**: Isolate the calls a test makes by default, as `forge test` does, which raises their gas unless `--no-isolate` is passed.
 - **Breaking**: Remove the `-p` flag, which printed nothing.
 - **Breaking**: Reject unknown values of `-e` and of the `hnc test` `--format`, which fell back to a default.
+- **Breaking**: Keep the case of artifact paths, so `./src/Token.huff` is written to `artifacts/src/Token.huff.json` instead of `artifacts/SRC/TOKEN.HUFF.json`.
 - **Breaking**: Deploy tests at Foundry's test address `0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496`, which changes the addresses of contracts a test creates.
+- Fix `-a` deleting the whole output directory before writing the artifacts, so `-d ./src` removed the sources.
 - Fix `FREE_STORAGE_POINTER()` constants used only by tests failing with "Storage Pointers Not Derived".
 - Fix `-s` being ignored, so `hnc -s ./src` compiles the contracts in that directory.
 - Fix `-n` without `-b` prompting for nothing and writing no artifacts.
