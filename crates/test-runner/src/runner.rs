@@ -218,7 +218,7 @@ impl TestRunner {
         // Compile the passed test macro
         let mut scope_mgr = ScopeManager::new();
         scope_mgr.push_macro(m, 0);
-        let res = Codegen::macro_to_bytecode(evm_version, m, &contract, &mut scope_mgr, 0, false, false)?;
+        let res = Codegen::macro_to_bytecode(evm_version, m, &contract, &mut scope_mgr, 0, false)?;
         Codegen::reject_args_start(&res)?;
 
         let functions = huff_functions(&contract, &res.label_indices);

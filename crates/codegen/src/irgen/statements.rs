@@ -557,7 +557,7 @@ pub fn statement_gen<'a>(
                 scope_mgr.push_macro_with_invocation(ir_macro, *offset, resolved_mi);
 
                 let mut res: BytecodeRes =
-                    match Codegen::macro_to_bytecode(evm_version, ir_macro, contract, scope_mgr, *offset, false, relax_jumps) {
+                    match Codegen::macro_to_bytecode(evm_version, ir_macro, contract, scope_mgr, *offset, relax_jumps) {
                         Ok(r) => r,
                         Err(e) => {
                             tracing::error!(

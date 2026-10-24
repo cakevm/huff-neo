@@ -481,15 +481,7 @@ fn codesize<'a>(
         // We will still need to recurse to get accurate values. The target macro gets its own
         // scope frame; `macro_to_bytecode` pops it when done, leaving the caller's frame intact.
         scope_mgr.push_macro(ir_macro, *offset);
-        let res: BytecodeRes = match Codegen::macro_to_bytecode(
-            evm_version,
-            ir_macro,
-            contract,
-            scope_mgr,
-            *offset,
-            ir_macro.name.eq("CONSTRUCTOR"),
-            relax_jumps,
-        ) {
+        let res: BytecodeRes = match Codegen::macro_to_bytecode(evm_version, ir_macro, contract, scope_mgr, *offset, relax_jumps) {
             Ok(r) => r,
             Err(e) => {
                 tracing::error!(

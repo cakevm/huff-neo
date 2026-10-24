@@ -258,7 +258,7 @@ impl Codegen {
         scope_mgr.push_macro(m_macro, 0);
 
         // For each MacroInvocation Statement, recurse into bytecode
-        let bytecode_res: BytecodeRes = Codegen::macro_to_bytecode(evm_version, m_macro, &contract, &mut scope_mgr, 0, false, relax_jumps)?;
+        let bytecode_res: BytecodeRes = Codegen::macro_to_bytecode(evm_version, m_macro, &contract, &mut scope_mgr, 0, relax_jumps)?;
         Codegen::reject_args_start(&bytecode_res)?;
 
         tracing::debug!(target: "codegen", "Generated main bytecode. Appending table bytecode...");
@@ -326,7 +326,7 @@ impl Codegen {
         scope_mgr.push_macro(c_macro, 0);
 
         // For each MacroInvocation Statement, recurse into bytecode
-        let bytecode_res: BytecodeRes = Codegen::macro_to_bytecode(evm_version, c_macro, &contract, &mut scope_mgr, 0, false, relax_jumps)?;
+        let bytecode_res: BytecodeRes = Codegen::macro_to_bytecode(evm_version, c_macro, &contract, &mut scope_mgr, 0, relax_jumps)?;
 
         // A constructor body containing a RETURN means the user is supplying their own deployment
         // bootstrap; suppress the compiler's auto-bootstrap in that case.
@@ -679,7 +679,6 @@ impl Codegen {
     /// * `contract` - Contract context for macro and constant lookups
     /// * `scope_mgr` - Call stack for tracking macro invocations and scope
     /// * `offset` - Starting bytecode offset
-    /// * `recursing_constructor` - Whether compiling within a constructor
     /// * `relax_jumps` - Enable jump size optimization
     ///
     /// # Returns
@@ -692,7 +691,6 @@ impl Codegen {
         contract: &'a Contract,
         scope_mgr: &mut ScopeManager<'a>,
         mut offset: usize,
-        recursing_constructor: bool,
         relax_jumps: bool,
     ) -> Result<BytecodeRes, CodegenError> {
         // Safety check to prevent infinite recursion
@@ -756,11 +754,6 @@ impl Codegen {
                     } // __NOOP generates no bytecode
                 }
                 IRByteType::Statement(s) => {
-                    // if we have a codesize call for the constructor here, from within the
-                    // constructor, we skip
-                    if recursing_constructor {
-                        continue;
-                    }
                     let (push_bytes, mut push_spans) = statement_gen(
                         evm_version,
                         s,
@@ -1221,7 +1214,7 @@ impl Codegen {
             // This is a chicken-and-egg problem: we need offsets to generate code, but need code to know offsets
             // Solution: Generate into a temporary buffer first
             scope_mgr.push_macro(macro_def, current_offset);
-            let temp_res = Codegen::macro_to_bytecode(evm_version, macro_def, contract, scope_mgr, current_offset + 1, false, false)?;
+            let temp_res = Codegen::macro_to_bytecode(evm_version, macro_def, contract, scope_mgr, current_offset + 1, false)?;
             let macro_code_len = temp_res.bytes.iter().map(|seg| seg.bytes.len()).sum::<usize>();
             let stack_swaps_len = macro_def.returns;
             current_offset += macro_code_len + stack_swaps_len + 2; // JUMPDEST + MACRO_CODE_LEN + stack_swaps.len() + JUMP
@@ -1235,7 +1228,7 @@ impl Codegen {
             scope_mgr.push_macro(macro_def, func_offset);
 
             // Add 1 to starting offset to account for the JUMPDEST opcode
-            let mut res = Codegen::macro_to_bytecode(evm_version, macro_def, contract, scope_mgr, func_offset + 1, false, false)?;
+            let mut res = Codegen::macro_to_bytecode(evm_version, macro_def, contract, scope_mgr, func_offset + 1, false)?;
 
             for j in res.unmatched_jumps.iter_mut() {
                 let new_index = j.bytecode_index;

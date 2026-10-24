@@ -34,7 +34,7 @@ pub fn compile_single_macro(source: &str, macro_name: &str) -> (Contract, Result
     let macro_def = contract.find_macro_by_name(macro_name).unwrap();
     let mut scope_mgr = ScopeManager::new();
     scope_mgr.push_macro(macro_def, 0);
-    let res = Codegen::macro_to_bytecode(&evm_version, macro_def, &contract, &mut scope_mgr, 0, false, false);
+    let res = Codegen::macro_to_bytecode(&evm_version, macro_def, &contract, &mut scope_mgr, 0, false);
     (contract, res)
 }
 

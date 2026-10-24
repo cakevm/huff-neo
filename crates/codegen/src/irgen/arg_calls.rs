@@ -229,15 +229,8 @@ pub fn bubble_arg_call<'a>(
                                     };
 
                                     scope_mgr.push_macro_with_invocation(called_macro, *offset, inner_mi);
-                                    let result = Codegen::macro_to_bytecode(
-                                        evm_version,
-                                        called_macro,
-                                        contract,
-                                        scope_mgr,
-                                        *offset,
-                                        false,
-                                        relax_jumps,
-                                    );
+                                    let result =
+                                        Codegen::macro_to_bytecode(evm_version, called_macro, contract, scope_mgr, *offset, relax_jumps);
                                     // Note: macro_to_bytecode already pops the macro from scope_mgr
                                     let expanded = result?;
                                     let byte_len: usize = expanded.bytes.iter().map(|seg| seg.bytes.len()).sum();
@@ -488,7 +481,6 @@ pub fn bubble_arg_call<'a>(
                                             contract,
                                             scope_mgr,
                                             *offset,
-                                            false,
                                             relax_jumps,
                                         );
                                         // Note: macro_to_bytecode already pops the macro from scope_mgr
@@ -544,15 +536,8 @@ pub fn bubble_arg_call<'a>(
 
                                 if let Some(called_macro) = contract.find_macro_by_name(&inner_mi.macro_name) {
                                     scope_mgr.push_macro_with_invocation(called_macro, *offset, inner_mi.clone());
-                                    let result = Codegen::macro_to_bytecode(
-                                        evm_version,
-                                        called_macro,
-                                        contract,
-                                        scope_mgr,
-                                        *offset,
-                                        false,
-                                        relax_jumps,
-                                    );
+                                    let result =
+                                        Codegen::macro_to_bytecode(evm_version, called_macro, contract, scope_mgr, *offset, relax_jumps);
                                     // Note: macro_to_bytecode already pops the macro from scope_mgr
                                     match result {
                                         Ok(expanded_macro) => {
@@ -601,15 +586,8 @@ pub fn bubble_arg_call<'a>(
                                     tracing::debug!(target: "codegen", "Found valid macro: {}", called_macro.name);
 
                                     scope_mgr.push_macro_with_invocation(called_macro, *offset, inner_mi.clone());
-                                    let result = Codegen::macro_to_bytecode(
-                                        evm_version,
-                                        called_macro,
-                                        contract,
-                                        scope_mgr,
-                                        *offset,
-                                        false,
-                                        relax_jumps,
-                                    );
+                                    let result =
+                                        Codegen::macro_to_bytecode(evm_version, called_macro, contract, scope_mgr, *offset, relax_jumps);
                                     // Note: macro_to_bytecode already pops the macro from scope_mgr
                                     match result {
                                         Ok(expanded_macro) => {

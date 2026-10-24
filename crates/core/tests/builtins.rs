@@ -1,4 +1,4 @@
-use crate::common::{assert_compile_error, compile_to_bytecode};
+use crate::common::{assert_compile_error, compile_to_bytecode, compile_to_constructor_bytecode};
 use huff_neo_codegen::*;
 use huff_neo_lexer::*;
 use huff_neo_parser::*;
@@ -47,6 +47,26 @@ fn test_codesize_builtin() {
     let (cbytes, custom_bootstrap) = Codegen::generate_constructor_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
     assert_eq!(cbytes, String::from("6003"));
     assert!(!custom_bootstrap);
+}
+
+#[test]
+fn test_codesize_of_constructor_counts_builtins() {
+    // Measuring the constructor counts every statement, including builtins, labels and jumps
+    let source: &str = r#"
+        #define macro CONSTRUCTOR() = takes(0) returns(0) {
+            __FUNC_SIG("f()") pop   // PUSH4 + POP: 6 bytes
+            0x01 end jumpi          // 6 bytes
+            end:                    // 1 byte
+        }
+
+        #define macro MAIN() = takes(0) returns(0) {
+            __codesize(CONSTRUCTOR)
+        }
+    "#;
+
+    let (constructor, _) = compile_to_constructor_bytecode(source).unwrap();
+    assert_eq!(constructor.len() / 2, 13);
+    assert_eq!(compile_to_bytecode(source).unwrap(), "600d");
 }
 
 #[test]
@@ -147,7 +167,7 @@ fn test_argsstart_builtin_in_test() {
     let test = contract.macros.get("ARGS").unwrap();
     let mut scope_mgr = ScopeManager::new();
     scope_mgr.push_macro(test, 0);
-    let res = Codegen::macro_to_bytecode(&EVMVersion::default(), test, &contract, &mut scope_mgr, 0, false, false).unwrap();
+    let res = Codegen::macro_to_bytecode(&EVMVersion::default(), test, &contract, &mut scope_mgr, 0, false).unwrap();
     let err = Codegen::reject_args_start(&res).unwrap_err();
     assert_eq!(err.kind, CodegenErrorKind::ArgsStartOutsideConstructor);
 }
