@@ -1,4 +1,5 @@
-use crate::prelude::{ReportKind, TestResult, TestStatus};
+use crate::prelude::{HuffFunction, ReportKind, TestResult, TestStatus, decode_huff_internal_calls};
+use alloy_primitives::Address;
 use comfy_table::{Attribute, Cell, Color, ContentArrangement, Row, Table, modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL};
 use foundry_evm::decode::decode_console_logs;
 use foundry_evm::traces::{
@@ -76,7 +77,7 @@ pub async fn print_test_report(results: Vec<TestResult>, report_kind: ReportKind
 
                 let show_traces = verbosity >= 4 || (verbosity == 3 && !result.passed);
                 if show_traces && let Some(traces) = result.traces {
-                    print_call_trace(traces, verbosity >= 5).await?;
+                    print_call_trace(traces, result.address, &result.functions, verbosity >= 5).await?;
                 }
             }
         }
@@ -101,7 +102,12 @@ pub async fn print_test_report(results: Vec<TestResult>, report_kind: ReportKind
 }
 
 /// Print the call trace for a given test result.
-async fn print_call_trace(mut arena: SparsedTraceArena, with_storage_changes: bool) -> eyre::Result<()> {
+async fn print_call_trace(
+    mut arena: SparsedTraceArena,
+    address: Option<Address>,
+    functions: &[HuffFunction],
+    with_storage_changes: bool,
+) -> eyre::Result<()> {
     // Create a signature identifier to decode unknown function selectors and events
     let identifier = SignaturesIdentifier::new(false)?;
 
@@ -110,6 +116,9 @@ async fn print_call_trace(mut arena: SparsedTraceArena, with_storage_changes: bo
 
     // Decode and render the trace
     decode_trace_arena(&mut arena, &decoder).await;
+    if let Some(address) = address {
+        decode_huff_internal_calls(&mut arena, address, functions);
+    }
 
     println!("├─ {}", Paint::cyan("TRACES"));
     println!("{}", render_trace_arena_inner(&arena, false, with_storage_changes));

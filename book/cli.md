@@ -316,7 +316,15 @@ See [Tests](./huff-language/tests.md) for writing tests.
 * `--target-address <ADDRESS>`: Runs each test at this address instead of deploying it, for example to
   replay a deployed contract on a fork.
 * `--debug`: Opens a single test in the interactive debugger. Use `-m` to pick the test.
-* `--decode-internal`: Reserved for decoding internal calls in traces. It has no effect yet.
+* `--decode-internal`: Shows the calls of Huff functions (`#define fn`) in traces, with their stack arguments and
+  return values. Inline macros have no calls and do not appear. Needs a trace, so add `-vvv` or `-vvvv`:
+
+```text
+[188] 0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496::fallback()
+  ├─ [23] ADD(0x1, 0x2)
+  │   └─ ← 0x3
+  └─ ← [Stop]
+```
 * `-v`, `-vv`, ...: Adds detail to the `list` report, with the same levels as `forge test`:
 
 | Level    | Prints                                               |

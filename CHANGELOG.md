@@ -11,6 +11,8 @@
   - Example: `#[expect_storage([COUNTER_SLOT], 0x02), expect_balance(this, 5), expect_balance(caller, min = 1)]`
 - Run tests on Foundry's EVM executor, the engine of `forge test`, so tests can call Foundry cheatcodes.
 - Fail a test whose `vm.assert*` cheatcode fails.
+- Add Huff function calls to the traces of `hnc test --decode-internal`, with their stack arguments and return values.
+  - Example: `hnc ./src/Math.huff test -vvvv --decode-internal`
 - Update the book: show how to test a macro that jumps to a label defined in `MAIN`.
 - Update the book: reorganize the test page by topic and replace its example with a tested contract.
 - Update the book: document every CLI flag as implemented.

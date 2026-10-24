@@ -39,12 +39,8 @@ pub struct TestArgs {
     #[arg(long)]
     pub debug: bool,
 
-    /// Identify internal functions in traces.
-    ///
-    /// This will trace internal functions and decode stack parameters.
-    ///
-    /// Parameters stored in memory (such as bytes or arrays) are currently decoded only when a
-    /// single function is matched, similarly to `--debug`, for performance reasons.
+    /// Show the calls of Huff functions (`#define fn`) in traces, with their stack arguments and
+    /// return values.
     #[arg(long)]
     pub decode_internal: bool,
 

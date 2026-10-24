@@ -1,4 +1,4 @@
-use crate::prelude::{EnvOverrides, Failure, Outcome, RunnerError, SpecContext, TestResult, TestSpec, TestStatus};
+use crate::prelude::{EnvOverrides, Failure, HuffFunction, Outcome, RunnerError, SpecContext, TestResult, TestSpec, TestStatus};
 use alloy_evm::EvmEnv;
 use alloy_primitives::{Address, Bytes, U256, hex};
 use foundry_evm::backend::{Backend, DatabaseExt};
@@ -185,6 +185,7 @@ impl TestRunner {
             failures,
             traces: result.traces,
             logs: self.collect_logs.then_some(result.logs),
+            functions: Vec::new(),
             source_map: None,
             address: None,
             source_code: None,
@@ -209,6 +210,17 @@ impl TestRunner {
         let mut scope_mgr = ScopeManager::new();
         scope_mgr.push_macro(m, 0);
         let res = Codegen::macro_to_bytecode(evm_version, m, &contract, &mut scope_mgr, 0, false, false)?;
+
+        // Where each outlined function starts, so traces can show its calls
+        let functions: Vec<HuffFunction> = contract
+            .macros
+            .values()
+            .filter(|f| f.outlined)
+            .filter_map(|f| {
+                let entry_pc = res.label_indices.get_any(&format!("goto_{}", f.name))?;
+                Some(HuffFunction { name: f.name.clone(), entry_pc, takes: f.takes, returns: f.returns })
+            })
+            .collect();
 
         // Generate table bytecode for compiled test macro. Test macros run standalone (no
         // bootstrap, no upstream dedup target), so base_offset = 0 and the external map is empty.
@@ -270,6 +282,7 @@ impl TestRunner {
 
         // Add source map and address for debugging
         res.source_map = Some(source_map);
+        res.functions = functions;
         res.address = Some(address);
 
         // Get the full source code for debugging

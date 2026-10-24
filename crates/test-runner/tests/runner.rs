@@ -2,9 +2,12 @@ use alloy_primitives::{Address, KECCAK256_EMPTY, U256, address, hex, keccak256};
 use foundry_evm::constants::{CALLER, TEST_CONTRACT_ADDRESS};
 use foundry_evm::core::evm::EthEvmNetwork;
 use foundry_evm::executors::Executor;
+use foundry_evm::traces::{InternalTraceMode, TraceRequirements, render_trace_arena_inner};
 use huff_neo_lexer::Lexer;
 use huff_neo_parser::Parser;
-use huff_neo_test_runner::prelude::{DecoratorError, DecoratorErrorKind, Outcome, RunnerError, TestResult, TestRunner, TestStatus};
+use huff_neo_test_runner::prelude::{
+    DecoratorError, DecoratorErrorKind, Outcome, RunnerError, TestResult, TestRunner, TestStatus, decode_huff_internal_calls,
+};
 use huff_neo_utils::file::full_file_source::FullFileSource;
 use huff_neo_utils::prelude::{Contract, EVMVersion, SupportedEVMVersions, Token};
 use revm::DatabaseRef;
@@ -799,4 +802,37 @@ fn test_runner_uses_foundrys_test_and_sender_addresses() {
     let result = run_test_t(source);
     assert_eq!(result.address, Some(TEST_CONTRACT_ADDRESS));
     assert_eq!(result.return_data, Some(format!("{:0>64}{:0>64}", hex::encode(TEST_CONTRACT_ADDRESS), hex::encode(CALLER))));
+}
+
+#[test]
+fn test_runner_shows_huff_functions_as_internal_calls() {
+    let source = r#"
+    #define fn ONLY_OWNER() = takes (0) returns (0) { caller pop }
+    #define fn ADD() = takes (2) returns (1) { add }
+    #define fn ADD_TWICE() = takes (2) returns (1) { ADD() 0x01 ADD() }
+    #define fn FAIL() = takes (0) returns (0) { 0x00 0x00 revert }
+    #define test T() = { ONLY_OWNER() 0x01 0x02 ADD() pop 0x03 0x04 ADD_TWICE() pop }
+    #define test REVERTS() = { ONLY_OWNER() FAIL() }
+    "#;
+    let runner = TestRunner {
+        trace_requirements: TraceRequirements::none().with_decode_internal(InternalTraceMode::Simple),
+        ..TestRunner::default()
+    };
+
+    let render = |name: &str| {
+        let result = run_source_test_with(&runner, source, name).unwrap();
+        let mut arena = result.traces.unwrap();
+        decode_huff_internal_calls(&mut arena, result.address.unwrap(), &result.functions);
+        render_trace_arena_inner(&arena, false, false)
+    };
+
+    let trace = render("T");
+    for call in ["ONLY_OWNER()", "ADD(0x1, 0x2)", "← 0x3", "ADD_TWICE(0x3, 0x4)", "ADD(0x3, 0x4)", "ADD(0x7, 0x1)", "← 0x8"] {
+        assert!(trace.contains(call), "missing {call} in\n{trace}");
+    }
+
+    // A call that never returns is left out
+    let trace = render("REVERTS");
+    assert!(trace.contains("ONLY_OWNER()"), "{trace}");
+    assert!(!trace.contains("FAIL()"), "{trace}");
 }

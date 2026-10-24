@@ -19,6 +19,9 @@ pub mod spec;
 /// The test outcome module
 pub mod outcome;
 
+/// The module that shows Huff functions as internal calls in traces
+pub mod internal;
+
 use alloy_primitives::map::AddressHashMap;
 use foundry_compilers::{compilers::solc::SolcLanguage, multi::MultiCompilerLanguage};
 use foundry_debugger::Debugger;
@@ -35,7 +38,7 @@ pub use revm::context::TxEnv;
 
 /// Prelude wraps all modules within the crate
 pub mod prelude {
-    pub use crate::{errors::*, outcome::*, report::*, runner::*, spec::*, types::*};
+    pub use crate::{errors::*, internal::*, outcome::*, report::*, runner::*, spec::*, types::*};
 }
 
 /// A vector of shared references to test macro definitions

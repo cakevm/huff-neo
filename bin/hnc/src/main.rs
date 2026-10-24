@@ -267,13 +267,8 @@ fn main() {
             env.evm_env.cfg_env.set_spec_and_mainnet_gas_params(evm_spec);
 
             // Choose the internal function tracing mode, if --decode-internal is provided.
-            let decode_internal = if test_args.decode_internal {
-                // If more than one function matched, we enable simple tracing.
-                // If only one function matched, we enable full tracing. This is done in `run_tests`.
-                if contracts.len() == 1 { InternalTraceMode::Full } else { InternalTraceMode::Simple }
-            } else {
-                InternalTraceMode::None
-            };
+            // Calls of Huff functions are found from the recorded jumps and their stack
+            let decode_internal = if test_args.decode_internal { InternalTraceMode::Simple } else { InternalTraceMode::None };
 
             let chain_id = env.evm_env.cfg_env.chain_id;
             let fork = evm_opts.get_fork_resolved(&config, chain_id, resolved_fork.as_ref());
