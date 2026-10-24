@@ -1,21 +1,31 @@
 # Tests
 
-The compiler includes a simple, stripped-down testing framework to assist in creating assertions
-as well as gas profiling macros and functions. huff-rs’ test suite is intentionally lacking in features,
-and with that, this addition is not meant to replace developers’ dependency on `foundry-huff`. Ideally,
-for contracts that will be in production, Huff developers will utilize both foundry and Huff tests.
-If you are one of many who uses Huff as a tool for learning, Huff tests can also be a lighter weight
-experience when testing your contract’s logic.
+Huff tests are macros defined with `#define test`. Each test is compiled on its own, deployed, and called in one
+transaction. Decorators above a test set up that transaction and the state it starts from, and say how the test
+must end and what state it must leave behind.
 
-Tests can be run via the CLI's `test` subcommand. For more information, see the [CLI Resources](../cli.md).
+```javascript
+#define macro ADD() = takes (2) returns (1) { add }
+
+#[expect_return(3)]
+#define test ADDS() = {
+    0x01 0x02 ADD()        // [3]
+    0x00 mstore
+    0x20 0x00 return
+}
+```
+
+Run the tests of a file with `hnc test`. For more information, see the [CLI Resources](../cli.md).
+
+Huff tests check the code of a contract from the inside. For tests that call a deployed contract, or that need
+Foundry cheatcodes, use Foundry with [foundry-huff-neo](https://github.com/cakevm/foundry-huff-neo). `hnc test` does
+not support cheatcodes yet: a test that calls the cheatcode address `0x7109709ECfa91a80626fF3989D68f67F5b1DD12D`
+fails instead of silently doing nothing.
 
 ## Decorators
-The transaction environment for each test can be modified with a decorator. Decorators sit directly above
-tests, and are formatted as follows: `#[flag_a(inputs...), flag_b(inputs...)]`. Flags without a comma
-between them still parse for compatibility with older sources, but write the comma.
-
-A test can have several decorator blocks. They are merged in source order, so these two tests are
-configured the same way, and a trailing comma is allowed:
+Decorators sit directly above a test and hold one or more flags: `#[flag_a(inputs...), flag_b(inputs...)]`. A test
+can have several decorator blocks. They are merged in source order, so these two tests are configured the same way,
+and a trailing comma is allowed:
 
 ```javascript
 #[calldata("0x01"), value(0x01)]
@@ -26,74 +36,48 @@ configured the same way, and a trailing comma is allowed:
 #define test STACKED_BLOCKS() = { stop }
 ```
 
-Decorators only apply to tests. A decorator above a `#define macro` or `#define fn` is a compile error.
+A suggested style is one block per concern, in the order transaction, state, expectations. Flags without a comma
+between them still parse for compatibility with older sources, but write the comma.
 
-Available decorators include:
-* `calldata(bytes...)` - Set the calldata of the test transaction. The arguments are joined into one byte sequence
-  (see below), e.g. `calldata(__FUNC_SIG(transfer), caller, 100)`.
-* `value(word)` - Set the callvalue of the test transaction, e.g. `value(0x01)` or `value([AMOUNT])`.
-* `store(slot, value, at = address)` - Set a storage slot before the test runs. `at` is optional and defaults to the
-  test itself. `store` can be repeated, but setting the same slot of the same address twice is an error.
-* `deal(address, wei)` - Set the balance of an account before the test runs. The sender of the test has an unlimited
-  balance unless it is dealt one.
-* `etch(address, bytes...)` - Put code at an address before the test runs, e.g. `etch(0x1000, "0x5f5ff3")`. The
-  arguments are joined into one byte sequence like those of `calldata`. The test itself and its sender cannot be etched.
-* `nonce(address, n)` - Set the nonce of an account before the test runs.
+Decorators only apply to tests. A decorator above a `#define macro` or `#define fn` is a compile error. An unknown
+flag, a flag with the wrong arguments, or a flag given twice where only one is allowed fails `hnc test` and points at
+the flag in the source.
 
-`store`, `deal`, `etch` and `nonce` can be repeated, but setting the same slot, balance, code or nonce of the same
-address twice is an error.
+### Transaction and block
+These decorators set the test transaction and its block. Each may be given once per test.
 
-The test transaction and its block can be changed with these decorators, each taking one value:
-
-| Decorator           | Sets                                               | Example                 |
-|---------------------|----------------------------------------------------|-------------------------|
-| `caller(address)`   | the sender of the test, both `caller` and `origin` | `caller(0xbeef)`        |
-| `gas_limit(n)`      | the gas limit of the test transaction              | `gas_limit(100000)`     |
-| `gas_price(n)`      | `gasprice`                                         | `gas_price(10)`         |
-| `block_number(n)`   | `number`                                           | `block_number(100)`     |
-| `timestamp(n)`      | `timestamp`                                        | `timestamp(1700000000)` |
-| `basefee(n)`        | `basefee`                                          | `basefee(7)`            |
-| `blob_basefee(n)`   | `blobbasefee`                                      | `blob_basefee(1)`       |
-| `coinbase(address)` | `coinbase`                                         | `coinbase(0xc0ffee)`    |
-| `chain_id(n)`       | `chainid`                                          | `chain_id(1)`           |
-| `prevrandao(word)`  | `prevrandao`                                       | `prevrandao(0x2a)`      |
-| `slot_number(n)`    | `slotnum` (Amsterdam)                              | `slot_number(100)`      |
+| Decorator            | Sets                                               | Example                          |
+|----------------------|----------------------------------------------------|----------------------------------|
+| `calldata(bytes...)` | the calldata of the test transaction               | `calldata(__FUNC_SIG(transfer))` |
+| `value(n)`           | `callvalue`                                        | `value(100)`                     |
+| `caller(address)`    | the sender of the test, both `caller` and `origin` | `caller(0xbeef)`                 |
+| `gas_limit(n)`       | the gas limit of the test transaction              | `gas_limit(100000)`              |
+| `gas_price(n)`       | `gasprice`                                         | `gas_price(10)`                  |
+| `block_number(n)`    | `number`                                           | `block_number(100)`              |
+| `timestamp(n)`       | `timestamp`                                        | `timestamp(1700000000)`          |
+| `basefee(n)`         | `basefee`                                          | `basefee(7)`                     |
+| `blob_basefee(n)`    | `blobbasefee`                                      | `blob_basefee(1)`                |
+| `coinbase(address)`  | `coinbase`                                         | `coinbase(0xc0ffee)`             |
+| `chain_id(n)`        | `chainid`                                          | `chain_id(1)`                    |
+| `prevrandao(word)`   | `prevrandao`                                       | `prevrandao(0x2a)`               |
+| `slot_number(n)`     | `slotnum` (Amsterdam)                              | `slot_number(100)`               |
 
 These values are fixed for the whole test, as they are for a real transaction. A value that is not set keeps the
 default of the test runner, which `hnc test` takes from the Foundry configuration and its CLI flags.
 
-`calldata`, `value` and the decorators above may only be given once per test. An unknown decorator flag, or a flag
-with the wrong arguments, fails `hnc test` and points at the flag in the source.
+### State before the test
+These decorators set up accounts before the test runs. Each can be repeated, but setting the same slot, balance,
+code or nonce of the same address twice is an error that points at both flags.
 
-### Decorator values
-A value that stands for a 32-byte word (`value`, the slot, value and address of `store`, and the values of the
-transaction and block decorators) can be written as:
-* a hex literal (`0xbeef`), a decimal literal (`100`), or `true` / `false`
-* a constant (`[OWNER_SLOT]`), including `FREE_STORAGE_POINTER()` constants
-* a builtin call such as `__FUNC_SIG(transfer)` or `__EVENT_HASH(Transfer)`
-* `this` for the address of the test, or `caller` for the sender of the test transaction, as set by `caller(..)`
+| Decorator                          | Sets                                                              |
+|------------------------------------|-------------------------------------------------------------------|
+| `store(slot, value, at = address)` | a storage slot; `at` defaults to the test itself                  |
+| `deal(address, wei)`               | the balance of an account                                         |
+| `etch(address, bytes...)`          | the code at an address, e.g. `etch(0x1000, "0x5f5ff3")`           |
+| `nonce(address, n)`                | the nonce of an account                                           |
 
-A word is the same value Huff would push for it, so `store([OWNER_SLOT], 0xbeef)` sets the slot that
-`[OWNER_SLOT] sload` reads. Shorter values are left-padded with zeros. This also applies to addresses:
-`at = 0x1000` is the address `0x0000000000000000000000000000000000001000`. A value that does not fit in 20 bytes is not an address and fails the test.
-
-The arguments of `calldata` are joined into one byte sequence:
-* `__FUNC_SIG(..)` and `__ERROR(..)` add their 4-byte selector
-* a hex literal adds its bytes as written, so `0x0001` adds two bytes
-* a string such as `"0x0102"` adds its hex bytes
-* every other value adds a 32-byte word, so `100` adds 32 bytes
-
-```javascript
-#define function transfer(address,uint256) nonpayable returns ()
-#define constant OWNER_SLOT = FREE_STORAGE_POINTER()
-
-#[calldata(__FUNC_SIG(transfer), caller, 100)]
-#[store([OWNER_SLOT], 0xbeef), store(0x01, 0x02, at = 0x1000)]
-#define test TRANSFER() = {
-    [OWNER_SLOT] sload  // [0xbeef]
-    ...
-}
-```
+The sender of the test has an unlimited balance unless it is dealt one. The test itself and its sender cannot be
+etched.
 
 ### Expectations
 A test passes when it ends the way its decorators expect. Without an expectation, a test must return: `stop`,
@@ -108,6 +92,30 @@ A test passes when it ends the way its decorators expect. Without an expectation
 | `expect_halt("Reason")`           | halts for this reason                                             |
 | `expect_return(bytes...)`         | returns exactly this data; `expect_return` alone means no data    |
 | `expect_gas(min = n, max = m)`    | uses at least `min` and at most `max` gas; either can be left out |
+
+A test can expect only one way to end, so `expect_revert`, `expect_partial_revert`, `expect_halt` and
+`expect_return` exclude each other. A revert never matches `expect_halt`, and a halt never matches `expect_revert`.
+
+```javascript
+#define error InsufficientBalance(uint256)
+
+#[expect_revert(__ERROR(InsufficientBalance), 100)]  // selector + the uint256 argument
+#define test REVERTS() = {
+    __ERROR(InsufficientBalance) 0x00 mstore
+    0x64 0x04 mstore     // 100
+    0x24 0x00 revert
+}
+
+#[expect_halt("InvalidJump")]
+#define test BAD_JUMP() = { 0x00 jump }
+```
+
+Halt reasons are the names of the EVM's halt reasons, such as `OutOfGas`, `InvalidJump`, `InvalidFEOpcode` (the
+`invalid` opcode), `OpcodeNotFound`, `StackUnderflow`, `StackOverflow` and `NotActivated`. `OutOfGas` matches every
+kind of out-of-gas halt.
+
+The gas checked by `expect_gas` is the gas the test reports, which leaves out the fixed cost of the test transaction.
+An exceptional halt uses up all the gas of the transaction.
 
 The state after the test can be checked too. These expectations can be repeated, once per slot or address:
 
@@ -124,7 +132,6 @@ Storage values are compared as unsigned 256-bit numbers. `at` also works togethe
 ```javascript
 #define constant COUNTER_SLOT = FREE_STORAGE_POINTER()
 #define macro INCREMENT() = { [COUNTER_SLOT] sload 0x01 add [COUNTER_SLOT] sstore }
-#define macro MAIN() = { INCREMENT() stop }
 
 #[value(5), store([COUNTER_SLOT], 0x01)]
 #[expect_storage([COUNTER_SLOT], 0x02), expect_balance(this, 5)]
@@ -135,33 +142,34 @@ A reverted or halted test keeps no state, so `expect_storage` and `expect_balanc
 `expect_revert`, `expect_partial_revert` or `expect_halt`. When a test reverts without expecting it, only the
 unexpected revert is reported.
 
-The arguments of `expect_revert`, `expect_partial_revert` and `expect_return` are byte sequences, built like the
-arguments of `calldata`:
+### Decorator values
+A value that stands for a 32-byte word, such as a slot, an amount, an address or a bound, can be written as:
+* a hex literal (`0xbeef`), a decimal literal (`100`), or `true` / `false`
+* a constant (`[OWNER_SLOT]`), including `FREE_STORAGE_POINTER()` constants
+* a builtin call such as `__FUNC_SIG(transfer)` or `__EVENT_HASH(Transfer)`
+* `this` for the address of the test, or `caller` for the sender of the test transaction, as set by `caller(..)`
 
-```javascript
-#define error InsufficientBalance(uint256)
+A word is the same value Huff would push for it, so `store([OWNER_SLOT], 0xbeef)` sets the slot that
+`[OWNER_SLOT] sload` reads. Shorter values are left-padded with zeros. This also applies to addresses:
+`at = 0x1000` is the address `0x0000000000000000000000000000000000001000`. A value that does not fit in 20 bytes is
+not an address and fails the test.
 
-#[calldata(__FUNC_SIG(withdraw), 1000)]
-#[expect_revert(__ERROR(InsufficientBalance), 100)]  // selector + the uint256 argument
-#define test WITHDRAW_TOO_MUCH() = { MAIN() }
+The arguments of `calldata`, `etch`, `expect_revert`, `expect_partial_revert` and `expect_return` are joined into one
+byte sequence:
+* `__FUNC_SIG(..)` and `__ERROR(..)` add their 4-byte selector
+* a hex literal adds its bytes as written, so `0x0001` adds two bytes
+* a string such as `"0x0102"` adds its hex bytes
+* every other value adds a 32-byte word, so `100` adds 32 bytes
 
-#[expect_halt("InvalidJump")]
-#define test BAD_JUMP() = { 0x00 jump }
-```
+So `calldata(__FUNC_SIG(transfer), caller, 100)` is the ABI encoding of `transfer(caller, 100)`.
 
-A test can expect only one way to end, so `expect_revert`, `expect_partial_revert`, `expect_halt` and
-`expect_return` exclude each other. A revert never matches `expect_halt`, and a halt never matches `expect_revert`.
-
-Halt reasons are the names of the EVM's halt reasons, such as `OutOfGas`, `InvalidJump`, `InvalidFEOpcode` (the
-`invalid` opcode), `OpcodeNotFound`, `StackUnderflow`, `StackOverflow` and `NotActivated`. `OutOfGas` matches every
-kind of out-of-gas halt.
-
-The gas checked by `expect_gas` is the gas the test reports, which leaves out the fixed cost of the test transaction.
-An exceptional halt uses up all the gas of the transaction.
-
+## Failures and output
 A failing test lists every expectation it did not meet:
 
 ```javascript
+#define error Unauthorized()
+#define error InsufficientBalance(uint256)
+
 #[expect_revert(__ERROR(Unauthorized)), expect_gas(max = 1)]
 #define test FAILS_TWICE() = { __ERROR(InsufficientBalance) 0x00 mstore 0x04 0x00 revert }
 ```
@@ -173,12 +181,9 @@ A failing test lists every expectation it did not meet:
 ```
 
 With `--format json`, each result has a `passed` flag, an `outcome` (`return`, `revert` or `halt`, with its data or
-reason) and the list of `failures`.
+reason) and the list of `failures`. `hnc test` exits with status 1 when a test fails.
 
-`hnc test` does not support Foundry cheatcodes yet. A test that calls the cheatcode address
-`0x7109709ECfa91a80626fF3989D68f67F5b1DD12D` fails instead of silently doing nothing.
-
-### Labels defined in MAIN
+## Labels defined in MAIN
 A macro often jumps to a label that `MAIN` defines, such as a shared error exit. A test that invokes the macro
 directly does not compile, because the label does not exist in the test: `Unmatched Jump Labels: "unauthorized"`.
 
@@ -229,19 +234,57 @@ other macros the test invokes see its labels too:
 ```
 
 ## Example
+A counter that only its owner can increment, tested through `MAIN`:
+
 ```javascript
-#include "huffmate/utils/Errors.huff"
+#define function increment() nonpayable returns ()
+#define function count() view returns (uint256)
 
-#define macro ADD_TWO() = takes (2) returns (1) {
-    // Input Stack:  [a, b]
-    add           // [a + b]
-    // Return Stack: [a + b]
+#define error Unauthorized()
+
+#define constant OWNER_SLOT = FREE_STORAGE_POINTER()
+#define constant COUNT_SLOT = FREE_STORAGE_POINTER()
+
+// Jumps to MAIN's `unauthorized` label unless the caller is the owner
+#define macro ONLY_OWNER() = takes (0) returns (0) {
+    [OWNER_SLOT] sload caller eq iszero unauthorized jumpi
 }
 
-#[calldata("0x0000000000000000000000000000000000000000000000000000000000000001"), value(0x01)]
-#define test MY_TEST() = {
-    0x00 calldataload   // [0x01]
-    callvalue           // [0x01, 0x01]
-    eq ASSERT()
+#define macro INCREMENT() = takes (0) returns (0) {
+    ONLY_OWNER()
+    [COUNT_SLOT] sload 0x01 add [COUNT_SLOT] sstore
+    stop
 }
+
+#define macro COUNT() = takes (0) returns (0) {
+    [COUNT_SLOT] sload 0x00 mstore
+    0x20 0x00 return
+}
+
+#define macro MAIN() = takes (0) returns (0) {
+    0x00 calldataload 0xe0 shr
+    dup1 __FUNC_SIG(increment) eq increment jumpi
+    dup1 __FUNC_SIG(count) eq count jumpi
+    0x00 0x00 revert
+
+    increment:
+        INCREMENT()
+    count:
+        COUNT()
+    unauthorized:
+        __ERROR(Unauthorized) 0x00 mstore 0x04 0x00 revert
+}
+
+#[calldata(__FUNC_SIG(count)), store([COUNT_SLOT], 7)]
+#[expect_return(7)]
+#define test RETURNS_THE_COUNT() = { MAIN() }
+
+#[calldata(__FUNC_SIG(increment)), caller(0xbeef)]
+#[store([OWNER_SLOT], 0xbeef), store([COUNT_SLOT], 1)]
+#[expect_storage([COUNT_SLOT], 2), expect_gas(max = 30000)]
+#define test OWNER_INCREMENTS() = { MAIN() }
+
+#[calldata(__FUNC_SIG(increment)), caller(0xdead), store([OWNER_SLOT], 0xbeef)]
+#[expect_revert(__ERROR(Unauthorized))]
+#define test STRANGER_CANNOT_INCREMENT() = { MAIN() }
 ```
