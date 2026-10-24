@@ -3,6 +3,8 @@
 # Huff Neo Compiler changelog
 
 ## Unreleased
+
+## [1.7.1] - 2026-10-24
 - Add the `skip` test decorator, with an optional reason, to skip a test without compiling or running it.
   - Example: `#[skip("needs a mainnet fork")]`
 - Add remappings for the libraries in `lib/` that have none, as forge infers them, so `#include "foundry-huff-neo/test.huff"` works after `forge install`.
@@ -13,6 +15,7 @@
 - Fix a relative `#include` inside a file included by an absolute path resolving against the working directory.
 - Fix a remapping applying to every occurrence of its prefix in a path, and pick the longest matching prefix as forge does.
 - Fix a test with the name of a macro replacing the macro, which made invoking the macro fail with "Test Invocation".
+- Update the book: document skipping tests, failed cheatcodes, and foundry-huff-neo's cheatcode macros with how `lib/` libraries are found.
 
 ## [1.7.0] - 2026-10-24
 - Add the `deal(address, wei)`, `etch(address, bytes...)` and `nonce(address, n)` test decorators to set balances, code and nonces before a test runs.
