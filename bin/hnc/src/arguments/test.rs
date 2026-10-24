@@ -24,13 +24,15 @@ pub struct TestArgs {
     #[arg(long)]
     pub target_address: Option<Address>,
 
-    /// Verbosity level of the test report. Call traces are always printed.
+    /// Verbosity level of the test report, the same levels as forge.
     ///
     /// Pass multiple times to increase the verbosity (e.g. -v, -vv, -vvv).
     ///
     /// Verbosity levels:
-    /// - 3: Print console logs
-    /// - 5: Print storage changes in traces
+    /// - 2 (-vv): Print console logs for all tests.
+    /// - 3 (-vvv): Print execution traces for failing tests.
+    /// - 4 (-vvvv): Print execution traces for all tests.
+    /// - 5 (-vvvvv): Print execution traces for all tests, including storage changes.
     #[arg(help_heading = "Display options", global = true, short, long, verbatim_doc_comment, action = ArgAction::Count)]
     pub verbosity: Verbosity,
 

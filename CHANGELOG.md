@@ -11,9 +11,10 @@
   - Example: `#[expect_storage([COUNTER_SLOT], 0x02), expect_balance(this, 5), expect_balance(caller, min = 1)]`
 - Run tests on Foundry's EVM executor, the engine of `forge test`, so tests can call Foundry cheatcodes.
 - Fail a test whose `vm.assert*` cheatcode fails.
-- Update the `hnc test` verbosity levels to match forge: `-vvvv` no longer prints every executed opcode, and `-vvvvv` shows storage changes in traces.
 - Update the book: show how to test a macro that jumps to a label defined in `MAIN`.
 - Update the book: reorganize the test page by topic and replace its example with a tested contract.
+- **Breaking**: Use forge's verbosity levels in `hnc test`, so traces are no longer printed by default and `-vvvv` no longer prints every executed opcode.
+  - Example: `-vv` console logs, `-vvv` traces of failing tests, `-vvvv` traces of all tests, `-vvvvv` with storage changes
 - **Breaking**: Deploy tests at Foundry's test address `0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496`, which changes the addresses of contracts a test creates.
 - Fix `FREE_STORAGE_POINTER()` constants used only by tests failing with "Storage Pointers Not Derived".
 - Fix a test that calls a `fn` halting with `StackUnderflow` when it ends without `stop`.

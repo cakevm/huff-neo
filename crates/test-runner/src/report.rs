@@ -8,12 +8,10 @@ use std::time::Instant;
 use yansi::Paint;
 
 /// Print a report of the test results, formatted according to the `report_kind` parameter.
-pub async fn print_test_report(
-    results: Vec<TestResult>,
-    report_kind: ReportKind,
-    with_storage_changes: bool,
-    start: Instant,
-) -> eyre::Result<()> {
+///
+/// The verbosity follows forge: call traces at 3 for failing tests and at 4 for every test,
+/// with storage changes at 5.
+pub async fn print_test_report(results: Vec<TestResult>, report_kind: ReportKind, verbosity: u8, start: Instant) -> eyre::Result<()> {
     // Gather how many of our tests passed *before* generating our report,
     // as we pass ownership of `results` to both the `ReportKind::Table`
     // and `ReportKind::List` arms.
@@ -76,8 +74,9 @@ pub async fn print_test_report(
                     }
                 }
 
-                if let Some(traces) = result.traces {
-                    print_call_trace(traces, with_storage_changes).await?;
+                let show_traces = verbosity >= 4 || (verbosity == 3 && !result.passed);
+                if show_traces && let Some(traces) = result.traces {
+                    print_call_trace(traces, verbosity >= 5).await?;
                 }
             }
         }

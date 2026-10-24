@@ -292,16 +292,16 @@ fn main() {
             let fork = evm_opts.get_fork_resolved(&config, chain_id, resolved_fork.as_ref());
             let tester_config = HuffTesterConfig::new().set_debug(test_args.debug).with_fork(fork);
 
-            // Like forge: call traces are always recorded for the report, console logs from -vvv,
-            // storage changes from -vvvvv; the debugger needs every step
+            // Like forge: console logs from -vv, call traces from -vvv, storage changes from
+            // -vvvvv; the debugger needs every step
             let cheats_config = cheats_config(CheatsConfig::new(&config, evm_opts.clone(), None, None, false));
             let mut runner = TestRunner::new(env, test_args.target_address, evm_version, Arc::new(cheats_config));
             runner.trace_requirements = TraceRequirements::none()
-                .with_calls(true)
+                .with_calls(test_args.verbosity >= 3)
                 .with_state_changes(test_args.verbosity > 4)
                 .with_debug(test_args.debug)
                 .with_decode_internal(decode_internal);
-            runner.collect_logs = test_args.verbosity > 2;
+            runner.collect_logs = test_args.verbosity >= 2;
             runner.networks = evm_opts.networks;
 
             let tester = HuffTester::new(contract, test_args.match_.clone(), tester_config, runner);
@@ -312,7 +312,7 @@ fn main() {
                 Ok(res) => {
                     any_failed |= res.iter().any(|r| r.status != TestStatus::Success);
                     rt.block_on(async {
-                        match print_test_report(res, ReportKind::from(&test_args.format), test_args.verbosity > 4, start).await {
+                        match print_test_report(res, ReportKind::from(&test_args.format), test_args.verbosity, start).await {
                             Ok(_) => {}
                             Err(e) => {
                                 eprintln!("{}", Paint::red(&format!("{e}")));

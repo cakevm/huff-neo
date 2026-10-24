@@ -309,11 +309,21 @@ hnc ./src/ERC20.huff -v
 
 ### `test`
 
-- Format: `hnc ./path/to/Contract.huff test [-f <list|table|json>] [-m <TEST_NAME>]`
+- Format: `hnc ./path/to/Contract.huff test [--format <list|table|json>] [-m <TEST_NAME>] [-v...]`
 
 The test subcommand is the entry point to running tests within a Huff contract.
 It exits with status `1` when any test fails, so scripts and CI can rely on the exit code.
 
 #### Optional Flags
-* `-f` or `--format`: Formats the test report as a list, table, or JSON.
+* `--format`: Formats the test report as a list, table, or JSON.
 * `-m` or `--match`: Runs a specific test with the name passed to this flag.
+* `-v`, `-vv`, ...: Adds detail to the test report, with the same levels as `forge test`:
+
+| Level    | Prints                                               |
+|----------|------------------------------------------------------|
+| `-vv`    | console logs of all tests                            |
+| `-vvv`   | execution traces of failing tests                    |
+| `-vvvv`  | execution traces of all tests                        |
+| `-vvvvv` | execution traces of all tests, with storage changes  |
+
+Without `-v`, the report shows whether each test passed, its gas, and why a failing test failed.

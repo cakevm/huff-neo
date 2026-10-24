@@ -23,7 +23,7 @@ Foundry's test address `0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496` and called f
 
 A test can call [Foundry cheatcodes](https://getfoundry.sh/reference/cheatcodes/overview) at
 `0x7109709ECfa91a80626fF3989D68f67F5b1DD12D`, for example to change the block in the middle of a test. A failed
-`vm.assert*` fails the test; run with `-vvv` to see its message. For tests written in Solidity that call a deployed
+`vm.assert*` fails the test; run with `-vv` to see its message. For tests written in Solidity that call a deployed
 Huff contract, use Foundry with [foundry-huff-neo](https://github.com/cakevm/foundry-huff-neo).
 
 ## Decorators
@@ -186,6 +186,9 @@ A failing test lists every expectation it did not meet:
 
 With `--format json`, each result has a `passed` flag, an `outcome` (`return`, `revert` or `halt`, with its data or
 reason) and the list of `failures`. `hnc test` exits with status 1 when a test fails.
+
+Run with `-vv` to see console logs, `-vvv` to see the execution trace of failing tests, `-vvvv` for the traces of all
+tests, and `-vvvvv` to add storage changes to the traces, as in `forge test`. See the [CLI Resources](../cli.md).
 
 ## Labels defined in MAIN
 A macro often jumps to a label that `MAIN` defines, such as a shared error exit. A test that invokes the macro

@@ -151,7 +151,7 @@ impl TestRunner {
         if executor.has_global_failure(&result.state_changeset) {
             failures.push(Failure {
                 expectation: String::from("vm.assert"),
-                message: String::from("a vm.assert* cheatcode failed; run with -vvv to see its message"),
+                message: String::from("a vm.assert* cheatcode failed; run with -vv to see its message"),
             });
         }
         let passed = matches!(outcome, Outcome::Return { .. }) && failures.is_empty();
