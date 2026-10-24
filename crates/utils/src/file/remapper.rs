@@ -115,7 +115,7 @@ impl Remapper {
         };
         for entry in entries.filter_map(Result::ok).filter(|entry| entry.path().is_dir()) {
             let name = entry.file_name().to_string_lossy().into_owned();
-            if inner.contains_key(&name) || inner.contains_key(&format!("{name}/")) {
+            if name.starts_with('.') || inner.contains_key(&name) || inner.contains_key(&format!("{name}/")) {
                 continue;
             }
             let to = if entry.path().join("src").is_dir() { format!("lib/{name}/src/") } else { format!("lib/{name}/") };

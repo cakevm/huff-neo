@@ -169,17 +169,11 @@ impl TestRunner {
             Some(SkipReason(reason)) => Outcome::Skip { reason },
             None => outcome_of(&result),
         };
-        // A failed `vm.assert*` does not revert; Foundry marks the failure in the cheatcode state
+        // Foundry's failure flag, which a DSTest-style `fail()` sets by writing the `failed` slot of the
+        // cheatcode address, fails the test as in forge
         let mut failures = Vec::new();
         if executor.has_global_failure(&result.state_changeset) {
-            failures.push(Failure {
-                expectation: String::from("vm.assert"),
-                message: String::from(if self.collect_logs {
-                    "a vm.assert* cheatcode failed, see its message in the console logs"
-                } else {
-                    "a vm.assert* cheatcode failed, run with -vv to see its message"
-                }),
-            });
+            failures.push(Failure { expectation: String::from("failed"), message: String::from("the test set Foundry's failure flag") });
         }
         let passed = matches!(outcome, Outcome::Return { .. }) && failures.is_empty();
         let (return_data, revert_reason) = match &outcome {

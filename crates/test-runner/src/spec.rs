@@ -29,8 +29,6 @@ pub struct TestSpec {
     pub env: EnvOverrides,
     /// How the test call must end, and its gas bounds
     pub expectations: Expectations,
-    /// Set when a `skip` flag skips the test, with its reason when given
-    pub skip: Option<Option<String>>,
 }
 
 /// Transaction and block fields a test's decorators override; `None` keeps the runner's value
@@ -436,7 +434,8 @@ impl TestSpec {
                     spec.expectations.outcome = eval.expected_outcome(flag, outcome)?;
                     spec.expectations.outcome_flag = Some(flag.name.clone());
                 }
-                DecoratorKind::Skip => spec.skip = Some(skip_reason(flag)?),
+                // The runner skips the test before it gets here, see `skipped`
+                DecoratorKind::Skip => {}
                 DecoratorKind::ExpectGas => {
                     let usage = "`expect_gas` takes `min =` and/or `max =`, e.g. expect_gas(max = 30000)";
                     let args = FlagArgs::new(flag, 0..=0, &["min", "max"], usage)?;
@@ -688,7 +687,6 @@ impl Evaluator<'_> {
     }
 }
 
-/// The only argument of a flag that takes one value
 /// The reason a `skip` flag gives, if any
 fn skip_reason(flag: &DecoratorFlag) -> Result<Option<String>, RunnerError> {
     let usage = "`skip` takes nothing, or a reason, e.g. skip(\"needs a mainnet fork\")";
@@ -709,6 +707,7 @@ pub fn skipped(decorator: Option<&Decorator>) -> Result<Option<Option<String>>, 
         .transpose()
 }
 
+/// The only argument of a flag that takes one value
 fn single_arg<'a>(flag: &'a DecoratorFlag, takes: &str) -> Result<&'a DecoratorArg, RunnerError> {
     let args = FlagArgs::new(flag, 1..=1, &[], &format!("`{}` takes {takes}", flag.name))?;
     Ok(args.positional[0])

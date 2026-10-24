@@ -25,18 +25,21 @@ fn test_remappings_from_file() {
 #[test]
 fn test_remappings_inferred_from_libs() {
     // A library with a src folder maps to it, one without maps to the library; explicit remappings win
-    let root = std::env::temp_dir().join(format!("hnc-remapper-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&root);
+    let tmp = assert_fs::TempDir::new().unwrap();
+    let root = tmp.path();
     std::fs::create_dir_all(root.join("lib/with-src/src")).unwrap();
     std::fs::create_dir_all(root.join("lib/without-src")).unwrap();
     std::fs::create_dir_all(root.join("lib/explicit/src")).unwrap();
+    std::fs::create_dir_all(root.join("lib/.cache")).unwrap();
     std::fs::write(root.join("remappings.txt"), "explicit/=lib/explicit/contracts/\n").unwrap();
 
     let remapper = remapper::Remapper::new(root.to_str().unwrap());
     assert_eq!(remapper.remappings.get("with-src/").unwrap(), "lib/with-src/src/");
     assert_eq!(remapper.remappings.get("without-src/").unwrap(), "lib/without-src/");
     assert_eq!(remapper.remappings.get("explicit/").unwrap(), "lib/explicit/contracts/");
-    std::fs::remove_dir_all(&root).unwrap();
+    // Hidden folders are not libraries
+    assert!(!remapper.remappings.contains_key(".cache/"));
+    tmp.close().unwrap();
 }
 
 #[test]

@@ -5030,6 +5030,7 @@ version = "1.7.1"
 dependencies = [
  "alloy-dyn-abi",
  "alloy-primitives",
+ "assert_fs",
  "cfg-if",
  "indexmap 2.14.0",
  "itertools 0.14.0",

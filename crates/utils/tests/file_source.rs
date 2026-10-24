@@ -131,4 +131,6 @@ fn test_localize_file() {
     assert_eq!(localized, "/abs/inc/b.huff");
     let localized = FileSource::localize_file("/abs/inc/a.huff", "../b.huff").unwrap();
     assert_eq!(localized, "/abs/b.huff");
+    let localized = FileSource::localize_file("/a.huff", "b.huff").unwrap();
+    assert_eq!(localized, "/b.huff");
 }

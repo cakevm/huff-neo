@@ -71,7 +71,7 @@ pub enum ReportKind {
 
 impl TestStatus {
     /// The status of a test that met, or did not meet, every expectation
-    pub fn from_passed(passed: bool) -> Self {
+    fn from_passed(passed: bool) -> Self {
         if passed { Self::Success } else { Self::Revert }
     }
 

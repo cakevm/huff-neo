@@ -3,7 +3,7 @@ use crate::time;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fmt;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 /// File Encapsulation
@@ -103,7 +103,7 @@ impl FileSource {
     pub fn localize_file(parent: &str, child: &str) -> Option<String> {
         let mut prefixed_parent;
         // A relative parent is relative to the working directory; an absolute one stays absolute
-        if !parent.starts_with('.') && !parent.starts_with('/') {
+        if !parent.starts_with('.') && !Path::new(parent).is_absolute() {
             prefixed_parent = "./".to_owned();
             prefixed_parent.push_str(parent);
         } else {
@@ -148,13 +148,13 @@ impl FileSource {
                 }
                 res_str = res_str.replacen("../", "", 1);
             }
-            Some(format!("{prefix}/{res_str}"))
+            Some(format!("{}/{res_str}", prefix.trim_end_matches('/')))
         } else if child.starts_with("./") {
-            Some(child.replacen("./", &format!("{prefix}/"), 1))
+            Some(child.replacen("./", &format!("{}/", prefix.trim_end_matches('/')), 1))
         } else if child.starts_with('/') {
             Some(child.to_string())
         } else {
-            Some(format!("{prefix}/{child}"))
+            Some(format!("{}/{child}", prefix.trim_end_matches('/')))
         }
     }
 }

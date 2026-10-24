@@ -94,13 +94,13 @@ pub async fn print_test_report(results: Vec<TestResult>, report_kind: ReportKind
             return Ok(());
         }
     }
-    let ran = n_passed + n_failed;
     let skipped = if n_skipped > 0 { format!(", {} skipped", Paint::yellow(&n_skipped)) } else { String::new() };
+    // The share of the tests that ran, which leaves out the skipped ones
+    let share = (n_passed * 100).checked_div(n_passed + n_failed).map(|share| format!(" ({}%)", Paint::yellow(&share))).unwrap_or_default();
     println!(
-        "➜ {} tests passed, {} tests failed{skipped} ({}%). ⏱ : {}",
+        "➜ {} tests passed, {} tests failed{skipped}{share}. ⏱ : {}",
         Paint::green(&n_passed),
         Paint::red(&n_failed),
-        Paint::yellow(&(n_passed * 100).checked_div(ran).unwrap_or(100)),
         Paint::magenta(&format!("{:.4?}", start.elapsed()))
     );
 

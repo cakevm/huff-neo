@@ -108,13 +108,11 @@ impl Parser {
                     TokenKind::Macro | TokenKind::Fn => {
                         let m = self.parse_macro(&mut contract)?;
                         tracing::info!(target: "parser", "SUCCESSFULLY PARSED MACRO {}", m.name);
-                        self.check_duplicate_macro(&contract, &m)?;
                         contract.macros.insert(m.name.clone(), m);
                     }
                     TokenKind::Test => {
                         let m = self.parse_macro(&mut contract)?;
                         tracing::info!(target: "parser", "SUCCESSFULLY PARSED TEST {}", m.name);
-                        self.check_duplicate_macro(&contract, &m)?;
                         contract.macros.insert(m.name.clone(), m);
                     }
                     TokenKind::JumpTable | TokenKind::JumpTablePacked | TokenKind::CodeTable => {
@@ -213,21 +211,6 @@ impl Parser {
             })
         } else {
             contract.labels.insert(key);
-            Ok(())
-        }
-    }
-
-    /// Checks if there is a duplicate macro name
-    pub fn check_duplicate_macro(&self, contract: &Contract, m: &MacroDefinition) -> Result<(), ParserError> {
-        if contract.macros.contains_key(&m.name) {
-            tracing::error!(target: "parser", "DUPLICATE MACRO NAME FOUND: {}",  m.name);
-            Err(ParserError {
-                kind: ParserErrorKind::DuplicateMacro(m.name.to_owned()),
-                hint: Some("Macros, fns and tests share their names, which must be unique".to_string()),
-                spans: AstSpan(vec![m.span[2].clone()]),
-                cursor: self.cursor,
-            })
-        } else {
             Ok(())
         }
     }
@@ -640,6 +623,17 @@ impl Parser {
         })?;
 
         let macro_name: String = self.match_kind(TokenKind::Ident("MACRO_NAME".to_string()))?.to_string();
+
+        // Macros, fns and tests, decorated or not, share their names, so a second one would replace the first
+        if contract.macros.contains_key(&macro_name) {
+            tracing::error!(target: "parser", "DUPLICATE MACRO NAME FOUND: {}", macro_name);
+            return Err(ParserError {
+                kind: ParserErrorKind::DuplicateMacro(macro_name),
+                hint: Some("Macros, fns and tests share their names, which must be unique".to_string()),
+                spans: AstSpan(self.peek_behind().map(|token| token.span).into_iter().collect()),
+                cursor: self.cursor,
+            });
+        }
 
         // Check for reserved builtin function names
         if BuiltinFunctionKind::is_reserved_name(&macro_name) {

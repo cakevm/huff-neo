@@ -1200,7 +1200,7 @@ fn test_duplicate_macro_error() {
                     kind: ParserErrorKind::DuplicateMacro("MINT".to_string()),
                     hint: Some("Macros, fns and tests share their names, which must be unique".to_string()),
                     spans: AstSpan(vec![Span { start: occurrences[1].0, end: occurrences[1].1, file: None }]),
-                    cursor: 58,
+                    cursor: 40,
                 }
             )
         }
@@ -1331,9 +1331,16 @@ fn macro_with_assert_pc_constant() {
 #[test]
 fn test_test_named_like_a_macro_error() {
     // A test would replace the macro it shares a name with, so an invocation would reach the test
-    let source = "#define macro FOO() = { 0x01 }\n#define test FOO() = { FOO() }";
-    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
-    let tokens = Lexer::new(flattened_source).map(|x| x.unwrap()).collect::<Vec<Token>>();
-    let error = Parser::new(tokens, None).parse().unwrap_err();
-    assert_eq!(error.kind, ParserErrorKind::DuplicateMacro(String::from("FOO")));
+    for source in [
+        "#define macro FOO() = { 0x01 }\n#define test FOO() = { FOO() }",
+        "#define macro FOO() = { 0x01 }\n#[skip]\n#define test FOO() = { FOO() }",
+    ] {
+        let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+        let tokens = Lexer::new(flattened_source).map(|x| x.unwrap()).collect::<Vec<Token>>();
+        let error = Parser::new(tokens, None).parse().unwrap_err();
+        assert_eq!(error.kind, ParserErrorKind::DuplicateMacro(String::from("FOO")));
+        // The error points at the name of the second definition
+        let name = source.find("test FOO").unwrap() + "test ".len();
+        assert_eq!((error.spans.0[0].start, error.spans.0[0].end), (name, name + 3));
+    }
 }

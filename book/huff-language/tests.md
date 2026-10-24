@@ -25,10 +25,10 @@ A test can call [Foundry cheatcodes](https://getfoundry.sh/reference/cheatcodes/
 `0x7109709ECfa91a80626fF3989D68f67F5b1DD12D`, for example to change the block in the middle of a test.
 [foundry-huff-neo](https://github.com/cakevm/foundry-huff-neo) provides every cheatcode as a macro, such as
 `VM_WARP`, with assertions such as `ASSERT_EQ`. Install it with `forge install cakevm/foundry-huff-neo` and include
-it with `#include "foundry-huff-neo/test.huff"`. As in forge, a library in `lib/` is found without a remapping;
-remappings in `foundry.toml` or `remappings.txt` take precedence.
+it with `#include "foundry-huff-neo/test.huff"`. As in forge, a library in the `lib/` folder of the working directory
+is found without a remapping; remappings in `foundry.toml` or `remappings.txt` take precedence.
 
-A failed cheatcode reverts, as in `forge test`, and a failed `vm.assert*` is a failed cheatcode. A test that passes
+A failed cheatcode, such as a failed `vm.assert*`, reverts as in `forge test`. A test that passes
 the revert on, as the foundry-huff-neo macros do, stops there and fails with the cheatcode's message, even when it
 expects a revert. A test that ignores the call's success flag carries on as if the cheatcode had succeeded.
 
@@ -156,7 +156,8 @@ unexpected revert is reported.
 
 ### Skipping a test
 `skip` skips a test, with an optional reason. A skipped test is not compiled or run, so it may be unfinished. A test
-can also skip itself while it runs with `vm.skip(true)`, for example when it needs a fork. Skipped tests are listed
+can also skip itself while it runs by calling `vm.skip(true)` and passing its revert on, for example when it needs a
+fork. Skipped tests are listed
 as `[SKIP]` and never fail the run.
 
 ```javascript
@@ -210,7 +211,8 @@ A failing test lists every expectation it did not meet:
 ```
 
 With `--format json`, each result has a `passed` flag, an `outcome` (`return`, `revert`, `halt` or `skip`, with its
-data or reason) and the list of `failures`. `hnc test` exits with status 1 when a test fails.
+data or reason) and the list of `failures`. A skipped test has the status `Skipped` and `passed` set to `false`.
+`hnc test` exits with status 1 when a test fails, but not for skipped tests.
 
 Run with `-vv` to see console logs, `-vvv` to see the execution trace of failing tests, `-vvvv` for the traces of all
 tests, and `-vvvvv` to add storage changes to the traces, as in `forge test`. See the [CLI Resources](../cli.md).

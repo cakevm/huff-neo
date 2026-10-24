@@ -213,7 +213,7 @@ fn describe_revert(data: &[u8], contract: &Contract) -> String {
     let error = data.get(..4).and_then(|selector| contract.errors.iter().find(|e| e.selector == selector));
     match error {
         Some(error) => format!("{} ({})", display_hex(data), error.name),
-        None => match RevertDecoder::new().maybe_decode(data, None) {
+        None => match RevertDecoder::new().maybe_decode_known(data) {
             Some(message) => format!("{} ({message})", display_hex(data)),
             None => display_hex(data),
         },
