@@ -2,9 +2,14 @@ use crate::errors::RunnerError;
 use crate::runner::db_error;
 use crate::spec::{AccountValue, ExpectedSlot, ExpectedValue};
 use alloy_primitives::{U256, hex};
+use foundry_evm_core::decode::RevertDecoder;
 use huff_neo_utils::prelude::Contract;
 use revm::DatabaseRef;
 use serde::Serialize;
+
+/// Selector of Foundry's `CheatcodeError(string)`, the revert data of a failed cheatcode such as a
+/// failed `vm.assert*`
+const CHEATCODE_ERROR_SELECTOR: [u8; 4] = hex!("eeaa9e6f");
 
 /// How the test call ended
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -75,7 +80,13 @@ impl Expectations {
     pub fn check(&self, outcome: &Outcome, gas: u64, contract: &Contract) -> Vec<Failure> {
         let mut failures = Vec::new();
 
-        if let Some(message) = self.outcome_mismatch(outcome, contract) {
+        // A failed cheatcode, such as a failed `vm.assert*`, fails the test even where a revert is expected
+        if let Outcome::Revert { data } = outcome
+            && let data = decode_hex(data)
+            && data.starts_with(&CHEATCODE_ERROR_SELECTOR)
+        {
+            failures.push(Failure { expectation: String::from("cheatcode"), message: RevertDecoder::new().decode(&data, None) });
+        } else if let Some(message) = self.outcome_mismatch(outcome, contract) {
             let expectation = self.outcome_flag.as_deref().unwrap_or("outcome");
             failures.push(Failure { expectation: expectation.to_string(), message });
         }
@@ -189,12 +200,16 @@ fn describe_outcome(outcome: &Outcome, contract: &Contract) -> String {
     }
 }
 
-/// Revert data as hex, named after the contract's error when its selector matches one
+/// Revert data as hex, named after the contract's error when its selector matches one, or with its
+/// message when it is a standard error such as `Error(string)` or a failed cheatcode
 fn describe_revert(data: &[u8], contract: &Contract) -> String {
     let error = data.get(..4).and_then(|selector| contract.errors.iter().find(|e| e.selector == selector));
     match error {
         Some(error) => format!("{} ({})", display_hex(data), error.name),
-        None => display_hex(data),
+        None => match RevertDecoder::new().maybe_decode(data, None) {
+            Some(message) => format!("{} ({message})", display_hex(data)),
+            None => display_hex(data),
+        },
     }
 }
 

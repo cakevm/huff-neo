@@ -72,10 +72,10 @@ impl Default for TestRunner {
     }
 }
 
-/// Settings for Foundry cheatcodes in `hnc test`. A failed `vm.assert*` fails the test through
-/// Foundry's failure flag instead of a revert, so it can never count as an expected revert.
+/// Settings for Foundry cheatcodes in `hnc test`. A failed `vm.assert*` reverts, as in `forge test`,
+/// so the test stops there and the failure survives a `vm.revertToState`.
 pub fn cheats_config(config: CheatsConfig) -> CheatsConfig {
-    CheatsConfig { assertions_revert: false, ..config }
+    CheatsConfig { assertions_revert: true, ..config }
 }
 
 impl TestRunner {

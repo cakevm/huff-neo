@@ -22,9 +22,15 @@ Foundry's test address `0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496` and called f
 `0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38`, unless `caller(..)`, `--sender` or `--target-address` change them.
 
 A test can call [Foundry cheatcodes](https://getfoundry.sh/reference/cheatcodes/overview) at
-`0x7109709ECfa91a80626fF3989D68f67F5b1DD12D`, for example to change the block in the middle of a test. A failed
-`vm.assert*` fails the test; run with `-vv` to see its message. For tests written in Solidity that call a deployed
-Huff contract, use Foundry with [foundry-huff-neo](https://github.com/cakevm/foundry-huff-neo).
+`0x7109709ECfa91a80626fF3989D68f67F5b1DD12D`, for example to change the block in the middle of a test.
+[foundry-huff-neo](https://github.com/cakevm/foundry-huff-neo) provides every cheatcode as a macro, such as
+`VM_WARP`, with assertions such as `ASSERT_EQ`.
+
+A failed cheatcode reverts, as in `forge test`, and a failed `vm.assert*` is a failed cheatcode. A test that passes
+the revert on, as the foundry-huff-neo macros do, stops there and fails with the cheatcode's message, even when it
+expects a revert. A test that ignores the call's success flag carries on as if the cheatcode had succeeded.
+
+For tests written in Solidity that call a deployed Huff contract, use Foundry with foundry-huff-neo.
 
 ## Decorators
 Decorators sit directly above a test and hold one or more flags: `#[flag_a(inputs...), flag_b(inputs...)]`. A test

@@ -3,6 +3,9 @@
 # Huff Neo Compiler changelog
 
 ## Unreleased
+- **Breaking**: Stop a test at a failed `vm.assert*`, as `forge test` does, instead of letting it run on.
+  - A failed cheatcode reverts, and it fails the test even when the test expects a revert or reverts to a state snapshot afterwards.
+- Fix test failures showing cheatcode errors and `Error(string)` reverts as raw hex instead of their message.
 
 ## [1.7.0] - 2026-10-24
 - Add the `deal(address, wei)`, `etch(address, bytes...)` and `nonce(address, n)` test decorators to set balances, code and nonces before a test runs.
