@@ -806,6 +806,12 @@ impl Codegen {
         let is_top_level = scope_mgr.depth() == 1;
         if is_top_level {
             let bytes_before = bytes.len();
+            // A test may end by running off its code, which must stop instead of entering the
+            // functions appended after it
+            if macro_def.test && contract.macros.values().any(|m| m.outlined) {
+                bytes.push_with_offset(offset, Bytes::Raw(Opcode::Stop.to_string()));
+                offset += 1;
+            }
             bytes = Codegen::append_functions(
                 evm_version,
                 contract,

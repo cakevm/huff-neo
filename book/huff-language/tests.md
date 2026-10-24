@@ -34,6 +34,14 @@ Available decorators include:
 * `value(word)` - Set the callvalue of the test transaction, e.g. `value(0x01)` or `value([AMOUNT])`.
 * `store(slot, value, at = address)` - Set a storage slot before the test runs. `at` is optional and defaults to the
   test itself. `store` can be repeated, but setting the same slot of the same address twice is an error.
+* `deal(address, wei)` - Set the balance of an account before the test runs. The sender of the test has an unlimited
+  balance unless it is dealt one.
+* `etch(address, bytes...)` - Put code at an address before the test runs, e.g. `etch(0x1000, "0x5f5ff3")`. The
+  arguments are joined into one byte sequence like those of `calldata`. The test itself and its sender cannot be etched.
+* `nonce(address, n)` - Set the nonce of an account before the test runs.
+
+`store`, `deal`, `etch` and `nonce` can be repeated, but setting the same slot, balance, code or nonce of the same
+address twice is an error.
 
 The test transaction and its block can be changed with these decorators, each taking one value:
 
@@ -100,6 +108,32 @@ A test passes when it ends the way its decorators expect. Without an expectation
 | `expect_halt("Reason")`           | halts for this reason                                             |
 | `expect_return(bytes...)`         | returns exactly this data; `expect_return` alone means no data    |
 | `expect_gas(min = n, max = m)`    | uses at least `min` and at most `max` gas; either can be left out |
+
+The state after the test can be checked too. These expectations can be repeated, once per slot or address:
+
+| Decorator                                   | The test passes when, after the test                        |
+|---------------------------------------------|-------------------------------------------------------------|
+| `expect_storage(slot, value, at = address)` | the slot holds this value; `at` defaults to the test itself |
+| `expect_storage(slot, min = n, max = m)`    | the slot holds a value from `min` to `max`                  |
+| `expect_balance(address, wei)`              | the account holds exactly this balance                      |
+| `expect_balance(address, min = n, max = m)` | the balance is from `min` to `max`                          |
+
+Bounds are inclusive, like those of `expect_gas`, and either one can be left out: `min = 1` means at least 1.
+Storage values are compared as unsigned 256-bit numbers. `at` also works together with `min` and `max`.
+
+```javascript
+#define constant COUNTER_SLOT = FREE_STORAGE_POINTER()
+#define macro INCREMENT() = { [COUNTER_SLOT] sload 0x01 add [COUNTER_SLOT] sstore }
+#define macro MAIN() = { INCREMENT() stop }
+
+#[value(5), store([COUNTER_SLOT], 0x01)]
+#[expect_storage([COUNTER_SLOT], 0x02), expect_balance(this, 5)]
+#define test INCREMENT_ADDS_ONE() = { INCREMENT() }
+```
+
+A reverted or halted test keeps no state, so `expect_storage` and `expect_balance` cannot be combined with
+`expect_revert`, `expect_partial_revert` or `expect_halt`. When a test reverts without expecting it, only the
+unexpected revert is reported.
 
 The arguments of `expect_revert`, `expect_partial_revert` and `expect_return` are byte sequences, built like the
 arguments of `calldata`:

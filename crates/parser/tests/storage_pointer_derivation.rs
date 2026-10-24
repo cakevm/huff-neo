@@ -72,3 +72,38 @@ fn derives_storage_pointers() {
     assert_eq!(contract.constants.lock().unwrap()[1].value, ConstVal::FreeStoragePointer(FreeStoragePointer));
     assert_eq!(contract.constants.lock().unwrap()[2].value, ConstVal::Bytes(Bytes::Raw("a57b".to_string())));
 }
+
+#[test]
+fn derives_storage_pointers_used_only_by_tests_after_the_contracts() {
+    let source = r#"
+    #define constant TEST_ONLY = FREE_STORAGE_POINTER()
+    #define constant DECORATOR_ONLY = FREE_STORAGE_POINTER()
+    #define constant MAIN_SLOT = FREE_STORAGE_POINTER()
+    #define constant UNUSED = FREE_STORAGE_POINTER()
+    #define macro HELPER() = { [TEST_ONLY] sload }
+    #define macro MAIN() = { [MAIN_SLOT] sload }
+    #[store([DECORATOR_ONLY], 0x01)]
+    #define test T() = { HELPER() [MAIN_SLOT] sload }
+    "#;
+
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let lexer = Lexer::new(flattened_source);
+    let tokens = lexer.into_iter().map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut parser = Parser::new(tokens, None);
+    let mut contract = parser.parse().unwrap();
+    assert_eq!(parser.current_token.kind, TokenKind::Eof);
+
+    // Derive the AST's free storage pointers
+    contract.derive_storage_pointers();
+
+    // MAIN keeps slot 0, pointers only the test uses follow in order of use, and unused pointers get none
+    let constants = contract.constants.lock().unwrap();
+    assert_eq!(constants[2].name, "MAIN_SLOT");
+    assert_eq!(constants[2].value, ConstVal::StoragePointer(str_to_bytes32("0")));
+    assert_eq!(constants[0].name, "TEST_ONLY");
+    assert_eq!(constants[0].value, ConstVal::StoragePointer(str_to_bytes32("1")));
+    assert_eq!(constants[1].name, "DECORATOR_ONLY");
+    assert_eq!(constants[1].value, ConstVal::StoragePointer(str_to_bytes32("2")));
+    assert_eq!(constants[3].name, "UNUSED");
+    assert_eq!(constants[3].value, ConstVal::FreeStoragePointer(FreeStoragePointer));
+}

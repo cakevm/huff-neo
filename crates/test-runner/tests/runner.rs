@@ -1,4 +1,4 @@
-use alloy_primitives::{U256, address, hex};
+use alloy_primitives::{Address, KECCAK256_EMPTY, U256, address, hex, keccak256};
 use foundry_evm::backend::DatabaseError;
 use huff_neo_lexer::Lexer;
 use huff_neo_parser::Parser;
@@ -402,6 +402,9 @@ fn with_error(test: &str) -> String {
     format!("#define error Unauthorized()\n{test}")
 }
 
+/// The address `0x1000`, which the account tests use as a second account
+const OTHER: Address = address!("0000000000000000000000000000000000001000");
+
 /// A test body that reverts with the selector of `Unauthorized()`
 const REVERT_UNAUTHORIZED: &str = "{ __ERROR(Unauthorized) 0x00 mstore 0x04 0x00 revert }";
 
@@ -539,4 +542,226 @@ fn test_runner_fails_a_test_calling_cheatcodes() {
     let result = run_test_t(source);
     assert!(!result.passed);
     assert_eq!(result.failures[0].expectation, "cheatcodes");
+}
+
+#[test]
+fn test_runner_applies_deal_decorator() {
+    let source = r#"
+    #define constant AMOUNT = 0x0100
+    #[deal(this, 7), deal(0x1000, [AMOUNT]), deal(caller, 9)]
+    #define test T() = {
+        selfbalance 0x00 mstore
+        0x1000 balance 0x20 mstore
+        caller balance 0x40 mstore
+        0x60 0x00 return
+    }
+    "#;
+
+    let result = run_test_t(source);
+    assert!(result.passed, "{:?}", result.failures);
+    // A dealt sender keeps its balance instead of the runner's funding, as the test pays no gas
+    assert_eq!(result.return_data, Some(format!("{:064x}{:064x}{:064x}", 7, 0x100, 9)));
+}
+
+#[test]
+fn test_runner_applies_etch_decorator() {
+    // The etched code returns the word 0x2a
+    let code = "602a5f5260205ff3";
+    let source = format!(
+        r#"
+    #[etch(0x1000, "0x{code}")]
+    #define test T() = {{
+        0x20 0x00 0x00 0x00 0x1000 gas staticcall pop
+        0x1000 extcodehash 0x20 mstore
+        0x40 0x00 return
+    }}
+    "#
+    );
+
+    let result = run_test_t(&source);
+    assert!(result.passed, "{:?}", result.failures);
+    let code_hash = keccak256(hex::decode(code).unwrap());
+    assert_eq!(result.return_data, Some(format!("{:064x}{}", 0x2a, hex::encode(code_hash))));
+}
+
+#[test]
+fn test_runner_applies_nonce_decorator() {
+    let source = "#[nonce(0x1000, 5), nonce(caller, 7)]\n#define test T() = { stop }";
+
+    let mut db = TestDb::default();
+    let result = run_source_test_in(&mut db, source, "T").unwrap();
+    assert!(result.passed, "{:?}", result.failures);
+    assert_eq!(db.basic(OTHER).unwrap().unwrap().nonce, 5);
+    // The test transaction is sent with the sender's nonce and increments it
+    assert_eq!(db.basic(TestRunner::default().env.tx.caller).unwrap().unwrap().nonce, 8);
+}
+
+#[test]
+fn test_runner_fresh_dealt_account_has_empty_code_hash() {
+    let source = "#[deal(0x1000, 1)]\n#define test T() = { 0x1000 extcodehash 0x00 mstore 0x20 0x00 return }";
+
+    let result = run_test_t(source);
+    assert_eq!(result.return_data, Some(hex::encode(KECCAK256_EMPTY)));
+}
+
+#[test]
+fn test_runner_expect_storage_and_balance_pass() {
+    let source = r#"
+    #define constant SLOT = FREE_STORAGE_POINTER()
+    #define macro MAIN() = { [SLOT] sload }
+    #[value(5)]
+    #[expect_storage([SLOT], 0x2a), expect_storage(0x01, 0x07, at = 0x1000), expect_balance(this, 5)]
+    #[store(0x01, 0x07, at = 0x1000)]
+    #define test T() = { 0x2a [SLOT] sstore }
+    "#;
+
+    let result = run_test_t(source);
+    assert!(result.passed, "{:?}", result.failures);
+}
+
+#[test]
+fn test_runner_expect_storage_and_balance_report_mismatches() {
+    let source = "#[expect_storage(0x00, 0x05), expect_balance(0x1000, 3)]\n#define test T() = { 0x04 0x00 sstore }";
+
+    let this = run_test_t(source).address.unwrap();
+    assert_eq!(
+        failures(source),
+        vec![
+            (String::from("expect_storage"), format!("slot 0x0 at {this}: expected 0x5, got 0x4")),
+            (String::from("expect_balance"), format!("balance of {OTHER}: expected 3, got 0")),
+        ]
+    );
+}
+
+#[test]
+fn test_runner_skips_post_state_checks_when_the_test_does_not_return() {
+    // The revert rolled the state back, so only the outcome is reported
+    let failures = failures("#[expect_storage(0x00, 0x01)]\n#define test T() = { 0x01 0x00 sstore 0x00 0x00 revert }");
+    assert_eq!(failures.iter().map(|f| f.0.as_str()).collect::<Vec<_>>(), vec!["outcome"]);
+}
+
+#[test]
+fn test_runner_rejects_post_state_checks_on_a_reverting_test() {
+    for outcome in ["expect_revert", "expect_partial_revert(0x01)", "expect_halt"] {
+        let err = decorator_error(&format!("#[expect_balance(this, 0)]\n#[{outcome}]\n#define test T() = {{ stop }}"));
+        assert_eq!(err.flag, "expect_balance", "{outcome}");
+        assert_eq!(err.kind, DecoratorErrorKind::Conflict, "{outcome}");
+        assert_eq!(err.span.0.len(), 2, "the error points at both flags");
+    }
+    // Returning keeps the state, so it can be checked
+    assert!(run_test_t("#[expect_return, expect_storage(0x00, 0x00)]\n#define test T() = { stop }").passed);
+}
+
+#[test]
+fn test_runner_rejects_pre_and_post_state_on_the_same_account_twice() {
+    for flags in [
+        "deal(0x1000, 1), deal(4096, 2)",
+        "etch(0x1000, 0x00), etch(0x1000, 0x01)",
+        "nonce(0x1000, 1), nonce(0x1000, 2)",
+        "expect_balance(this, 1), expect_balance(this, 2)",
+        "expect_storage(0x01, 0x01), expect_storage(1, 0x02, at = this)",
+    ] {
+        let err = decorator_error(&format!("#[{flags}]\n#define test T() = {{ stop }}"));
+        assert_eq!(err.kind, DecoratorErrorKind::Duplicate, "{flags}");
+        assert_eq!(err.span.0.len(), 2, "the error points at both flags");
+    }
+    // Different flags may name the same address
+    assert!(
+        run_test_t("#[deal(0x1000, 1), nonce(0x1000, 1), etch(0x1000, 0x00), expect_balance(0x1000, 1)]\n#define test T() = { stop }")
+            .passed
+    );
+}
+
+#[test]
+fn test_runner_rejects_etching_the_test_or_its_sender() {
+    for target in ["this", "caller"] {
+        let err = decorator_error(&format!("#[etch({target}, 0x00)]\n#define test T() = {{ stop }}"));
+        assert_eq!(err.kind, DecoratorErrorKind::InvalidValue, "{target}");
+    }
+    let err = decorator_error("#[caller(0xbeef), etch(0xbeef, 0x00)]\n#define test T() = { stop }");
+    assert_eq!(err.kind, DecoratorErrorKind::InvalidValue);
+}
+
+#[test]
+fn test_runner_rejects_wrong_pre_and_post_state_arguments() {
+    for (flag, kind) in [
+        ("deal(0x1000)", DecoratorErrorKind::InvalidArguments),
+        ("deal(0x1000, 1, 2)", DecoratorErrorKind::InvalidArguments),
+        ("etch(0x1000)", DecoratorErrorKind::InvalidArguments),
+        ("nonce(0x1000, 0x010000000000000000)", DecoratorErrorKind::InvalidValue),
+        ("expect_storage(0x01)", DecoratorErrorKind::InvalidArguments),
+        ("expect_storage(0x01, 0x02, to = 0x03)", DecoratorErrorKind::InvalidArguments),
+        ("expect_balance(this)", DecoratorErrorKind::InvalidArguments),
+        ("expect_balance(0x010000000000000000000000000000000000000000, 1)", DecoratorErrorKind::InvalidValue),
+        ("expect_balance(this, 1, min = 0)", DecoratorErrorKind::InvalidArguments),
+        ("expect_balance(this, gt = 1)", DecoratorErrorKind::InvalidArguments),
+        ("expect_balance(this, min = 6, max = 5)", DecoratorErrorKind::InvalidValue),
+        ("expect_storage(0x01, 0x02, max = 3)", DecoratorErrorKind::InvalidArguments),
+        ("expect_storage(0x01, at = 0x1000)", DecoratorErrorKind::InvalidArguments),
+        ("expect_storage(0x01, min = 3, max = 2)", DecoratorErrorKind::InvalidValue),
+    ] {
+        assert_eq!(decorator_error(&format!("#[{flag}]\n#define test T() = {{ stop }}")).kind, kind, "{flag}");
+    }
+}
+
+#[test]
+fn test_runner_expect_balance_and_storage_check_inclusive_bounds() {
+    // The test holds 5 wei and stores 5 in slot 0 after the call
+    let test = "#define test T() = { 0x05 0x00 sstore }";
+    for (bounds, passes) in [
+        ("min = 5", true),
+        ("min = 6", false),
+        ("max = 5", true),
+        ("max = 4", false),
+        ("min = 5, max = 5", true),
+        ("min = 0, max = 4", false),
+    ] {
+        let result = run_test_t(&format!("#[value(5), expect_balance(this, {bounds}), expect_storage(0x00, {bounds})]\n{test}"));
+        assert_eq!(result.passed, passes, "{bounds}: {:?}", result.failures);
+        assert_eq!(result.failures.len(), if passes { 0 } else { 2 }, "{bounds}");
+    }
+
+    let failures = failures(&format!("#[value(5), expect_balance(this, min = 6, max = 9), expect_storage(0x00, max = 4)]\n{test}"));
+    assert!(failures[0].1.ends_with("expected at most 0x4, got 0x5"), "{failures:?}");
+    assert!(failures[1].1.ends_with("expected at least 6 and at most 9, got 5"), "{failures:?}");
+}
+
+#[test]
+fn test_runner_expectation_bounds_accept_hex_decimal_and_constants() {
+    let source = r#"
+    #define constant CAP = 0x0a
+    #[value(5), store(0x00, 7)]
+    #[expect_balance(this, min = 0x05, max = [CAP]), expect_storage(0x00, min = 7, max = [CAP])]
+    #define test T() = { stop }
+    "#;
+
+    let result = run_test_t(source);
+    assert!(result.passed, "{:?}", result.failures);
+}
+
+#[test]
+fn test_runner_resolves_storage_pointers_used_only_by_tests() {
+    // No MAIN uses the pointer: the test reaches it through a macro and a decorator
+    let source = r#"
+    #define constant COUNTER_SLOT = FREE_STORAGE_POINTER()
+    #define macro INCREMENT() = { [COUNTER_SLOT] sload 0x01 add [COUNTER_SLOT] sstore }
+    #[store([COUNTER_SLOT], 0x01), expect_storage([COUNTER_SLOT], 0x02)]
+    #define test T() = { INCREMENT() }
+    "#;
+
+    let result = run_test_t(source);
+    assert!(result.passed, "{:?}", result.failures);
+}
+
+#[test]
+fn test_runner_test_calling_a_fn_ends_without_entering_it() {
+    // The functions are appended after the test, which ends by running off its code
+    let source = r#"
+    #define fn INCREMENT() = takes (1) returns (1) { 0x01 add }
+    #[expect_storage(0x00, 0x03)]
+    #define test T() = { 0x02 INCREMENT() 0x00 sstore }
+    "#;
+
+    let result = run_test_t(source);
+    assert!(result.passed, "{:?}", result.failures);
 }

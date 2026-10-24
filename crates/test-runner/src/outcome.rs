@@ -1,5 +1,9 @@
-use alloy_primitives::hex;
+use crate::errors::RunnerError;
+use crate::runner::db_error;
+use crate::spec::{AccountValue, ExpectedSlot, ExpectedValue};
+use alloy_primitives::{U256, hex};
 use huff_neo_utils::prelude::Contract;
+use revm::Database;
 use serde::Serialize;
 
 /// How the test call ended
@@ -47,11 +51,22 @@ pub struct Expectations {
     pub min_gas: Option<u64>,
     /// Upper bound of the reported gas
     pub max_gas: Option<u64>,
+    /// Storage slots and the values they must hold after the test
+    pub storage: Vec<ExpectedSlot>,
+    /// Balances accounts must hold after the test
+    pub balances: Vec<AccountValue<ExpectedValue>>,
 }
 
 impl Default for Expectations {
     fn default() -> Self {
-        Self { outcome: ExpectedOutcome::Return(None), outcome_flag: None, min_gas: None, max_gas: None }
+        Self {
+            outcome: ExpectedOutcome::Return(None),
+            outcome_flag: None,
+            min_gas: None,
+            max_gas: None,
+            storage: Vec::new(),
+            balances: Vec::new(),
+        }
     }
 }
 
@@ -76,6 +91,36 @@ impl Expectations {
         }
 
         failures
+    }
+
+    /// The storage and balance expectations the state after the test does not meet
+    pub fn check_post_state<DB>(&self, db: &mut DB) -> Result<Vec<Failure>, RunnerError>
+    where
+        DB: Database,
+        <DB as Database>::Error: std::fmt::Debug,
+    {
+        let mut failures = Vec::new();
+
+        for ExpectedSlot { address, slot, expected } in &self.storage {
+            let actual = db.storage(*address, *slot).map_err(db_error)?;
+            if !expected.matches(actual) {
+                failures.push(Failure {
+                    expectation: String::from("expect_storage"),
+                    message: format!("slot {slot:#x} at {address}: expected {}, got {actual:#x}", expected.describe(|v| format!("{v:#x}"))),
+                });
+            }
+        }
+        for AccountValue { address, value: expected } in &self.balances {
+            let actual = db.basic(*address).map_err(db_error)?.map_or(U256::ZERO, |account| account.balance);
+            if !expected.matches(actual) {
+                failures.push(Failure {
+                    expectation: String::from("expect_balance"),
+                    message: format!("balance of {address}: expected {}, got {actual}", expected.describe(|v| v.to_string())),
+                });
+            }
+        }
+
+        Ok(failures)
     }
 
     /// Describes how the outcome differs from the expected one, if it does

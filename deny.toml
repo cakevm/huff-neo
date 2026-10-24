@@ -58,6 +58,12 @@ ignore = [
   # above; not reachable from hnc and no fixed release on that path.
   # https://rustsec.org/advisories/RUSTSEC-2026-0369
   "RUSTSEC-2026-0369",
+  # crypto-bigint: timing variability in operations meant to be constant-time. 0.7.x is updated
+  # to the fixed 0.7.6, but 0.5.5 stays pinned by alloy-signer -> k256 -> elliptic-curve 0.13 and
+  # the 0.5 line has no fix. hnc never signs with a secret key, and verifying a signature only
+  # handles public data, so a timing leak exposes nothing.
+  # https://rustsec.org/advisories/RUSTSEC-2026-0387
+  "RUSTSEC-2026-0387",
 ]
 yanked = "warn"
 
