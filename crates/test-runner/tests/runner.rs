@@ -854,6 +854,20 @@ fn test_runner_test_calling_a_fn_ends_without_entering_it() {
 }
 
 #[test]
+fn test_runner_test_using_a_table_ends_without_entering_it() {
+    // The tables are appended after the test, which ends by running off its code and would halt on
+    // the table's invalid opcode 0xfe unless it stops first
+    let source = r#"
+    #define table TABLE { 0xfe }
+    #[expect_storage(0x00, 0x01)]
+    #define test T() = { __tablesize(TABLE) 0x00 sstore }
+    "#;
+
+    let result = run_test_t(source);
+    assert!(result.passed, "{:?} {:?}", result.outcome, result.failures);
+}
+
+#[test]
 fn test_runner_uses_foundrys_test_and_sender_addresses() {
     let source = "#define test T() = { address 0x00 mstore caller 0x20 mstore 0x40 0x00 return }";
     let result = run_test_t(source);
