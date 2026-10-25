@@ -287,8 +287,14 @@ impl<'a> Lexer<'a> {
                         found_kind = Some(TokenKind::Label(word.clone()));
                     }
 
+                    // A word between `<` and `>` refers to a macro argument, so a parameter may be
+                    // named like an opcode or a keyword, such as `<pc>`
+                    let is_arg_reference =
+                        self.checked_lookback(TokenKind::LeftAngle) && self.chars.clone().find(|c| !c.is_whitespace()) == Some('>');
+
                     // Syntax sugar: true evaluates to 0x01, false evaluates to 0x00
-                    if matches!(self.context_stack.top(), &Context::MacroBody | &Context::ForLoopBody | &Context::Constant | &Context::MacroArgs)
+                    if !is_arg_reference
+                        && matches!(self.context_stack.top(), &Context::MacroBody | &Context::ForLoopBody | &Context::Constant | &Context::MacroArgs)
                         && !self.checked_lookback(TokenKind::Constant) // allow to use `true` and `false` as identifiers
                         && matches!(word.as_str(), "true" | "false")
                     {
@@ -297,39 +303,22 @@ impl<'a> Lexer<'a> {
                         self.eat_while(None, |c| c.is_alphanumeric());
                     }
 
-                    // Check for loop keywords in MacroBody or ForLoopBody context
-                    if matches!(self.context_stack.top(), &Context::MacroBody | &Context::ForLoopBody) && found_kind.is_none() {
-                        match word.as_str() {
-                            "for" => {
-                                debug!(target: "lexer", "FOUND FOR KEYWORD");
-                                found_kind = Some(TokenKind::For);
-                            }
-                            "in" => {
-                                debug!(target: "lexer", "FOUND IN KEYWORD");
-                                found_kind = Some(TokenKind::In);
-                            }
-                            "step" => {
-                                debug!(target: "lexer", "FOUND STEP KEYWORD");
-                                found_kind = Some(TokenKind::Step);
-                            }
-                            "if" => {
-                                debug!(target: "lexer", "FOUND IF KEYWORD");
-                                found_kind = Some(TokenKind::If);
-                            }
-                            "else" => {
-                                debug!(target: "lexer", "FOUND ELSE KEYWORD");
-                                found_kind = Some(TokenKind::Else);
-                            }
-                            _ => {}
-                        }
-                    }
-
+                    // Keywords and opcodes in MacroBody or ForLoopBody context
                     if matches!(self.context_stack.top(), &Context::MacroBody | &Context::ForLoopBody)
                         && found_kind.is_none()
-                        && let Some(o) = OPCODES_MAP.get(&word)
+                        && !is_arg_reference
                     {
-                        debug!(target: "lexer", "FOUND OPCODE '{:?}'", o);
-                        found_kind = Some(TokenKind::Opcode(o.to_owned()));
+                        found_kind = match word.as_str() {
+                            "for" => Some(TokenKind::For),
+                            "in" => Some(TokenKind::In),
+                            "step" => Some(TokenKind::Step),
+                            "if" => Some(TokenKind::If),
+                            "else" => Some(TokenKind::Else),
+                            _ => OPCODES_MAP.get(&word).map(|o| TokenKind::Opcode(o.to_owned())),
+                        };
+                        if let Some(kind) = &found_kind {
+                            debug!(target: "lexer", "FOUND {:?}", kind);
+                        }
                     }
 
                     if self.context_stack.top() == &Context::AbiArgs {

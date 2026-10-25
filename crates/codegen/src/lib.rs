@@ -831,8 +831,9 @@ impl Codegen {
         if is_top_level {
             let bytes_before = bytes.len();
             // A test may end by running off its code, which must stop instead of entering the
-            // functions appended after it
-            if macro_def.test && contract.macros.values().any(|m| m.outlined) {
+            // functions and code tables appended after it
+            let has_appended_code = contract.macros.values().any(|m| m.outlined) || !utilized_tables.is_empty();
+            if macro_def.test && has_appended_code {
                 bytes.push_with_offset(offset, Bytes::Raw(Opcode::Stop.to_string()));
                 offset += 1;
             }

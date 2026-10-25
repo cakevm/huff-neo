@@ -3,6 +3,8 @@
 # Huff Neo Compiler changelog
 
 ## Unreleased
+- Fix a test that ends without `stop` or `return` running into the tables placed after it.
+- Fix macro parameters named like an opcode or a keyword, such as `<pc>` or `<true>`, failing with "Invalid Argument Call Identifier".
 
 ## [1.7.1] - 2026-10-24
 - Add the `skip` test decorator, with an optional reason, to skip a test without compiling or running it.

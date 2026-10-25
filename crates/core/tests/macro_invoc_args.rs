@@ -69,6 +69,29 @@ fn test_opcode_macro_args() {
 }
 
 #[test]
+fn test_macro_params_named_like_opcodes_and_keywords() {
+    // A word between `<` and `>` refers to the argument, not to the opcode or keyword of that name
+    let source = r#"
+        #define macro ADD6(pc, origin, for, if, else, true) = takes(0) returns(1) {
+            <pc> < origin > add <for> add <if> add <else> add <true> add
+        }
+
+        #define macro MAIN() = takes(0) returns(0) {
+            ADD6(0x01, 0x02, 0x03, 0x04, 0x05, 0x06)
+        }
+    "#;
+
+    let flattened_source = FullFileSource { source, file: None, spans: vec![] };
+    let tokens = Lexer::new(flattened_source).map(|x| x.unwrap()).collect::<Vec<Token>>();
+    let mut contract = Parser::new(tokens, None).parse().unwrap();
+    contract.derive_storage_pointers();
+
+    let main_bytecode = Codegen::generate_main_bytecode(&EVMVersion::default(), &contract, None, false).unwrap();
+    // PUSH1 0x01, PUSH1 0x02, ADD, PUSH1 0x03, ADD, ... PUSH1 0x06, ADD
+    assert_eq!(main_bytecode, "6001600201600301600401600501600601");
+}
+
+#[test]
 fn test_arg_call_macro_invocation() {
     // Test simple argument macro invocation without arguments
     let source = r#"
